@@ -1,8 +1,18 @@
+/.agents
 /.phpunit.cache
 /node_modules
 /public/build
 /public/hot
 /public/storage
+/bootstrap/cache/*.php
+/database/*.sqlite
+/storage/app/private/*
+/storage/app/public/*
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/testing/*
+/storage/framework/views/*
+/storage/logs/*
 /storage/*.key
 /storage/pail
 /vendor
@@ -21,3 +31,6 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+.vercel
+.env*

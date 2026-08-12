@@ -68,6 +68,44 @@ npm.cmd audit --omit=dev
 
 ## Production deployment
 
+### Vercel
+
+Vercel builds this application from `Dockerfile.vercel`. The container installs
+Composer dependencies before compiling the Vue assets and listens on Vercel's
+`PORT`.
+
+In Vercel under **Settings > Build and Deployment**, set the Framework Preset
+to **Services**. Disable any existing Build Command and Output Directory
+overrides left by the earlier Vite configuration. The `vercel.json` file
+declares the Laravel container service and routes every request to it; Vercel
+must be in Services mode for that configuration to take effect.
+
+Configure these variables in the Vercel project:
+
+```dotenv
+APP_NAME=ClassCheck
+APP_ENV=production
+APP_KEY=base64:replace-with-php-artisan-key-generate-show
+APP_DEBUG=false
+APP_URL=https://your-project.vercel.app
+LOG_CHANNEL=stderr
+DB_CONNECTION=pgsql
+DB_URL=postgresql://user:password@host:5432/database
+SESSION_DRIVER=database
+CACHE_STORE=database
+QUEUE_CONNECTION=database
+```
+
+Run `php artisan migrate --force` against the production database as a
+separate release step.
+
+Do not use the bundled SQLite database on Vercel. Its containers are stateless,
+so SQLite changes and locally uploaded files do not persist across instances or
+deployments. Configure external object storage before relying on student image
+or assessment attachment uploads in production.
+
+### Traditional server
+
 - Serve the Laravel `public/` directory through HTTPS.
 - Set `APP_ENV=production`, `APP_DEBUG=false`, and the public `APP_URL` used in QR links.
 - Configure MySQL and production mail credentials in `.env`.
