@@ -1,0 +1,154 @@
+[2026-08-10 08:01:39] local.ERROR: There are no commands defined in the "boost" namespace. {"exception":"[object] (Symfony\\Component\\Console\\Exception\\NamespaceNotFoundException(code: 0): There are no commands defined in the \"boost\" namespace. at C:/wamp64/www/Class checker/vendor/symfony/console/Application.php:694)
+[stacktrace]
+#0 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(743): Symfony/Component/Console/Application->findNamespace('boost')
+#1 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(298): Symfony/Component/Console/Application->find('boost:mcp')
+#2 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(195): Symfony/Component/Console/Application->doRun(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#3 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony/Component/Console/Application->run(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#4 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate/Foundation/Console/Kernel->handle(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#5 C:/wamp64/www/Class checker/artisan(16): Illuminate/Foundation/Application->handleCommand(Object(Symfony/Component/Console/Input/ArgvInput))
+#6 {main}
+"} 
+[2026-08-10 08:01:46] local.ERROR: There are no commands defined in the "boost" namespace. {"exception":"[object] (Symfony\\Component\\Console\\Exception\\NamespaceNotFoundException(code: 0): There are no commands defined in the \"boost\" namespace. at C:/wamp64/www/Class checker/vendor/symfony/console/Application.php:694)
+[stacktrace]
+#0 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(743): Symfony/Component/Console/Application->findNamespace('boost')
+#1 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(298): Symfony/Component/Console/Application->find('boost:mcp')
+#2 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(195): Symfony/Component/Console/Application->doRun(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#3 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony/Component/Console/Application->run(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#4 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate/Foundation/Console/Kernel->handle(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#5 C:/wamp64/www/Class checker/artisan(16): Illuminate/Foundation/Application->handleCommand(Object(Symfony/Component/Console/Input/ArgvInput))
+#6 {main}
+"} 
+[2026-08-10 08:01:53] local.ERROR: There are no commands defined in the "boost" namespace. {"exception":"[object] (Symfony\\Component\\Console\\Exception\\NamespaceNotFoundException(code: 0): There are no commands defined in the \"boost\" namespace. at C:/wamp64/www/Class checker/vendor/symfony/console/Application.php:694)
+[stacktrace]
+#0 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(743): Symfony/Component/Console/Application->findNamespace('boost')
+#1 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(298): Symfony/Component/Console/Application->find('boost:mcp')
+#2 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(195): Symfony/Component/Console/Application->doRun(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#3 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony/Component/Console/Application->run(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#4 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate/Foundation/Console/Kernel->handle(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#5 C:/wamp64/www/Class checker/artisan(16): Illuminate/Foundation/Application->handleCommand(Object(Symfony/Component/Console/Input/ArgvInput))
+#6 {main}
+"} 
+[2026-08-10 16:14:56] local.ERROR: Namespace declaration statement has to be the very first statement or after any declare call in the script {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Namespace declaration statement has to be the very first statement or after any declare call in the script at C:/wamp64/www/Class checker/app/Http/Controllers/DashboardController.php:3)
+[stacktrace]
+#0 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(251): Symfony/Component/ErrorHandler/Error/FatalError->__construct(message: ''Namespace decl...', code: '0', error: '['type' => 64, ...', traceOffset: '0', traceArgs: '???', trace: '???')
+#1 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(238): Illuminate/Foundation/Bootstrap/HandleExceptions->fatalErrorFromPhpError(error: '['type' => 64, ...', traceOffset: '0')
+#2 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(262): Illuminate/Foundation/Bootstrap/HandleExceptions->handleShutdown()
+#3 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(0): Illuminate/Foundation/Bootstrap/HandleExceptions->Illuminate/Foundation/Bootstrap/{closure:C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php:261-263}()
+#4 {main}
+"} 
+[2026-08-10 16:15:03] local.ERROR: Namespace declaration statement has to be the very first statement or after any declare call in the script {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Namespace declaration statement has to be the very first statement or after any declare call in the script at C:/wamp64/www/Class checker/app/Http/Controllers/DashboardController.php:3)
+[stacktrace]
+#0 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(251): Symfony/Component/ErrorHandler/Error/FatalError->__construct(message: ''Namespace decl...', code: '0', error: '['type' => 64, ...', traceOffset: '0', traceArgs: '???', trace: '???')
+#1 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(238): Illuminate/Foundation/Bootstrap/HandleExceptions->fatalErrorFromPhpError(error: '['type' => 64, ...', traceOffset: '0')
+#2 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(262): Illuminate/Foundation/Bootstrap/HandleExceptions->handleShutdown()
+#3 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(0): Illuminate/Foundation/Bootstrap/HandleExceptions->Illuminate/Foundation/Bootstrap/{closure:C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php:261-263}()
+#4 {main}
+"} 
+[2026-08-10 16:15:18] local.ERROR: Namespace declaration statement has to be the very first statement or after any declare call in the script {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Namespace declaration statement has to be the very first statement or after any declare call in the script at C:/wamp64/www/Class checker/app/Http/Controllers/DashboardController.php:3)
+[stacktrace]
+#0 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(251): Symfony/Component/ErrorHandler/Error/FatalError->__construct(message: ''Namespace decl...', code: '0', error: '['type' => 64, ...', traceOffset: '0', traceArgs: '???', trace: '???')
+#1 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(238): Illuminate/Foundation/Bootstrap/HandleExceptions->fatalErrorFromPhpError(error: '['type' => 64, ...', traceOffset: '0')
+#2 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(262): Illuminate/Foundation/Bootstrap/HandleExceptions->handleShutdown()
+#3 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(0): Illuminate/Foundation/Bootstrap/HandleExceptions->Illuminate/Foundation/Bootstrap/{closure:C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php:261-263}()
+#4 {main}
+"} 
+[2026-08-11 09:21:02] local.ERROR: There are no commands defined in the "boost" namespace. {"exception":"[object] (Symfony\\Component\\Console\\Exception\\NamespaceNotFoundException(code: 0): There are no commands defined in the \"boost\" namespace. at C:/wamp64/www/Class checker/vendor/symfony/console/Application.php:694)
+[stacktrace]
+#0 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(743): Symfony/Component/Console/Application->findNamespace('boost')
+#1 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(298): Symfony/Component/Console/Application->find('boost:mcp')
+#2 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(195): Symfony/Component/Console/Application->doRun(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#3 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony/Component/Console/Application->run(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#4 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate/Foundation/Console/Kernel->handle(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#5 C:/wamp64/www/Class checker/artisan(16): Illuminate/Foundation/Application->handleCommand(Object(Symfony/Component/Console/Input/ArgvInput))
+#6 {main}
+"} 
+[2026-08-11 09:21:08] local.ERROR: There are no commands defined in the "boost" namespace. {"exception":"[object] (Symfony\\Component\\Console\\Exception\\NamespaceNotFoundException(code: 0): There are no commands defined in the \"boost\" namespace. at C:/wamp64/www/Class checker/vendor/symfony/console/Application.php:694)
+[stacktrace]
+#0 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(743): Symfony/Component/Console/Application->findNamespace('boost')
+#1 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(298): Symfony/Component/Console/Application->find('boost:mcp')
+#2 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(195): Symfony/Component/Console/Application->doRun(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#3 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony/Component/Console/Application->run(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#4 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate/Foundation/Console/Kernel->handle(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#5 C:/wamp64/www/Class checker/artisan(16): Illuminate/Foundation/Application->handleCommand(Object(Symfony/Component/Console/Input/ArgvInput))
+#6 {main}
+"} 
+[2026-08-11 09:21:09] local.ERROR: There are no commands defined in the "boost" namespace. {"exception":"[object] (Symfony\\Component\\Console\\Exception\\NamespaceNotFoundException(code: 0): There are no commands defined in the \"boost\" namespace. at C:/wamp64/www/Class checker/vendor/symfony/console/Application.php:694)
+[stacktrace]
+#0 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(743): Symfony/Component/Console/Application->findNamespace('boost')
+#1 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(298): Symfony/Component/Console/Application->find('boost:mcp')
+#2 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(195): Symfony/Component/Console/Application->doRun(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#3 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony/Component/Console/Application->run(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#4 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate/Foundation/Console/Kernel->handle(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#5 C:/wamp64/www/Class checker/artisan(16): Illuminate/Foundation/Application->handleCommand(Object(Symfony/Component/Console/Input/ArgvInput))
+#6 {main}
+"} 
+[2026-08-11 09:31:28] local.ERROR: There are no commands defined in the "boost" namespace. {"exception":"[object] (Symfony\\Component\\Console\\Exception\\NamespaceNotFoundException(code: 0): There are no commands defined in the \"boost\" namespace. at C:/wamp64/www/Class checker/vendor/symfony/console/Application.php:694)
+[stacktrace]
+#0 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(743): Symfony/Component/Console/Application->findNamespace('boost')
+#1 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(298): Symfony/Component/Console/Application->find('boost:mcp')
+#2 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(195): Symfony/Component/Console/Application->doRun(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#3 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony/Component/Console/Application->run(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#4 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1242): Illuminate/Foundation/Console/Kernel->handle(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#5 C:/wamp64/www/Class checker/artisan(16): Illuminate/Foundation/Application->handleCommand(Object(Symfony/Component/Console/Input/ArgvInput))
+#6 {main}
+"} 
+[2026-08-11 09:34:10] local.ERROR: There are no commands defined in the "boost" namespace. {"exception":"[object] (Symfony\\Component\\Console\\Exception\\NamespaceNotFoundException(code: 0): There are no commands defined in the \"boost\" namespace. at C:/wamp64/www/Class checker/vendor/symfony/console/Application.php:694)
+[stacktrace]
+#0 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(743): Symfony/Component/Console/Application->findNamespace('boost')
+#1 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(298): Symfony/Component/Console/Application->find('boost:mcp')
+#2 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(195): Symfony/Component/Console/Application->doRun(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#3 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony/Component/Console/Application->run(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#4 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1242): Illuminate/Foundation/Console/Kernel->handle(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#5 C:/wamp64/www/Class checker/artisan(16): Illuminate/Foundation/Application->handleCommand(Object(Symfony/Component/Console/Input/ArgvInput))
+#6 {main}
+"} 
+[2026-08-11 11:28:59] local.ERROR: There are no commands defined in the "boost" namespace. {"exception":"[object] (Symfony\\Component\\Console\\Exception\\NamespaceNotFoundException(code: 0): There are no commands defined in the \"boost\" namespace. at C:/wamp64/www/Class checker/vendor/symfony/console/Application.php:694)
+[stacktrace]
+#0 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(743): Symfony/Component/Console/Application->findNamespace('boost')
+#1 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(298): Symfony/Component/Console/Application->find('boost:mcp')
+#2 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(195): Symfony/Component/Console/Application->doRun(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#3 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony/Component/Console/Application->run(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#4 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1242): Illuminate/Foundation/Console/Kernel->handle(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#5 C:/wamp64/www/Class checker/artisan(16): Illuminate/Foundation/Application->handleCommand(Object(Symfony/Component/Console/Input/ArgvInput))
+#6 {main}
+"} 
+[2026-08-11 15:15:52] local.ERROR: There are no commands defined in the "boost" namespace. {"exception":"[object] (Symfony\\Component\\Console\\Exception\\NamespaceNotFoundException(code: 0): There are no commands defined in the \"boost\" namespace. at C:/wamp64/www/Class checker/vendor/symfony/console/Application.php:694)
+[stacktrace]
+#0 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(743): Symfony/Component/Console/Application->findNamespace('boost')
+#1 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(298): Symfony/Component/Console/Application->find('boost:mcp')
+#2 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(195): Symfony/Component/Console/Application->doRun(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#3 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony/Component/Console/Application->run(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#4 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1242): Illuminate/Foundation/Console/Kernel->handle(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#5 C:/wamp64/www/Class checker/artisan(16): Illuminate/Foundation/Application->handleCommand(Object(Symfony/Component/Console/Input/ArgvInput))
+#6 {main}
+"} 
+[2026-08-11 20:58:49] local.ERROR: There are no commands defined in the "boost" namespace. {"exception":"[object] (Symfony\\Component\\Console\\Exception\\NamespaceNotFoundException(code: 0): There are no commands defined in the \"boost\" namespace. at C:/wamp64/www/Class checker/vendor/symfony/console/Application.php:694)
+[stacktrace]
+#0 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(743): Symfony/Component/Console/Application->findNamespace('boost')
+#1 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(298): Symfony/Component/Console/Application->find('boost:mcp')
+#2 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(195): Symfony/Component/Console/Application->doRun(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#3 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony/Component/Console/Application->run(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#4 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1242): Illuminate/Foundation/Console/Kernel->handle(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#5 C:/wamp64/www/Class checker/artisan(16): Illuminate/Foundation/Application->handleCommand(Object(Symfony/Component/Console/Input/ArgvInput))
+#6 {main}
+"} 
+[2026-08-11 20:58:49] local.ERROR: There are no commands defined in the "boost" namespace. {"exception":"[object] (Symfony\\Component\\Console\\Exception\\NamespaceNotFoundException(code: 0): There are no commands defined in the \"boost\" namespace. at C:/wamp64/www/Class checker/vendor/symfony/console/Application.php:694)
+[stacktrace]
+#0 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(743): Symfony/Component/Console/Application->findNamespace('boost')
+#1 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(298): Symfony/Component/Console/Application->find('boost:mcp')
+#2 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(195): Symfony/Component/Console/Application->doRun(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#3 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony/Component/Console/Application->run(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#4 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1242): Illuminate/Foundation/Console/Kernel->handle(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#5 C:/wamp64/www/Class checker/artisan(16): Illuminate/Foundation/Application->handleCommand(Object(Symfony/Component/Console/Input/ArgvInput))
+#6 {main}
+"} 
+[2026-08-11 20:58:49] local.ERROR: There are no commands defined in the "boost" namespace. {"exception":"[object] (Symfony\\Component\\Console\\Exception\\NamespaceNotFoundException(code: 0): There are no commands defined in the \"boost\" namespace. at C:/wamp64/www/Class checker/vendor/symfony/console/Application.php:694)
+[stacktrace]
+#0 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(743): Symfony/Component/Console/Application->findNamespace('boost')
+#1 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(298): Symfony/Component/Console/Application->find('boost:mcp')
+#2 C:/wamp64/www/Class checker/vendor/symfony/console/Application.php(195): Symfony/Component/Console/Application->doRun(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#3 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony/Component/Console/Application->run(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#4 C:/wamp64/www/Class checker/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1242): Illuminate/Foundation/Console/Kernel->handle(Object(Symfony/Component/Console/Input/ArgvInput), Object(Symfony/Component/Console/Output/ConsoleOutput))
+#5 C:/wamp64/www/Class checker/artisan(16): Illuminate/Foundation/Application->handleCommand(Object(Symfony/Component/Console/Input/ArgvInput))
+#6 {main}
+"} 
