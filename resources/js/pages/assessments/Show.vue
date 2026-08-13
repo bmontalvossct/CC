@@ -110,27 +110,27 @@ const handleKey = (event: KeyboardEvent, student: Student) => {
             { title: assessment.title, href: '#' },
         ]"
     >
-        <main class="min-h-full bg-[#f3efe4] text-[#20251f] dark:bg-[#111712] dark:text-[#f2efe5]">
+        <main class="min-h-full bg-[#f5f5f7] text-[#1d1d1f] dark:bg-[#1d1d1f] dark:text-[#f5f5f7]">
             <div class="mx-auto max-w-7xl p-5 sm:p-8">
                 <Link
                     :href="`/sections/${section.id}/assessments`"
-                    class="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-[#526157] hover:text-[#b7552d]"
+                    class="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-[#86868b] hover:text-[#0071e3]"
                     ><ArrowLeft class="size-4" /> Back to assessments</Link
                 >
                 <header
-                    class="grid gap-5 rounded-[2rem] border border-[#283b2e]/20 bg-[#fffdf6] p-6 shadow-sm dark:bg-[#1b241d] lg:grid-cols-[1fr_auto] lg:p-9"
+                    class="grid gap-5 rounded-[2rem] border border-[#e5e7eb]/20 bg-[#ffffff] p-6 shadow-sm dark:bg-[#1d1d1f] lg:grid-cols-[1fr_auto] lg:p-9"
                 >
                     <div>
                         <div class="mb-4 flex flex-wrap items-center gap-2">
                             <span
-                                class="rounded-full bg-[#173c2a] px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-[.2em] text-[#f4c95d]"
+                                class="rounded-full bg-[#1d1d1f] px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-[.2em] text-[#2997ff]"
                                 >{{ assessment.type }}</span
-                            ><span class="text-sm text-[#687067]"
+                            ><span class="text-sm text-[#86868b]"
                                 >{{ formatDate(assessment.conducted_on) }} · {{ assessment.max_points }} points</span
                             >
                         </div>
                         <h1 class="font-serif text-4xl leading-tight sm:text-5xl">{{ assessment.title }}</h1>
-                        <p v-if="assessment.description" class="mt-3 max-w-2xl text-sm leading-6 text-[#687067] dark:text-[#bac2ba]">
+                        <p v-if="assessment.description" class="mt-3 max-w-2xl text-sm leading-6 text-[#86868b] dark:text-[#86868b]">
                             {{ assessment.description }}
                         </p>
                     </div>
@@ -138,61 +138,61 @@ const handleKey = (event: KeyboardEvent, student: Student) => {
                         <a
                             v-if="assessment.attachment_path"
                             :href="`/sections/${section.id}/assessments/${assessment.id}/attachment`"
-                            class="inline-flex items-center gap-2 rounded-xl border border-[#283b2e]/20 px-4 py-2.5 text-sm font-semibold"
+                            class="inline-flex items-center gap-2 rounded-xl border border-[#e5e7eb]/20 px-4 py-2.5 text-sm font-semibold"
                             ><FileText class="size-4" /> {{ assessment.attachment_name || 'Attachment' }}</a
                         >
                         <a
                             :href="`/sections/${section.id}/assessments/${assessment.id}/export`"
-                            class="inline-flex items-center gap-2 rounded-xl bg-[#173c2a] px-4 py-2.5 text-sm font-semibold text-white"
+                            class="inline-flex items-center gap-2 rounded-xl bg-[#1d1d1f] px-4 py-2.5 text-sm font-semibold text-white"
                             ><Download class="size-4" /> Export</a
                         >
                     </div>
                 </header>
 
                 <section class="my-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-                    <div class="rounded-2xl bg-[#173c2a] p-4 text-white">
-                        <p class="text-xs uppercase tracking-widest text-[#b9cfbf]">Recorded</p>
+                    <div class="rounded-2xl bg-[#1d1d1f] p-4 text-white">
+                        <p class="text-xs uppercase tracking-widest text-[#86868b]">Recorded</p>
                         <p class="mt-2 font-serif text-3xl">
-                            {{ gradedCount }}<span class="text-base text-[#b9cfbf]"> / {{ students.length }}</span>
+                            {{ gradedCount }}<span class="text-base text-[#86868b]"> / {{ students.length }}</span>
                         </p>
                     </div>
-                    <div class="rounded-2xl border border-[#283b2e]/15 bg-[#fffdf6] p-4 dark:bg-[#1b241d]">
-                        <p class="text-xs uppercase tracking-widest text-[#687067]">Average</p>
+                    <div class="rounded-2xl border border-[#e5e7eb]/15 bg-[#ffffff] p-4 dark:bg-[#1d1d1f]">
+                        <p class="text-xs uppercase tracking-widest text-[#86868b]">Average</p>
                         <p class="mt-2 font-serif text-3xl">{{ summary.average ?? '—' }}</p>
                     </div>
-                    <div class="rounded-2xl border border-[#283b2e]/15 bg-[#fffdf6] p-4 dark:bg-[#1b241d]">
-                        <p class="text-xs uppercase tracking-widest text-[#687067]">Missing</p>
+                    <div class="rounded-2xl border border-[#e5e7eb]/15 bg-[#ffffff] p-4 dark:bg-[#1d1d1f]">
+                        <p class="text-xs uppercase tracking-widest text-[#86868b]">Missing</p>
                         <p class="mt-2 font-serif text-3xl">{{ summary.missing }}</p>
                     </div>
-                    <div class="rounded-2xl bg-[#b7552d] p-4 text-white">
-                        <p class="text-xs uppercase tracking-widest text-[#fbd8c9]">Absent</p>
+                    <div class="rounded-2xl bg-[#0071e3] p-4 text-white">
+                        <p class="text-xs uppercase tracking-widest text-[#fff5f4]">Absent</p>
                         <p class="mt-2 font-serif text-3xl">{{ summary.absent }}</p>
                     </div>
                 </section>
 
-                <section class="overflow-hidden rounded-[1.5rem] border border-[#283b2e]/20 bg-[#fffdf6] dark:bg-[#1b241d]">
-                    <div class="flex flex-col gap-4 border-b border-[#283b2e]/15 p-5 sm:flex-row sm:items-center sm:justify-between">
+                <section class="overflow-hidden rounded-[1.5rem] border border-[#e5e7eb]/20 bg-[#ffffff] dark:bg-[#1d1d1f]">
+                    <div class="flex flex-col gap-4 border-b border-[#e5e7eb]/15 p-5 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <h2 class="font-serif text-2xl">Chair-order score entry</h2>
-                            <p class="mt-1 flex items-center gap-2 text-xs text-[#687067]">
+                            <p class="mt-1 flex items-center gap-2 text-xs text-[#86868b]">
                                 <Keyboard class="size-4" /> Tab, Shift+Tab, or Enter saves and moves through the room.
                             </p>
                         </div>
-                        <label class="flex cursor-pointer items-center gap-3 rounded-xl bg-[#eee8d8] px-4 py-3 text-sm dark:bg-white/10"
+                        <label class="flex cursor-pointer items-center gap-3 rounded-xl bg-[#f5f5f7] px-4 py-3 text-sm dark:bg-white/10"
                             ><input
                                 v-model="includeAbsent"
                                 type="checkbox"
-                                class="rounded border-[#8b8e86] text-[#b7552d] focus:ring-[#b7552d]"
+                                class="rounded border-[#86868b] text-[#0071e3] focus:ring-[#0071e3]"
                             /><span
                                 ><strong>Include absent students</strong
-                                ><small class="block text-[#687067]">Scores will be marked as an override.</small></span
+                                ><small class="block text-[#86868b]">Scores will be marked as an override.</small></span
                             ></label
                         >
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full min-w-[700px] border-collapse">
                             <thead>
-                                <tr class="border-b border-[#283b2e]/15 text-left font-mono text-[10px] uppercase tracking-[.16em] text-[#687067]">
+                                <tr class="border-b border-[#e5e7eb]/15 text-left font-mono text-[10px] uppercase tracking-[.16em] text-[#86868b]">
                                     <th class="w-24 px-5 py-4">Chair</th>
                                     <th class="px-3 py-4">Student</th>
                                     <th class="w-52 px-3 py-4">Score / {{ assessment.max_points }}</th>
@@ -203,20 +203,20 @@ const handleKey = (event: KeyboardEvent, student: Student) => {
                                 <tr
                                     v-for="student in students"
                                     :key="student.id"
-                                    class="border-b border-[#283b2e]/10 transition last:border-0"
-                                    :class="student.is_absent && !includeAbsent ? 'bg-[#b7552d]/5 opacity-70' : 'hover:bg-[#f4c95d]/10'"
+                                    class="border-b border-[#e5e7eb]/10 transition last:border-0"
+                                    :class="student.is_absent && !includeAbsent ? 'bg-[#0071e3]/5 opacity-70' : 'hover:bg-[#2997ff]/10'"
                                 >
                                     <td class="px-5 py-3">
-                                        <span class="rounded-lg bg-[#173c2a] px-2.5 py-1.5 font-mono text-xs font-bold text-[#f4c95d]">{{
+                                        <span class="rounded-lg bg-[#1d1d1f] px-2.5 py-1.5 font-mono text-xs font-bold text-[#2997ff]">{{
                                             student.seat_label || '—'
                                         }}</span>
                                     </td>
                                     <td class="px-3 py-3">
                                         <strong class="block">{{ student.full_name }}</strong
-                                        ><span class="text-xs text-[#687067]">{{ student.student_number }}</span
+                                        ><span class="text-xs text-[#86868b]">{{ student.student_number }}</span
                                         ><span
                                             v-if="student.is_absent"
-                                            class="ml-2 inline-flex items-center gap-1 text-xs font-semibold text-[#b7552d]"
+                                            class="ml-2 inline-flex items-center gap-1 text-xs font-semibold text-[#0071e3]"
                                             ><UserX class="size-3" /> Absent</span
                                         >
                                     </td>
@@ -234,7 +234,7 @@ const handleKey = (event: KeyboardEvent, student: Student) => {
                                             :max="assessment.max_points"
                                             step="0.01"
                                             inputmode="decimal"
-                                            class="w-full rounded-xl border-[#aaa99f] bg-white text-lg font-bold tabular-nums focus:border-[#b7552d] focus:ring-[#b7552d] disabled:cursor-not-allowed disabled:bg-[#e7e1d4] dark:bg-[#111712]"
+                                            class="w-full rounded-xl border-[#86868b] bg-white text-lg font-bold tabular-nums focus:border-[#0071e3] focus:ring-[#0071e3] disabled:cursor-not-allowed disabled:bg-[#e5e7eb] dark:bg-[#1d1d1f]"
                                             :aria-label="`Score for ${student.full_name}`"
                                             @blur="save(student)"
                                             @keydown="handleKey($event, student)"
@@ -242,18 +242,18 @@ const handleKey = (event: KeyboardEvent, student: Student) => {
                                         <p v-if="errors[student.id]" class="mt-1 text-xs text-red-700">{{ errors[student.id] }}</p>
                                     </td>
                                     <td class="px-5 py-3 text-xs">
-                                        <span v-if="status[student.id] === 'saving'" class="inline-flex items-center gap-1.5 text-[#687067]"
+                                        <span v-if="status[student.id] === 'saving'" class="inline-flex items-center gap-1.5 text-[#86868b]"
                                             ><LoaderCircle class="size-3.5 animate-spin" /> Saving</span
                                         ><span
                                             v-else-if="status[student.id] === 'saved'"
-                                            class="inline-flex items-center gap-1.5 font-semibold text-emerald-700"
+                                            class="inline-flex items-center gap-1.5 font-semibold text-[#0071e3]"
                                             ><Check class="size-3.5" /> Saved</span
                                         ><span
                                             v-else-if="status[student.id] === 'error'"
                                             class="inline-flex items-center gap-1.5 font-semibold text-red-700"
                                             ><TriangleAlert class="size-3.5" /> Retry</span
-                                        ><span v-else-if="student.is_absent" class="text-[#b7552d]">Skipped</span
-                                        ><span v-else class="text-[#8a8f88]">Ready</span>
+                                        ><span v-else-if="student.is_absent" class="text-[#0071e3]">Skipped</span
+                                        ><span v-else class="text-[#86868b]">Ready</span>
                                     </td>
                                 </tr>
                             </tbody>

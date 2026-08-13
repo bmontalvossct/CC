@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
@@ -114,8 +114,8 @@ async function toggle(record: RecordData | null) {
                 </div>
             </header>
             <div class="flex flex-wrap gap-4 rounded-lg border bg-muted/30 px-4 py-3 text-sm">
-                <span class="flex items-center gap-2"><span class="size-3 rounded-full bg-emerald-500" /> Present</span
-                ><span class="flex items-center gap-2"><span class="size-3 rounded-full bg-rose-500" /> Absent</span
+                <span class="flex items-center gap-2"><span class="size-3 rounded-full bg-[#0071e3]" /> Present</span
+                ><span class="flex items-center gap-2"><span class="size-3 rounded-full bg-[#d93025]" /> Absent</span
                 ><span class="text-muted-foreground">Select an occupied chair to change attendance. Changes save automatically.</span>
             </div>
             <p v-if="session.notes" class="rounded-lg border-l-4 border-primary bg-primary/5 p-4 text-sm">
@@ -157,8 +157,8 @@ async function toggle(record: RecordData | null) {
                                         : !seat.student
                                           ? 'border-dashed bg-muted/30 text-muted-foreground'
                                           : seat.record?.status === 'present'
-                                            ? 'border-emerald-500 bg-emerald-50 text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-50'
-                                            : 'border-rose-500 bg-rose-50 text-rose-950 dark:bg-rose-950/40 dark:text-rose-50'
+                                            ? 'border-[#0071e3] bg-[#f5f9ff] text-[#0066cc] dark:bg-[#0066cc]/40 dark:text-[#f5f9ff]'
+                                            : 'border-[#d93025] bg-[#fff5f4] text-[#d93025] dark:bg-[#d93025]/40 dark:text-[#fff5f4]'
                                 "
                                 @click="toggle(seat.record)"
                             >
@@ -216,8 +216,8 @@ async function toggle(record: RecordData | null) {
                         class="flex items-center justify-between rounded-lg border-2 p-3 text-left focus-visible:ring-2 focus-visible:ring-ring"
                         :class="
                             item.record.status === 'present'
-                                ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40'
-                                : 'border-rose-500 bg-rose-50 dark:bg-rose-950/40'
+                                ? 'border-[#0071e3] bg-[#f5f9ff] dark:bg-[#0066cc]/40'
+                                : 'border-[#d93025] bg-[#fff5f4] dark:bg-[#d93025]/40'
                         "
                         @click="toggle(item.record)"
                     >

@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
@@ -14,15 +14,15 @@ const mainNavItems: NavItem[] = [
 </script>
 
 <template>
-    <Sidebar collapsible="icon" variant="inset" class="border-r-0">
-        <SidebarHeader class="px-3 pt-4"
+    <Sidebar collapsible="icon" variant="inset" class="border-r border-border bg-[#f5f5f7] dark:bg-sidebar">
+        <SidebarHeader class="px-3 pt-3"
             ><SidebarMenu
                 ><SidebarMenuItem
-                    ><SidebarMenuButton size="lg" as-child class="h-12 rounded-xl"
+                    ><SidebarMenuButton size="lg" as-child class="h-11 rounded-md"
                         ><Link href="/dashboard"><AppLogo /></Link></SidebarMenuButton></SidebarMenuItem></SidebarMenu
         ></SidebarHeader>
         <SidebarContent><NavMain :items="mainNavItems" /></SidebarContent>
-        <SidebarFooter class="border-t border-[#d8d0bd]/70 p-3"><NavUser /></SidebarFooter>
+        <SidebarFooter class="border-t border-border p-3"><NavUser /></SidebarFooter>
     </Sidebar>
     <slot />
 </template>

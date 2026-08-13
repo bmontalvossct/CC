@@ -108,11 +108,11 @@ const toggleAisle = (axis: Axis, position: number) => {
 </script>
 
 <template>
-    <section class="rounded-2xl border border-stone-300 bg-[#fffdf7] p-5">
+    <section class="rounded-2xl border border-[#e5e7eb] bg-[#ffffff] p-5">
         <div>
-            <p class="text-xs font-bold uppercase tracking-[0.12em] text-amber-800">Room setup</p>
-            <h3 class="mt-1 text-xl font-bold text-stone-900">Rows, columns, and aisles</h3>
-            <p class="mt-1 text-sm leading-relaxed text-stone-600">Change the chair grid or aisles and the classroom floor updates automatically.</p>
+            <p class="text-xs font-bold uppercase tracking-[0.12em] text-[#0066cc]">Room setup</p>
+            <h3 class="mt-1 text-xl font-bold text-[#1d1d1f]">Rows, columns, and aisles</h3>
+            <p class="mt-1 text-sm leading-relaxed text-[#6e6e73]">Change the chair grid or aisles and the classroom floor updates automatically.</p>
         </div>
 
         <div class="mt-5 grid grid-cols-2 gap-3">
@@ -126,39 +126,39 @@ const toggleAisle = (axis: Axis, position: number) => {
             </div>
         </div>
 
-        <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
-            <p class="text-xs font-bold text-stone-700">Drag an aisle into the preview</p>
+        <div class="mt-4 rounded-xl border border-[#dbeafe] bg-[#f5f9ff] p-3">
+            <p class="text-xs font-bold text-[#515154]">Drag an aisle into the preview</p>
             <div class="mt-2 flex flex-wrap gap-2">
                 <button
                     type="button"
                     draggable="true"
-                    class="flex cursor-grab items-center gap-2 rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-bold text-stone-700 shadow-sm active:cursor-grabbing"
+                    class="flex cursor-grab items-center gap-2 rounded-lg border border-[#bfdbfe] bg-white px-3 py-2 text-xs font-bold text-[#515154] shadow-sm active:cursor-grabbing"
                     @dragstart="startDrag($event, 'column')"
                     @dragend="dragging = null"
                 >
-                    <GripVertical class="size-4 text-amber-700" /> Vertical aisle
+                    <GripVertical class="size-4 text-[#0071e3]" /> Vertical aisle
                 </button>
                 <button
                     type="button"
                     draggable="true"
-                    class="flex cursor-grab items-center gap-2 rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-bold text-stone-700 shadow-sm active:cursor-grabbing"
+                    class="flex cursor-grab items-center gap-2 rounded-lg border border-[#bfdbfe] bg-white px-3 py-2 text-xs font-bold text-[#515154] shadow-sm active:cursor-grabbing"
                     @dragstart="startDrag($event, 'row')"
                     @dragend="dragging = null"
                 >
-                    <GripHorizontal class="size-4 text-amber-700" /> Horizontal aisle
+                    <GripHorizontal class="size-4 text-[#0071e3]" /> Horizontal aisle
                 </button>
             </div>
-            <p class="mt-2 text-[11px] text-stone-500">You can also click any gap to add or remove an aisle.</p>
+            <p class="mt-2 text-[11px] text-[#86868b]">You can also click any gap to add or remove an aisle.</p>
         </div>
 
-        <div class="mt-4 overflow-x-auto rounded-xl border border-stone-200 bg-stone-100 p-3">
-            <div class="mb-3 rounded-lg bg-stone-800 py-2 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-white">Front board</div>
+        <div class="mt-4 overflow-x-auto rounded-xl border border-[#e5e7eb] bg-[#f5f5f7] p-3">
+            <div class="mb-3 rounded-lg bg-[#1d1d1f] py-2 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-white">Front board</div>
             <div class="min-w-max">
                 <template v-for="row in Number(form.rows) || 0" :key="row">
                     <div class="flex items-center">
                         <template v-for="column in Number(form.columns) || 0" :key="`${row}-${column}`">
                             <div
-                                class="grid size-11 shrink-0 place-items-center rounded-lg border border-stone-300 bg-white text-stone-500 shadow-sm"
+                                class="grid size-11 shrink-0 place-items-center rounded-lg border border-[#e5e7eb] bg-white text-[#86868b] shadow-sm"
                                 :title="`Row ${row}, column ${column}`"
                             >
                                 <Armchair class="size-4" />
@@ -173,8 +173,8 @@ const toggleAisle = (axis: Axis, position: number) => {
                                 class="mx-1 flex h-11 shrink-0 items-center justify-center rounded-md border-2 border-dashed transition"
                                 :class="
                                     hasAisle('column', column)
-                                        ? 'w-9 cursor-grab border-amber-500 bg-amber-100 text-amber-800'
-                                        : 'w-3 border-stone-300 bg-white/70 hover:w-7 hover:border-amber-400'
+                                        ? 'w-9 cursor-grab border-[#0071e3] bg-[#eaf4ff] text-[#0066cc]'
+                                        : 'w-3 border-[#e5e7eb] bg-white/70 hover:w-7 hover:border-[#2997ff]'
                                 "
                                 @click="toggleAisle('column', column)"
                                 @dragstart="startDrag($event, 'column', column)"
@@ -195,8 +195,8 @@ const toggleAisle = (axis: Axis, position: number) => {
                         class="my-1 flex w-full items-center justify-center rounded-md border-2 border-dashed transition"
                         :class="
                             hasAisle('row', row)
-                                ? 'h-9 cursor-grab border-amber-500 bg-amber-100 text-amber-800'
-                                : 'h-3 border-stone-300 bg-white/70 hover:h-7 hover:border-amber-400'
+                                ? 'h-9 cursor-grab border-[#0071e3] bg-[#eaf4ff] text-[#0066cc]'
+                                : 'h-3 border-[#e5e7eb] bg-white/70 hover:h-7 hover:border-[#2997ff]'
                         "
                         @click="toggleAisle('row', row)"
                         @dragstart="startDrag($event, 'row', row)"
@@ -210,21 +210,21 @@ const toggleAisle = (axis: Axis, position: number) => {
             </div>
         </div>
 
-        <div class="mt-3 flex items-center justify-between text-xs text-stone-500">
+        <div class="mt-3 flex items-center justify-between text-xs text-[#86868b]">
             <span>{{ chairCount }} chairs</span>
             <span
                 >{{ form.aisle_after_columns.length + form.aisle_after_rows.length }}
                 {{ form.aisle_after_columns.length + form.aisle_after_rows.length === 1 ? 'aisle' : 'aisles' }}</span
             >
         </div>
-        <p class="mt-2 text-[11px] leading-relaxed text-stone-500">Students stay in the same row and column whenever that chair still exists.</p>
+        <p class="mt-2 text-[11px] leading-relaxed text-[#86868b]">Students stay in the same row and column whenever that chair still exists.</p>
         <InputError
             class="mt-2"
             :message="form.errors.rows || form.errors.columns || form.errors.aisle_after_rows || form.errors.aisle_after_columns"
         />
-        <div class="mt-4 flex items-center gap-2 rounded-xl bg-stone-100 px-3 py-2.5 text-xs font-semibold text-stone-700" aria-live="polite">
-            <LoaderCircle v-if="form.processing" class="size-4 animate-spin text-amber-700" />
-            <CheckCircle2 v-else class="size-4 text-emerald-700" />
+        <div class="mt-4 flex items-center gap-2 rounded-xl bg-[#f5f5f7] px-3 py-2.5 text-xs font-semibold text-[#515154]" aria-live="polite">
+            <LoaderCircle v-if="form.processing" class="size-4 animate-spin text-[#0071e3]" />
+            <CheckCircle2 v-else class="size-4 text-[#0071e3]" />
             <span v-if="form.processing">Updating classroom floor...</span>
             <span v-else-if="form.recentlySuccessful">Classroom floor updated.</span>
             <span v-else>Changes are saved automatically.</span>

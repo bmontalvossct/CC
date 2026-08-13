@@ -103,6 +103,39 @@ class ClassroomManagementTest extends TestCase
         $this->assertNull($unseatedStudent->seat);
     }
 
+    public function test_teacher_can_create_a_section_with_multiple_weekdays_for_each_time_entry(): void
+    {
+        $user = User::factory()->create(['email_verified_at' => now()]);
+
+        $response = $this->actingAs($user)->post(route('sections.store'), [
+            'subject_code' => 'CS 101',
+            'subject_title' => 'Introduction to Computing',
+            'name' => 'BSIT 1-A',
+            'room' => 'Lab 1',
+            'term' => [
+                'name' => 'First Semester',
+                'school_year' => '2026-2027',
+                'starts_on' => '2026-08-17',
+                'ends_on' => '2026-12-18',
+            ],
+            'schedules' => [
+                ['day_of_week' => 1, 'starts_at' => '08:00', 'ends_at' => '09:00'],
+                ['day_of_week' => 3, 'starts_at' => '08:00', 'ends_at' => '09:00'],
+                ['day_of_week' => 5, 'starts_at' => '13:00', 'ends_at' => '14:30'],
+            ],
+        ]);
+
+        $section = Section::where('subject_code', 'CS 101')->firstOrFail();
+        $response->assertRedirect(route('sections.show', $section));
+        $this->assertSame(3, $section->schedules()->count());
+        $this->assertDatabaseHas('section_schedules', [
+            'section_id' => $section->id,
+            'day_of_week' => 3,
+            'starts_at' => '08:00',
+            'ends_at' => '09:00',
+        ]);
+    }
+
     public function test_teacher_can_import_roster_swap_chairs_and_deactivate_without_deleting(): void
     {
         $user = User::factory()->create();

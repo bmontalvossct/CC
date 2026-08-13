@@ -2,111 +2,137 @@
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import type { SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/vue3';
-const page = usePage<SharedData>();
-
 import { ArrowRight, Check, ClipboardCheck, Grid3X3, QrCode } from 'lucide-vue-next';
+
+const page = usePage<SharedData>();
+const seats = [
+    { name: 'Mia S.', status: 'Present' },
+    { name: 'John R.', status: 'Present' },
+    { name: 'Lea M.', status: 'Absent' },
+    { name: 'Noah C.', status: 'Present' },
+    { name: 'Aya P.', status: 'Present' },
+    { name: 'Luis D.', status: 'Present' },
+    { name: 'Sam T.', status: 'Present' },
+    { name: 'Bea G.', status: 'Present' },
+];
 </script>
 
 <template>
-    <Head title="ClassCheck — Roll call at a glance" />
-    <main class="min-h-screen overflow-hidden bg-[#f7f1e3] text-[#18352f]">
-        <nav class="mx-auto flex max-w-7xl items-center justify-between px-5 py-6 lg:px-8">
-            <div class="flex items-center gap-3">
-                <span class="flex size-11 items-center justify-center rounded-2xl bg-[#18352f] text-[#f4c65d]"
-                    ><AppLogoIcon class-name="size-8" /></span
-                ><span class="font-display text-2xl font-bold">ClassCheck</span>
-            </div>
-            <div class="flex items-center gap-2">
-                <Link v-if="page.props.auth.user" href="/dashboard" class="ink-button">Open dashboard <ArrowRight class="size-4" /></Link>
-                <template v-else
-                    ><Link href="/login" class="rounded-xl px-4 py-2.5 font-bold">Log in</Link
-                    ><Link href="/register" class="ink-button">Start a class <ArrowRight class="size-4" /></Link
-                ></template>
+    <Head title="ClassCheck — Classroom management, simplified" />
+    <main class="min-h-screen overflow-hidden bg-white text-[#1d1d1f] dark:bg-background dark:text-foreground">
+        <nav class="sticky top-0 z-20 border-b border-black/[0.06] bg-white/90 backdrop-blur-xl dark:border-white/10 dark:bg-background/90">
+            <div class="mx-auto flex h-12 max-w-6xl items-center justify-between px-5 lg:px-6">
+                <Link href="/" class="flex items-center gap-2.5" aria-label="ClassCheck home">
+                    <span class="flex size-7 items-center justify-center rounded-md bg-[#0071e3] text-white"
+                        ><AppLogoIcon class-name="size-5"
+                    /></span>
+                    <span class="text-[15px] font-semibold tracking-[-0.01em]">ClassCheck</span>
+                </Link>
+                <div class="hidden items-center gap-8 text-xs text-[#1d1d1f] dark:text-foreground md:flex">
+                    <a href="#product" class="transition-colors hover:text-[#0071e3]">Product</a>
+                    <a href="#workflow" class="transition-colors hover:text-[#0071e3]">How it works</a>
+                    <a href="#features" class="transition-colors hover:text-[#0071e3]">Features</a>
+                </div>
+                <div class="flex items-center gap-1">
+                    <Link v-if="page.props.auth.user" href="/dashboard" class="ink-button !h-8 !px-4 !text-xs">Open dashboard</Link>
+                    <template v-else>
+                        <Link href="/login" class="px-3 py-2 text-xs transition-colors hover:text-[#0071e3]">Log in</Link>
+                        <Link href="/register" class="ink-button !h-8 !px-4 !text-xs">Get started</Link>
+                    </template>
+                </div>
             </div>
         </nav>
 
-        <section class="relative mx-auto grid max-w-7xl items-center gap-12 px-5 pb-20 pt-12 lg:grid-cols-[1.03fr_.97fr] lg:px-8 lg:pb-28 lg:pt-20">
-            <div>
-                <p class="eyebrow">Built for the moment names are called</p>
-                <h1 class="font-display mt-5 max-w-3xl text-6xl font-bold leading-[.94] tracking-[-.045em] sm:text-7xl lg:text-[6.4rem]">
-                    Your classroom, <span class="text-[#b85d3d]">at a glance.</span>
-                </h1>
-                <p class="mt-7 max-w-xl text-lg leading-relaxed text-[#52635d]">
-                    Turn the real seating plan into a fast attendance and score-entry desk. One tap for absence. One Tab key to move to the next
-                    student.
-                </p>
-                <div class="mt-8 flex flex-wrap gap-3">
-                    <Link href="/register" class="ink-button px-5 py-3.5">Create your teacher account <ArrowRight class="size-4" /></Link
-                    ><a href="#workflow" class="rounded-xl border border-[#bfb49e] bg-white/55 px-5 py-3.5 font-bold">See the workflow</a>
-                </div>
-                <div class="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm font-bold text-[#52635d]">
-                    <span class="flex items-center gap-2"><Check class="size-4 text-[#2c715d]" /> QR seat claiming</span
-                    ><span class="flex items-center gap-2"><Check class="size-4 text-[#2c715d]" /> Present by default</span
-                    ><span class="flex items-center gap-2"><Check class="size-4 text-[#2c715d]" /> CSV-ready records</span>
-                </div>
+        <section id="product" class="page-enter mx-auto max-w-6xl px-5 pb-20 pt-20 text-center sm:pt-28 lg:px-6 lg:pb-28">
+            <p class="text-[15px] font-semibold text-[#0071e3]">Classroom clarity, from the first bell.</p>
+            <h1 class="mx-auto mt-4 max-w-4xl text-5xl font-semibold leading-[1.02] tracking-[-0.04em] sm:text-7xl lg:text-[5.4rem]">
+                Every student.<br /><span class="text-[#86868b]">Right where they belong.</span>
+            </h1>
+            <p class="mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-[#6e6e73] sm:text-2xl sm:leading-9">
+                Build your classroom, take attendance, and record scores in one focused workspace designed for the pace of teaching.
+            </p>
+            <div class="mt-9 flex flex-wrap justify-center gap-3">
+                <Link href="/register" class="ink-button">Start your first class <ArrowRight class="size-4" /></Link>
+                <a href="#workflow" class="secondary-button">See how it works</a>
             </div>
+        </section>
 
-            <div class="relative">
-                <div class="absolute -inset-8 rotate-3 rounded-[3rem] bg-[#f4c65d]/45 blur-2xl"></div>
-                <div class="relative rounded-[2rem] border border-[#1b4037]/20 bg-[#18352f] p-5 shadow-[0_35px_80px_rgba(24,53,47,.28)] sm:p-7">
-                    <div class="mb-6 flex items-center justify-between text-[#fff8e8]">
-                        <div>
-                            <p class="text-[10px] font-bold uppercase tracking-[.2em] text-[#f4c65d]">Room 204 · Front</p>
-                            <h2 class="font-display mt-1 text-2xl font-bold">Science 10 — Narra</h2>
+        <section class="bg-[#f5f5f7] px-5 py-16 dark:bg-secondary/40 sm:py-24">
+            <div class="mx-auto max-w-5xl">
+                <div class="mx-auto max-w-4xl overflow-hidden rounded-2xl border border-black/[0.06] bg-white dark:border-white/10 dark:bg-card">
+                    <div class="flex items-center justify-between border-b border-[#e5e7eb] px-5 py-4 dark:border-border sm:px-7">
+                        <div class="text-left">
+                            <p class="text-xs text-[#86868b]">Science 10</p>
+                            <h2 class="mt-0.5 text-lg font-semibold">Narra · Room 204</h2>
                         </div>
-                        <span class="rounded-full bg-white/10 px-3 py-1 text-xs">32 students</span>
+                        <span class="rounded-full bg-[#f5f5f7] px-3 py-1.5 text-xs text-[#6e6e73] dark:bg-secondary">32 students</span>
                     </div>
-                    <div class="rounded-[1.3rem] bg-[#f7f1e3] p-4 sm:p-6">
-                        <div class="mx-auto mb-6 h-3 w-2/3 rounded-full bg-[#b85d3d]/70"></div>
-                        <div class="grid grid-cols-4 gap-3">
-                            <div
-                                v-for="seat in 20"
-                                :key="seat"
-                                class="group relative aspect-[.9] rounded-xl border border-[#c8bea8] bg-[#fffdf7] p-2 shadow-[0_5px_0_#d9ceb5]"
-                            >
-                                <span class="absolute left-1/2 top-[-5px] h-2 w-6 -translate-x-1/2 rounded-full bg-[#315c51]"></span>
-                                <span
-                                    class="flex h-full items-center justify-center rounded-lg text-xs font-bold"
-                                    :class="seat === 7 || seat === 16 ? 'bg-[#f1d3c8] text-[#9c452e]' : 'bg-[#dcebe5] text-[#245246]'"
-                                    >{{ seat === 7 || seat === 16 ? 'Absent' : 'Present' }}</span
+                    <div class="grid gap-8 p-5 sm:p-8 md:grid-cols-[1fr_230px]">
+                        <div>
+                            <div class="mx-auto mb-7 h-1.5 w-1/2 rounded-full bg-[#d1d1d6]"></div>
+                            <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                <button
+                                    v-for="seat in seats"
+                                    :key="seat.name"
+                                    type="button"
+                                    class="rounded-lg border p-3 text-left transition-colors hover:border-[#0071e3]"
+                                    :class="
+                                        seat.status === 'Absent'
+                                            ? 'border-[#d93025]/30 bg-[#d93025]/[0.06]'
+                                            : 'border-[#e5e7eb] bg-white dark:bg-card'
+                                    "
                                 >
+                                    <span class="block text-xs font-medium">{{ seat.name }}</span>
+                                    <span class="mt-5 block text-[11px]" :class="seat.status === 'Absent' ? 'text-[#d93025]' : 'text-[#86868b]'">{{
+                                        seat.status
+                                    }}</span>
+                                </button>
                             </div>
                         </div>
+                        <aside class="border-t border-[#e5e7eb] pt-6 text-left dark:border-border md:border-l md:border-t-0 md:pl-7 md:pt-0">
+                            <p class="text-xs font-semibold text-[#86868b]">TODAY</p>
+                            <p class="mt-3 text-4xl font-semibold tracking-tight">97%</p>
+                            <p class="mt-1 text-sm text-[#86868b]">Attendance rate</p>
+                            <div class="mt-7 space-y-3 text-sm">
+                                <div class="flex justify-between"><span class="text-[#86868b]">Present</span><strong>31</strong></div>
+                                <div class="flex justify-between"><span class="text-[#86868b]">Absent</span><strong>1</strong></div>
+                                <div class="flex justify-between"><span class="text-[#86868b]">Late</span><strong>0</strong></div>
+                            </div>
+                        </aside>
                     </div>
-                </div>
-                <div class="absolute -bottom-7 -left-4 flex items-center gap-3 rounded-2xl border border-[#d8d0bd] bg-[#fffdf7] p-4 shadow-xl">
-                    <QrCode class="size-7 text-[#b85d3d]" />
-                    <div><strong class="block">Scan. Pick. Sit.</strong><span class="text-xs text-[#66736e]">Seats update instantly</span></div>
                 </div>
             </div>
         </section>
 
-        <section id="workflow" class="border-t border-[#d8d0bd] bg-[#fffaf0] py-20">
-            <div class="mx-auto max-w-7xl px-5 lg:px-8">
-                <p class="eyebrow">A familiar classroom rhythm</p>
-                <h2 class="font-display mt-3 max-w-2xl text-4xl font-bold sm:text-5xl">Less spreadsheet. More teaching.</h2>
-                <div class="mt-10 grid gap-5 md:grid-cols-3">
-                    <article class="paper-card p-6">
-                        <Grid3X3 class="size-7 text-[#b85d3d]" />
-                        <h3 class="mt-5 text-2xl font-bold">Shape the room</h3>
-                        <p class="mt-2 leading-relaxed text-muted-foreground">
-                            Build grouped chair blocks with aisles and see the exact room every time.
-                        </p>
-                    </article>
-                    <article class="paper-card p-6">
-                        <ClipboardCheck class="size-7 text-[#2c715d]" />
-                        <h3 class="mt-5 text-2xl font-bold">Tap the exceptions</h3>
-                        <p class="mt-2 leading-relaxed text-muted-foreground">Everyone starts present. Uncheck only the chairs that are absent.</p>
-                    </article>
-                    <article class="paper-card p-6">
-                        <QrCode class="size-7 text-[#8a5a20]" />
-                        <h3 class="mt-5 text-2xl font-bold">Move at roll-call speed</h3>
-                        <p class="mt-2 leading-relaxed text-muted-foreground">
-                            Students claim seats by QR; scores follow the same chair order with Tab.
-                        </p>
-                    </article>
-                </div>
+        <section id="workflow" class="mx-auto max-w-6xl px-5 py-24 lg:px-6 lg:py-32">
+            <div class="mx-auto max-w-3xl text-center">
+                <p class="text-[15px] font-semibold text-[#0071e3]">A simpler routine</p>
+                <h2 class="mt-3 text-4xl font-semibold leading-tight tracking-[-0.03em] sm:text-6xl">Less admin. More attention for your class.</h2>
             </div>
+            <div id="features" class="mt-16 grid gap-px overflow-hidden rounded-lg border border-[#e5e7eb] bg-[#e5e7eb] md:grid-cols-3">
+                <article class="bg-white p-7 dark:bg-card sm:p-9">
+                    <Grid3X3 class="size-7 text-[#0071e3]" />
+                    <h3 class="mt-10 text-2xl font-semibold">Shape the room.</h3>
+                    <p class="mt-3 text-[15px] leading-6 text-[#6e6e73]">Arrange seat blocks and aisles to mirror the real classroom.</p>
+                </article>
+                <article class="bg-white p-7 dark:bg-card sm:p-9">
+                    <QrCode class="size-7 text-[#0071e3]" />
+                    <h3 class="mt-10 text-2xl font-semibold">Let students settle in.</h3>
+                    <p class="mt-3 text-[15px] leading-6 text-[#6e6e73]">A single QR code lets students claim their seats in seconds.</p>
+                </article>
+                <article class="bg-white p-7 dark:bg-card sm:p-9">
+                    <ClipboardCheck class="size-7 text-[#0071e3]" />
+                    <h3 class="mt-10 text-2xl font-semibold">Move at roll-call speed.</h3>
+                    <p class="mt-3 text-[15px] leading-6 text-[#6e6e73]">Everyone starts present. Tap only the exceptions and keep teaching.</p>
+                </article>
+            </div>
+        </section>
+
+        <section class="bg-[#f5f5f7] px-5 py-24 text-center dark:bg-secondary/40">
+            <Check class="mx-auto size-8 text-[#0071e3]" />
+            <h2 class="mx-auto mt-6 max-w-2xl text-4xl font-semibold tracking-[-0.03em] sm:text-5xl">Ready before the next class begins.</h2>
+            <p class="mx-auto mt-4 max-w-xl text-lg text-[#6e6e73]">Create your free teacher account and set up your first classroom.</p>
+            <Link href="/register" class="ink-button mt-8">Get started <ArrowRight class="size-4" /></Link>
         </section>
     </main>
 </template>

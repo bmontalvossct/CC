@@ -5,8 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Link, useForm } from '@inertiajs/vue3';
 import { Minus, Plus } from 'lucide-vue-next';
+import { ref } from 'vue';
 
-type Schedule = { day_of_week: number; starts_at: string; ends_at: string };
+type StoredSchedule = { day_of_week: number; starts_at: string; ends_at: string };
+type Schedule = { days: number[]; starts_at: string; ends_at: string };
 type SectionData = {
     id: number;
     subject_code: string;
@@ -14,11 +16,30 @@ type SectionData = {
     name: string;
     room: string | null;
     academic_term: { name: string; school_year: string; starts_on: string; ends_on: string };
-    schedules: Schedule[];
+    schedules: StoredSchedule[];
 };
 
 const props = defineProps<{ section?: SectionData }>();
-const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+const groupedSchedules = (schedules: StoredSchedule[]): Schedule[] => {
+    const groups = new Map<string, Schedule>();
+
+    schedules.forEach((schedule) => {
+        if (schedule.day_of_week < 1 || schedule.day_of_week > 5) return;
+
+        const startsAt = schedule.starts_at.slice(0, 5);
+        const endsAt = schedule.ends_at.slice(0, 5);
+        const key = `${startsAt}-${endsAt}`;
+        const existing = groups.get(key);
+
+        if (existing) existing.days.push(schedule.day_of_week);
+        else groups.set(key, { days: [schedule.day_of_week], starts_at: startsAt, ends_at: endsAt });
+    });
+
+    return [...groups.values()].map((schedule) => ({ ...schedule, days: schedule.days.sort() }));
+};
+
 const form = useForm({
     subject_code: props.section?.subject_code ?? '',
     subject_title: props.section?.subject_title ?? '',
@@ -30,18 +51,38 @@ const form = useForm({
         starts_on: props.section?.academic_term.starts_on?.slice(0, 10) ?? '',
         ends_on: props.section?.academic_term.ends_on?.slice(0, 10) ?? '',
     },
-    schedules: props.section?.schedules?.length
-        ? props.section.schedules.map((schedule) => ({
-              ...schedule,
-              starts_at: schedule.starts_at.slice(0, 5),
-              ends_at: schedule.ends_at.slice(0, 5),
-          }))
-        : [{ day_of_week: 1, starts_at: '08:00', ends_at: '09:00' }],
+    schedules: props.section?.schedules?.length ? groupedSchedules(props.section.schedules) : [{ days: [1], starts_at: '08:00', ends_at: '09:00' }],
 });
 
 const fieldError = (key: string) => (form.errors as Record<string, string | undefined>)[key];
+const scheduleError = ref('');
+
+const addSchedule = () => {
+    form.schedules.push({ days: [], starts_at: '08:00', ends_at: '09:00' });
+};
+
+const toggleDay = (schedule: Schedule, day: number) => {
+    schedule.days = schedule.days.includes(day) ? schedule.days.filter((selectedDay) => selectedDay !== day) : [...schedule.days, day].sort();
+    scheduleError.value = '';
+};
 
 const submit = () => {
+    if (form.schedules.some((schedule) => schedule.days.length === 0)) {
+        scheduleError.value = 'Select at least one weekday for every schedule entry.';
+        return;
+    }
+
+    form.transform((data) => ({
+        ...data,
+        schedules: data.schedules.flatMap((schedule) =>
+            schedule.days.map((day) => ({
+                day_of_week: day,
+                starts_at: schedule.starts_at,
+                ends_at: schedule.ends_at,
+            })),
+        ),
+    }));
+
     if (props.section) form.put(`/sections/${props.section.id}`);
     else form.post('/sections');
 };
@@ -49,10 +90,10 @@ const submit = () => {
 
 <template>
     <form class="grid gap-8" @submit.prevent="submit">
-        <section class="grid gap-5 rounded-2xl border border-stone-200 bg-[#fffdf7] p-6 shadow-[0_18px_60px_-45px_rgba(28,25,23,.65)] md:grid-cols-2">
+        <section class="grid gap-5 rounded-2xl border border-[#e5e7eb] bg-[#ffffff] p-6 shadow-[0_18px_60px_-45px_rgba(28,25,23,.65)] md:grid-cols-2">
             <div class="md:col-span-2">
-                <p class="font-mono text-xs font-bold uppercase tracking-[.2em] text-amber-700">01 / Identity</p>
-                <h2 class="mt-1 font-serif text-2xl font-bold text-stone-900">What class meets here?</h2>
+                <p class="font-mono text-xs font-bold uppercase tracking-[.2em] text-[#0071e3]">01 / Identity</p>
+                <h2 class="mt-1 font-serif text-2xl font-bold text-[#1d1d1f]">What class meets here?</h2>
             </div>
             <div class="grid gap-2">
                 <Label for="code">Subject code</Label><Input id="code" v-model="form.subject_code" placeholder="MATH 101" /><InputError
@@ -71,14 +112,14 @@ const submit = () => {
                 />
             </div>
             <div class="grid gap-2">
-                <Label for="room">Room <span class="text-stone-400">(optional)</span></Label
+                <Label for="room">Room <span class="text-[#86868b]">(optional)</span></Label
                 ><Input id="room" v-model="form.room" placeholder="Room 204" />
             </div>
         </section>
 
-        <section class="grid gap-5 rounded-2xl border border-stone-200 bg-[#fffdf7] p-6 md:grid-cols-2">
+        <section class="grid gap-5 rounded-2xl border border-[#e5e7eb] bg-[#ffffff] p-6 md:grid-cols-2">
             <div class="md:col-span-2">
-                <p class="font-mono text-xs font-bold uppercase tracking-[.2em] text-amber-700">02 / Term</p>
+                <p class="font-mono text-xs font-bold uppercase tracking-[.2em] text-[#0071e3]">02 / Term</p>
                 <h2 class="mt-1 font-serif text-2xl font-bold">Set the record window</h2>
             </div>
             <div class="grid gap-2">
@@ -97,42 +138,57 @@ const submit = () => {
             </div>
         </section>
 
-        <section class="grid gap-5 rounded-2xl border border-stone-200 bg-[#fffdf7] p-6">
+        <section class="grid gap-5 rounded-2xl border border-[#e5e7eb] bg-[#ffffff] p-6">
             <div class="flex items-start justify-between gap-4">
                 <div>
-                    <p class="font-mono text-xs font-bold uppercase tracking-[.2em] text-amber-700">03 / Rhythm</p>
+                    <p class="font-mono text-xs font-bold uppercase tracking-[.2em] text-[#0071e3]">03 / Rhythm</p>
                     <h2 class="mt-1 font-serif text-2xl font-bold">Weekly schedule</h2>
                 </div>
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    @click="form.schedules.push({ day_of_week: 1, starts_at: '08:00', ends_at: '09:00' })"
-                    ><Plus class="mr-1 size-4" /> Meeting</Button
-                >
+                <Button type="button" variant="outline" size="sm" @click="addSchedule"><Plus class="mr-1 size-4" /> Add time</Button>
             </div>
-            <div
-                v-for="(schedule, index) in form.schedules"
-                :key="index"
-                class="grid items-end gap-3 rounded-xl bg-stone-100/70 p-4 sm:grid-cols-[1fr_1fr_1fr_auto]"
-            >
-                <div class="grid gap-2">
-                    <Label>Day</Label
-                    ><select v-model.number="schedule.day_of_week" class="rounded-md border-stone-300 bg-white">
-                        <option v-for="(day, dayIndex) in days" :key="day" :value="dayIndex + 1">{{ day }}</option>
-                    </select>
+            <div v-for="(schedule, index) in form.schedules" :key="index" class="grid gap-4 rounded-xl border border-[#e5e7eb] bg-[#f5f5f7]/70 p-4">
+                <div>
+                    <div class="mb-2 flex items-center justify-between gap-3">
+                        <Label :id="`schedule-days-${index}`">Meeting days</Label>
+                        <span class="text-xs text-[#86868b]">Choose one or more</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 sm:grid-cols-5" :aria-labelledby="`schedule-days-${index}`">
+                        <label
+                            v-for="(day, dayIndex) in days"
+                            :key="day"
+                            class="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border bg-white px-3 text-sm font-medium transition-colors hover:border-[#0071e3]"
+                            :class="schedule.days.includes(dayIndex + 1) ? 'border-[#0071e3] text-[#0066cc]' : 'border-[#e5e7eb] text-[#1d1d1f]'"
+                        >
+                            <input
+                                type="checkbox"
+                                class="size-4 rounded border-[#86868b] text-[#0071e3] focus:ring-[#0071e3]"
+                                :checked="schedule.days.includes(dayIndex + 1)"
+                                @change="toggleDay(schedule, dayIndex + 1)"
+                            />
+                            {{ day }}
+                        </label>
+                    </div>
                 </div>
-                <div class="grid gap-2"><Label>Start</Label><Input v-model="schedule.starts_at" type="time" /></div>
-                <div class="grid gap-2"><Label>End</Label><Input v-model="schedule.ends_at" type="time" /></div>
-                <Button type="button" variant="ghost" size="icon" :disabled="form.schedules.length === 1" @click="form.schedules.splice(index, 1)"
-                    ><Minus class="size-4" /><span class="sr-only">Remove meeting</span></Button
-                >
+                <div class="grid items-end gap-3 sm:grid-cols-[1fr_1fr_auto]">
+                    <div class="grid gap-2">
+                        <Label :for="`schedule-start-${index}`">Start time</Label>
+                        <Input :id="`schedule-start-${index}`" v-model="schedule.starts_at" type="time" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label :for="`schedule-end-${index}`">End time</Label>
+                        <Input :id="`schedule-end-${index}`" v-model="schedule.ends_at" type="time" />
+                    </div>
+                    <Button type="button" variant="ghost" size="icon" :disabled="form.schedules.length === 1" @click="form.schedules.splice(index, 1)"
+                        ><Minus class="size-4" /><span class="sr-only">Remove schedule entry</span></Button
+                    >
+                </div>
             </div>
+            <InputError :message="scheduleError || fieldError('schedules')" />
         </section>
 
         <div class="flex justify-end gap-3">
             <Button as-child variant="ghost"><Link href="/sections">Cancel</Link></Button
-            ><Button class="bg-amber-700 text-white hover:bg-amber-800" :disabled="form.processing">{{
+            ><Button class="bg-[#0071e3] text-white hover:bg-[#0066cc]" :disabled="form.processing">{{
                 section ? 'Save changes' : 'Create section'
             }}</Button>
         </div>
