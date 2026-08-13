@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Str;
 
 class Section extends Model
@@ -52,5 +53,20 @@ class Section extends Model
     public function students(): HasMany
     {
         return $this->hasMany(Student::class);
+    }
+
+    public function seats(): HasManyThrough
+    {
+        return $this->hasManyThrough(Seat::class, LayoutBlock::class);
+    }
+
+    public function attendanceSessions(): HasMany
+    {
+        return $this->hasMany(AttendanceSession::class);
+    }
+
+    public function attendanceRecords(): HasManyThrough
+    {
+        return $this->hasManyThrough(AttendanceRecord::class, AttendanceSession::class);
     }
 }

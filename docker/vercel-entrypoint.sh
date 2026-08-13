@@ -17,6 +17,7 @@ export SESSION_DRIVER=database
 export CACHE_STORE=database
 
 if [ -n "$unpooled_database_url" ]; then
+    export DB_DATABASE_URL_UNPOOLED="$unpooled_database_url"
     export DB_CACHE_CONNECTION=pgsql_unpooled
     export DB_CACHE_LOCK_CONNECTION=pgsql_unpooled
 fi
@@ -26,7 +27,7 @@ export SESSION_SECURE_COOKIE=true
 
 # Listen immediately so cold containers stay available while the shared Neon
 # migration lock verifies that the production schema is current.
-php artisan serve --host=0.0.0.0 --port="${PORT:-80}" &
+php artisan serve --no-reload --host=0.0.0.0 --port="${PORT:-80}" &
 server_pid=$!
 
 stop_server() {

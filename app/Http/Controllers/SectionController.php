@@ -41,17 +41,7 @@ class SectionController extends Controller
     {
         $section = DB::transaction(function () use ($request) {
             $data = $request->validated();
-            $term = AcademicTerm::firstOrCreate(
-                [
-                    'user_id' => $request->user()->id,
-                    'name' => $data['term']['name'],
-                    'school_year' => $data['term']['school_year'],
-                ],
-                [
-                    'starts_on' => $data['term']['starts_on'],
-                    'ends_on' => $data['term']['ends_on'],
-                ],
-            );
+            $term = AcademicTerm::resolveForUser($request->user()->id, $data['term']);
 
             $section = Section::create([
                 ...collect($data)->only(['subject_code', 'subject_title', 'name', 'room'])->all(),
@@ -107,10 +97,7 @@ class SectionController extends Controller
     {
         DB::transaction(function () use ($request, $section) {
             $data = $request->validated();
-            $term = AcademicTerm::firstOrCreate(
-                ['user_id' => $request->user()->id, 'name' => $data['term']['name'], 'school_year' => $data['term']['school_year']],
-                ['starts_on' => $data['term']['starts_on'], 'ends_on' => $data['term']['ends_on']],
-            );
+            $term = AcademicTerm::resolveForUser($request->user()->id, $data['term']);
             $section->update([
                 ...collect($data)->only(['subject_code', 'subject_title', 'name', 'room'])->all(),
                 'academic_term_id' => $term->id,
