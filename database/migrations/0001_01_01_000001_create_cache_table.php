@@ -11,17 +11,41 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('cache', function (Blueprint $table) {
-            $table->string('key')->primary();
-            $table->mediumText('value');
-            $table->integer('expiration');
-        });
+        if (! Schema::hasTable('cache')) {
+            Schema::create('cache', function (Blueprint $table) {
+                $table->string('key')->primary();
+                $table->mediumText('value');
+                $table->integer('expiration');
+            });
+        }
 
-        Schema::create('cache_locks', function (Blueprint $table) {
-            $table->string('key')->primary();
-            $table->string('owner');
-            $table->integer('expiration');
-        });
+        if (! Schema::hasColumns('cache', ['key', 'value', 'expiration'])) {
+            throw new RuntimeException('The existing cache table is incomplete; refusing an automatic production repair.');
+        }
+
+        if (! Schema::hasIndex('cache', ['key'], 'primary')) {
+            Schema::table('cache', function (Blueprint $table) {
+                $table->primary('key');
+            });
+        }
+
+        if (! Schema::hasTable('cache_locks')) {
+            Schema::create('cache_locks', function (Blueprint $table) {
+                $table->string('key')->primary();
+                $table->string('owner');
+                $table->integer('expiration');
+            });
+        }
+
+        if (! Schema::hasColumns('cache_locks', ['key', 'owner', 'expiration'])) {
+            throw new RuntimeException('The existing cache_locks table is incomplete; refusing an automatic production repair.');
+        }
+
+        if (! Schema::hasIndex('cache_locks', ['key'], 'primary')) {
+            Schema::table('cache_locks', function (Blueprint $table) {
+                $table->primary('key');
+            });
+        }
     }
 
     /**
