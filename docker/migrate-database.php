@@ -1,7 +1,6 @@
 <?php
 
 use Illuminate\Contracts\Console\Kernel;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 
 require __DIR__.'/../vendor/autoload.php';
@@ -9,19 +8,32 @@ require __DIR__.'/../vendor/autoload.php';
 $app = require __DIR__.'/../bootstrap/app.php';
 $app->make(Kernel::class)->bootstrap();
 
+$unpooledDatabaseUrl = env('DB_DATABASE_URL_UNPOOLED');
+
+if ($unpooledDatabaseUrl) {
+    config(['database.connections.pgsql.url' => $unpooledDatabaseUrl]);
+    DB::purge('pgsql');
+}
+
 $connection = DB::connection();
 $lockKey = 1_124_986_531;
 
-$exitCode = $connection->transaction(function () use ($connection, $lockKey): int {
-    $connection->select('select pg_advisory_xact_lock(?)', [$lockKey]);
+$connection->select('select pg_advisory_lock(?)', [$lockKey]);
 
-    return Artisan::call('migrate', ['--force' => true, '--no-interaction' => true]);
-});
+try {
+    $command = sprintf(
+        '%s %s migrate --force --no-interaction',
+        escapeshellarg(PHP_BINARY),
+        escapeshellarg(base_path('artisan')),
+    );
 
-fwrite(STDOUT, Artisan::output());
+    passthru($command, $exitCode);
 
-if ($exitCode !== 0) {
-    throw new RuntimeException("Database migration failed with exit code {$exitCode}.");
+    if ($exitCode !== 0) {
+        throw new RuntimeException("Database migration failed with exit code {$exitCode}.");
+    }
+} finally {
+    $connection->select('select pg_advisory_unlock(?)', [$lockKey]);
 }
 
 exit(0);
