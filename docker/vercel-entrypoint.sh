@@ -2,19 +2,23 @@
 
 set -eu
 
-# Keep a SQLite deployment bootable until a persistent database is connected.
-# The database lives in Vercel's writable temporary directory and is recreated
-# when an instance is replaced, so production data must use PostgreSQL/MySQL.
-if [ "${DB_CONNECTION:-sqlite}" = "sqlite" ]; then
-    export DB_DATABASE="${DB_DATABASE:-/tmp/classcheck.sqlite}"
-    export SESSION_DRIVER=cookie
-    export CACHE_STORE=array
-    export QUEUE_CONNECTION=sync
+database_url="${DATABASE_URL:-${POSTGRES_URL:-${DB_URL:-}}}"
 
-    mkdir -p "$(dirname "$DB_DATABASE")"
-    touch "$DB_DATABASE"
-    php artisan migrate --force --no-interaction
+if [ -z "$database_url" ]; then
+    echo "ClassCheck requires a Neon PostgreSQL DATABASE_URL in production." >&2
+    echo "Install Neon from the Vercel Marketplace and redeploy the service." >&2
+    exit 1
 fi
+
+export DB_CONNECTION=pgsql
+export DB_URL="$database_url"
+export SESSION_DRIVER=database
+export CACHE_STORE=database
+export QUEUE_CONNECTION=database
+export SESSION_SECURE_COOKIE=true
+
+# All Vercel instances share Neon, including users, sections, and sessions.
+php artisan migrate --force --no-interaction
 
 # Vercel injects PORT. Listen on every interface so its router can reach Laravel.
 exec php artisan serve --host=0.0.0.0 --port="${PORT:-80}"

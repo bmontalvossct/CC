@@ -25,11 +25,24 @@ class AuthenticationTest extends TestCase
         $user = User::factory()->create();
 
         $response = $this->post('/login', [
-            'email' => $user->email,
+            'login' => $user->email,
             'password' => 'password',
         ]);
 
         $this->assertAuthenticated();
+        $response->assertRedirect(route('dashboard', absolute: false));
+    }
+
+    public function test_users_can_authenticate_using_their_username(): void
+    {
+        $user = User::factory()->create(['username' => 'class-teacher']);
+
+        $response = $this->post('/login', [
+            'login' => 'CLASS-TEACHER',
+            'password' => 'password',
+        ]);
+
+        $this->assertAuthenticatedAs($user);
         $response->assertRedirect(route('dashboard', absolute: false));
     }
 
@@ -38,10 +51,25 @@ class AuthenticationTest extends TestCase
         $user = User::factory()->create();
 
         $this->post('/login', [
-            'email' => $user->email,
+            'login' => $user->email,
             'password' => 'wrong-password',
         ]);
 
+        $this->assertGuest();
+    }
+
+    public function test_rate_limit_errors_are_returned_for_the_login_field(): void
+    {
+        $user = User::factory()->create();
+
+        foreach (range(1, 6) as $_) {
+            $response = $this->post('/login', [
+                'login' => $user->email,
+                'password' => 'wrong-password',
+            ]);
+        }
+
+        $response->assertSessionHasErrors('login');
         $this->assertGuest();
     }
 
@@ -72,6 +100,7 @@ class AuthenticationTest extends TestCase
         $this->assertAuthenticated();
         $this->assertDatabaseHas('users', [
             'email' => 'teacher@example.com',
+            'username' => 'teacher',
             'google_id' => 'google-user-123',
         ]);
         $this->assertNotNull(User::where('email', 'teacher@example.com')->firstOrFail()->email_verified_at);

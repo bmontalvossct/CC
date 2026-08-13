@@ -90,19 +90,23 @@ APP_DEBUG=false
 APP_URL=https://your-project.vercel.app
 LOG_CHANNEL=stderr
 DB_CONNECTION=pgsql
-DB_URL=postgresql://user:password@host:5432/database
+DATABASE_URL=postgresql://user:password@host/database?sslmode=require
 SESSION_DRIVER=database
 CACHE_STORE=database
 QUEUE_CONNECTION=database
+SESSION_SECURE_COOKIE=true
 ```
 
-Run `php artisan migrate --force` against the production database as a
-separate release step.
+Install **Neon Postgres** from the Vercel Marketplace so Vercel provisions the
+database and injects its pooled `DATABASE_URL`. The container refuses to start
+without that shared PostgreSQL connection and runs pending migrations before it
+accepts requests.
 
-Do not use the bundled SQLite database on Vercel. Its containers are stateless,
-so SQLite changes and locally uploaded files do not persist across instances or
-deployments. Configure external object storage before relying on student image
-or assessment attachment uploads in production.
+The users, sections, sessions, cache, and queued jobs all use Neon. This is
+required because Vercel containers are stateless; SQLite changes and locally
+uploaded files do not persist across instances or deployments. Configure
+external object storage before relying on student image or assessment
+attachment uploads in production.
 
 ### Traditional server
 

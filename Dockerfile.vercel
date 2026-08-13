@@ -76,6 +76,11 @@ RUN mkdir -p \
 
 ENV APP_ENV=production \
     APP_DEBUG=false \
+    DB_CONNECTION=pgsql \
+    SESSION_DRIVER=database \
+    CACHE_STORE=database \
+    QUEUE_CONNECTION=database \
+    SESSION_SECURE_COOKIE=true \
     LOG_CHANNEL=stderr \
     LOG_LEVEL=warning \
     PORT=80

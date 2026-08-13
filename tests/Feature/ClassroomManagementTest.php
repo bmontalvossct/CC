@@ -127,6 +127,8 @@ class ClassroomManagementTest extends TestCase
 
         $section = Section::where('subject_code', 'CS 101')->firstOrFail();
         $response->assertRedirect(route('sections.show', $section));
+        $this->assertAuthenticatedAs($user);
+        $this->get(route('sections.show', $section))->assertOk();
         $this->assertSame(3, $section->schedules()->count());
         $this->assertDatabaseHas('section_schedules', [
             'section_id' => $section->id,

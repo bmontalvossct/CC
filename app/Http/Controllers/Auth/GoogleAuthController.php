@@ -56,6 +56,7 @@ class GoogleAuthController extends Controller
         } else {
             $user = User::create([
                 'name' => $googleUser->getName() ?: Str::before($email, '@'),
+                'username' => $this->availableUsername($email),
                 'email' => $email,
                 'email_verified_at' => now(),
                 'google_id' => $googleUser->getId(),
@@ -67,5 +68,22 @@ class GoogleAuthController extends Controller
         $request->session()->regenerate();
 
         return redirect()->intended(route('dashboard', absolute: false));
+    }
+
+    private function availableUsername(string $email): string
+    {
+        $base = Str::of(Str::before($email, '@'))
+            ->lower()
+            ->replaceMatches('/[^a-z0-9_-]+/', '')
+            ->limit(42, '')
+            ->toString() ?: 'user';
+        $username = $base;
+        $suffix = 1;
+
+        while (User::query()->where('username', $username)->exists()) {
+            $username = $base.'-'.$suffix++;
+        }
+
+        return $username;
     }
 }
