@@ -98,7 +98,8 @@ SESSION_SECURE_COOKIE=true
 ```
 
 Install **Neon Postgres** from the Vercel Marketplace so Vercel provisions the
-database and injects its pooled `DATABASE_URL`. The container refuses to start
+database and injects its pooled `DATABASE_URL` (or a prefixed
+`DB_DATABASE_URL`). The container refuses to start
 without that shared PostgreSQL connection and runs pending migrations before it
 accepts requests.
 

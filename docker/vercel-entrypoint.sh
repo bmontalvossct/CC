@@ -2,7 +2,7 @@
 
 set -eu
 
-database_url="${DATABASE_URL:-${POSTGRES_URL:-${DB_URL:-}}}"
+database_url="${DATABASE_URL:-${DB_DATABASE_URL:-${POSTGRES_URL:-${DB_URL:-}}}}"
 
 if [ -z "$database_url" ]; then
     echo "ClassCheck requires a Neon PostgreSQL DATABASE_URL in production." >&2
