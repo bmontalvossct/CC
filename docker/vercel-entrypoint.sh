@@ -3,6 +3,7 @@
 set -eu
 
 database_url="${DATABASE_URL:-${DB_DATABASE_URL:-${POSTGRES_URL:-${DB_URL:-}}}}"
+unpooled_database_url="${DB_DATABASE_URL_UNPOOLED:-${DB_POSTGRES_URL_NON_POOLING:-}}"
 
 if [ -z "$database_url" ]; then
     echo "ClassCheck requires a Neon PostgreSQL DATABASE_URL in production." >&2
@@ -14,6 +15,12 @@ export DB_CONNECTION=pgsql
 export DB_URL="$database_url"
 export SESSION_DRIVER=database
 export CACHE_STORE=database
+
+if [ -n "$unpooled_database_url" ]; then
+    export DB_CACHE_CONNECTION=pgsql_unpooled
+    export DB_CACHE_LOCK_CONNECTION=pgsql_unpooled
+fi
+
 export QUEUE_CONNECTION=database
 export SESSION_SECURE_COOKIE=true
 

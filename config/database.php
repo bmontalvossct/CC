@@ -97,6 +97,16 @@ return [
             'sslmode' => env('DB_SSLMODE', 'require'),
         ],
 
+        'pgsql_unpooled' => [
+            'driver' => 'pgsql',
+            'url' => env('DB_DATABASE_URL_UNPOOLED', env('DB_POSTGRES_URL_NON_POOLING')),
+            'charset' => env('DB_CHARSET', 'utf8'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => env('DB_SSLMODE', 'require'),
+        ],
+
         'sqlsrv' => [
             'driver' => 'sqlsrv',
             'url' => env('DB_URL'),
