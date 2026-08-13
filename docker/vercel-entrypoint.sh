@@ -24,10 +24,8 @@ fi
 export QUEUE_CONNECTION=database
 export SESSION_SECURE_COOKIE=true
 
-# All Vercel instances share Neon, including users, sections, and sessions.
-php artisan down --retry=5 --no-interaction || true
-
-# Vercel injects PORT. Listen on every interface so its router can reach Laravel.
+# Listen immediately so cold containers stay available while the shared Neon
+# migration lock verifies that the production schema is current.
 php artisan serve --host=0.0.0.0 --port="${PORT:-80}" &
 server_pid=$!
 
@@ -44,5 +42,4 @@ if ! php docker/migrate-database.php; then
     exit 1
 fi
 
-php artisan up --no-interaction
 wait "$server_pid"
