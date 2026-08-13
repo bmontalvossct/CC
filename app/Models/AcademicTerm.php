@@ -19,11 +19,7 @@ class AcademicTerm extends Model
     }
 
     /**
-     * Resolve a teacher's term without firstOrCreate's nested savepoint.
-     *
-     * Neon uses PostgreSQL transaction pooling in production. A single upsert is
-     * both concurrency-safe and avoids opening a nested transaction while a
-     * section is being created or updated.
+     * Resolve a teacher's term before the section transaction begins.
      *
      * @param  array{name: string, school_year: string, starts_on: string, ends_on: string}  $term
      */
@@ -35,13 +31,17 @@ class AcademicTerm extends Model
             'school_year' => $term['school_year'],
         ];
 
-        static::query()->upsert(
-            [[...$identity, 'starts_on' => $term['starts_on'], 'ends_on' => $term['ends_on']]],
-            ['user_id', 'name', 'school_year'],
-            ['starts_on', 'ends_on'],
-        );
+        $academicTerm = static::query()->firstOrCreate($identity, [
+            'starts_on' => $term['starts_on'],
+            'ends_on' => $term['ends_on'],
+        ]);
 
-        return static::query()->where($identity)->firstOrFail();
+        static::query()->whereKey($academicTerm->getKey())->update([
+            'starts_on' => $term['starts_on'],
+            'ends_on' => $term['ends_on'],
+        ]);
+
+        return $academicTerm->refresh();
     }
 
     public function user(): BelongsTo

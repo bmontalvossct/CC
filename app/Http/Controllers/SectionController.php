@@ -39,13 +39,14 @@ class SectionController extends Controller
 
     public function store(StoreSectionRequest $request): RedirectResponse
     {
-        $section = DB::transaction(function () use ($request) {
-            $data = $request->validated();
-            $term = AcademicTerm::resolveForUser($request->user()->id, $data['term']);
+        $data = $request->validated();
+        $userId = $request->user()->id;
+        $term = AcademicTerm::resolveForUser($userId, $data['term']);
 
+        $section = DB::transaction(function () use ($data, $term, $userId) {
             $section = Section::create([
                 ...collect($data)->only(['subject_code', 'subject_title', 'name', 'room'])->all(),
-                'user_id' => $request->user()->id,
+                'user_id' => $userId,
                 'academic_term_id' => $term->id,
             ]);
             $section->schedules()->createMany($data['schedules'] ?? []);
@@ -95,9 +96,10 @@ class SectionController extends Controller
 
     public function update(UpdateSectionRequest $request, Section $section): RedirectResponse
     {
-        DB::transaction(function () use ($request, $section) {
-            $data = $request->validated();
-            $term = AcademicTerm::resolveForUser($request->user()->id, $data['term']);
+        $data = $request->validated();
+        $term = AcademicTerm::resolveForUser($request->user()->id, $data['term']);
+
+        DB::transaction(function () use ($data, $term, $section) {
             $section->update([
                 ...collect($data)->only(['subject_code', 'subject_title', 'name', 'room'])->all(),
                 'academic_term_id' => $term->id,

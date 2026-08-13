@@ -25,6 +25,14 @@ class ProductionReliabilityTest extends TestCase
             'ends_on' => '2026-12-01',
         ]);
 
+        $baselineTransactionLevel = DB::transactionLevel();
+        $termQueryTransactionLevels = [];
+        DB::listen(function ($query) use (&$termQueryTransactionLevels): void {
+            if (str_contains($query->sql, 'academic_terms')) {
+                $termQueryTransactionLevels[] = DB::transactionLevel();
+            }
+        });
+
         $this->actingAs($user)->post(route('sections.store'), [
             'subject_code' => 'CS 102',
             'subject_title' => 'Programming',
@@ -38,6 +46,8 @@ class ProductionReliabilityTest extends TestCase
             'schedules' => [],
         ])->assertRedirect();
 
+        $this->assertNotEmpty($termQueryTransactionLevels);
+        $this->assertSame([$baselineTransactionLevel], array_values(array_unique($termQueryTransactionLevels)));
         $this->assertSame(1, AcademicTerm::where('user_id', $user->id)->count());
         $this->assertDatabaseHas('academic_terms', [
             'user_id' => $user->id,
