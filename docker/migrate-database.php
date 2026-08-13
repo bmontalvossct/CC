@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 
 require __DIR__.'/../vendor/autoload.php';
@@ -21,13 +22,12 @@ $lockKey = 1_124_986_531;
 $connection->select('select pg_advisory_lock(?)', [$lockKey]);
 
 try {
-    $command = sprintf(
-        '%s %s migrate --force --no-interaction',
-        escapeshellarg(PHP_BINARY),
-        escapeshellarg(base_path('artisan')),
-    );
+    $exitCode = Artisan::call('migrate', [
+        '--force' => true,
+        '--no-interaction' => true,
+    ]);
 
-    passthru($command, $exitCode);
+    echo Artisan::output();
 
     if ($exitCode !== 0) {
         throw new RuntimeException("Database migration failed with exit code {$exitCode}.");
