@@ -1,6 +1,14 @@
 <?php
 
+use Illuminate\Support\ConfigurationUrlParser;
 use Illuminate\Support\Str;
+
+$databaseUrl = env('DATABASE_URL', env('DB_DATABASE_URL', env('POSTGRES_URL', env('DB_URL'))));
+$directDatabaseUrl = env('DB_DATABASE_URL_UNPOOLED', env('DB_POSTGRES_URL_NON_POOLING'));
+$directPostgresConfig = $directDatabaseUrl
+    ? (new ConfigurationUrlParser)->parseConfiguration($directDatabaseUrl)
+    : [];
+$pooledPostgres = env('DB_POOLED', Str::contains((string) $databaseUrl, '-pooler.'));
 
 return [
 
@@ -84,7 +92,7 @@ return [
 
         'pgsql' => [
             'driver' => 'pgsql',
-            'url' => env('DATABASE_URL', env('DB_DATABASE_URL', env('POSTGRES_URL', env('DB_URL')))),
+            'url' => $databaseUrl,
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '5432'),
             'database' => env('DB_DATABASE', 'laravel'),
@@ -93,13 +101,14 @@ return [
             'charset' => env('DB_CHARSET', 'utf8'),
             'prefix' => '',
             'prefix_indexes' => true,
-            'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'require'),
+            'pooled' => $pooledPostgres,
+            'direct' => $directPostgresConfig,
         ],
 
         'pgsql_unpooled' => [
             'driver' => 'pgsql',
-            'url' => env('DB_DATABASE_URL_UNPOOLED', env('DB_POSTGRES_URL_NON_POOLING')),
+            'url' => $directDatabaseUrl,
             'charset' => env('DB_CHARSET', 'utf8'),
             'prefix' => '',
             'prefix_indexes' => true,
