@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AuthBase from '@/layouts/AuthLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
-import { LoaderCircle } from 'lucide-vue-next';
+import { LoaderCircle, UserPlus } from 'lucide-vue-next';
 
 const form = useForm({
     name: '',
@@ -24,19 +24,19 @@ const submit = () => {
 </script>
 
 <template>
-    <AuthBase title="Create an account" description="Enter your details below to create your account">
+    <AuthBase title="Create your account" description="Start managing your classes with ClassCheck in minutes">
         <Head title="Register" />
 
-        <form @submit.prevent="submit" class="flex flex-col gap-6">
-            <div class="grid gap-6">
-                <div class="grid gap-2">
-                    <Label for="name">Name</Label>
-                    <Input id="name" type="text" required autofocus :tabindex="1" autocomplete="name" v-model="form.name" placeholder="Full name" />
-                    <InputError :message="form.errors.name" />
+        <form @submit.prevent="submit" class="flex flex-col gap-4">
+            <div class="grid gap-3.5">
+                <div class="grid gap-1.5">
+                    <Label for="name" class="text-xs font-semibold">Full name</Label>
+                    <Input id="name" type="text" required autofocus :tabindex="1" autocomplete="name" v-model="form.name" placeholder="Prof. Jane Doe" class="rounded-xl h-10 text-sm" />
+                    <InputError class="text-xs mt-1" :message="form.errors.name" />
                 </div>
 
-                <div class="grid gap-2">
-                    <Label for="username">Username</Label>
+                <div class="grid gap-1.5">
+                    <Label for="username" class="text-xs font-semibold">Username</Label>
                     <Input
                         id="username"
                         type="text"
@@ -44,19 +44,20 @@ const submit = () => {
                         :tabindex="2"
                         autocomplete="username"
                         v-model="form.username"
-                        placeholder="Username"
+                        placeholder="janedoe"
+                        class="rounded-xl h-10 text-sm"
                     />
-                    <InputError :message="form.errors.username" />
+                    <InputError class="text-xs mt-1" :message="form.errors.username" />
                 </div>
 
-                <div class="grid gap-2">
-                    <Label for="email">Email address</Label>
-                    <Input id="email" type="email" required :tabindex="3" autocomplete="email" v-model="form.email" placeholder="email@example.com" />
-                    <InputError :message="form.errors.email" />
+                <div class="grid gap-1.5">
+                    <Label for="email" class="text-xs font-semibold">Email address</Label>
+                    <Input id="email" type="email" required :tabindex="3" autocomplete="email" v-model="form.email" placeholder="jane@school.edu" class="rounded-xl h-10 text-sm" />
+                    <InputError class="text-xs mt-1" :message="form.errors.email" />
                 </div>
 
-                <div class="grid gap-2">
-                    <Label for="password">Password</Label>
+                <div class="grid gap-1.5">
+                    <Label for="password" class="text-xs font-semibold">Password</Label>
                     <Input
                         id="password"
                         type="password"
@@ -64,13 +65,14 @@ const submit = () => {
                         :tabindex="4"
                         autocomplete="new-password"
                         v-model="form.password"
-                        placeholder="Password"
+                        placeholder="••••••••"
+                        class="rounded-xl h-10 text-sm"
                     />
-                    <InputError :message="form.errors.password" />
+                    <InputError class="text-xs mt-1" :message="form.errors.password" />
                 </div>
 
-                <div class="grid gap-2">
-                    <Label for="password_confirmation">Confirm password</Label>
+                <div class="grid gap-1.5">
+                    <Label for="password_confirmation" class="text-xs font-semibold">Confirm password</Label>
                     <Input
                         id="password_confirmation"
                         type="password"
@@ -78,20 +80,22 @@ const submit = () => {
                         :tabindex="5"
                         autocomplete="new-password"
                         v-model="form.password_confirmation"
-                        placeholder="Confirm password"
+                        placeholder="••••••••"
+                        class="rounded-xl h-10 text-sm"
                     />
-                    <InputError :message="form.errors.password_confirmation" />
+                    <InputError class="text-xs mt-1" :message="form.errors.password_confirmation" />
                 </div>
 
-                <Button type="submit" class="mt-2 w-full" :tabindex="6" :disabled="form.processing">
-                    <LoaderCircle v-if="form.processing" class="h-4 w-4 animate-spin" />
-                    Create account
+                <Button type="submit" class="ink-button !h-10 !w-full !rounded-xl mt-2" :tabindex="6" :disabled="form.processing">
+                    <LoaderCircle v-if="form.processing" class="size-4 animate-spin" />
+                    <UserPlus v-else class="size-4" />
+                    <span>Create account</span>
                 </Button>
             </div>
 
-            <div class="text-center text-sm text-muted-foreground">
+            <div class="text-center text-xs text-muted-foreground mt-2">
                 Already have an account?
-                <TextLink :href="route('login')" class="underline underline-offset-4" :tabindex="7">Log in</TextLink>
+                <TextLink :href="route('login')" class="font-bold text-primary hover:underline" :tabindex="7">Log in</TextLink>
             </div>
         </form>
     </AuthBase>

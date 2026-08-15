@@ -27,7 +27,7 @@ export SESSION_SECURE_COOKIE=true
 
 # Listen immediately so cold containers stay available while the shared Neon
 # migration lock verifies that the production schema is current.
-php artisan serve --no-reload --host=0.0.0.0 --port="${PORT:-80}" &
+frankenphp run --config /etc/caddy/Caddyfile --adapter caddyfile &
 server_pid=$!
 
 stop_server() {

@@ -12,14 +12,18 @@ import SectionForm from './SectionForm.vue';
             { title: 'New section', href: '/sections/create' },
         ]"
     >
-        <main class="min-h-full bg-[#f3efe5] text-[#17231f] dark:bg-[#0d1512] dark:text-[#f8f3e8]">
-            <div class="mx-auto w-full max-w-4xl px-5 py-10 md:py-14">
-                <p class="font-mono text-xs font-bold uppercase tracking-[.25em] text-[#a9472d] dark:text-[#f08a68]">Classroom setup</p>
-                <h1 class="mt-2 font-serif text-4xl font-black tracking-tight text-[#17231f] dark:text-[#fffaf0]">Open a new class ledger.</h1>
-                <p class="mb-8 mt-3 max-w-2xl leading-7 text-[#56665f] dark:text-[#a9b7b1]">
-                    Name the class and establish its weekly rhythm. You will draw the room and place chairs next.
-                </p>
-                <SectionForm />
+        <main class="page-enter min-h-full bg-background text-foreground">
+            <div class="mx-auto w-full max-w-4xl px-5 pb-16 pt-9 md:px-10 md:pt-12">
+                <header class="border-b border-border pb-10">
+                    <p class="text-[15px] font-medium text-primary">Classroom setup</p>
+                    <h1 class="mt-2 font-display text-4xl font-semibold tracking-[-0.03em] sm:text-5xl">Create a new section.</h1>
+                    <p class="mt-3 max-w-2xl text-[17px] leading-7 text-muted-foreground">
+                        Add the class details and weekly schedule. You can arrange the room and add students next.
+                    </p>
+                </header>
+                <div class="mt-8">
+                    <SectionForm />
+                </div>
             </div>
         </main>
     </AppLayout>

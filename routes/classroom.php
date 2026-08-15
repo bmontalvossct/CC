@@ -11,6 +11,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('sections/{section}/enrollment', [SectionController::class, 'enrollment'])->name('sections.enrollment');
     Route::post('sections/{section}/enrollment-token', [SectionController::class, 'regenerateToken'])->name('sections.enrollment-token');
     Route::patch('sections/{section}/archive', [SectionController::class, 'archive'])->name('sections.archive');
+    Route::post('sections/{section}/seats/auto-assign', [SectionController::class, 'autoAssign'])->name('sections.seats.auto-assign');
+    Route::post('sections/{section}/seats/reset', [SectionController::class, 'resetSeats'])->name('sections.seats.reset');
+    Route::get('sections/{section}/roster/print', [SectionController::class, 'printRoster'])->name('sections.roster.print');
     Route::put('sections/{section}/floor-plan', [LayoutBlockController::class, 'replace'])->name('sections.floor-plan.replace');
     Route::post('sections/{section}/layout-blocks', [LayoutBlockController::class, 'store'])->name('sections.layout-blocks.store');
     Route::delete('sections/{section}/layout-blocks/{layoutBlock}', [LayoutBlockController::class, 'destroy'])->name('sections.layout-blocks.destroy');

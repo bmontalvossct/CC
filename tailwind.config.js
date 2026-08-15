@@ -12,9 +12,8 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Atkinson Hyperlegible', ...defaultTheme.fontFamily.sans],
-                serif: ['Atkinson Hyperlegible', ...defaultTheme.fontFamily.sans],
-                mono: ['Atkinson Hyperlegible', ...defaultTheme.fontFamily.sans],
+                sans: ['SF Pro Text', 'SF Pro Display', 'Atkinson Hyperlegible', ...defaultTheme.fontFamily.sans],
+                display: ['SF Pro Display', 'SF Pro Text', 'Atkinson Hyperlegible', ...defaultTheme.fontFamily.sans],
             },
             borderRadius: {
                 lg: 'var(--radius)',

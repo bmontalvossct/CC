@@ -14,15 +14,18 @@ const mainNavItems: NavItem[] = [
 </script>
 
 <template>
-    <Sidebar collapsible="icon" variant="inset" class="border-r border-border bg-[#f5f5f7] dark:bg-sidebar">
-        <SidebarHeader class="px-3 pt-3"
-            ><SidebarMenu
-                ><SidebarMenuItem
-                    ><SidebarMenuButton size="lg" as-child class="h-11 rounded-md"
-                        ><Link href="/dashboard"><AppLogo /></Link></SidebarMenuButton></SidebarMenuItem></SidebarMenu
-        ></SidebarHeader>
+    <Sidebar collapsible="icon" variant="inset" class="border-r border-border/80 bg-sidebar/95 backdrop-blur-md">
+        <SidebarHeader class="px-3 pt-3">
+            <SidebarMenu>
+                <SidebarMenuItem>
+                    <SidebarMenuButton size="lg" as-child class="h-12 rounded-xl transition-colors hover:bg-sidebar-accent">
+                        <Link href="/dashboard" prefetch="hover"><AppLogo /></Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+            </SidebarMenu>
+        </SidebarHeader>
         <SidebarContent><NavMain :items="mainNavItems" /></SidebarContent>
-        <SidebarFooter class="border-t border-border p-3"><NavUser /></SidebarFooter>
+        <SidebarFooter class="border-t border-border/80 p-3"><NavUser /></SidebarFooter>
     </Sidebar>
     <slot />
 </template>

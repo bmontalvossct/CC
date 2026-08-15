@@ -25,34 +25,34 @@ class AttendanceController extends Controller
         $section->load(['academicTerm', 'schedules']);
 
         $referenceDate = $request->date('reference_date') ?? today();
-        $records = AttendanceRecord::query()
-            ->whereHas('session', fn ($query) => $query->where('section_id', $section->id))
-            ->with([
-                'session:id,section_id,session_date,duration_minutes',
-                'student:id,section_id,student_number,first_name,middle_name,last_name',
-            ])
-            ->get();
-
         $periods = $this->periods($section, $referenceDate);
+        $aggregates = $this->attendanceAggregates($section, $periods);
 
         return Inertia::render('attendance/Index', [
             'section' => $this->sectionData($section),
             'referenceDate' => $referenceDate->toDateString(),
-            'periodSummaries' => collect($periods)->mapWithKeys(fn ($range, $key) => [
-                $key => $this->summaryFor($records, $range[0], $range[1]),
+            'periodSummaries' => collect(array_keys($periods))->mapWithKeys(fn ($period) => [
+                $period => $this->formatSummary(
+                    $aggregates->sum($period.'_sessions'),
+                    $aggregates->sum($period.'_present'),
+                    $aggregates->sum($period.'_minutes'),
+                ),
             ]),
-            'studentSummaries' => $section->students()->orderBy('last_name')->orderBy('first_name')->get()
-                ->map(function ($student) use ($records, $periods) {
-                    $studentRecords = $records->where('student_id', $student->id);
+            'studentSummaries' => $section->students()
+                ->orderBy('last_name')
+                ->orderBy('first_name')
+                ->get(['id', 'section_id', 'student_number', 'first_name', 'middle_name', 'last_name'])
+                ->map(function ($student) use ($aggregates) {
+                    $summary = $aggregates->get($student->id);
 
                     return [
                         'id' => $student->id,
                         'student_number' => $student->student_number,
                         'name' => trim("{$student->last_name}, {$student->first_name} {$student->middle_name}"),
-                        'week' => $this->summaryFor($studentRecords, ...$periods['week']),
-                        'month' => $this->summaryFor($studentRecords, ...$periods['month']),
-                        'term' => $this->summaryFor($studentRecords, ...$periods['term']),
-                        'overall' => $this->summaryFor($studentRecords),
+                        'week' => $this->summaryFromAggregate($summary, 'week'),
+                        'month' => $this->summaryFromAggregate($summary, 'month'),
+                        'term' => $this->summaryFromAggregate($summary, 'term'),
+                        'overall' => $this->summaryFromAggregate($summary, 'overall'),
                     ];
                 })->values(),
             'sessions' => AttendanceSession::query()
@@ -188,16 +188,47 @@ class AttendanceController extends Controller
         ];
     }
 
-    private function summaryFor(Collection $records, ?Carbon $from = null, ?Carbon $to = null): array
+    private function attendanceAggregates(Section $section, array $periods): Collection
     {
-        if ($from && $to) {
-            $records = $records->filter(fn ($record) => $record->session->session_date->betweenIncluded($from, $to));
+        $query = DB::table('attendance_records as records')
+            ->join('attendance_sessions as sessions', 'sessions.id', '=', 'records.attendance_session_id')
+            ->where('sessions.section_id', $section->id)
+            ->select('records.student_id')
+            ->selectRaw('COUNT(*) as overall_sessions')
+            ->selectRaw('SUM(CASE WHEN records.status = ? THEN 1 ELSE 0 END) as overall_present', [AttendanceRecord::STATUS_PRESENT])
+            ->selectRaw('COALESCE(SUM(records.attended_minutes), 0) as overall_minutes');
+
+        foreach ($periods as $period => [$from, $to]) {
+            $fromDate = $from->toDateString();
+            $toDate = $to->toDateString();
+            $query->selectRaw(
+                'SUM(CASE WHEN sessions.session_date BETWEEN ? AND ? THEN 1 ELSE 0 END) as '.$period.'_sessions',
+                [$fromDate, $toDate],
+            );
+            $query->selectRaw(
+                'SUM(CASE WHEN sessions.session_date BETWEEN ? AND ? AND records.status = ? THEN 1 ELSE 0 END) as '.$period.'_present',
+                [$fromDate, $toDate, AttendanceRecord::STATUS_PRESENT],
+            );
+            $query->selectRaw(
+                'SUM(CASE WHEN sessions.session_date BETWEEN ? AND ? THEN records.attended_minutes ELSE 0 END) as '.$period.'_minutes',
+                [$fromDate, $toDate],
+            );
         }
 
-        $present = $records->where('status', AttendanceRecord::STATUS_PRESENT)->count();
-        $minutes = $records->sum('attended_minutes');
-        $total = $records->count();
+        return $query->groupBy('records.student_id')->get()->keyBy('student_id');
+    }
 
+    private function summaryFromAggregate(?object $aggregate, string $period): array
+    {
+        return $this->formatSummary(
+            (int) ($aggregate->{$period.'_sessions'} ?? 0),
+            (int) ($aggregate->{$period.'_present'} ?? 0),
+            (int) ($aggregate->{$period.'_minutes'} ?? 0),
+        );
+    }
+
+    private function formatSummary(int $total, int $present, int $minutes): array
+    {
         return [
             'sessions' => $total,
             'present' => $present,

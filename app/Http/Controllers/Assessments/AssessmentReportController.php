@@ -26,18 +26,43 @@ class AssessmentReportController extends AssessmentModuleController
     {
         $this->authorizeSection($section);
         [$assessments, $students, $scores] = $this->data($section);
-        $rows = $students->map(function ($student) use ($assessments, $scores) {
-            $studentScores = $scores->get($student->id, collect())->keyBy('assessment_id');
-            $categories = collect(Assessment::TYPES)->mapWithKeys(function ($type) use ($assessments, $studentScores) {
-                $items = $assessments->where('type', $type);
-                $earned = $items->sum(fn ($item) => (float) ($studentScores->get($item->id)?->score ?? 0));
-                $possible = $items->sum(fn ($item) => (float) $item->max_points);
+        $categorySummary = collect(Assessment::TYPES)->mapWithKeys(fn ($type) => [$type => [
+            'count' => 0,
+            'possible' => 0.0,
+        ]]);
+
+        foreach ($assessments as $assessment) {
+            $categorySummary[$assessment->type] = [
+                'count' => $categorySummary[$assessment->type]['count'] + 1,
+                'possible' => round($categorySummary[$assessment->type]['possible'] + (float) $assessment->max_points, 2),
+            ];
+        }
+
+        $rows = $students->map(function ($student) use ($assessments, $scores, $categorySummary) {
+            $studentScores = $scores->get($student->id, collect());
+            $scoreGrid = [];
+            $earnedByType = array_fill_keys(Assessment::TYPES, 0.0);
+            $missingByType = array_fill_keys(Assessment::TYPES, 0);
+
+            foreach ($assessments as $assessment) {
+                $score = $studentScores->get($assessment->id)?->score;
+                $scoreGrid[$assessment->id] = $score;
+                $earnedByType[$assessment->type] += (float) ($score ?? 0);
+
+                if ($score === null) {
+                    $missingByType[$assessment->type]++;
+                }
+            }
+
+            $categories = collect(Assessment::TYPES)->mapWithKeys(function ($type) use ($categorySummary, $earnedByType, $missingByType) {
+                $earned = round($earnedByType[$type], 2);
+                $possible = $categorySummary[$type]['possible'];
 
                 return [$type => [
-                    'earned' => round($earned, 2),
-                    'possible' => round($possible, 2),
+                    'earned' => $earned,
+                    'possible' => $possible,
                     'percentage' => $possible > 0 ? round($earned / $possible * 100, 2) : null,
-                    'missing' => $items->filter(fn ($item) => $studentScores->get($item->id)?->score === null)->count(),
+                    'missing' => $missingByType[$type],
                 ]];
             });
 
@@ -45,14 +70,10 @@ class AssessmentReportController extends AssessmentModuleController
                 'id' => $student->id,
                 'student_number' => $student->student_number,
                 'full_name' => $student->full_name,
-                'scores' => $assessments->mapWithKeys(fn ($item) => [$item->id => $studentScores->get($item->id)?->score]),
+                'scores' => $scoreGrid,
                 'categories' => $categories,
             ];
         });
-        $categorySummary = collect(Assessment::TYPES)->mapWithKeys(fn ($type) => [$type => [
-            'count' => $assessments->where('type', $type)->count(),
-            'possible' => round($assessments->where('type', $type)->sum('max_points'), 2),
-        ]]);
 
         return Inertia::render('reports/Gradebook', [
             'section' => $section->only('id', 'name', 'subject_code', 'subject_title'),
@@ -68,8 +89,14 @@ class AssessmentReportController extends AssessmentModuleController
     {
         $assessments = Assessment::where('section_id', $section->id)->orderBy('conducted_on')->orderBy('id')
             ->get(['id', 'type', 'title', 'conducted_on', 'max_points']);
-        $students = Student::where('section_id', $section->id)->orderBy('last_name')->orderBy('first_name')->get();
-        $scores = AssessmentScore::whereIn('assessment_id', $assessments->pluck('id'))->get()->groupBy('student_id');
+        $students = Student::where('section_id', $section->id)
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->get(['id', 'student_number', 'first_name', 'middle_name', 'last_name']);
+        $scores = AssessmentScore::whereIn('assessment_id', $assessments->pluck('id'))
+            ->get(['assessment_id', 'student_id', 'score'])
+            ->groupBy('student_id')
+            ->map->keyBy('assessment_id');
 
         return [$assessments, $students, $scores];
     }

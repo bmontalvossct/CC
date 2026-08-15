@@ -17,12 +17,20 @@ ClassCheck is a teacher-first classroom attendance and assessment application. I
 
 ## Local setup
 
-Requirements: PHP 8.2+, Composer, Node 22+, npm, and SQLite or MySQL.
+Requirements: PHP 8.3+, Composer, Node 22+, npm, PostgreSQL 16+, and PHP's
+`pdo_pgsql` extension.
+
+Create a local PostgreSQL database before running the application:
+
+```sql
+CREATE DATABASE classcheck;
+```
 
 ```powershell
 composer install
 npm.cmd install
 Copy-Item .env.example .env
+# Set DB_USERNAME and DB_PASSWORD in .env for your PostgreSQL installation.
 php artisan key:generate
 php artisan migrate
 npm.cmd run build
@@ -99,7 +107,7 @@ SESSION_SECURE_COOKIE=true
 
 Install **Neon Postgres** from the Vercel Marketplace so Vercel provisions the
 database and injects its pooled `DATABASE_URL` (or a prefixed
-`DB_DATABASE_URL`). The container refuses to start
+`DB_DATABASE_URL`). The connection URL must use `sslmode=require`. The container refuses to start
 without that shared PostgreSQL connection and runs pending migrations before it
 accepts requests.
 
@@ -113,7 +121,8 @@ attachment uploads in production.
 
 - Serve the Laravel `public/` directory through HTTPS.
 - Set `APP_ENV=production`, `APP_DEBUG=false`, and the public `APP_URL` used in QR links.
-- Configure MySQL and production mail credentials in `.env`.
+- Configure PostgreSQL and production mail credentials in `.env`. Use
+  `DB_SSLMODE=require` when the server requires TLS.
 - Run `php artisan migrate --force` and `npm.cmd run build` during deployment.
 - Run `php artisan optimize` after environment values are final.
 - Keep `storage/` and `bootstrap/cache/` writable by the PHP process.

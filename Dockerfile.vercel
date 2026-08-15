@@ -26,39 +26,27 @@ ENV VITE_APP_NAME=${VITE_APP_NAME}
 
 RUN npm run build
 
-FROM php:8.3-cli-bookworm AS runtime
+FROM dunglas/frankenphp:1-php8.3-alpine AS runtime
 
 WORKDIR /app
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        libfreetype6-dev \
-        libicu-dev \
-        libjpeg62-turbo-dev \
-        libonig-dev \
-        libpng-dev \
-        libpq-dev \
-        libsqlite3-dev \
-        libxml2-dev \
-        libzip-dev \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j"$(nproc)" \
+RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
+    && install-php-extensions \
         bcmath \
         dom \
         gd \
         intl \
         mbstring \
         opcache \
-        pdo_mysql \
         pdo_pgsql \
-        pdo_sqlite \
         xml \
-        zip \
-    && rm -rf /var/lib/apt/lists/*
+        zip
 
 COPY . .
 COPY --from=php-dependencies /app/vendor ./vendor
 COPY --from=frontend-assets /app/public/build ./public/build
+COPY Caddyfile /etc/caddy/Caddyfile
+COPY docker/php-production.ini /usr/local/etc/php/conf.d/zz-classcheck-production.ini
 COPY docker/vercel-entrypoint.sh /usr/local/bin/vercel-entrypoint
 
 RUN rm -f bootstrap/cache/*.php \

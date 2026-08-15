@@ -9,6 +9,7 @@ use App\Models\Section;
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -74,11 +75,93 @@ class AttendanceTest extends TestCase
         $teacher = User::factory()->create();
         $section = $this->makeSection($teacher, 1);
         $student = $section->students()->first();
-        foreach ([['2026-08-10', 'present', 60], ['2026-08-11', 'absent', 0], ['2026-07-31', 'present', 60]] as [$date, $status, $minutes]) {
+        $records = [
+            ['2026-07-31', 'present', 60],
+            ['2026-08-01', 'present', 60],
+            ['2026-08-03', 'absent', 0],
+            ['2026-08-09', 'present', 30],
+            ['2026-08-10', 'present', 60],
+            ['2026-08-11', 'absent', 0],
+            ['2026-08-16', 'present', 60],
+            ['2026-08-17', 'present', 60],
+            ['2026-08-31', 'present', 60],
+            ['2026-09-01', 'present', 60],
+            ['2026-12-18', 'present', 60],
+            ['2026-12-19', 'present', 60],
+        ];
+
+        foreach ($records as [$date, $status, $minutes]) {
             $session = AttendanceSession::create(['section_id' => $section->id, 'session_date' => $date, 'starts_at' => '08:00', 'ends_at' => '09:00', 'duration_minutes' => 60]);
             AttendanceRecord::create(['attendance_session_id' => $session->id, 'student_id' => $student->id, 'status' => $status, 'attended_minutes' => $minutes]);
         }
-        $this->actingAs($teacher)->get(route('attendance.sections.index', [$section, 'reference_date' => '2026-08-12']))->assertInertia(fn (Assert $page) => $page->component('attendance/Index')->where('periodSummaries.week.present', 1)->where('periodSummaries.week.absent', 1)->where('periodSummaries.week.rate', 50)->where('periodSummaries.term.sessions', 2)->where('studentSummaries.0.overall.attended_hours', 2));
+        $this->actingAs($teacher)->get(route('attendance.sections.index', [$section, 'reference_date' => '2026-08-12']))
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('attendance/Index')
+                ->where('periodSummaries.week.sessions', 3)
+                ->where('periodSummaries.week.present', 2)
+                ->where('periodSummaries.week.rate', 66.7)
+                ->where('periodSummaries.month.sessions', 8)
+                ->where('periodSummaries.month.attended_minutes', 330)
+                ->where('periodSummaries.term.sessions', 9)
+                ->where('periodSummaries.term.present', 7)
+                ->where('studentSummaries.0.overall.sessions', 12)
+                ->where('studentSummaries.0.overall.attended_hours', 9.5));
+    }
+
+    public function test_attendance_index_has_a_fixed_query_budget_for_a_realistic_workload(): void
+    {
+        $teacher = User::factory()->create();
+        $section = $this->makeSection($teacher, 60);
+        $now = now();
+        $sessions = [];
+
+        foreach (range(0, 79) as $offset) {
+            $sessions[] = [
+                'section_id' => $section->id,
+                'session_date' => today()->subDays($offset)->toDateString(),
+                'starts_at' => '08:00',
+                'ends_at' => '09:00',
+                'duration_minutes' => 60,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        AttendanceSession::insert($sessions);
+        $studentIds = $section->students()->pluck('id');
+        $attendanceRows = [];
+
+        foreach ($section->attendanceSessions()->pluck('id') as $sessionId) {
+            foreach ($studentIds as $studentId) {
+                $present = ($studentId + $sessionId) % 5 !== 0;
+                $attendanceRows[] = [
+                    'attendance_session_id' => $sessionId,
+                    'student_id' => $studentId,
+                    'status' => $present ? 'present' : 'absent',
+                    'attended_minutes' => $present ? 60 : 0,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+        }
+
+        foreach (array_chunk($attendanceRows, 500) as $chunk) {
+            AttendanceRecord::insert($chunk);
+        }
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $response = $this->actingAs($teacher)->get(route('attendance.sections.index', $section));
+        $queryCount = count(DB::getQueryLog());
+        DB::disableQueryLog();
+
+        $response->assertOk()
+            ->assertHeader('Server-Timing')
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('attendance/Index')
+                ->has('studentSummaries', 60)
+                ->has('sessions', 50));
+        $this->assertLessThanOrEqual(8, $queryCount, 'Attendance queries must not grow with students or sessions.');
     }
 
     public function test_session_page_uses_the_section_student_photo_route(): void

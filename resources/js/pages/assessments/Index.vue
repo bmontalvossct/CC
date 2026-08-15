@@ -1,7 +1,17 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { BarChart3, CalendarDays, ClipboardCheck, Download, FilePlus2, Plus, Trophy } from 'lucide-vue-next';
+import {
+    Award,
+    BarChart3,
+    CalendarDays,
+    CheckCircle2,
+    ClipboardCheck,
+    Download,
+    FilePlus2,
+    Plus,
+    Trophy,
+} from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
 type Assessment = {
@@ -14,15 +24,19 @@ type Assessment = {
     points_awarded: string | null;
 };
 type Session = { id: number; session_date: string; starts_at: string };
+
 const props = defineProps<{
     section: { id: number; name: string; subject_code?: string; subject_title: string };
     assessments: Assessment[];
     filter: string;
     attendanceSessions: Session[];
 }>();
+
 const creating = ref(false);
+
 const formatDate = (value: string) =>
     new Intl.DateTimeFormat('en-PH', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'Asia/Manila' }).format(new Date(value));
+
 const form = useForm({
     type: 'activity',
     title: '',
@@ -32,8 +46,10 @@ const form = useForm({
     attendance_session_id: '' as number | '',
     attachment: null as File | null,
 });
+
 const tabs = ['all', 'activity', 'quiz', 'exam'] as const;
 const filtered = computed(() => props.assessments);
+
 const submit = () =>
     form.post(`/sections/${props.section.id}/assessments`, {
         forceFormData: true,
@@ -45,182 +61,227 @@ const submit = () =>
 </script>
 
 <template>
-    <Head :title="`Assessments · ${section.name}`" />
+    <Head :title="`Assessments · ${section.name} - ClassCheck`" />
     <AppLayout
         :breadcrumbs="[
             { title: 'Sections', href: '/sections' },
             { title: section.name, href: `/sections/${section.id}` },
-            { title: 'Assessments', href: '#' },
+            { title: 'Assessments', href: `/sections/${section.id}/assessments` },
         ]"
     >
-        <main class="min-h-full bg-[#f5f5f7] text-[#1d1d1f] dark:bg-[#1d1d1f] dark:text-[#f5f5f7]">
-            <div class="mx-auto max-w-7xl p-5 sm:p-8">
-                <header
-                    class="relative overflow-hidden rounded-[2rem] border border-[#e5e7eb]/20 bg-[#1d1d1f] px-6 py-8 text-[#ffffff] shadow-[0_22px_60px_-34px_rgba(15,35,23,.8)] sm:px-10"
-                >
-                    <div
-                        class="absolute inset-0 opacity-15"
-                        style="
-                            background-image: linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px);
-                            background-size: 28px 28px;
-                        "
-                    />
-                    <div class="relative flex flex-col justify-between gap-8 lg:flex-row lg:items-end">
-                        <div>
-                            <p class="mb-3 font-mono text-xs uppercase tracking-[.28em] text-[#2997ff]">
-                                {{ section.subject_code || 'Class ledger' }} · {{ section.name }}
-                            </p>
-                            <h1 class="max-w-3xl font-serif text-4xl leading-tight sm:text-5xl">
-                                Assessments, arranged for the pace of a classroom.
-                            </h1>
-                            <p class="mt-4 max-w-xl text-sm leading-6 text-[#f5f5f7]">
-                                Create activities, quizzes, and exams. Then record scores in the same physical order as the chairs.
-                            </p>
+        <main class="page-enter mx-auto flex w-full max-w-[1360px] flex-1 flex-col gap-6 px-5 pb-16 pt-8 md:px-10 md:pt-10">
+            <!-- Header Section -->
+            <header class="relative overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card to-primary/5 p-6 sm:p-8 shadow-sm">
+                <div class="flex flex-col justify-between gap-6 md:flex-row md:items-end">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="badge-primary font-mono font-bold">{{ section.subject_code || 'Assessment Ledger' }}</span>
+                            <span class="badge-muted">{{ section.name }}</span>
                         </div>
-                        <button
-                            class="inline-flex items-center justify-center gap-2 rounded-full bg-[#2997ff] px-5 py-3 font-semibold text-[#1d1d1f] transition hover:-translate-y-0.5 hover:bg-[#eaf4ff]"
-                            @click="creating = !creating"
-                        >
-                            <Plus class="size-4" /> New assessment
-                        </button>
+                        <h1 class="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">Assessments & Scores</h1>
+                        <p class="mt-1 text-sm text-muted-foreground">
+                            Create quizzes, activities, and exams. Enter scores in classroom chair sequence.
+                        </p>
                     </div>
-                </header>
 
-                <section v-if="creating" class="mt-6 rounded-[1.5rem] border border-[#e5e7eb]/20 bg-[#ffffff] p-6 shadow-sm dark:bg-[#1d1d1f]">
-                    <div class="mb-5 flex items-center gap-3">
-                        <FilePlus2 class="size-5 text-[#0071e3]" />
-                        <h2 class="font-serif text-2xl">Add to the class ledger</h2>
-                    </div>
-                    <form class="grid gap-5 lg:grid-cols-12" @submit.prevent="submit">
-                        <label class="lg:col-span-3"
-                            ><span class="mb-2 block text-xs font-bold uppercase tracking-wider">Type</span
-                            ><select v-model="form.type" class="w-full rounded-xl border-[#86868b] bg-transparent">
-                                <option value="activity">Activity</option>
-                                <option value="quiz">Quiz</option>
-                                <option value="exam">Exam</option>
-                            </select></label
-                        >
-                        <label class="lg:col-span-6"
-                            ><span class="mb-2 block text-xs font-bold uppercase tracking-wider">Title</span
-                            ><input
-                                v-model="form.title"
-                                required
-                                class="w-full rounded-xl border-[#86868b] bg-transparent"
-                                placeholder="e.g. Chapter 4 problem set"
-                            /><small class="text-red-700">{{ form.errors.title }}</small></label
-                        >
-                        <label class="lg:col-span-3"
-                            ><span class="mb-2 block text-xs font-bold uppercase tracking-wider">Maximum points</span
-                            ><input
-                                v-model="form.max_points"
-                                required
-                                type="number"
-                                min="0.01"
-                                step="0.01"
-                                class="w-full rounded-xl border-[#86868b] bg-transparent"
-                        /></label>
-                        <label class="lg:col-span-3"
-                            ><span class="mb-2 block text-xs font-bold uppercase tracking-wider">Date conducted</span
-                            ><input v-model="form.conducted_on" required type="date" class="w-full rounded-xl border-[#86868b] bg-transparent"
-                        /></label>
-                        <label class="lg:col-span-4"
-                            ><span class="mb-2 block text-xs font-bold uppercase tracking-wider">Attendance session</span
-                            ><select v-model="form.attendance_session_id" class="w-full rounded-xl border-[#86868b] bg-transparent">
-                                <option value="">Match by date automatically</option>
-                                <option v-for="session in attendanceSessions" :key="session.id" :value="session.id">
-                                    {{ session.session_date }} · {{ session.starts_at }}
-                                </option>
-                            </select></label
-                        >
-                        <label class="lg:col-span-5"
-                            ><span class="mb-2 block text-xs font-bold uppercase tracking-wider"
-                                >Attachment <em class="font-normal normal-case">optional</em></span
-                            ><input
-                                type="file"
-                                class="block w-full rounded-xl border border-[#86868b] p-2 text-sm"
-                                @change="form.attachment = ($event.target as HTMLInputElement).files?.[0] || null"
-                        /></label>
-                        <label class="lg:col-span-9"
-                            ><span class="mb-2 block text-xs font-bold uppercase tracking-wider"
-                                >Notes <em class="font-normal normal-case">optional</em></span
-                            ><textarea v-model="form.description" rows="2" class="w-full rounded-xl border-[#86868b] bg-transparent" />
-                        </label>
-                        <div class="flex items-end justify-end gap-3 lg:col-span-3">
-                            <button type="button" class="px-4 py-2 text-sm" @click="creating = false">Cancel</button
-                            ><button
-                                :disabled="form.processing"
-                                class="rounded-xl bg-[#0071e3] px-5 py-2.5 font-semibold text-white disabled:opacity-50"
-                            >
-                                {{ form.processing ? 'Creating…' : 'Create & score' }}
-                            </button>
-                        </div>
-                    </form>
-                </section>
-
-                <div class="mt-8 flex flex-wrap items-center justify-between gap-4 border-b border-[#e5e7eb]/20 pb-4">
-                    <nav class="flex gap-2" aria-label="Assessment type">
+                    <div class="flex flex-wrap items-center gap-3">
                         <Link
-                            v-for="tab in tabs"
-                            :key="tab"
-                            :href="`/sections/${section.id}/assessments${tab === 'all' ? '' : `?type=${tab}`}`"
-                            class="rounded-full px-4 py-2 text-sm font-semibold capitalize"
-                            :class="filter === tab ? 'bg-[#1d1d1f] text-white' : 'hover:bg-[#e5e7eb] dark:hover:bg-white/10'"
-                            >{{ tab }}</Link
+                            :href="`/sections/${section.id}/reports/gradebook`"
+                            prefetch="hover"
+                            class="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-semibold text-foreground shadow-xs hover:bg-secondary hover:text-primary transition-colors"
                         >
-                    </nav>
-                    <div class="flex gap-2">
+                            <BarChart3 class="size-4 text-primary" />
+                            <span>Gradebook</span>
+                        </Link>
                         <a
                             :href="`/sections/${section.id}/exports/gradebook`"
-                            class="inline-flex items-center gap-2 rounded-lg border border-[#e5e7eb]/25 px-3 py-2 text-sm"
-                            ><Download class="size-4" /> CSV</a
-                        ><Link
-                            :href="`/sections/${section.id}/reports/gradebook`"
-                            class="inline-flex items-center gap-2 rounded-lg border border-[#e5e7eb]/25 px-3 py-2 text-sm"
-                            ><BarChart3 class="size-4" /> Gradebook</Link
+                            class="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-semibold text-foreground shadow-xs hover:bg-secondary transition-colors"
                         >
+                            <Download class="size-4 text-muted-foreground" />
+                            <span>Export CSV</span>
+                        </a>
+                        <button
+                            class="ink-button !h-10 !rounded-xl"
+                            @click="creating = !creating"
+                        >
+                            <Plus class="size-4" />
+                            <span>New assessment</span>
+                        </button>
                     </div>
                 </div>
+            </header>
 
-                <section class="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    <Link
-                        v-for="item in filtered"
-                        :key="item.id"
-                        :href="`/sections/${section.id}/assessments/${item.id}`"
-                        class="group relative overflow-hidden rounded-[1.35rem] border border-[#e5e7eb]/15 bg-[#ffffff] p-5 transition hover:-translate-y-1 hover:border-[#0071e3]/50 hover:shadow-xl dark:bg-[#1d1d1f]"
-                    >
-                        <span
-                            class="absolute right-4 top-4 rounded-full px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-widest"
-                            :class="
-                                item.type === 'exam'
-                                    ? 'bg-[#0071e3] text-white'
-                                    : item.type === 'quiz'
-                                      ? 'bg-[#2997ff] text-[#1d1d1f]'
-                                      : 'bg-[#f5f5f7] text-[#1d1d1f]'
-                            "
-                            >{{ item.type }}</span
+            <!-- Creation Form Panel -->
+            <section v-if="creating" class="paper-card p-6 md:p-8 animate-in fade-in zoom-in-95 duration-200">
+                <div class="mb-5 flex items-center justify-between border-b border-border/80 pb-4">
+                    <div class="flex items-center gap-2.5">
+                        <FilePlus2 class="size-5 text-primary" />
+                        <h2 class="text-xl font-bold">Add to class ledger</h2>
+                    </div>
+                    <button class="text-xs font-semibold text-muted-foreground hover:text-foreground" @click="creating = false">
+                        Cancel
+                    </button>
+                </div>
+
+                <form class="grid gap-5 lg:grid-cols-12" @submit.prevent="submit">
+                    <label class="lg:col-span-3">
+                        <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Type</span>
+                        <select v-model="form.type" class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary">
+                            <option value="activity">Activity</option>
+                            <option value="quiz">Quiz</option>
+                            <option value="exam">Exam</option>
+                        </select>
+                    </label>
+
+                    <label class="lg:col-span-6">
+                        <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Title</span>
+                        <input
+                            v-model="form.title"
+                            required
+                            class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
+                            placeholder="e.g. Chapter 4 Problem Set"
+                        />
+                        <small v-if="form.errors.title" class="text-rose-600 text-xs mt-1 block">{{ form.errors.title }}</small>
+                    </label>
+
+                    <label class="lg:col-span-3">
+                        <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Max points</span>
+                        <input
+                            v-model="form.max_points"
+                            required
+                            type="number"
+                            min="0.01"
+                            step="0.01"
+                            class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
+                        />
+                    </label>
+
+                    <label class="lg:col-span-3">
+                        <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Date conducted</span>
+                        <input
+                            v-model="form.conducted_on"
+                            required
+                            type="date"
+                            class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
+                        />
+                    </label>
+
+                    <label class="lg:col-span-4">
+                        <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Link session</span>
+                        <select v-model="form.attendance_session_id" class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary">
+                            <option value="">Auto-match by date</option>
+                            <option v-for="session in attendanceSessions" :key="session.id" :value="session.id">
+                                {{ session.session_date }} · {{ session.starts_at }}
+                            </option>
+                        </select>
+                    </label>
+
+                    <label class="lg:col-span-5">
+                        <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Attachment <em class="font-normal normal-case text-muted-foreground">(optional)</em></span>
+                        <input
+                            type="file"
+                            class="block w-full text-xs text-muted-foreground file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border file:border-border file:text-xs file:font-semibold file:bg-secondary file:text-foreground hover:file:bg-secondary/80"
+                            @change="form.attachment = ($event.target as HTMLInputElement).files?.[0] || null"
+                        />
+                    </label>
+
+                    <label class="lg:col-span-9">
+                        <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Notes <em class="font-normal normal-case text-muted-foreground">(optional)</em></span>
+                        <textarea
+                            v-model="form.description"
+                            rows="2"
+                            placeholder="Instructions or rubric notes..."
+                            class="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs focus-visible:ring-2 focus-visible:ring-primary"
+                        />
+                    </label>
+
+                    <div class="flex items-end justify-end gap-3 lg:col-span-3">
+                        <button type="button" class="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground" @click="creating = false">
+                            Cancel
+                        </button>
+                        <button
+                            :disabled="form.processing"
+                            class="ink-button !rounded-xl text-xs font-semibold"
                         >
-                        <div class="mb-8 flex size-11 items-center justify-center rounded-2xl bg-[#1d1d1f] text-[#2997ff]">
-                            <ClipboardCheck v-if="item.type !== 'exam'" class="size-5" /><Trophy v-else class="size-5" />
+                            {{ form.processing ? 'Creating…' : 'Create & Score' }}
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Filter Tabs -->
+            <div class="flex items-center gap-2 border-b border-border/80 pb-3">
+                <Link
+                    v-for="tab in tabs"
+                    :key="tab"
+                    :href="`/sections/${section.id}/assessments${tab === 'all' ? '' : `?type=${tab}`}`"
+                    prefetch="hover"
+                    class="rounded-xl px-4 py-2 text-xs font-bold capitalize transition-all"
+                    :class="
+                        filter === tab
+                            ? 'bg-primary text-primary-foreground shadow-xs'
+                            : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                    "
+                >
+                    {{ tab }}
+                </Link>
+            </div>
+
+            <!-- Assessments Grid -->
+            <section class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                <Link
+                    v-for="item in filtered"
+                    :key="item.id"
+                    :href="`/sections/${section.id}/assessments/${item.id}`"
+                    prefetch="hover"
+                    class="paper-card group flex flex-col justify-between hover:border-primary/50 hover:shadow-lg transition-all"
+                >
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <span
+                                class="rounded-md px-2.5 py-0.5 font-mono text-[10px] font-extrabold uppercase tracking-wider"
+                                :class="
+                                    item.type === 'exam'
+                                        ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20'
+                                        : item.type === 'quiz'
+                                          ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
+                                          : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                "
+                            >
+                                {{ item.type }}
+                            </span>
+                            <span class="font-mono text-xs font-bold text-foreground">{{ item.max_points }} pts</span>
                         </div>
-                        <h3 class="pr-16 font-serif text-2xl leading-tight group-hover:text-[#0071e3]">{{ item.title }}</h3>
-                        <div class="mt-5 flex items-center justify-between text-sm text-[#86868b] dark:text-[#86868b]">
-                            <span class="inline-flex items-center gap-1.5"><CalendarDays class="size-4" />{{ formatDate(item.conducted_on) }}</span
-                            ><strong>{{ item.max_points }} pts</strong>
+
+                        <h3 class="mt-4 text-xl font-bold tracking-tight group-hover:text-primary transition-colors">
+                            {{ item.title }}
+                        </h3>
+
+                        <p class="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <CalendarDays class="size-3.5" /> {{ formatDate(item.conducted_on) }}
+                        </p>
+                    </div>
+
+                    <div class="mt-6 border-t border-border/80 pt-4">
+                        <div class="flex items-center justify-between text-xs mb-2">
+                            <span class="text-muted-foreground font-medium">Scoring progress</span>
+                            <span class="font-mono font-bold text-primary">{{ item.graded_count }} recorded</span>
                         </div>
-                        <div class="mt-4 h-1.5 overflow-hidden rounded-full bg-[#e5e7eb] dark:bg-white/10">
+                        <div class="h-2 overflow-hidden rounded-full bg-secondary">
                             <div
-                                class="h-full bg-[#0071e3]"
-                                :style="{ width: `${Math.min(100, (item.graded_count / Math.max(item.graded_count, 1)) * 100)}%` }"
+                                class="h-full bg-primary rounded-full transition-all duration-300"
+                                :style="{ width: `${Math.min(100, item.graded_count > 0 ? 100 : 0)}%` }"
                             />
                         </div>
-                        <p class="mt-2 text-xs text-[#86868b]">{{ item.graded_count }} scores recorded</p>
-                    </Link>
-                    <div v-if="!filtered.length" class="col-span-full rounded-[1.5rem] border border-dashed border-[#e5e7eb]/30 p-14 text-center">
-                        <p class="font-serif text-2xl">The ledger is ready.</p>
-                        <p class="mt-2 text-sm text-[#86868b]">Create the first assessment for this section.</p>
                     </div>
-                </section>
-            </div>
+                </Link>
+
+                <div v-if="!filtered.length" class="col-span-full rounded-2xl border border-dashed border-border/80 bg-card p-14 text-center shadow-sm">
+                    <ClipboardCheck class="mx-auto size-8 text-muted-foreground" />
+                    <h3 class="mt-4 text-xl font-bold">No assessments recorded</h3>
+                    <p class="mt-1 text-sm text-muted-foreground">Click "New assessment" above to log your first quiz, exam, or activity.</p>
+                </div>
+            </section>
         </main>
     </AppLayout>
 </template>

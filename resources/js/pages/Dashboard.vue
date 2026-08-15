@@ -2,7 +2,17 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
-import { ArrowRight, CalendarCheck2, ClipboardCheck, GraduationCap, Plus, Users } from 'lucide-vue-next';
+import {
+    ArrowRight,
+    CalendarCheck2,
+    CheckCircle2,
+    ClipboardList,
+    GraduationCap,
+    LayoutGrid,
+    Plus,
+    Sparkles,
+    Users,
+} from 'lucide-vue-next';
 
 interface SectionCard {
     id: number;
@@ -30,114 +40,195 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Overview', href: '/dashboard' }
 </script>
 
 <template>
-    <Head title="Overview" />
+    <Head title="Overview - ClassCheck" />
     <AppLayout :breadcrumbs="breadcrumbs">
-        <main class="page-enter mx-auto w-full max-w-[1320px] px-5 pb-16 pt-9 md:px-10 md:pt-12">
-            <section class="flex flex-col justify-between gap-7 border-b border-border pb-10 md:flex-row md:items-end">
-                <div>
-                    <p class="text-[15px] font-medium text-[#0071e3]">Overview</p>
-                    <h1 class="mt-2 text-4xl font-semibold leading-tight tracking-[-0.03em] sm:text-5xl">
-                        Good day, {{ teacherName.split(' ')[0] }}.
-                    </h1>
-                    <p class="mt-3 max-w-2xl text-[17px] leading-7 text-muted-foreground">
-                        Everything you need for today’s classes, together in one place.
-                    </p>
-                </div>
-                <div class="flex flex-wrap gap-3">
-                    <Link href="/sections/create" class="ink-button"><Plus class="size-4" /> New section</Link>
-                    <Link href="/sections" class="secondary-button">View all sections</Link>
-                </div>
-            </section>
-
-            <section class="mt-8 grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 xl:grid-cols-4">
-                <article class="bg-card p-6">
-                    <div class="flex items-center justify-between">
-                        <p class="text-sm text-muted-foreground">Active sections</p>
-                        <GraduationCap class="size-5 text-[#0071e3]" />
-                    </div>
-                    <p class="mt-8 text-4xl font-semibold tracking-tight">{{ stats.sections }}</p>
-                </article>
-                <article class="bg-card p-6">
-                    <div class="flex items-center justify-between">
-                        <p class="text-sm text-muted-foreground">Students seated</p>
-                        <Users class="size-5 text-[#0071e3]" />
-                    </div>
-                    <p class="mt-8 text-4xl font-semibold tracking-tight">{{ stats.students }}</p>
-                </article>
-                <article class="bg-card p-6">
-                    <div class="flex items-center justify-between">
-                        <p class="text-sm text-muted-foreground">Meetings logged</p>
-                        <CalendarCheck2 class="size-5 text-[#0071e3]" />
-                    </div>
-                    <p class="mt-8 text-4xl font-semibold tracking-tight">{{ stats.meetings }}</p>
-                </article>
-                <article class="bg-card p-6">
-                    <div class="flex items-center justify-between">
-                        <p class="text-sm text-muted-foreground">Attendance rate</p>
-                        <ClipboardCheck class="size-5 text-[#0071e3]" />
-                    </div>
-                    <p class="mt-8 text-4xl font-semibold tracking-tight">{{ stats.attendance_rate === null ? '—' : stats.attendance_rate + '%' }}</p>
-                </article>
-            </section>
-
-            <section class="mt-12">
-                <div class="flex items-end justify-between gap-4">
+        <main class="page-enter mx-auto w-full max-w-[1360px] px-5 pb-16 pt-8 md:px-10 md:pt-10">
+            <!-- Header Section -->
+            <section class="relative overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card to-primary/5 p-6 sm:p-8 md:p-10 shadow-sm">
+                <div class="absolute right-0 top-0 -mt-8 -mr-8 size-64 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
+                <div class="relative flex flex-col justify-between gap-6 md:flex-row md:items-end">
                     <div>
-                        <p class="text-sm font-medium text-[#0071e3]">Classrooms</p>
-                        <h2 class="mt-1 text-3xl font-semibold tracking-[-0.02em]">Your active sections</h2>
-                    </div>
-                    <Link href="/sections" class="hidden items-center gap-1.5 text-sm font-medium text-[#0066cc] sm:inline-flex"
-                        >View all <ArrowRight class="size-4"
-                    /></Link>
-                </div>
-
-                <div v-if="sections.length" class="mt-6 grid overflow-hidden rounded-lg border border-border md:grid-cols-2">
-                    <Link
-                        v-for="(section, index) in sections"
-                        :key="section.id"
-                        :href="`/sections/${section.id}`"
-                        class="group bg-card p-6 transition-colors hover:bg-[#f5f5f7] dark:hover:bg-secondary"
-                        :class="{ 'border-t border-border md:border-t-0': index > 0, 'md:border-l': index % 2 === 1, 'md:!border-t': index > 1 }"
-                    >
-                        <div class="flex items-start justify-between gap-5">
-                            <div>
-                                <p class="text-xs font-medium text-[#0071e3]">{{ section.subject }}</p>
-                                <h3 class="mt-2 text-2xl font-semibold">{{ section.name }}</h3>
-                                <p class="mt-1 text-sm text-muted-foreground">{{ section.term }}</p>
-                            </div>
-                            <span
-                                class="flex size-9 items-center justify-center rounded-full border border-border text-[#0066cc] transition-colors group-hover:border-[#0071e3] group-hover:bg-[#0071e3] group-hover:text-white"
-                                ><ArrowRight class="size-4"
-                            /></span>
+                        <div class="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary border border-primary/20">
+                            <Sparkles class="size-3.5" />
+                            <span>Teacher workspace</span>
                         </div>
-                        <dl class="mt-8 grid grid-cols-3 gap-4 border-t border-border pt-5">
-                            <div>
-                                <dt class="text-xs text-muted-foreground">Students</dt>
-                                <dd class="mt-1 text-sm font-semibold">{{ section.students }}</dd>
-                            </div>
-                            <div>
-                                <dt class="text-xs text-muted-foreground">Seats</dt>
-                                <dd class="mt-1 text-sm font-semibold">{{ section.seats }}</dd>
-                            </div>
-                            <div>
-                                <dt class="text-xs text-muted-foreground">Attendance</dt>
-                                <dd class="mt-1 text-sm font-semibold">
-                                    {{ section.attendance_rate === null ? '—' : section.attendance_rate + '%' }}
-                                </dd>
-                            </div>
-                        </dl>
+                        <h1 class="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl md:text-5xl">
+                            Good day, {{ teacherName.split(' ')[0] }}
+                        </h1>
+                        <p class="mt-2 max-w-2xl text-sm sm:text-base text-muted-foreground">
+                            Here is your classroom overview. Manage seats, run roll-call, and log assessments in real time.
+                        </p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <Link href="/sections/create" prefetch="hover" class="ink-button">
+                            <Plus class="size-4" />
+                            <span>New section</span>
+                        </Link>
+                        <Link href="/sections" prefetch="hover" class="secondary-button">
+                            <span>View all sections</span>
+                        </Link>
+                    </div>
+                </div>
+            </section>
+
+            <!-- KPI Summary Cards -->
+            <section class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Key Performance Indicators">
+                <article class="paper-card group relative overflow-hidden p-6 hover:shadow-md hover:border-primary/40">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Active sections</span>
+                        <span class="grid size-10 place-items-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
+                            <GraduationCap class="size-5" />
+                        </span>
+                    </div>
+                    <div class="mt-6 flex items-baseline justify-between">
+                        <p class="text-3xl font-extrabold tracking-tight">{{ stats.sections }}</p>
+                        <span class="text-xs text-muted-foreground font-medium">courses</span>
+                    </div>
+                </article>
+
+                <article class="paper-card group relative overflow-hidden p-6 hover:shadow-md hover:border-primary/40">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Enrolled students</span>
+                        <span class="grid size-10 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform">
+                            <Users class="size-5" />
+                        </span>
+                    </div>
+                    <div class="mt-6 flex items-baseline justify-between">
+                        <p class="text-3xl font-extrabold tracking-tight">{{ stats.students }}</p>
+                        <span class="text-xs text-muted-foreground font-medium">seated</span>
+                    </div>
+                </article>
+
+                <article class="paper-card group relative overflow-hidden p-6 hover:shadow-md hover:border-primary/40">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Meetings logged</span>
+                        <span class="grid size-10 place-items-center rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform">
+                            <CalendarCheck2 class="size-5" />
+                        </span>
+                    </div>
+                    <div class="mt-6 flex items-baseline justify-between">
+                        <p class="text-3xl font-extrabold tracking-tight">{{ stats.meetings }}</p>
+                        <span class="text-xs text-muted-foreground font-medium">sessions</span>
+                    </div>
+                </article>
+
+                <article class="paper-card group relative overflow-hidden p-6 hover:shadow-md hover:border-primary/40">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Attendance rate</span>
+                        <span class="grid size-10 place-items-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform">
+                            <CheckCircle2 class="size-5" />
+                        </span>
+                    </div>
+                    <div class="mt-6 flex items-baseline justify-between">
+                        <p class="text-3xl font-extrabold tracking-tight">
+                            {{ stats.attendance_rate === null ? '—' : stats.attendance_rate + '%' }}
+                        </p>
+                        <span class="text-xs text-muted-foreground font-medium">overall</span>
+                    </div>
+                </article>
+            </section>
+
+            <!-- Sections List Section -->
+            <section class="mt-12">
+                <div class="flex items-center justify-between gap-4">
+                    <div>
+                        <span class="eyebrow">Classrooms</span>
+                        <h2 class="mt-1 text-2xl font-bold tracking-tight">Your active sections</h2>
+                    </div>
+                    <Link href="/sections" prefetch="hover" class="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
+                        <span>View all</span>
+                        <ArrowRight class="size-4" />
                     </Link>
                 </div>
 
-                <div v-else class="mt-6 rounded-lg bg-[#f5f5f7] px-6 py-16 text-center dark:bg-secondary/50">
-                    <span class="mx-auto flex size-12 items-center justify-center rounded-full bg-white text-[#0071e3] dark:bg-card"
-                        ><GraduationCap class="size-6"
-                    /></span>
-                    <h3 class="mt-6 text-2xl font-semibold">Create your first classroom.</h3>
-                    <p class="mx-auto mt-2 max-w-md text-[15px] leading-6 text-muted-foreground">
-                        Add a section, arrange its seating plan, and invite students with one QR code.
+                <div v-if="sections.length" class="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                    <article
+                        v-for="section in sections"
+                        :key="section.id"
+                        class="paper-card group flex flex-col justify-between hover:border-primary/50 hover:shadow-lg"
+                    >
+                        <div>
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <span class="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 font-mono text-xs font-bold text-primary">
+                                        {{ section.subject }}
+                                    </span>
+                                    <h3 class="mt-2.5 text-xl font-bold tracking-tight group-hover:text-primary transition-colors">
+                                        {{ section.name }}
+                                    </h3>
+                                    <p class="mt-1 text-xs text-muted-foreground line-clamp-1">{{ section.term }}</p>
+                                </div>
+                                <Link
+                                    :href="`/sections/${section.id}`"
+                                    prefetch="hover"
+                                    class="grid size-9 shrink-0 place-items-center rounded-full border border-border bg-secondary/50 text-muted-foreground transition-colors group-hover:bg-primary group-hover:border-primary group-hover:text-white"
+                                    aria-label="Open section details"
+                                >
+                                    <ArrowRight class="size-4" />
+                                </Link>
+                            </div>
+
+                            <!-- Metrics Strip -->
+                            <div class="mt-6 grid grid-cols-3 gap-2 rounded-lg bg-secondary/60 p-3 text-center text-xs">
+                                <div>
+                                    <span class="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider">Students</span>
+                                    <strong class="mt-1 block text-sm font-bold">{{ section.students }}</strong>
+                                </div>
+                                <div class="border-x border-border/80">
+                                    <span class="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider">Seats</span>
+                                    <strong class="mt-1 block text-sm font-bold">{{ section.seats }}</strong>
+                                </div>
+                                <div>
+                                    <span class="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider">Attendance</span>
+                                    <strong class="mt-1 block text-sm font-bold" :class="section.attendance_rate !== null && section.attendance_rate >= 80 ? 'text-emerald-600 dark:text-emerald-400' : ''">
+                                        {{ section.attendance_rate === null ? '—' : section.attendance_rate + '%' }}
+                                    </strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action shortcuts strip -->
+                        <div class="mt-6 flex items-center gap-2 border-t border-border/80 pt-4">
+                            <Link
+                                :href="`/sections/${section.id}/attendance`"
+                                prefetch="hover"
+                                class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-secondary hover:text-primary"
+                            >
+                                <CalendarCheck2 class="size-3.5" />
+                                <span>Attendance</span>
+                            </Link>
+                            <Link
+                                :href="`/sections/${section.id}/assessments`"
+                                prefetch="hover"
+                                class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-secondary hover:text-primary"
+                            >
+                                <ClipboardList class="size-3.5" />
+                                <span>Scores</span>
+                            </Link>
+                            <Link
+                                :href="`/sections/${section.id}`"
+                                prefetch="hover"
+                                class="inline-flex items-center justify-center rounded-lg border border-border bg-card p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
+                                title="Classroom floor"
+                            >
+                                <LayoutGrid class="size-4" />
+                            </Link>
+                        </div>
+                    </article>
+                </div>
+
+                <div v-else class="mt-6 rounded-2xl border border-dashed border-border/80 bg-card p-12 text-center shadow-sm">
+                    <span class="mx-auto grid size-14 place-items-center rounded-2xl bg-primary/10 text-primary">
+                        <GraduationCap class="size-7" />
+                    </span>
+                    <h3 class="mt-5 text-2xl font-bold">Create your first classroom</h3>
+                    <p class="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+                        Add a section, arrange its seating layout, and let students self-claim chairs with a single QR code.
                     </p>
-                    <Link href="/sections/create" class="ink-button mt-7"><Plus class="size-4" /> Create a section</Link>
+                    <Link href="/sections/create" prefetch="hover" class="ink-button mt-6">
+                        <Plus class="size-4" />
+                        <span>Create a section</span>
+                    </Link>
                 </div>
             </section>
         </main>

@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateSectionRequest;
 use App\Models\AcademicTerm;
 use App\Models\Section;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -141,5 +142,65 @@ class SectionController extends Controller
         $section->update(['archived_at' => $section->archived_at ? null : now()]);
 
         return back()->with('success', $section->archived_at ? 'Section archived.' : 'Section restored.');
+    }
+
+    public function autoAssign(Request $request, Section $section): RedirectResponse
+    {
+        Gate::authorize('update', $section);
+        $mode = $request->input('mode', 'alphabetical');
+
+        $unseatedStudents = $section->students()
+            ->where('is_active', true)
+            ->whereDoesntHave('seat')
+            ->when($mode === 'random', fn ($q) => $q->inRandomOrder(), fn ($q) => $q->orderBy('last_name')->orderBy('first_name'))
+            ->get();
+
+        $availableSeats = $section->seats()
+            ->where('is_disabled', false)
+            ->whereNull('student_id')
+            ->orderBy('row_number')
+            ->orderBy('column_number')
+            ->get();
+
+        $assignedCount = 0;
+        DB::transaction(function () use ($unseatedStudents, $availableSeats, &$assignedCount) {
+            foreach ($unseatedStudents as $index => $student) {
+                if (! isset($availableSeats[$index])) {
+                    break;
+                }
+                $seat = $availableSeats[$index];
+                $seat->update(['student_id' => $student->id]);
+                $assignedCount++;
+            }
+        });
+
+        return back()->with('success', "{$assignedCount} students automatically seated ({$mode}).");
+    }
+
+    public function resetSeats(Section $section): RedirectResponse
+    {
+        Gate::authorize('update', $section);
+
+        $section->seats()->update(['student_id' => null]);
+
+        return back()->with('success', 'All chair assignments have been cleared.');
+    }
+
+    public function printRoster(Section $section): Response
+    {
+        Gate::authorize('view', $section);
+        $section->load([
+            'academicTerm',
+            'students' => fn ($query) => $query->where('is_active', true)->orderBy('last_name')->orderBy('first_name'),
+            'students.seat',
+        ]);
+
+        $section->students->each(function ($student) {
+            $student->setAttribute('photo_url', $student->photo_path ? route('sections.students.photo', [$student->section_id, $student]) : null);
+        });
+
+        return Inertia::render('sections/PrintRoster', [
+            'section' => $section,
+        ]);
     }
 }

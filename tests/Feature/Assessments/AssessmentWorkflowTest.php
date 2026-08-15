@@ -4,12 +4,15 @@ namespace Tests\Feature\Assessments;
 
 use App\Models\AcademicTerm;
 use App\Models\Assessment;
+use App\Models\AssessmentScore;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
 use App\Models\Section;
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class AssessmentWorkflowTest extends TestCase
@@ -110,6 +113,87 @@ class AssessmentWorkflowTest extends TestCase
         $this->actingAs($user)
             ->patchJson(route('sections.assessments.scores.update', [$section, $assessment, $student]), ['score' => 10.01])
             ->assertUnprocessable()->assertJsonValidationErrors('score');
+    }
+
+    public function test_gradebook_keeps_a_fixed_query_count_for_a_full_grid_workload(): void
+    {
+        $user = User::factory()->create();
+        $section = $this->section($user);
+        $now = now();
+        $studentRows = [];
+
+        foreach (range(0, 59) as $index) {
+            $studentRows[] = [
+                'section_id' => $section->id,
+                'student_number' => '2026-'.str_pad((string) $index, 3, '0', STR_PAD_LEFT),
+                'first_name' => 'Student '.$index,
+                'last_name' => 'Learner '.str_pad((string) $index, 3, '0', STR_PAD_LEFT),
+                'is_active' => true,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        Student::insert($studentRows);
+        $assessmentRows = [];
+
+        foreach (range(0, 119) as $index) {
+            $assessmentRows[] = [
+                'section_id' => $section->id,
+                'type' => Assessment::TYPES[$index % count(Assessment::TYPES)],
+                'title' => 'Assessment '.$index,
+                'conducted_on' => today()->subDays(119 - $index)->toDateString(),
+                'max_points' => 20,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        Assessment::insert($assessmentRows);
+        $students = $section->students()->orderBy('id')->get(['id']);
+        $assessments = Assessment::where('section_id', $section->id)->orderBy('id')->get(['id']);
+        $scoreRows = [];
+
+        foreach ($students as $studentIndex => $student) {
+            foreach ($assessments as $assessmentIndex => $assessment) {
+                if (($studentIndex + $assessmentIndex) % 5 === 0) {
+                    continue;
+                }
+
+                $scoreRows[] = [
+                    'assessment_id' => $assessment->id,
+                    'student_id' => $student->id,
+                    'score' => 10,
+                    'absence_override' => false,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+        }
+
+        foreach (array_chunk($scoreRows, 500) as $chunk) {
+            AssessmentScore::insert($chunk);
+        }
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $response = $this->actingAs($user)->get(route('sections.reports.gradebook', $section));
+        $queryCount = count(DB::getQueryLog());
+        DB::disableQueryLog();
+
+        $firstAssessmentId = $assessments->first()->id;
+        $secondAssessmentId = $assessments->get(1)->id;
+        $response->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->component('reports/Gradebook')
+            ->has('assessments', 120)
+            ->has('rows', 60)
+            ->has('rows.0.scores', 120)
+            ->where('rows.0.scores.'.$firstAssessmentId, null)
+            ->where('rows.0.scores.'.$secondAssessmentId, '10.00')
+            ->where('rows.0.categories.activity.earned', 320)
+            ->where('rows.0.categories.activity.possible', 800)
+            ->where('rows.0.categories.activity.missing', 8));
+        $this->assertLessThanOrEqual(5, $queryCount, 'Gradebook queries must not grow with the matrix size.');
     }
 
     private function scoreFixture(): array

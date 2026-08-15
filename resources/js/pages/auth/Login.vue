@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AuthBase from '@/layouts/AuthLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
-import { LoaderCircle } from 'lucide-vue-next';
+import { LoaderCircle, LogIn } from 'lucide-vue-next';
 
 defineProps<{
     status?: string;
@@ -29,16 +29,16 @@ const submit = () => {
 </script>
 
 <template>
-    <AuthBase title="Log in to your account" description="Enter your username or email and password below to log in">
+    <AuthBase title="Welcome back" description="Log in to access your sections and classrooms">
         <Head title="Log in" />
 
-        <div v-if="status" class="mb-4 text-center text-sm font-medium text-[#0071e3]">
+        <div v-if="status" class="mb-4 rounded-xl border border-primary/20 bg-primary/10 p-3 text-center text-xs font-semibold text-primary">
             {{ status }}
         </div>
 
         <a
             href="/auth/google/redirect"
-            class="mb-4 flex min-h-11 w-full items-center justify-center gap-3 rounded-full border border-[#e5e7eb] bg-white px-5 text-sm font-semibold text-[#1d1d1f] transition-colors hover:border-[#86868b] hover:bg-[#f5f5f7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3] focus-visible:ring-offset-2"
+            class="mb-4 flex min-h-11 w-full items-center justify-center gap-3 rounded-xl border border-border/80 bg-card px-5 text-sm font-semibold text-foreground transition-all hover:bg-secondary hover:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-xs"
         >
             <svg class="size-5" viewBox="0 0 24 24" aria-hidden="true">
                 <path
@@ -61,18 +61,18 @@ const submit = () => {
             Continue with Google
         </a>
 
-        <InputError :message="errors?.google" class="text-center" />
+        <InputError :message="errors?.google" class="text-center text-xs" />
 
-        <div class="flex items-center gap-3 text-xs uppercase tracking-[.16em] text-[#86868b]">
-            <span class="h-px flex-1 bg-[#e5e7eb]"></span>
-            <span>or use email</span>
-            <span class="h-px flex-1 bg-[#e5e7eb]"></span>
+        <div class="my-4 flex items-center gap-3 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+            <span class="h-px flex-1 bg-border"></span>
+            <span>or email</span>
+            <span class="h-px flex-1 bg-border"></span>
         </div>
 
-        <form @submit.prevent="submit" class="flex flex-col gap-6">
-            <div class="grid gap-6">
-                <div class="grid gap-2">
-                    <Label for="login">Username or email</Label>
+        <form @submit.prevent="submit" class="flex flex-col gap-4">
+            <div class="grid gap-4">
+                <div class="grid gap-1.5">
+                    <Label for="login" class="text-xs font-semibold">Username or email</Label>
                     <Input
                         id="login"
                         type="text"
@@ -81,15 +81,16 @@ const submit = () => {
                         :tabindex="1"
                         autocomplete="username"
                         v-model="form.login"
-                        placeholder="Username or email"
+                        placeholder="teacher@school.edu"
+                        class="rounded-xl h-10 text-sm"
                     />
-                    <InputError :message="form.errors.login" />
+                    <InputError class="text-xs mt-1" :message="form.errors.login" />
                 </div>
 
-                <div class="grid gap-2">
+                <div class="grid gap-1.5">
                     <div class="flex items-center justify-between">
-                        <Label for="password">Password</Label>
-                        <TextLink v-if="canResetPassword" :href="route('password.request')" class="text-sm" :tabindex="5">
+                        <Label for="password" class="text-xs font-semibold">Password</Label>
+                        <TextLink v-if="canResetPassword" :href="route('password.request')" class="text-xs text-primary hover:underline" :tabindex="5">
                             Forgot password?
                         </TextLink>
                     </div>
@@ -100,27 +101,29 @@ const submit = () => {
                         :tabindex="2"
                         autocomplete="current-password"
                         v-model="form.password"
-                        placeholder="Password"
+                        placeholder="••••••••"
+                        class="rounded-xl h-10 text-sm"
                     />
-                    <InputError :message="form.errors.password" />
+                    <InputError class="text-xs mt-1" :message="form.errors.password" />
                 </div>
 
                 <div class="flex items-center justify-between" :tabindex="3">
-                    <Label for="remember" class="flex items-center space-x-3">
-                        <Checkbox id="remember" v-model:checked="form.remember" :tabindex="4" />
+                    <Label for="remember" class="flex items-center space-x-2 text-xs font-medium cursor-pointer">
+                        <Checkbox id="remember" v-model:checked="form.remember" :tabindex="4" class="rounded-md" />
                         <span>Remember me</span>
                     </Label>
                 </div>
 
-                <Button type="submit" class="mt-4 w-full" :tabindex="4" :disabled="form.processing">
-                    <LoaderCircle v-if="form.processing" class="h-4 w-4 animate-spin" />
-                    Log in
+                <Button type="submit" class="ink-button !h-10 !w-full !rounded-xl mt-2" :tabindex="4" :disabled="form.processing">
+                    <LoaderCircle v-if="form.processing" class="size-4 animate-spin" />
+                    <LogIn v-else class="size-4" />
+                    <span>Log in</span>
                 </Button>
             </div>
 
-            <div class="text-center text-sm text-muted-foreground">
+            <div class="text-center text-xs text-muted-foreground mt-2">
                 Don't have an account?
-                <TextLink :href="route('register')" :tabindex="5">Sign up</TextLink>
+                <TextLink :href="route('register')" class="font-bold text-primary hover:underline" :tabindex="5">Sign up</TextLink>
             </div>
         </form>
     </AuthBase>

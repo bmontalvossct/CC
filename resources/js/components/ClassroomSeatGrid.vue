@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { Armchair } from 'lucide-vue-next';
+import { Armchair, User } from 'lucide-vue-next';
 import { computed } from 'vue';
 
 const props = defineProps<{
     block: any;
     selectedSeatId?: number | null;
 }>();
+
 const emit = defineEmits<{
     selectStudent: [student: any];
     selectSeat: [seatId: number];
@@ -13,22 +14,38 @@ const emit = defineEmits<{
 
 const rows = computed(() =>
     Array.from({ length: props.block.internal_rows }, (_, index) =>
-        props.block.seats.filter((seat: any) => seat.row_number === index + 1).sort((a: any, b: any) => a.column_number - b.column_number),
+        props.block.seats
+            .filter((seat: any) => seat.row_number === index + 1)
+            .sort((a: any, b: any) => a.column_number - b.column_number),
     ),
 );
+
 const hasColumnAisle = (position: number) => (props.block.aisle_after_columns ?? []).includes(position);
 const hasRowAisle = (position: number) => (props.block.aisle_after_rows ?? []).includes(position);
+
 const chooseSeat = (seat: any) => {
     if (seat.student) emit('selectStudent', seat.student);
     else emit('selectSeat', seat.id);
 };
+
+const initials = (name?: string) => {
+    if (!name) return '';
+    return name
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((p) => p[0])
+        .join('')
+        .toUpperCase();
+};
 </script>
 
 <template>
-    <article class="rounded-2xl border border-[#e5e7eb] bg-[#f5f5f7]/50 p-4">
-        <p v-if="block.label && block.label !== 'Classroom'" class="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-[#86868b]">
+    <article class="rounded-2xl border border-border/80 bg-card/90 p-5 shadow-sm">
+        <p v-if="block.label && block.label !== 'Classroom'" class="mb-4 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
             {{ block.label }}
         </p>
+
         <template v-for="(seats, rowIndex) in rows" :key="rowIndex">
             <div class="flex items-stretch">
                 <template v-for="seat in seats" :key="seat.id">
@@ -37,39 +54,61 @@ const chooseSeat = (seat: any) => {
                         :disabled="seat.is_disabled"
                         :aria-label="seat.student ? `${seat.student.full_name}, ${seat.label}` : `${seat.label}, available chair`"
                         :aria-pressed="!seat.student && selectedSeatId === seat.id"
-                        class="group min-h-16 min-w-14 flex-1 rounded-lg border p-2 transition"
+                        class="group relative min-h-[4.75rem] min-w-[3.75rem] flex-1 rounded-xl border-2 p-2 transition-all duration-150 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                         :class="
                             seat.is_disabled
-                                ? 'border-transparent bg-[repeating-linear-gradient(135deg,#e5e7eb,#e5e7eb_4px,transparent_4px,transparent_8px)] opacity-40'
+                                ? 'border-transparent bg-[repeating-linear-gradient(135deg,hsl(var(--border)),hsl(var(--border))_4px,transparent_4px,transparent_8px)] opacity-30 cursor-not-allowed'
                                 : seat.student
-                                  ? 'border-[#0071e3] bg-[#0071e3] text-white shadow-md hover:-translate-y-1'
+                                  ? 'border-primary/80 bg-primary text-primary-foreground shadow-sm hover:-translate-y-0.5 hover:shadow-md'
                                   : selectedSeatId === seat.id
-                                    ? 'scale-[1.03] border-[#0071e3] bg-[#bfdbfe] text-[#1d1d1f] shadow-lg ring-4 ring-[#dbeafe]'
-                                    : 'border-[#e5e7eb] bg-white text-[#86868b] hover:border-[#0071e3] hover:text-[#0066cc]'
+                                    ? 'scale-[1.03] border-primary bg-primary/15 text-foreground ring-2 ring-primary/30 shadow'
+                                    : 'border-border/90 bg-card text-muted-foreground hover:border-primary/60 hover:text-foreground hover:bg-secondary/60'
                         "
                         @click="chooseSeat(seat)"
                     >
-                        <Armchair class="mx-auto size-5" />
-                        <span class="mt-1 block truncate text-[10px] font-bold">{{ seat.student ? seat.student.first_name : seat.label }}</span>
-                        <span v-if="!seat.student && selectedSeatId === seat.id" class="mt-1 block text-[9px] font-bold uppercase">Selected</span>
+                        <div v-if="seat.student" class="flex flex-col items-center justify-center h-full text-center">
+                            <span class="flex size-7 items-center justify-center rounded-full bg-white/20 text-[10px] font-extrabold text-white">
+                                {{ initials(seat.student.first_name + ' ' + seat.student.last_name) }}
+                            </span>
+                            <span class="mt-1 block max-w-[4.5rem] truncate text-[11px] font-bold leading-tight text-white">
+                                {{ seat.student.first_name }}
+                            </span>
+                            <span class="text-[9px] font-mono opacity-80 leading-none mt-0.5 text-white/90">
+                                {{ seat.label }}
+                            </span>
+                        </div>
+
+                        <div v-else class="flex flex-col items-center justify-center h-full text-center">
+                            <Armchair class="size-4.5 transition-transform group-hover:scale-110" />
+                            <span class="mt-1 block font-mono text-[10px] font-semibold text-foreground/80">
+                                {{ seat.label }}
+                            </span>
+                            <span v-if="selectedSeatId === seat.id" class="mt-0.5 block text-[8px] font-black uppercase text-primary tracking-wider">
+                                Selected
+                            </span>
+                        </div>
                     </button>
+
+                    <!-- Column aisle divider -->
                     <div
                         v-if="seat.column_number < block.internal_columns"
-                        class="shrink-0"
+                        class="shrink-0 transition-all"
                         :class="
                             hasColumnAisle(seat.column_number)
-                                ? 'mx-2 w-8 rounded-md border-x-2 border-dashed border-[#0071e3] bg-[#eaf4ff]/70'
+                                ? 'mx-2.5 w-7 rounded-lg border-x-2 border-dashed border-primary/40 bg-primary/5 flex items-center justify-center'
                                 : 'w-2'
                         "
                         :aria-label="hasColumnAisle(seat.column_number) ? 'Vertical aisle' : undefined"
                     />
                 </template>
             </div>
+
+            <!-- Row aisle divider -->
             <div
                 v-if="rowIndex + 1 < block.internal_rows"
                 :class="
                     hasRowAisle(rowIndex + 1)
-                        ? 'my-2 grid h-8 place-items-center rounded-md border-y-2 border-dashed border-[#0071e3] bg-[#eaf4ff]/70 text-[9px] font-bold uppercase tracking-wider text-[#0066cc]'
+                        ? 'my-2.5 grid h-7 place-items-center rounded-lg border-y-2 border-dashed border-primary/40 bg-primary/5 text-[9px] font-extrabold uppercase tracking-widest text-primary'
                         : 'h-2'
                 "
             >
