@@ -6,11 +6,15 @@ import { useForm, router } from '@inertiajs/vue3';
 import {
     CheckCircle2,
     Columns3,
+    GripHorizontal,
+    GripVertical,
     LoaderCircle,
     Plus,
     RotateCcw,
     Rows3,
     Sparkles,
+    Trash2,
+    X,
 } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 
@@ -56,6 +60,21 @@ const resetSeating = () => {
         router.post(`/sections/${props.sectionId}/seats/reset`, {}, { preserveScroll: true });
     }
 };
+
+const removeRowAisle = (rowNumber: number) => {
+    form.aisle_after_rows = form.aisle_after_rows.filter((r) => r !== rowNumber);
+};
+
+const removeColAisle = (colNumber: number) => {
+    form.aisle_after_columns = form.aisle_after_columns.filter((c) => c !== colNumber);
+};
+
+const clearAllAisles = () => {
+    form.aisle_after_rows = [];
+    form.aisle_after_columns = [];
+};
+
+const totalAislesCount = computed(() => form.aisle_after_rows.length + form.aisle_after_columns.length);
 
 const queuedWhileSaving = ref(false);
 const chairCount = computed(() => Number(form.rows || 0) * Number(form.columns || 0));
@@ -150,24 +169,85 @@ onBeforeUnmount(() => {
             </div>
         </div>
 
-        <div class="mt-5 flex flex-wrap justify-center gap-3">
+        <div class="mt-4 flex flex-wrap justify-center gap-2.5">
             <button
                 type="button"
-                class="inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50"
+                class="inline-flex h-9 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 disabled:opacity-50"
                 :disabled="!validDimensions"
                 @click="applyDimensions"
             >
-                <Plus class="size-4" /> Add
+                <Plus class="size-3.5" /> Apply Size
             </button>
             <button
                 type="button"
-                class="inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-destructive px-5 text-sm font-medium text-destructive-foreground shadow-sm transition-colors hover:bg-destructive/90"
+                class="inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-destructive/30 bg-destructive/10 px-4 text-xs font-semibold text-destructive shadow-xs transition-colors hover:bg-destructive hover:text-destructive-foreground"
                 @click="resetSeating"
+                title="Unseat all students"
             >
-                <RotateCcw class="size-4" /> Reset
+                <RotateCcw class="size-3.5" /> Reset Seats
             </button>
         </div>
-        <div class="mt-5 flex items-center justify-between text-xs text-muted-foreground">
+
+        <!-- Interactive Aisles Management Panel -->
+        <div class="mt-5 rounded-2xl border border-border/80 bg-secondary/30 p-3.5">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    Aisles ({{ totalAislesCount }})
+                </span>
+                <button
+                    v-if="totalAislesCount > 0"
+                    type="button"
+                    class="text-[11px] font-semibold text-rose-600 hover:text-rose-700 dark:text-rose-400 hover:underline flex items-center gap-1"
+                    @click="clearAllAisles"
+                >
+                    <Trash2 class="size-3" /> Clear all
+                </button>
+            </div>
+
+            <div v-if="totalAislesCount > 0" class="mt-2.5 flex flex-wrap gap-1.5">
+                <!-- Horizontal Row Aisle Chips -->
+                <div
+                    v-for="r in form.aisle_after_rows"
+                    :key="`row-${r}`"
+                    class="inline-flex items-center gap-1 rounded-lg border border-primary/20 bg-primary/10 pl-2 pr-1 py-1 text-[11px] font-medium text-primary shadow-2xs group"
+                >
+                    <GripHorizontal class="size-3 text-primary/70" />
+                    <span>Row {{ r }} Aisle</span>
+                    <button
+                        type="button"
+                        class="ml-1 rounded-md p-0.5 text-primary/70 hover:bg-rose-500 hover:text-white transition-colors"
+                        :title="`Remove aisle after Row ${r}`"
+                        @click="removeRowAisle(r)"
+                    >
+                        <X class="size-3" />
+                    </button>
+                </div>
+
+                <!-- Vertical Column Aisle Chips -->
+                <div
+                    v-for="c in form.aisle_after_columns"
+                    :key="`col-${c}`"
+                    class="inline-flex items-center gap-1 rounded-lg border border-primary/20 bg-primary/10 pl-2 pr-1 py-1 text-[11px] font-medium text-primary shadow-2xs group"
+                >
+                    <GripVertical class="size-3 text-primary/70" />
+                    <span>Col {{ c }} Aisle</span>
+                    <button
+                        type="button"
+                        class="ml-1 rounded-md p-0.5 text-primary/70 hover:bg-rose-500 hover:text-white transition-colors"
+                        :title="`Remove aisle after Column ${c}`"
+                        @click="removeColAisle(c)"
+                    >
+                        <X class="size-3" />
+                    </button>
+                </div>
+            </div>
+
+            <p v-else class="mt-2 text-[11px] text-muted-foreground leading-relaxed">
+                Click any gap between chairs in the seating chart to add or remove an aisle.
+            </p>
+        </div>
+
+        <div class="mt-4 flex items-center justify-between text-xs text-muted-foreground">
             <span class="font-normal">{{ chairCount }} total chairs</span>
             <span class="font-normal">
                 {{ form.aisle_after_columns.length + form.aisle_after_rows.length }}

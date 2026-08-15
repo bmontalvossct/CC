@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Armchair, User, GripVertical, GripHorizontal } from 'lucide-vue-next';
+import { Armchair, GripHorizontal, GripVertical, Trash2, User, X } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 const props = defineProps<{
@@ -119,7 +119,7 @@ const initials = (name?: string) => {
             {{ block.label }}
         </p>
 
-        <TooltipProvider :delay-duration="200">
+        <TooltipProvider :delay-duration="150">
             <template v-for="(seats, rowIndex) in rows" :key="rowIndex">
                 <div class="flex items-stretch">
                     <template v-for="seat in seats" :key="seat.id">
@@ -173,6 +173,7 @@ const initials = (name?: string) => {
                                     <div class="text-center">
                                         <p class="text-sm font-bold leading-tight">{{ seat.student.first_name }} {{ seat.student.last_name }}</p>
                                         <p class="text-[10px] uppercase text-muted-foreground mt-0.5">{{ sectionName || 'Student' }}</p>
+                                        <p class="mt-1 text-[10px] font-semibold text-primary">Click to view details or unseat</p>
                                     </div>
                                 </TooltipContent>
                             </Tooltip>
@@ -236,42 +237,66 @@ const initials = (name?: string) => {
                             </div>
                         </div>
 
-                    <!-- Column aisle divider button -->
-                    <button
-                        v-if="seat.column_number < block.internal_columns"
-                        type="button"
-                        class="shrink-0 transition-all flex items-center justify-center border-2 border-dashed rounded-lg"
-                        :class="
-                            hasColumnAisle(seat.column_number)
-                                ? 'mx-2 w-7 border-primary/40 bg-primary/5 text-primary hover:border-rose-500/50 hover:bg-rose-500/10'
-                                : 'w-2.5 border-transparent hover:w-6 hover:border-primary/50 hover:bg-secondary/40'
-                        "
-                        :aria-label="`${hasColumnAisle(seat.column_number) ? 'Remove' : 'Add'} vertical aisle after column ${seat.column_number}`"
-                        @click.stop="toggleAisle('column', seat.column_number)"
-                    >
-                        <GripVertical v-if="hasColumnAisle(seat.column_number)" class="size-3.5 opacity-60" />
-                    </button>
+                    <!-- Interactive Column Aisle Divider Button -->
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <button
+                                v-if="seat.column_number < block.internal_columns"
+                                type="button"
+                                class="group/aisle shrink-0 transition-all flex items-center justify-center border-2 border-dashed rounded-lg relative"
+                                :class="
+                                    hasColumnAisle(seat.column_number)
+                                        ? 'mx-2 w-8 border-primary/40 bg-primary/5 text-primary hover:border-rose-500 hover:bg-rose-500/15 hover:text-rose-600 dark:hover:text-rose-400'
+                                        : 'w-2.5 border-transparent hover:w-6 hover:border-primary/50 hover:bg-secondary/60 hover:text-primary'
+                                "
+                                :aria-label="`${hasColumnAisle(seat.column_number) ? 'Remove' : 'Add'} vertical aisle after column ${seat.column_number}`"
+                                @click.stop="toggleAisle('column', seat.column_number)"
+                            >
+                                <template v-if="hasColumnAisle(seat.column_number)">
+                                    <GripVertical class="size-3.5 opacity-60 group-hover/aisle:hidden" />
+                                    <X class="size-3.5 hidden group-hover/aisle:block text-rose-600 dark:text-rose-400 font-bold" />
+                                </template>
+                                <span v-else class="text-[9px] font-bold opacity-0 group-hover/aisle:opacity-100 text-primary">+</span>
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" class="text-xs font-medium">
+                            {{ hasColumnAisle(seat.column_number) ? `Click to remove Col ${seat.column_number} aisle` : `Click to add vertical aisle after Col ${seat.column_number}` }}
+                        </TooltipContent>
+                    </Tooltip>
                 </template>
             </div>
 
-            <!-- Row aisle divider button -->
-            <button
-                v-if="rowIndex + 1 < block.internal_rows"
-                type="button"
-                class="w-full transition-all flex items-center justify-center border-2 border-dashed rounded-lg"
-                :class="
-                    hasRowAisle(rowIndex + 1)
-                        ? 'my-2 h-7 border-primary/40 bg-primary/5 text-primary hover:border-rose-500/50 hover:bg-rose-500/10 text-[9px] font-medium uppercase tracking-widest'
-                        : 'h-2.5 border-transparent hover:h-6 hover:border-primary/50 hover:bg-secondary/40'
-                "
-                :aria-label="`${hasRowAisle(rowIndex + 1) ? 'Remove' : 'Add'} horizontal aisle after row ${rowIndex + 1}`"
-                @click.stop="toggleAisle('row', rowIndex + 1)"
-            >
-                <span v-if="hasRowAisle(rowIndex + 1)" class="flex items-center gap-2">
-                    <GripHorizontal class="size-3.5 opacity-60" />
-                    <span>Aisle</span>
-                </span>
-            </button>
+            <!-- Interactive Row Aisle Divider Button -->
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <button
+                        v-if="rowIndex + 1 < block.internal_rows"
+                        type="button"
+                        class="group/aisle w-full transition-all flex items-center justify-center border-2 border-dashed rounded-lg relative"
+                        :class="
+                            hasRowAisle(rowIndex + 1)
+                                ? 'my-2 h-7 border-primary/40 bg-primary/5 text-primary hover:border-rose-500 hover:bg-rose-500/15 hover:text-rose-600 dark:hover:text-rose-400 text-[10px] font-semibold uppercase tracking-wider'
+                                : 'h-2.5 border-transparent hover:h-6 hover:border-primary/50 hover:bg-secondary/60 hover:text-primary'
+                        "
+                        :aria-label="`${hasRowAisle(rowIndex + 1) ? 'Remove' : 'Add'} horizontal aisle after row ${rowIndex + 1}`"
+                        @click.stop="toggleAisle('row', rowIndex + 1)"
+                    >
+                        <span v-if="hasRowAisle(rowIndex + 1)" class="flex items-center gap-2">
+                            <GripHorizontal class="size-3.5 opacity-60 group-hover/aisle:hidden" />
+                            <span class="group-hover/aisle:hidden">Aisle</span>
+                            <span class="hidden group-hover/aisle:flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-bold">
+                                <X class="size-3.5" /> Remove Aisle
+                            </span>
+                        </span>
+                        <span v-else class="text-[9px] font-bold opacity-0 group-hover/aisle:opacity-100 text-primary flex items-center gap-1">
+                            + Add Aisle
+                        </span>
+                    </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" class="text-xs font-medium">
+                    {{ hasRowAisle(rowIndex + 1) ? `Click to remove Row ${rowIndex + 1} aisle` : `Click to add horizontal aisle after Row ${rowIndex + 1}` }}
+                </TooltipContent>
+            </Tooltip>
             </template>
         </TooltipProvider>
     </article>

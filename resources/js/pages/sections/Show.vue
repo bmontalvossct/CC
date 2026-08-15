@@ -147,15 +147,37 @@ const addStudent = () => {
 };
 
 const removeStudent = (student: any) => {
-    if (confirm(`Remove ${student.full_name} from this section?`))
-        router.delete(`/sections/${props.section.id}/students/${student.id}`, { onSuccess: () => (selectedStudent.value = null) });
+    if (confirm(`Remove ${student.full_name} from this section roster?`))
+        router.delete(`/sections/${props.section.id}/students/${student.id}`, {
+            preserveScroll: true,
+            onSuccess: () => {
+                if (selectedStudent.value?.id === student.id) {
+                    selectedStudent.value = null;
+                }
+            },
+        });
+};
+
+const unseatStudent = (student: any) => {
+    router.patch(
+        `/sections/${props.section.id}/students/${student.id}/seat`,
+        { seat_id: null },
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                if (selectedStudent.value?.id === student.id) {
+                    selectedStudent.value = null;
+                }
+            },
+        },
+    );
 };
 
 const moveStudent = (student: any, seatId: string) =>
     router.patch(
         `/sections/${props.section.id}/students/${student.id}/seat`,
         { seat_id: seatId ? Number(seatId) : null },
-        { onSuccess: () => (selectedStudent.value = null) },
+        { preserveScroll: true, onSuccess: () => (selectedStudent.value = null) },
     );
 
 const autoAssign = (mode: 'alphabetical' | 'random') => {
@@ -551,10 +573,10 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                         </div>
                     </dl>
 
-                    <div class="mt-6">
-                        <Label class="text-xs font-medium">Move to another chair</Label>
+                    <div class="mt-6 space-y-3">
+                        <Label class="text-xs font-semibold">Chair Assignment</Label>
                         <select
-                            class="mt-2 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
+                            class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
                             :value="selectedStudent.seat?.id || ''"
                             @change="moveStudent(selectedStudent, ($event.target as HTMLSelectElement).value)"
                         >
@@ -562,15 +584,31 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                             <option v-if="selectedStudent.seat" :value="selectedStudent.seat.id">{{ selectedStudent.seat.label }} (current)</option>
                             <option v-for="seat in availableSeats" :key="seat.id" :value="seat.id">{{ seat.label }}</option>
                         </select>
+
+                        <!-- Direct Unseat Button if currently seated -->
+                        <Button
+                            v-if="selectedStudent.seat"
+                            type="button"
+                            variant="outline"
+                            class="h-9.5 w-full rounded-xl text-xs font-semibold gap-2 border-amber-500/30 bg-amber-500/5 text-amber-600 hover:bg-amber-500/15 dark:text-amber-400"
+                            @click="unseatStudent(selectedStudent)"
+                        >
+                            <Armchair class="size-4" />
+                            <span>Unseat Student (Clear {{ selectedStudent.seat.label }})</span>
+                        </Button>
                     </div>
 
-                    <Button
-                        variant="outline"
-                        class="mt-auto border-rose-200 text-rose-600 hover:bg-rose-50 dark:border-rose-900/50 dark:hover:bg-rose-950/30 rounded-xl"
-                        @click="removeStudent(selectedStudent)"
-                    >
-                        <Trash2 class="size-4 mr-2" /> Remove from roster
-                    </Button>
+                    <div class="mt-auto pt-6 border-t border-border/60">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            class="w-full border-rose-300 bg-rose-50/50 text-rose-600 hover:bg-rose-100/80 dark:border-rose-900/50 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 rounded-xl h-10 text-xs font-semibold gap-2"
+                            @click="removeStudent(selectedStudent)"
+                        >
+                            <Trash2 class="size-4" />
+                            <span>Remove from Class Roster</span>
+                        </Button>
+                    </div>
                 </aside>
             </div>
 
@@ -779,18 +817,38 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                                 </div>
                             </div>
 
-                            <span
-                                v-if="student.seat"
-                                class="rounded-lg bg-primary/10 px-2.5 py-1 font-mono text-[10px] font-medium text-primary border border-primary/20 shrink-0"
-                            >
-                                Seated: {{ student.seat.label }}
-                            </span>
-                            <span
-                                v-else
-                                class="rounded-lg bg-amber-500/10 px-2.5 py-1 font-mono text-[10px] font-medium text-amber-600 dark:text-amber-400 border border-amber-500/20 shrink-0"
-                            >
-                                Unseated
-                            </span>
+                            <div class="flex items-center gap-1.5 shrink-0" @click.stop>
+                                <span
+                                    v-if="student.seat"
+                                    class="rounded-lg bg-primary/10 px-2.5 py-1 font-mono text-[10px] font-medium text-primary border border-primary/20"
+                                >
+                                    {{ student.seat.label }}
+                                </span>
+                                <span
+                                    v-else
+                                    class="rounded-lg bg-amber-500/10 px-2.5 py-1 font-mono text-[10px] font-medium text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                                >
+                                    Unseated
+                                </span>
+
+                                <button
+                                    v-if="student.seat"
+                                    type="button"
+                                    class="rounded-lg p-1.5 text-muted-foreground hover:bg-amber-500/15 hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
+                                    title="Unseat student from chair"
+                                    @click.stop="unseatStudent(student)"
+                                >
+                                    <Armchair class="size-3.5" />
+                                </button>
+                                <button
+                                    type="button"
+                                    class="rounded-lg p-1.5 text-muted-foreground hover:bg-rose-500/15 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
+                                    title="Remove student from roster"
+                                    @click.stop="removeStudent(student)"
+                                >
+                                    <Trash2 class="size-3.5" />
+                                </button>
+                            </div>
                         </div>
 
                         <div v-if="!filteredRoster.length" class="py-12 text-center text-xs text-muted-foreground">
