@@ -2,7 +2,7 @@
 import InputError from '@/components/InputError.vue';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useForm } from '@inertiajs/vue3';
+import { useForm, router } from '@inertiajs/vue3';
 import {
     Armchair,
     CheckCircle2,
@@ -11,6 +11,7 @@ import {
     GripVertical,
     LoaderCircle,
     Plus,
+    RotateCcw,
     Rows3,
     Sparkles,
 } from 'lucide-vue-next';
@@ -37,6 +38,31 @@ const form = useForm({
 
 type Axis = 'row' | 'column';
 const dragging = ref<{ axis: Axis; from: number | null } | null>(null);
+
+const inputRows = ref(props.initialPlan.rows);
+const inputColumns = ref(props.initialPlan.columns);
+const validDimensions = computed(
+    () =>
+        Number.isInteger(Number(inputRows.value)) &&
+        Number.isInteger(Number(inputColumns.value)) &&
+        Number(inputRows.value) >= 1 &&
+        Number(inputRows.value) <= 20 &&
+        Number(inputColumns.value) >= 1 &&
+        Number(inputColumns.value) <= 20
+);
+
+const applyDimensions = () => {
+    if (!validDimensions.value) return;
+    form.rows = inputRows.value;
+    form.columns = inputColumns.value;
+};
+
+const resetSeating = () => {
+    if (confirm('Are you sure you want to reset all seating arrangements? Students will become unseated.')) {
+        router.post(`/sections/${props.sectionId}/seats/reset`, {}, { preserveScroll: true });
+    }
+};
+
 const queuedWhileSaving = ref(false);
 const chairCount = computed(() => Number(form.rows || 0) * Number(form.columns || 0));
 const validPlan = computed(
@@ -146,58 +172,35 @@ const toggleAisle = (axis: Axis, position: number) => {
 
         <div class="mt-5 grid grid-cols-2 gap-3">
             <div class="grid gap-1.5">
-                <Label for="floor-rows" class="flex items-center gap-1.5 text-xs font-semibold">
+                <Label for="floor-rows" class="flex items-center gap-1.5 text-xs font-semibold text-foreground">
                     <Rows3 class="size-3.5 text-primary" /> Chair rows
                 </Label>
-                <Input id="floor-rows" v-model.number="form.rows" type="number" min="1" max="20" class="h-9 text-sm" />
+                <Input id="floor-rows" v-model.number="inputRows" type="number" min="1" max="20" class="h-9 text-sm" />
             </div>
             <div class="grid gap-1.5">
-                <Label for="floor-columns" class="flex items-center gap-1.5 text-xs font-semibold">
+                <Label for="floor-columns" class="flex items-center gap-1.5 text-xs font-semibold text-foreground">
                     <Columns3 class="size-3.5 text-primary" /> Chair columns
                 </Label>
-                <Input id="floor-columns" v-model.number="form.columns" type="number" min="1" max="20" class="h-9 text-sm" />
+                <Input id="floor-columns" v-model.number="inputColumns" type="number" min="1" max="20" class="h-9 text-sm" />
             </div>
         </div>
 
-        <div class="mt-4 rounded-xl border border-border/80 bg-secondary/40 p-3.5">
-            <p class="text-xs font-bold text-foreground">Add walkway aisles</p>
-            <div class="mt-2.5 grid gap-2 sm:grid-cols-2">
-                <div
-                    draggable="true"
-                    class="flex cursor-grab items-center justify-between gap-2 rounded-lg border border-border bg-card p-2 text-xs font-medium text-card-foreground shadow-xs active:cursor-grabbing hover:border-primary/40 transition-colors"
-                    @dragstart="startDrag($event, 'column')"
-                    @dragend="dragging = null"
-                >
-                    <span class="flex items-center gap-1.5"><GripVertical class="size-4 text-primary" /> Vertical</span>
-                    <button
-                        type="button"
-                        class="inline-flex h-7 items-center gap-1 rounded-full bg-primary px-2.5 text-[11px] font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-40 hover:bg-primary/90 transition-colors"
-                        :disabled="!canAddAisle('column')"
-                        @click="addAisle('column')"
-                    >
-                        <Plus class="size-3" /> Add
-                    </button>
-                </div>
-                <div
-                    draggable="true"
-                    class="flex cursor-grab items-center justify-between gap-2 rounded-lg border border-border bg-card p-2 text-xs font-medium text-card-foreground shadow-xs active:cursor-grabbing hover:border-primary/40 transition-colors"
-                    @dragstart="startDrag($event, 'row')"
-                    @dragend="dragging = null"
-                >
-                    <span class="flex items-center gap-1.5"><GripHorizontal class="size-4 text-primary" /> Horizontal</span>
-                    <button
-                        type="button"
-                        class="inline-flex h-7 items-center gap-1 rounded-full bg-primary px-2.5 text-[11px] font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-40 hover:bg-primary/90 transition-colors"
-                        :disabled="!canAddAisle('row')"
-                        @click="addAisle('row')"
-                    >
-                        <Plus class="size-3" /> Add
-                    </button>
-                </div>
-            </div>
-            <p class="mt-2 text-[11px] text-muted-foreground">
-                Drag an aisle handle or click any gap in the preview below.
-            </p>
+        <div class="mt-4 flex gap-2">
+            <button
+                type="button"
+                class="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50"
+                :disabled="!validDimensions"
+                @click="applyDimensions"
+            >
+                <Plus class="size-4" /> Add to Preview
+            </button>
+            <button
+                type="button"
+                class="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-destructive px-4 text-sm font-semibold text-destructive-foreground shadow-sm transition-colors hover:bg-destructive/90"
+                @click="resetSeating"
+            >
+                <RotateCcw class="size-4" /> Reset seating
+            </button>
         </div>
 
         <!-- Interactive Room Preview -->

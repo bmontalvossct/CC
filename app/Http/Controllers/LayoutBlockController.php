@@ -70,16 +70,6 @@ class LayoutBlockController extends Controller
                 }
             }
 
-            $remainingAssignments = $assignments
-                ->reject(fn ($assignment) => $assignedStudentIds->contains($assignment['student_id']))
-                ->values();
-            $freeSeats = $seats->filter(fn ($seat) => ! $seat->student_id)->values();
-
-            foreach ($remainingAssignments->take($freeSeats->count()) as $index => $assignment) {
-                $freeSeats[$index]->update(['student_id' => $assignment['student_id']]);
-                $assignedStudentIds->push($assignment['student_id']);
-            }
-
             return max(0, $assignments->count() - $assignedStudentIds->count());
         });
 

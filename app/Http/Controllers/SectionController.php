@@ -65,7 +65,6 @@ class SectionController extends Controller
             'academicTerm', 'schedules',
             'layoutBlocks' => fn ($query) => $query->orderBy('block_row')->orderBy('block_column'),
             'layoutBlocks.seats' => fn ($query) => $query->orderBy('row_number')->orderBy('column_number'),
-            'layoutBlocks.seats.student',
             'students' => fn ($query) => $query->where('is_active', true)->orderBy('last_name')->orderBy('first_name'),
             'students.seat',
         ]);

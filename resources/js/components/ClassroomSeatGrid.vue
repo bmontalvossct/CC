@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Armchair, User } from 'lucide-vue-next';
 import { computed } from 'vue';
 
 const props = defineProps<{
     block: any;
     selectedSeatId?: number | null;
+    sectionName?: string;
 }>();
 
 const emit = defineEmits<{
@@ -46,10 +48,13 @@ const initials = (name?: string) => {
             {{ block.label }}
         </p>
 
-        <template v-for="(seats, rowIndex) in rows" :key="rowIndex">
-            <div class="flex items-stretch">
-                <template v-for="seat in seats" :key="seat.id">
-                    <button
+        <TooltipProvider :delay-duration="200">
+            <template v-for="(seats, rowIndex) in rows" :key="rowIndex">
+                <div class="flex items-stretch">
+                    <template v-for="seat in seats" :key="seat.id">
+                        <Tooltip v-if="seat.student">
+                            <TooltipTrigger asChild>
+                                <button
                         type="button"
                         :disabled="seat.is_disabled"
                         :aria-label="seat.student ? `${seat.student.full_name}, ${seat.label}` : `${seat.label}, available chair`"
@@ -77,17 +82,46 @@ const initials = (name?: string) => {
                                 {{ seat.label }}
                             </span>
                         </div>
+                            </button>
+                        </TooltipTrigger>
+                            <TooltipContent side="top" :side-offset="10" class="flex flex-col items-center gap-2 p-3 z-[100] shadow-lg">
+                                <img v-if="seat.student.photo_url" :src="seat.student.photo_url" alt="" class="size-14 rounded-full object-cover shadow-sm" />
+                                <div v-else class="flex size-14 items-center justify-center rounded-full bg-primary/20 text-lg font-bold text-primary shadow-sm">
+                                    {{ initials(seat.student.first_name + ' ' + seat.student.last_name) }}
+                                </div>
+                                <div class="text-center">
+                                    <p class="text-sm font-bold leading-tight">{{ seat.student.first_name }} {{ seat.student.last_name }}</p>
+                                    <p class="text-[10px] uppercase text-muted-foreground mt-0.5">{{ sectionName || 'Student' }}</p>
+                                </div>
+                            </TooltipContent>
+                        </Tooltip>
 
-                        <div v-else class="flex flex-col items-center justify-center h-full text-center">
-                            <Armchair class="size-4.5 transition-transform group-hover:scale-110" />
-                            <span class="mt-1 block font-mono text-[10px] font-semibold text-foreground/80">
-                                {{ seat.label }}
-                            </span>
-                            <span v-if="selectedSeatId === seat.id" class="mt-0.5 block text-[8px] font-black uppercase text-primary tracking-wider">
-                                Selected
-                            </span>
-                        </div>
-                    </button>
+                        <button
+                            v-else
+                            type="button"
+                            :disabled="seat.is_disabled"
+                            :aria-label="`${seat.label}, available chair`"
+                            :aria-pressed="selectedSeatId === seat.id"
+                            class="group relative min-h-[4.75rem] min-w-[3.75rem] flex-1 rounded-xl border-2 p-2 transition-all duration-150 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                            :class="
+                                seat.is_disabled
+                                    ? 'border-transparent bg-[repeating-linear-gradient(135deg,hsl(var(--border)),hsl(var(--border))_4px,transparent_4px,transparent_8px)] opacity-30 cursor-not-allowed'
+                                    : selectedSeatId === seat.id
+                                        ? 'scale-[1.03] border-primary bg-primary/15 text-foreground ring-2 ring-primary/30 shadow'
+                                        : 'border-border/90 bg-card text-muted-foreground hover:border-primary/60 hover:text-foreground hover:bg-secondary/60'
+                            "
+                            @click="chooseSeat(seat)"
+                        >
+                            <div class="flex flex-col items-center justify-center h-full text-center">
+                                <Armchair class="size-4.5 transition-transform group-hover:scale-110" />
+                                <span class="mt-1 block font-mono text-[10px] font-semibold text-foreground/80">
+                                    {{ seat.label }}
+                                </span>
+                                <span v-if="selectedSeatId === seat.id" class="mt-0.5 block text-[8px] font-black uppercase text-primary tracking-wider">
+                                    Selected
+                                </span>
+                            </div>
+                        </button>
 
                     <!-- Column aisle divider -->
                     <div
@@ -114,6 +148,7 @@ const initials = (name?: string) => {
             >
                 <span v-if="hasRowAisle(rowIndex + 1)">Aisle</span>
             </div>
-        </template>
+            </template>
+        </TooltipProvider>
     </article>
 </template>

@@ -292,6 +292,7 @@ const copyLink = async () => {
                                     v-for="block in section.layout_blocks"
                                     :key="block.id"
                                     :block="block"
+                                    :section-name="section.name"
                                     :selected-seat-id="selectedSeatId"
                                     @select-seat="selectedSeatId = selectedSeatId === $event ? null : $event"
                                     @select-student="selectedStudent = $event"
