@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Assessments;
 
 use App\Models\Assessment;
 use App\Models\AssessmentScore;
+use App\Models\Recitation;
 use App\Models\Section;
 use App\Models\Student;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -20,6 +23,26 @@ class AssessmentReportController extends AssessmentModuleController
     public function print(Section $section): Response
     {
         return $this->render($section, true);
+    }
+
+    public function updateWeights(Request $request, Section $section): RedirectResponse
+    {
+        $this->authorizeSection($section);
+        $data = $request->validate([
+            'activity' => ['required', 'integer', 'min:0', 'max:100'],
+            'quiz' => ['required', 'integer', 'min:0', 'max:100'],
+            'exam' => ['required', 'integer', 'min:0', 'max:100'],
+            'recitation' => ['required', 'integer', 'min:0', 'max:100'],
+        ]);
+
+        $total = $data['activity'] + $data['quiz'] + $data['exam'] + $data['recitation'];
+        if ($total !== 100) {
+            return back()->withErrors(['weights' => 'Component weights must total exactly 100%.']);
+        }
+
+        $section->update(['grading_weights' => $data]);
+
+        return back()->with('success', 'Grading weights saved.');
     }
 
     private function render(Section $section, bool $print): Response
@@ -38,7 +61,12 @@ class AssessmentReportController extends AssessmentModuleController
             ];
         }
 
-        $rows = $students->map(function ($student) use ($assessments, $scores, $categorySummary) {
+        // Fetch recitation data per student
+        $recitations = Recitation::where('section_id', $section->id)
+            ->get(['student_id', 'score'])
+            ->groupBy('student_id');
+
+        $rows = $students->map(function ($student) use ($assessments, $scores, $categorySummary, $recitations) {
             $studentScores = $scores->get($student->id, collect());
             $scoreGrid = [];
             $earnedByType = array_fill_keys(Assessment::TYPES, 0.0);
@@ -66,20 +94,35 @@ class AssessmentReportController extends AssessmentModuleController
                 ]];
             });
 
+            // Recitation stats: average out of 10, then percentage
+            $studentRecs = $recitations->get($student->id, collect());
+            $recitationCount = $studentRecs->count();
+            $recitationAvg = $recitationCount > 0 ? round($studentRecs->avg('score'), 2) : null;
+            $recitationPct = $recitationAvg !== null ? round(($recitationAvg / 10) * 100, 2) : null;
+
             return [
                 'id' => $student->id,
                 'student_number' => $student->student_number,
                 'full_name' => $student->full_name,
                 'scores' => $scoreGrid,
                 'categories' => $categories,
+                'recitation' => [
+                    'count' => $recitationCount,
+                    'avg_score' => $recitationAvg,
+                    'percentage' => $recitationPct,
+                ],
             ];
         });
+
+        $defaultWeights = ['activity' => 25, 'quiz' => 25, 'exam' => 30, 'recitation' => 20];
+        $gradingWeights = $section->grading_weights ?? $defaultWeights;
 
         return Inertia::render('reports/Gradebook', [
             'section' => $section->only('id', 'name', 'subject_code', 'subject_title'),
             'assessments' => $assessments,
             'rows' => $rows,
             'categorySummary' => $categorySummary,
+            'gradingWeights' => $gradingWeights,
             'printMode' => $print,
         ]);
     }

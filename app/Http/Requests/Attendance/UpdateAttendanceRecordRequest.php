@@ -22,6 +22,7 @@ class UpdateAttendanceRecordRequest extends FormRequest
             'status' => ['required', Rule::in([
                 AttendanceRecord::STATUS_PRESENT,
                 AttendanceRecord::STATUS_ABSENT,
+                AttendanceRecord::STATUS_LATE,
             ])],
         ];
     }

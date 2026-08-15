@@ -13,6 +13,7 @@ const props = defineProps<{
         photo_url?: string | null;
         seat?: { label: string } | null;
     }>;
+    calledTodayIds?: number[];
 }>();
 
 const open = ref(false);
@@ -20,7 +21,10 @@ const isRolling = ref(false);
 const selectedStudent = ref<(typeof props.students)[0] | null>(null);
 const currentDisplayName = ref('');
 
-const eligibleStudents = computed(() => props.students);
+const eligibleStudents = computed(() => {
+    const excluded = props.calledTodayIds ?? [];
+    return props.students.filter((student) => !excluded.includes(student.id));
+});
 
 const initials = (name?: string) => {
     if (!name) return '';
@@ -69,8 +73,8 @@ const close = () => {
         <Button
             type="button"
             variant="outline"
-            class="h-10 rounded-xl text-xs font-semibold hover:bg-secondary hover:text-primary transition-colors gap-2"
-            :disabled="!students.length"
+            class="h-10 rounded-xl text-xs font-medium hover:bg-secondary hover:text-primary transition-colors gap-2"
+            :disabled="!eligibleStudents.length"
             @click="pickRandom"
         >
             <Dices class="size-4 text-primary" />
@@ -97,21 +101,21 @@ const close = () => {
                     <X class="size-4.5" />
                 </button>
 
-                <div class="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-wider text-primary border border-primary/20">
+                <div class="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1 font-mono text-[11px] font-medium uppercase tracking-wider text-white shadow-sm">
                     <Sparkles class="size-3.5" /> Random recitation
                 </div>
 
-                <h3 class="mt-3 text-2xl font-extrabold tracking-tight">Who's Next?</h3>
+                <h3 class="mt-3 text-2xl font-medium tracking-tight">Who's Next?</h3>
 
                 <!-- Rolling State -->
                 <div v-if="isRolling" class="my-8 py-6">
                     <div class="mx-auto flex size-24 items-center justify-center rounded-full bg-primary/15 border-2 border-primary animate-pulse shadow-lg">
                         <Dices class="size-10 text-primary animate-spin" />
                     </div>
-                    <p class="mt-6 text-xl font-extrabold tracking-tight text-foreground truncate">
+                    <p class="mt-6 text-xl font-medium tracking-tight text-foreground truncate">
                         {{ currentDisplayName }}
                     </p>
-                    <p class="mt-1 text-xs text-muted-foreground font-medium">Selecting a student...</p>
+                    <p class="mt-1 text-xs text-muted-foreground font-normal">Selecting a student...</p>
                 </div>
 
                 <!-- Landed Result State -->
@@ -125,35 +129,36 @@ const close = () => {
                         />
                         <div
                             v-else
-                            class="grid size-28 place-items-center rounded-3xl bg-primary text-3xl font-extrabold text-white shadow-xl shadow-primary/25 border-4 border-white/20"
+                            class="grid size-28 place-items-center rounded-3xl bg-primary text-3xl font-medium text-white shadow-xl shadow-primary/25 border-4 border-white/20"
                         >
                             {{ initials(selectedStudent.full_name || `${selectedStudent.first_name} ${selectedStudent.last_name}`) }}
                         </div>
                     </div>
 
-                    <h4 class="mt-5 text-2xl font-extrabold tracking-tight text-foreground">
+                    <h4 class="mt-5 text-2xl font-medium tracking-tight text-foreground">
                         {{ selectedStudent.full_name || `${selectedStudent.first_name} ${selectedStudent.last_name}` }}
                     </h4>
                     <p class="mt-0.5 font-mono text-xs text-muted-foreground">{{ selectedStudent.student_number }}</p>
 
                     <!-- Location chip -->
-                    <div class="mt-4 inline-flex items-center gap-2 rounded-xl bg-secondary/80 px-4 py-2 text-xs font-bold border border-border">
+                    <div class="mt-4 inline-flex items-center gap-2 rounded-xl bg-secondary/80 px-4 py-2 text-xs font-medium border border-border">
                         <Armchair class="size-4 text-primary" />
-                        <span>Seated at: <strong class="font-mono text-primary">{{ selectedStudent.seat?.label || 'Unseated' }}</strong></span>
+                        <span>Seated at: <span class="font-mono text-primary font-medium">{{ selectedStudent.seat?.label || 'Unseated' }}</span></span>
                     </div>
 
                     <div class="mt-7 flex justify-center gap-3">
                         <Button
                             type="button"
                             variant="outline"
-                            class="rounded-xl text-xs font-semibold px-4"
+                            class="rounded-xl text-xs font-medium px-4"
+                            :disabled="!eligibleStudents.length"
                             @click="pickRandom"
                         >
                             <RotateCcw class="size-3.5 mr-1.5" /> Pick another
                         </Button>
                         <Button
                             type="button"
-                            class="ink-button !h-10 !rounded-xl !px-5 text-xs font-semibold"
+                            class="ink-button !h-10 !rounded-xl !px-5 text-xs font-medium"
                             @click="close"
                         >
                             Done
@@ -161,7 +166,10 @@ const close = () => {
                     </div>
                 </div>
 
-                <p v-else class="my-8 text-xs text-muted-foreground">Click below to pick a student randomly.</p>
+                <div v-else class="my-8 text-center">
+                    <p v-if="!eligibleStudents.length" class="text-xs text-muted-foreground font-medium">All students have been called today!</p>
+                    <p v-else class="text-xs text-muted-foreground">Click below to pick a student randomly.</p>
+                </div>
             </div>
         </div>
     </div>

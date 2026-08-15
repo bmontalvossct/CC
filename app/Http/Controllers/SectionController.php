@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreSectionRequest;
 use App\Http\Requests\UpdateSectionRequest;
 use App\Models\AcademicTerm;
+use App\Models\Seat;
 use App\Models\Section;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -80,10 +81,16 @@ class SectionController extends Controller
         }));
 
         $joinUrl = route('join.show', $section->enrollment_token);
+        $calledTodayIds = DB::table('recitations')
+            ->where('section_id', $section->id)
+            ->whereDate('conducted_on', now()->toDateString())
+            ->pluck('student_id')
+            ->toArray();
 
         return Inertia::render('sections/Show', [
             'section' => $section,
             'join_url' => $joinUrl,
+            'called_today_ids' => $calledTodayIds,
         ]);
     }
 
@@ -148,22 +155,29 @@ class SectionController extends Controller
         Gate::authorize('update', $section);
         $mode = $request->input('mode', 'alphabetical');
 
-        $unseatedStudents = $section->students()
+        $students = $section->students()
             ->where('is_active', true)
-            ->whereDoesntHave('seat')
             ->when($mode === 'random', fn ($q) => $q->inRandomOrder(), fn ($q) => $q->orderBy('last_name')->orderBy('first_name'))
             ->get();
 
-        $availableSeats = $section->seats()
-            ->where('is_disabled', false)
-            ->whereNull('student_id')
-            ->orderBy('row_number')
-            ->orderBy('column_number')
+        // Get all enabled seats ordered by layout block position and seat coordinates
+        $availableSeats = Seat::query()
+            ->join('layout_blocks', 'layout_blocks.id', '=', 'seats.layout_block_id')
+            ->where('layout_blocks.section_id', $section->id)
+            ->where('seats.is_disabled', false)
+            ->orderBy('layout_blocks.block_row')
+            ->orderBy('layout_blocks.block_column')
+            ->orderBy('seats.row_number')
+            ->orderBy('seats.column_number')
+            ->select('seats.*')
             ->get();
 
         $assignedCount = 0;
-        DB::transaction(function () use ($unseatedStudents, $availableSeats, &$assignedCount) {
-            foreach ($unseatedStudents as $index => $student) {
+        DB::transaction(function () use ($section, $students, $availableSeats, &$assignedCount) {
+            // Clear current seat assignments for this section first
+            $section->seats()->update(['student_id' => null]);
+
+            foreach ($students as $index => $student) {
                 if (! isset($availableSeats[$index])) {
                     break;
                 }
@@ -173,7 +187,8 @@ class SectionController extends Controller
             }
         });
 
-        return back()->with('success', "{$assignedCount} students automatically seated ({$mode}).");
+        $modeLabel = $mode === 'alphabetical' ? 'last name' : 'random shuffle';
+        return back()->with('success', "{$assignedCount} students assigned to chairs by {$modeLabel}.");
     }
 
     public function resetSeats(Section $section): RedirectResponse

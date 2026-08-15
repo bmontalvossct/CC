@@ -10,6 +10,7 @@ import {
     Download,
     FilePlus2,
     Plus,
+    Paperclip,
     Trophy,
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
@@ -22,6 +23,8 @@ type Assessment = {
     max_points: string;
     graded_count: number;
     points_awarded: string | null;
+    attachment_path?: string;
+    attachment_name?: string;
 };
 type Session = { id: number; session_date: string; starts_at: string };
 
@@ -239,7 +242,7 @@ const submit = () =>
                     <div>
                         <div class="flex items-center justify-between">
                             <span
-                                class="rounded-md px-2.5 py-0.5 font-mono text-[10px] font-extrabold uppercase tracking-wider"
+                                class="rounded-md px-2.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wider"
                                 :class="
                                     item.type === 'exam'
                                         ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20'
@@ -250,22 +253,27 @@ const submit = () =>
                             >
                                 {{ item.type }}
                             </span>
-                            <span class="font-mono text-xs font-bold text-foreground">{{ item.max_points }} pts</span>
+                            <span class="font-mono text-xs font-medium text-foreground">{{ item.max_points }} pts</span>
                         </div>
 
-                        <h3 class="mt-4 text-xl font-bold tracking-tight group-hover:text-primary transition-colors">
+                        <h3 class="mt-4 text-xl font-medium tracking-tight group-hover:text-primary transition-colors">
                             {{ item.title }}
                         </h3>
 
-                        <p class="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <CalendarDays class="size-3.5" /> {{ formatDate(item.conducted_on) }}
-                        </p>
+                        <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 items-center">
+                            <p class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <CalendarDays class="size-3.5" /> {{ formatDate(item.conducted_on) }}
+                            </p>
+                            <p v-if="item.attachment_path" class="flex items-center gap-1.5 text-xs text-primary font-medium">
+                                <Paperclip class="size-3.5" /> Reference attached
+                            </p>
+                        </div>
                     </div>
 
                     <div class="mt-6 border-t border-border/80 pt-4">
                         <div class="flex items-center justify-between text-xs mb-2">
-                            <span class="text-muted-foreground font-medium">Scoring progress</span>
-                            <span class="font-mono font-bold text-primary">{{ item.graded_count }} recorded</span>
+                            <span class="text-muted-foreground font-normal">Scoring progress</span>
+                            <span class="font-mono font-medium text-primary">{{ item.graded_count }} recorded</span>
                         </div>
                         <div class="h-2 overflow-hidden rounded-full bg-secondary">
                             <div

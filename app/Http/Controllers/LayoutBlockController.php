@@ -60,10 +60,31 @@ class LayoutBlockController extends Controller
             $seatsByCoordinate = $seats->keyBy(fn ($seat) => "{$seat->row_number}:{$seat->column_number}");
             $assignedStudentIds = collect();
 
+            // 1. Try to preserve coordinates if we came from a single block layout
             if ($preserveCoordinates) {
                 foreach ($assignments as $assignment) {
                     $target = $seatsByCoordinate->get("{$assignment['row_number']}:{$assignment['column_number']}");
                     if ($target && ! $target->student_id) {
+                        $target->update(['student_id' => $assignment['student_id']]);
+                        $assignedStudentIds->push($assignment['student_id']);
+                    }
+                }
+            }
+
+            // 2. For any students that couldn't be mapped by coordinate (or if we had multiple blocks),
+            // fill them into the remaining empty seats sequentially.
+            $unassigned = $assignments->filter(fn ($a) => ! $assignedStudentIds->contains($a['student_id']))->values();
+            if ($unassigned->isNotEmpty()) {
+                $emptySeats = $block->seats()
+                    ->whereNull('student_id')
+                    ->where('is_disabled', false)
+                    ->orderBy('row_number')
+                    ->orderBy('column_number')
+                    ->get();
+
+                foreach ($unassigned as $index => $assignment) {
+                    if ($emptySeats->has($index)) {
+                        $target = $emptySeats->get($index);
                         $target->update(['student_id' => $assignment['student_id']]);
                         $assignedStudentIds->push($assignment['student_id']);
                     }

@@ -160,15 +160,14 @@ const submit = () => form.post(`/join/${props.token}`, { forceFormData: true, pr
                             class="group grid cursor-pointer place-items-center rounded-2xl border-2 border-dashed border-border/80 p-5 text-center transition-all hover:border-primary hover:bg-primary/5"
                         >
                             <Camera class="size-6 text-primary group-hover:scale-110 transition-transform" />
-                            <span class="mt-2 text-xs font-bold text-foreground">
-                                {{ form.photo?.name || 'Add profile photo' }}
+                            <span class="mt-2 text-xs font-medium text-foreground">
+                                {{ form.photo?.name || 'Upload profile photo' }}
                             </span>
                             <span class="text-[10px] text-muted-foreground mt-0.5">JPG, PNG or WebP · Up to 5MB</span>
                             <input
                                 type="file"
                                 accept="image/jpeg,image/png,image/webp"
                                 class="sr-only"
-                                capture="user"
                                 @change="form.photo = ($event.target as HTMLInputElement).files?.[0] ?? null"
                             />
                         </label>

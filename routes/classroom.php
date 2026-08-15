@@ -4,10 +4,13 @@ use App\Http\Controllers\LayoutBlockController;
 use App\Http\Controllers\PublicJoinController;
 use App\Http\Controllers\SectionController;
 use App\Http\Controllers\StudentController;
+use App\Http\Controllers\RecitationController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('sections', SectionController::class);
+    Route::get('sections/{section}/recitation', [RecitationController::class, 'index'])->name('sections.recitation.index');
+    Route::post('sections/{section}/recitation/score/{student}', [RecitationController::class, 'storeScore'])->name('sections.recitation.score');
     Route::patch('sections/{section}/enrollment', [SectionController::class, 'enrollment'])->name('sections.enrollment');
     Route::post('sections/{section}/enrollment-token', [SectionController::class, 'regenerateToken'])->name('sections.enrollment-token');
     Route::patch('sections/{section}/archive', [SectionController::class, 'archive'])->name('sections.archive');

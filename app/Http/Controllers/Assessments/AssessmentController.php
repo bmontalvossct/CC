@@ -127,6 +127,10 @@ class AssessmentController extends AssessmentModuleController
                 'absent' => $roster->where('is_absent', true)->count(),
                 'average' => $graded->count() ? round((float) $graded->avg('score'), 2) : null,
             ],
+            'attendanceSessions' => AttendanceSession::query()
+                ->where('section_id', $section->id)
+                ->latest('session_date')
+                ->get(['id', 'session_date', 'starts_at']),
         ]);
     }
 

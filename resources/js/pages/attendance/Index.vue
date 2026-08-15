@@ -90,7 +90,7 @@ function changeReferenceDate(event: Event) {
                         <p class="mt-1 text-sm text-muted-foreground">{{ section.subject_title }}</p>
                     </div>
                     <div class="flex items-center gap-3">
-                        <label class="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                        <label class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                             <span>Reference date</span>
                             <Input class="h-9 w-auto rounded-xl text-xs" type="date" :model-value="referenceDate" @change="changeReferenceDate" />
                         </label>

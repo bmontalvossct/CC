@@ -15,7 +15,7 @@ class AttendanceRecordController extends Controller
         $status = $request->validated('status');
         $record->update([
             'status' => $status,
-            'attended_minutes' => $status === AttendanceRecord::STATUS_PRESENT
+            'attended_minutes' => in_array($status, [AttendanceRecord::STATUS_PRESENT, AttendanceRecord::STATUS_LATE])
                 ? $record->session->duration_minutes
                 : 0,
         ]);

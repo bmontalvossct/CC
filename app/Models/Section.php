@@ -15,12 +15,12 @@ class Section extends Model
 
     protected $fillable = [
         'user_id', 'academic_term_id', 'subject_code', 'subject_title', 'name',
-        'room', 'enrollment_token', 'enrollment_open', 'archived_at',
+        'room', 'enrollment_token', 'enrollment_open', 'grading_weights', 'archived_at',
     ];
 
     protected function casts(): array
     {
-        return ['enrollment_open' => 'boolean', 'archived_at' => 'datetime'];
+        return ['enrollment_open' => 'boolean', 'grading_weights' => 'array', 'archived_at' => 'datetime'];
     }
 
     protected static function booted(): void
@@ -68,5 +68,10 @@ class Section extends Model
     public function attendanceRecords(): HasManyThrough
     {
         return $this->hasManyThrough(AttendanceRecord::class, AttendanceSession::class);
+    }
+
+    public function recitations(): HasMany
+    {
+        return $this->hasMany(Recitation::class);
     }
 }

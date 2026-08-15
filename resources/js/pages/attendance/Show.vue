@@ -16,7 +16,7 @@ import {
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
-type RecordData = { id: number; status: 'present' | 'absent'; attended_minutes: number };
+type RecordData = { id: number; status: 'present' | 'absent' | 'late'; attended_minutes: number };
 type Student = { id: number; student_number: string; name: string; photo_url: string | null };
 type Seat = {
     id: number;
@@ -84,10 +84,12 @@ function xsrfToken() {
     return cookie ? decodeURIComponent(cookie.split('=').slice(1).join('=')) : '';
 }
 
-async function toggle(record: RecordData | null) {
+async function updateStatus(record: RecordData | null, newStatus: RecordData['status']) {
     if (!record || saveState.value[record.id] === 'saving') return;
+    if (record.status === newStatus) return; // No change needed
+
     const oldStatus = record.status;
-    record.status = oldStatus === 'present' ? 'absent' : 'present';
+    record.status = newStatus;
     saveState.value[record.id] = 'saving';
     try {
         const response = await fetch(`/attendance-records/${record.id}`, {
@@ -106,6 +108,28 @@ async function toggle(record: RecordData | null) {
     } catch {
         record.status = oldStatus;
         saveState.value[record.id] = 'error';
+    }
+}
+
+function toggle(record: RecordData | null) {
+    if (!record) return;
+    // Cycling present -> absent -> present (late goes to present or absent)
+    const newStatus = record.status === 'present' ? 'absent' : 'present';
+    updateStatus(record, newStatus);
+}
+
+function startDrag(event: DragEvent, status: RecordData['status']) {
+    if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = 'copy';
+        event.dataTransfer.setData('text/plain', status);
+    }
+}
+
+function dropStatus(event: DragEvent, record: RecordData | null) {
+    if (!record) return;
+    const status = event.dataTransfer?.getData('text/plain') as RecordData['status'];
+    if (['present', 'absent', 'late'].includes(status)) {
+        updateStatus(record, status);
     }
 }
 </script>
@@ -148,16 +172,31 @@ async function toggle(record: RecordData | null) {
 
             <!-- Instructions & Status Legend -->
             <div class="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border/80 bg-secondary/40 px-5 py-3 text-xs font-medium">
-                <div class="flex items-center gap-5">
-                    <span class="inline-flex items-center gap-2 font-bold text-primary">
+                <div class="flex flex-wrap items-center gap-5">
+                    <span 
+                        class="inline-flex items-center gap-2 font-bold text-primary cursor-grab active:cursor-grabbing"
+                        draggable="true"
+                        @dragstart="startDrag($event, 'present')"
+                    >
                         <span class="size-3 rounded-full bg-primary ring-4 ring-primary/20" /> Present
                     </span>
-                    <span class="inline-flex items-center gap-2 font-bold text-rose-600 dark:text-rose-400">
+                    <span 
+                        class="inline-flex items-center gap-2 font-bold text-rose-600 dark:text-rose-400 cursor-grab active:cursor-grabbing"
+                        draggable="true"
+                        @dragstart="startDrag($event, 'absent')"
+                    >
                         <span class="size-3 rounded-full bg-rose-500 ring-4 ring-rose-500/20" /> Absent
+                    </span>
+                    <span 
+                        class="inline-flex items-center gap-2 font-bold text-amber-600 dark:text-amber-500 cursor-grab active:cursor-grabbing"
+                        draggable="true"
+                        @dragstart="startDrag($event, 'late')"
+                    >
+                        <span class="size-3 rounded-full bg-amber-500 ring-4 ring-amber-500/20" /> Late
                     </span>
                 </div>
                 <span class="text-muted-foreground">
-                    Tap any occupied seat to toggle present/absent. Changes save immediately.
+                    Tap a seat to toggle present/absent, or drag a status onto a seat.
                 </span>
             </div>
 
@@ -204,9 +243,13 @@ async function toggle(record: RecordData | null) {
                                               ? 'border-dashed border-border/70 bg-card/60 text-muted-foreground'
                                               : seat.record?.status === 'present'
                                                 ? 'border-primary/80 bg-primary/10 text-primary shadow-xs hover:bg-primary/15'
-                                                : 'border-rose-500/80 bg-rose-500/10 text-rose-600 dark:text-rose-400 shadow-xs hover:bg-rose-500/15'
+                                                : seat.record?.status === 'late'
+                                                  ? 'border-amber-500/80 bg-amber-500/10 text-amber-600 dark:text-amber-500 shadow-xs hover:bg-amber-500/15'
+                                                  : 'border-rose-500/80 bg-rose-500/10 text-rose-600 dark:text-rose-400 shadow-xs hover:bg-rose-500/15'
                                     "
                                     @click="toggle(seat.record)"
+                                    @dragover.prevent
+                                    @drop.prevent="dropStatus($event, seat.record)"
                                 >
                                     <template v-if="seat.student">
                                         <div class="flex items-start gap-2">
@@ -268,9 +311,13 @@ async function toggle(record: RecordData | null) {
                         :class="
                             item.record.status === 'present'
                                 ? 'border-primary/80 bg-primary/10 text-primary'
-                                : 'border-rose-500/80 bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                                : item.record.status === 'late'
+                                  ? 'border-amber-500/80 bg-amber-500/10 text-amber-600 dark:text-amber-500'
+                                  : 'border-rose-500/80 bg-rose-500/10 text-rose-600 dark:text-rose-400'
                         "
                         @click="toggle(item.record)"
+                        @dragover.prevent
+                        @drop.prevent="dropStatus($event, item.record)"
                     >
                         <div>
                             <span class="block text-xs font-bold">{{ item.student.name }}</span>
@@ -279,6 +326,7 @@ async function toggle(record: RecordData | null) {
                         <span class="font-mono text-[10px] font-extrabold uppercase flex items-center gap-1">
                             <LoaderCircle v-if="saveState[item.record.id] === 'saving'" class="size-3.5 animate-spin" />
                             <Check v-else-if="item.record.status === 'present'" class="size-3.5" />
+                            <Clock3 v-else-if="item.record.status === 'late'" class="size-3.5" />
                             <X v-else class="size-3.5" />
                             <span>{{ item.record.status }}</span>
                         </span>

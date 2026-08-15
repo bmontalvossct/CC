@@ -14,6 +14,8 @@ class AttendanceRecord extends Model
 
     public const STATUS_ABSENT = 'absent';
 
+    public const STATUS_LATE = 'late';
+
     protected $fillable = [
         'attendance_session_id',
         'student_id',

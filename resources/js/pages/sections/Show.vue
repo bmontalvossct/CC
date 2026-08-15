@@ -14,6 +14,7 @@ import {
     Check,
     ClipboardList,
     Copy,
+    MessageSquare,
     Dices,
     DoorOpen,
     Download,
@@ -33,15 +34,35 @@ import {
     X,
 } from 'lucide-vue-next';
 import QRCode from 'qrcode';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 
-const props = defineProps<{ section: any; join_url: string }>();
+const props = defineProps<{ section: any; join_url: string; called_today_ids?: number[] }>();
 const page = usePage<any>();
 const selectedStudent = ref<any>(null);
 const selectedSeatId = ref<number | null>(null);
 const showQr = ref(false);
+const showEnrollModal = ref(false);
+const showImportModal = ref(false);
+const showRosterModal = ref(false);
+const rosterSearchQuery = ref('');
 const qrDataUrl = ref('');
 const copied = ref(false);
+
+const filteredRoster = computed(() => {
+    const q = rosterSearchQuery.value.toLowerCase().trim();
+    if (!q) return props.section.students;
+    return props.section.students.filter(
+        (student: any) =>
+            student.full_name.toLowerCase().includes(q) ||
+            student.student_number.toLowerCase().includes(q)
+    );
+});
+
+watch(selectedSeatId, (newVal) => {
+    if (newVal !== null) {
+        showEnrollModal.value = true;
+    }
+});
 
 onMounted(async () => {
     qrDataUrl.value = await QRCode.toDataURL(props.join_url, {
@@ -63,6 +84,9 @@ const printQr = () => {
 
 const availableSeats = computed(() =>
     props.section.layout_blocks.flatMap((block: any) => block.seats).filter((seat: any) => !seat.is_disabled && !seat.student_id),
+);
+const totalUsableSeats = computed(() =>
+    props.section.layout_blocks.flatMap((block: any) => block.seats).filter((seat: any) => !seat.is_disabled),
 );
 const selectedSeat = computed(() => availableSeats.value.find((seat: any) => seat.id === selectedSeatId.value) ?? null);
 const seatedStudents = computed(() => props.section.students.filter((student: any) => student.seat));
@@ -117,6 +141,7 @@ const addStudent = () => {
         onSuccess: () => {
             studentForm.reset();
             selectedSeatId.value = null;
+            showEnrollModal.value = false;
         },
     });
 };
@@ -134,7 +159,8 @@ const moveStudent = (student: any, seatId: string) =>
     );
 
 const autoAssign = (mode: 'alphabetical' | 'random') => {
-    if (confirm(`Automatically assign unseated students to available chairs (${mode})?`)) {
+    const modeName = mode === 'alphabetical' ? 'last name' : 'random';
+    if (confirm(`Automatically assign chairs for students by ${modeName}?`)) {
         router.post(`/sections/${props.section.id}/seats/auto-assign`, { mode }, { preserveScroll: true });
     }
 };
@@ -145,12 +171,40 @@ const resetAllSeats = () => {
     }
 };
 
+const saveAisles = ({ axis, values }: { axis: 'row' | 'column'; values: number[] }) => {
+    const block = props.section.layout_blocks[0];
+    const newRows = block.internal_rows;
+    const newColumns = block.internal_columns;
+    const newAisleRows = axis === 'row' ? values : (block.aisle_after_rows ?? []);
+    const newAisleColumns = axis === 'column' ? values : (block.aisle_after_columns ?? []);
+
+    router.put(`/sections/${props.section.id}/floor-plan`, {
+        rows: newRows,
+        columns: newColumns,
+        aisle_after_rows: newAisleRows,
+        aisle_after_columns: newAisleColumns,
+    }, { preserveScroll: true });
+};
+
 const copyLink = async () => {
     await navigator.clipboard.writeText(props.join_url);
     copied.value = true;
     setTimeout(() => {
         copied.value = false;
     }, 2000);
+};
+const dragStartUnseated = (event: DragEvent, student: any) => {
+    if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', JSON.stringify({ studentId: student.id }));
+    }
+};
+
+const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number; targetSeatId: number }) => {
+    const student = props.section.students.find((s: any) => s.id === studentId);
+    if (student) {
+        moveStudent(student, targetSeatId);
+    }
 };
 </script>
 
@@ -166,7 +220,7 @@ const copyLink = async () => {
             <div class="mx-auto max-w-[1360px]">
                 <div
                     v-if="page.props.flash?.success"
-                    class="mb-6 rounded-xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm font-semibold text-primary shadow-xs"
+                    class="mb-6 rounded-xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm font-medium text-primary shadow-xs"
                 >
                     {{ page.props.flash.success }}
                 </div>
@@ -176,21 +230,21 @@ const copyLink = async () => {
                     <div class="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
                         <div>
                             <div class="flex flex-wrap items-center gap-2">
-                                <span class="badge-primary font-mono font-bold">{{ section.subject_code }}</span>
+                                <span class="badge-primary font-mono font-medium">{{ section.subject_code }}</span>
                                 <span class="badge-muted">{{ section.academic_term.name }}</span>
                                 <span v-if="section.room" class="badge-muted flex items-center gap-1">
                                     <MapPin class="size-3" /> {{ section.room }}
                                 </span>
                             </div>
-                            <h1 class="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl md:text-5xl">{{ section.name }}</h1>
+                            <h1 class="mt-3 text-3xl font-medium tracking-tight sm:text-4xl md:text-5xl">{{ section.name }}</h1>
                             <p class="mt-2 text-sm sm:text-base text-muted-foreground">{{ section.subject_title }}</p>
                         </div>
                         <div class="flex flex-wrap items-center gap-2.5">
-                            <RandomStudentPicker :students="section.students" />
+                            <RandomStudentPicker :students="section.students" :called-today-ids="called_today_ids" />
                             <Link
                                 :href="`/sections/${section.id}/attendance`"
                                 prefetch="hover"
-                                class="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-semibold text-foreground shadow-xs hover:bg-secondary hover:text-primary transition-colors"
+                                class="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-medium text-foreground shadow-xs hover:bg-secondary hover:text-primary transition-colors"
                             >
                                 <CalendarCheck2 class="size-4 text-primary" />
                                 <span>Attendance</span>
@@ -198,15 +252,23 @@ const copyLink = async () => {
                             <Link
                                 :href="`/sections/${section.id}/assessments`"
                                 prefetch="hover"
-                                class="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-semibold text-foreground shadow-xs hover:bg-secondary hover:text-primary transition-colors"
+                                class="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-medium text-foreground shadow-xs hover:bg-secondary hover:text-primary transition-colors"
                             >
                                 <ClipboardList class="size-4 text-primary" />
                                 <span>Scores</span>
                             </Link>
                             <Link
+                                :href="`/sections/${section.id}/recitation`"
+                                prefetch="hover"
+                                class="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-medium text-foreground shadow-xs hover:bg-secondary hover:text-primary transition-colors"
+                            >
+                                <MessageSquare class="size-4 text-primary" />
+                                <span>Oral Participation</span>
+                            </Link>
+                            <Link
                                 :href="`/sections/${section.id}/edit`"
                                 prefetch="hover"
-                                class="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-semibold text-foreground shadow-xs hover:bg-secondary transition-colors"
+                                class="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground shadow-xs hover:bg-secondary transition-colors"
                                 title="Edit section details"
                             >
                                 <Edit3 class="size-4 text-muted-foreground" />
@@ -225,9 +287,9 @@ const copyLink = async () => {
                         <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
                             <div>
                                 <span class="eyebrow">Classroom floor</span>
-                                <h2 class="mt-1 text-2xl font-bold tracking-tight">Live seating arrangement</h2>
+                                <h2 class="mt-1 text-2xl font-medium tracking-tight">Live seating arrangement</h2>
                             </div>
-                            <div class="flex flex-wrap items-center gap-2 text-xs font-semibold">
+                            <div class="flex flex-wrap items-center gap-2 text-xs font-medium">
                                 <span class="badge-primary">
                                     <i class="size-2 rounded-full bg-primary" /> Assigned ({{ seatedStudents.length }})
                                 </span>
@@ -239,22 +301,22 @@ const copyLink = async () => {
 
                         <!-- Seating automation quick-actions toolbar -->
                         <div class="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/80 bg-secondary/40 px-4 py-2.5 text-xs">
-                            <span class="font-bold text-foreground flex items-center gap-1.5">
+                            <span class="font-medium text-foreground flex items-center gap-1.5">
                                 <Shuffle class="size-3.5 text-primary" /> Auto-Assign Chairs:
                             </span>
                             <div class="flex flex-wrap items-center gap-2">
                                 <button
                                     type="button"
-                                    class="inline-flex items-center gap-1 rounded-lg bg-card px-2.5 py-1 font-semibold text-foreground border border-border hover:border-primary/40 hover:bg-secondary transition-all disabled:opacity-40"
-                                    :disabled="!unseatedStudents.length || !availableSeats.length"
+                                    class="inline-flex items-center gap-1 rounded-lg bg-card px-2.5 py-1 font-medium text-foreground border border-border hover:border-primary/40 hover:bg-secondary transition-all disabled:opacity-40"
+                                    :disabled="!section.students.length || !totalUsableSeats.length"
                                     @click="autoAssign('alphabetical')"
                                 >
-                                    <SortAsc class="size-3 text-primary" /> A–Z Order
+                                    <SortAsc class="size-3 text-primary" /> Last Name
                                 </button>
                                 <button
                                     type="button"
-                                    class="inline-flex items-center gap-1 rounded-lg bg-card px-2.5 py-1 font-semibold text-foreground border border-border hover:border-primary/40 hover:bg-secondary transition-all disabled:opacity-40"
-                                    :disabled="!unseatedStudents.length || !availableSeats.length"
+                                    class="inline-flex items-center gap-1 rounded-lg bg-card px-2.5 py-1 font-medium text-foreground border border-border hover:border-primary/40 hover:bg-secondary transition-all disabled:opacity-40"
+                                    :disabled="!section.students.length || !totalUsableSeats.length"
                                     @click="autoAssign('random')"
                                 >
                                     <Dices class="size-3 text-primary" /> Random Shuffle
@@ -262,7 +324,7 @@ const copyLink = async () => {
                                 <button
                                     v-if="seatedStudents.length"
                                     type="button"
-                                    class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                                    class="inline-flex items-center gap-1 px-2.5 py-1 font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors"
                                     @click="resetAllSeats"
                                 >
                                     Clear all
@@ -294,14 +356,18 @@ const copyLink = async () => {
                                     :block="block"
                                     :section-name="section.name"
                                     :selected-seat-id="selectedSeatId"
+                                    :unseated-students="unseatedStudents"
                                     @select-seat="selectedSeatId = selectedSeatId === $event ? null : $event"
                                     @select-student="selectedStudent = $event"
+                                    @assign-student="moveStudent($event.student, $event.seatId)"
+                                    @drag-move-student="handleDragMoveStudent"
+                                    @update-aisles="saveAisles"
                                 />
                             </div>
                         </div>
 
                         <div v-else class="rounded-2xl border border-dashed border-border bg-secondary/30 p-12 text-center">
-                            <h3 class="font-bold text-xl">Define classroom rows & columns</h3>
+                            <h3 class="font-medium text-xl">Define classroom rows & columns</h3>
                             <p class="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
                                 Use the Floor Planner on the right to configure the room layout and aisles.
                             </p>
@@ -312,150 +378,55 @@ const copyLink = async () => {
                     <aside class="space-y-6">
                         <FloorPlanner :section-id="section.id" :initial-plan="initialFloorPlan" />
 
-                        <!-- Manual Roster Entry Form -->
-                        <form class="paper-card p-6" @submit.prevent="addStudent">
-                            <span class="eyebrow">Quick enroll</span>
-                            <h3 class="mt-1 text-lg font-bold">Add student to roster</h3>
-
-                            <div
-                                class="mt-3 rounded-xl border p-3 text-xs transition-colors"
-                                :class="
-                                    selectedSeat
-                                        ? 'border-primary/40 bg-primary/10 text-foreground font-medium'
-                                        : 'border-border bg-secondary/50 text-muted-foreground'
-                                "
-                            >
-                                <div class="flex items-center justify-between gap-3">
-                                    <span v-if="selectedSeat">
-                                        Chair <strong>{{ selectedSeat.label }}</strong> is selected.
-                                    </span>
-                                    <span v-else>No chair selected — student will be enrolled unseated.</span>
-                                    <button
-                                        v-if="selectedSeat"
-                                        type="button"
-                                        class="shrink-0 font-bold text-primary hover:underline"
-                                        @click="selectedSeatId = null"
-                                    >
-                                        Clear
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="mt-4 grid gap-3">
-                                <div>
-                                    <Label for="student-number" class="text-xs font-semibold">Student number</Label>
-                                    <Input id="student-number" v-model="studentForm.student_number" class="mt-1 h-9 text-sm" placeholder="e.g. 2026-001" autocomplete="off" />
-                                    <InputError class="mt-1 text-xs" :message="studentForm.errors.student_number" />
-                                </div>
-                                <div class="grid grid-cols-2 gap-2">
-                                    <div>
-                                        <Label for="student-first-name" class="text-xs font-semibold">First name</Label>
-                                        <Input id="student-first-name" v-model="studentForm.first_name" class="mt-1 h-9 text-sm" autocomplete="given-name" />
-                                        <InputError class="mt-1 text-xs" :message="studentForm.errors.first_name" />
-                                    </div>
-                                    <div>
-                                        <Label for="student-last-name" class="text-xs font-semibold">Last name</Label>
-                                        <Input id="student-last-name" v-model="studentForm.last_name" class="mt-1 h-9 text-sm" autocomplete="family-name" />
-                                        <InputError class="mt-1 text-xs" :message="studentForm.errors.last_name" />
-                                    </div>
-                                </div>
-                                <div>
-                                    <Label for="student-middle-name" class="text-xs font-semibold">Middle name <span class="text-muted-foreground font-normal">(optional)</span></Label>
-                                    <Input id="student-middle-name" v-model="studentForm.middle_name" class="mt-1 h-9 text-sm" autocomplete="additional-name" />
-                                    <InputError class="mt-1 text-xs" :message="studentForm.errors.middle_name" />
-                                </div>
-                                <div>
-                                    <Label for="student-photo" class="text-xs font-semibold block mb-1">Photo <span class="text-muted-foreground font-normal">(optional)</span></Label>
-                                    <input
-                                        id="student-photo"
-                                        type="file"
-                                        accept="image/jpeg,image/png,image/webp"
-                                        class="block w-full text-xs text-muted-foreground file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border file:border-border file:text-xs file:font-semibold file:bg-secondary file:text-foreground hover:file:bg-secondary/80"
-                                        @change="studentForm.photo = ($event.target as HTMLInputElement).files?.[0] ?? null"
-                                    />
-                                    <InputError class="mt-1 text-xs" :message="studentForm.errors.photo" />
-                                </div>
-                            </div>
-                            <InputError class="mt-2 text-xs" :message="studentForm.errors.seat_id" />
-                            <Button type="submit" class="ink-button !h-9 !w-full mt-4" :disabled="studentForm.processing">
-                                <UserPlus class="size-4" />
-                                <span>{{ studentForm.processing ? 'Adding...' : 'Add student' }}</span>
-                            </Button>
-                        </form>
-
                         <!-- Roster Section -->
                         <div class="paper-card p-6">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-2">
                                     <Users class="size-4 text-primary" />
-                                    <h3 class="text-base font-bold">Class roster</h3>
+                                    <h3 class="text-base font-medium">Class roster</h3>
                                 </div>
                                 <div class="flex items-center gap-2">
                                     <Link
                                         :href="`/sections/${section.id}/roster/print`"
                                         target="_blank"
-                                        class="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+                                        class="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
                                     >
                                         <Printer class="size-3" /> Print
                                     </Link>
-                                    <span class="badge-primary font-bold">{{ section.students.length }} enrolled</span>
+                                    <span class="badge-primary font-medium">{{ section.students.length }} enrolled</span>
                                 </div>
                             </div>
 
-                            <form
-                                class="mt-4 rounded-xl border border-dashed border-border/80 bg-secondary/30 p-3.5"
-                                @submit.prevent="importForm.post(`/sections/${section.id}/students-import`, { forceFormData: true })"
-                            >
-                                <label class="block text-xs font-bold text-foreground">Import roster CSV</label>
-                                <input
-                                    type="file"
-                                    accept=".csv,text/csv"
-                                    class="mt-2 block w-full text-xs text-muted-foreground file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border file:border-border file:text-xs file:font-medium file:bg-secondary hover:file:bg-secondary/80"
-                                    @change="importForm.roster = ($event.target as HTMLInputElement).files?.[0] ?? null"
-                                />
-                                <InputError class="mt-1 text-xs" :message="importForm.errors.roster" />
+                            <!-- Manage Roster Actions Buttons -->
+                            <div class="mt-4 flex flex-col gap-2">
                                 <Button
-                                    size="sm"
+                                    type="button"
                                     variant="outline"
-                                    class="mt-2.5 w-full text-xs font-semibold rounded-lg"
-                                    :disabled="!importForm.roster || importForm.processing"
+                                    class="h-9 rounded-xl text-xs font-medium gap-1.5 justify-center"
+                                    @click="showRosterModal = true"
                                 >
-                                    <Upload class="size-3 mr-1.5" /> Upload CSV
+                                    <Users class="size-4 text-primary" />
+                                    <span>View Class Roster ({{ section.students.length }} Enrolled)</span>
                                 </Button>
-                            </form>
-
-                            <div class="mt-4 max-h-80 overflow-y-auto pr-1">
-                                <div class="space-y-1">
-                                    <button
-                                        v-for="student in seatedStudents"
-                                        :key="student.id"
+                                <div class="grid grid-cols-2 gap-2">
+                                    <Button
                                         type="button"
-                                        class="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium transition-colors hover:bg-secondary group"
-                                        @click="selectedStudent = student"
+                                        variant="outline"
+                                        class="h-9 rounded-xl text-xs font-medium gap-1.5"
+                                        @click="showEnrollModal = true"
                                     >
-                                        <span class="truncate group-hover:text-primary transition-colors">{{ student.full_name }}</span>
-                                        <span class="rounded-md bg-secondary px-2 py-0.5 font-mono text-[10px] font-bold text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-                                            {{ student.seat.label }}
-                                        </span>
-                                    </button>
-                                    <p v-if="!seatedStudents.length" class="px-3 py-3 text-xs text-muted-foreground text-center">
-                                        No students have chosen a chair yet.
-                                    </p>
-                                </div>
-
-                                <div v-if="unseatedStudents.length" class="mt-4 border-t border-dashed border-border/80 pt-3">
-                                    <p class="mb-1.5 px-3 text-[11px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-                                        Without chair ({{ unseatedStudents.length }})
-                                    </p>
-                                    <button
-                                        v-for="student in unseatedStudents"
-                                        :key="student.id"
+                                        <UserPlus class="size-3.5 text-primary" />
+                                        <span>Quick Enroll</span>
+                                    </Button>
+                                    <Button
                                         type="button"
-                                        class="block w-full truncate rounded-xl px-3 py-1.5 text-left text-xs font-medium hover:bg-secondary transition-colors"
-                                        @click="selectedStudent = student"
+                                        variant="outline"
+                                        class="h-9 rounded-xl text-xs font-medium gap-1.5"
+                                        @click="showImportModal = true"
                                     >
-                                        {{ student.full_name }}
-                                    </button>
+                                        <Upload class="size-3.5 text-primary" />
+                                        <span>Import CSV</span>
+                                    </Button>
                                 </div>
                             </div>
                         </div>
@@ -466,10 +437,10 @@ const copyLink = async () => {
             <!-- Enrollment QR Modal -->
             <div
                 v-if="showQr"
-                class="fixed inset-0 z-50 grid place-items-center bg-zinc-950/70 p-4 backdrop-blur-md"
+                class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-zinc-950/70 p-4 backdrop-blur-md"
                 @click.self="showQr = false"
             >
-                <section class="paper-card w-full max-w-md p-7 text-center shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                <section class="paper-card w-full max-w-md p-7 text-center shadow-2xl animate-in fade-in zoom-in-95 duration-200 mt-0">
                     <button
                         class="ml-auto grid size-8 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
                         @click="showQr = false"
@@ -477,7 +448,7 @@ const copyLink = async () => {
                         <X class="size-4.5" />
                     </button>
                     <span class="badge-primary">Student enrollment</span>
-                    <h2 class="mt-2 text-2xl font-extrabold tracking-tight">Scan & Claim Chair</h2>
+                    <h2 class="mt-2 text-2xl font-medium tracking-tight">Scan & Claim Chair</h2>
                     <p class="mt-1 text-xs text-muted-foreground">Students scan this QR code to view the live floor and pick their seat.</p>
 
                     <div class="my-5 rounded-2xl border border-border/80 bg-white p-4 shadow-sm inline-block mx-auto">
@@ -489,14 +460,14 @@ const copyLink = async () => {
                     </p>
 
                     <div class="mt-4 flex gap-2">
-                        <Button variant="outline" class="flex-1 rounded-xl text-xs font-semibold" @click="copyLink">
+                        <Button variant="outline" class="flex-1 rounded-xl text-xs font-medium" @click="copyLink">
                             <Check v-if="copied" class="size-3.5 mr-1.5 text-emerald-600" />
                             <Copy v-else class="size-3.5 mr-1.5" />
                             <span>{{ copied ? 'Copied link' : 'Copy link' }}</span>
                         </Button>
                         <Button
                             variant="outline"
-                            class="flex-1 rounded-xl text-xs font-semibold"
+                            class="flex-1 rounded-xl text-xs font-medium"
                             @click="router.patch(`/sections/${section.id}/enrollment`)"
                         >
                             <DoorOpen class="size-3.5 mr-1.5" />
@@ -509,13 +480,13 @@ const copyLink = async () => {
                             v-if="qrDataUrl"
                             :href="qrDataUrl"
                             :download="`${section.subject_code}-${section.name}-enrollment.png`"
-                            class="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-secondary transition-colors"
+                            class="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium hover:bg-secondary transition-colors"
                         >
                             <Download class="size-3.5" /> Download PNG
                         </a>
                         <button
                             type="button"
-                            class="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-secondary transition-colors"
+                            class="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium hover:bg-secondary transition-colors"
                             @click="printQr"
                         >
                             <Printer class="size-3.5" /> Print QR
@@ -530,7 +501,7 @@ const copyLink = async () => {
                         <RefreshCw class="size-3 mr-1.5" /> Invalidate & create new link
                     </Button>
 
-                    <p class="mt-3 text-xs font-bold" :class="section.enrollment_open ? 'text-primary' : 'text-rose-600'">
+                    <p class="mt-3 text-xs font-medium" :class="section.enrollment_open ? 'text-primary' : 'text-rose-600'">
                         Enrollment is {{ section.enrollment_open ? 'OPEN' : 'CLOSED' }}
                     </p>
                 </section>
@@ -559,29 +530,29 @@ const copyLink = async () => {
                         />
                         <div
                             v-else
-                            class="grid size-20 place-items-center rounded-2xl bg-primary/10 font-bold text-3xl text-primary border border-primary/20"
+                            class="grid size-20 place-items-center rounded-2xl bg-primary/10 font-medium text-3xl text-primary border border-primary/20"
                         >
                             {{ selectedStudent.first_name[0] }}{{ selectedStudent.last_name[0] }}
                         </div>
                         <div>
-                            <h2 class="text-2xl font-bold tracking-tight">{{ selectedStudent.full_name }}</h2>
+                            <h2 class="text-2xl font-medium tracking-tight">{{ selectedStudent.full_name }}</h2>
                             <p class="font-mono text-xs text-muted-foreground">{{ selectedStudent.student_number }}</p>
                         </div>
                     </div>
 
                     <dl class="mt-8 grid grid-cols-2 gap-4 border-y border-dashed border-border py-5">
                         <div>
-                            <dt class="text-xs text-muted-foreground font-semibold">Current chair</dt>
-                            <dd class="mt-1 font-mono text-sm font-bold text-primary">{{ selectedStudent.seat?.label || 'Unseated' }}</dd>
+                            <dt class="text-xs text-muted-foreground font-medium">Current chair</dt>
+                            <dd class="mt-1 font-mono text-sm font-medium text-primary">{{ selectedStudent.seat?.label || 'Unseated' }}</dd>
                         </div>
                         <div>
-                            <dt class="text-xs text-muted-foreground font-semibold">Section</dt>
-                            <dd class="mt-1 text-sm font-bold">{{ section.name }}</dd>
+                            <dt class="text-xs text-muted-foreground font-medium">Section</dt>
+                            <dd class="mt-1 text-sm font-medium">{{ section.name }}</dd>
                         </div>
                     </dl>
 
                     <div class="mt-6">
-                        <Label class="text-xs font-semibold">Move to another chair</Label>
+                        <Label class="text-xs font-medium">Move to another chair</Label>
                         <select
                             class="mt-2 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
                             :value="selectedStudent.seat?.id || ''"
@@ -601,6 +572,232 @@ const copyLink = async () => {
                         <Trash2 class="size-4 mr-2" /> Remove from roster
                     </Button>
                 </aside>
+            </div>
+
+            <!-- Quick Enroll Modal -->
+            <div
+                v-if="showEnrollModal"
+                class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-zinc-950/70 p-4 backdrop-blur-md"
+                @click.self="showEnrollModal = false; selectedSeatId = null"
+            >
+                <section class="paper-card w-full max-w-md p-7 shadow-2xl animate-in fade-in zoom-in-95 duration-200 mt-0">
+                    <div class="flex items-center justify-between pb-3 border-b border-border/60">
+                        <div>
+                            <span class="eyebrow">Quick enroll</span>
+                            <h2 class="text-xl font-medium">Add student to roster</h2>
+                        </div>
+                        <button
+                            type="button"
+                            class="grid size-8 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                            @click="showEnrollModal = false; selectedSeatId = null"
+                        >
+                            <X class="size-4.5" />
+                        </button>
+                    </div>
+
+                    <form class="mt-4" @submit.prevent="addStudent">
+                        <div
+                            class="mb-4 rounded-xl border p-3 text-xs transition-colors"
+                            :class="
+                                selectedSeat
+                                    ? 'border-primary/40 bg-primary/10 text-foreground font-medium'
+                                    : 'border-border bg-secondary/50 text-muted-foreground'
+                            "
+                        >
+                            <div class="flex items-center justify-between gap-3">
+                                <span v-if="selectedSeat">
+                                    Chair <span class="font-medium">{{ selectedSeat.label }}</span> is selected.
+                                </span>
+                                <span v-else>No chair selected — student will be enrolled unseated.</span>
+                                <button
+                                    v-if="selectedSeat"
+                                    type="button"
+                                    class="shrink-0 font-medium text-primary hover:underline"
+                                    @click="selectedSeatId = null"
+                                >
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="grid gap-3">
+                            <div>
+                                <Label for="student-number" class="text-xs font-medium">Student number</Label>
+                                <Input id="student-number" v-model="studentForm.student_number" class="mt-1 h-9 text-sm" placeholder="e.g. 2026-001" autocomplete="off" />
+                                <InputError class="mt-1 text-xs" :message="studentForm.errors.student_number" />
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <Label for="student-first-name" class="text-xs font-medium">First name</Label>
+                                    <Input id="student-first-name" v-model="studentForm.first_name" class="mt-1 h-9 text-sm" autocomplete="given-name" />
+                                    <InputError class="mt-1 text-xs" :message="studentForm.errors.first_name" />
+                                </div>
+                                <div>
+                                    <Label for="student-last-name" class="text-xs font-medium">Last name</Label>
+                                    <Input id="student-last-name" v-model="studentForm.last_name" class="mt-1 h-9 text-sm" autocomplete="family-name" />
+                                    <InputError class="mt-1 text-xs" :message="studentForm.errors.last_name" />
+                                </div>
+                            </div>
+                            <div>
+                                <Label for="student-middle-name" class="text-xs font-medium">Middle name <span class="text-muted-foreground font-normal">(optional)</span></Label>
+                                <Input id="student-middle-name" v-model="studentForm.middle_name" class="mt-1 h-9 text-sm" autocomplete="additional-name" />
+                                <InputError class="mt-1 text-xs" :message="studentForm.errors.middle_name" />
+                            </div>
+                            <div>
+                                <Label for="student-photo" class="text-xs font-medium block mb-1">Photo <span class="text-muted-foreground font-normal">(optional)</span></Label>
+                                <input
+                                    id="student-photo"
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp"
+                                    class="block w-full text-xs text-muted-foreground file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border file:border-border file:text-xs file:font-medium file:bg-secondary file:text-foreground hover:file:bg-secondary/80"
+                                    @change="studentForm.photo = ($event.target as HTMLInputElement).files?.[0] ?? null"
+                                />
+                                <InputError class="mt-1 text-xs" :message="studentForm.errors.photo" />
+                            </div>
+                        </div>
+                        <InputError class="mt-2 text-xs" :message="studentForm.errors.seat_id" />
+                        <Button type="submit" class="ink-button !h-10 !w-full mt-5" :disabled="studentForm.processing">
+                            <UserPlus class="size-4" />
+                            <span>{{ studentForm.processing ? 'Adding...' : 'Add student' }}</span>
+                        </Button>
+                    </form>
+                </section>
+            </div>
+
+            <!-- Import Roster Modal -->
+            <div
+                v-if="showImportModal"
+                class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-zinc-950/70 p-4 backdrop-blur-md"
+                @click.self="showImportModal = false"
+            >
+                <section class="paper-card w-full max-w-md p-7 shadow-2xl animate-in fade-in zoom-in-95 duration-200 mt-0">
+                    <div class="flex items-center justify-between pb-3 border-b border-border/60">
+                        <div>
+                            <span class="eyebrow">Roster Import</span>
+                            <h2 class="text-xl font-medium">Import CSV file</h2>
+                        </div>
+                        <button
+                            type="button"
+                            class="grid size-8 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                            @click="showImportModal = false"
+                        >
+                            <X class="size-4.5" />
+                        </button>
+                    </div>
+
+                    <form
+                        class="mt-4"
+                        @submit.prevent="importForm.post(`/sections/${section.id}/students-import`, { forceFormData: true, onSuccess: () => showImportModal = false })"
+                    >
+                        <p class="text-xs text-muted-foreground mb-4">
+                            Upload a CSV file containing your student list. All imported students will initialize as <span class="font-medium">unseated</span>.
+                        </p>
+
+                        <div class="rounded-xl border border-dashed border-border/80 bg-secondary/30 p-4 text-center">
+                            <label class="block text-xs font-medium text-foreground">Select roster CSV</label>
+                            <input
+                                type="file"
+                                accept=".csv,text/csv"
+                                class="mt-3 block w-full text-xs text-muted-foreground file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border file:border-border file:text-xs file:font-medium file:bg-secondary file:text-foreground hover:file:bg-secondary/80 cursor-pointer"
+                                @change="importForm.roster = ($event.target as HTMLInputElement).files?.[0] ?? null"
+                            />
+                            <InputError class="mt-2 text-xs" :message="importForm.errors.roster" />
+                        </div>
+
+                        <Button
+                            type="submit"
+                            class="ink-button !h-10 !w-full mt-5"
+                            :disabled="!importForm.roster || importForm.processing"
+                        >
+                            <Upload class="size-4" />
+                            <span>{{ importForm.processing ? 'Importing...' : 'Upload & Import' }}</span>
+                        </Button>
+                    </form>
+                </section>
+            </div>
+
+            <!-- View Class Roster Modal -->
+            <div
+                v-if="showRosterModal"
+                class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-zinc-950/70 p-4 backdrop-blur-md"
+                @click.self="showRosterModal = false"
+            >
+                <section class="paper-card w-full max-w-lg p-7 shadow-2xl animate-in fade-in zoom-in-95 duration-200 mt-0">
+                    <div class="flex items-center justify-between pb-3 border-b border-border/60">
+                        <div>
+                            <span class="eyebrow">Roster Management</span>
+                            <h2 class="text-xl font-medium">Class Roster ({{ section.students.length }})</h2>
+                        </div>
+                        <button
+                            type="button"
+                            class="grid size-8 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                            @click="showRosterModal = false"
+                        >
+                            <X class="size-4.5" />
+                        </button>
+                    </div>
+
+                    <!-- Search Input -->
+                    <div class="mt-4">
+                        <Input
+                            v-slot="{ value }"
+                            v-model="rosterSearchQuery"
+                            placeholder="Search students by name or student number..."
+                            class="h-10 text-xs rounded-xl"
+                            autocomplete="off"
+                        />
+                    </div>
+
+                    <!-- Students List -->
+                    <div class="mt-5 max-h-96 overflow-y-auto pr-1 space-y-1.5">
+                        <div
+                            v-for="student in filteredRoster"
+                            :key="student.id"
+                            class="flex items-center justify-between p-2.5 rounded-xl border border-border/50 bg-card hover:bg-secondary transition-all cursor-pointer group"
+                            @click="selectedStudent = student; showRosterModal = false"
+                        >
+                            <div class="flex items-center gap-2.5 min-w-0">
+                                <div class="relative shrink-0">
+                                    <img
+                                        v-if="student.photo_url"
+                                        :src="student.photo_url"
+                                        alt=""
+                                        class="size-9 rounded-xl object-cover border border-border"
+                                    />
+                                    <div
+                                        v-else
+                                        class="grid size-9 place-items-center rounded-xl bg-primary/10 font-medium text-xs text-primary border border-primary/20"
+                                    >
+                                        {{ student.first_name[0] }}{{ student.last_name[0] }}
+                                    </div>
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-xs font-medium text-foreground group-hover:text-primary transition-colors truncate">
+                                        {{ student.full_name }}
+                                    </p>
+                                    <p class="font-mono text-[10px] text-muted-foreground">{{ student.student_number }}</p>
+                                </div>
+                            </div>
+
+                            <span
+                                v-if="student.seat"
+                                class="rounded-lg bg-primary/10 px-2.5 py-1 font-mono text-[10px] font-medium text-primary border border-primary/20 shrink-0"
+                            >
+                                Seated: {{ student.seat.label }}
+                            </span>
+                            <span
+                                v-else
+                                class="rounded-lg bg-amber-500/10 px-2.5 py-1 font-mono text-[10px] font-medium text-amber-600 dark:text-amber-400 border border-amber-500/20 shrink-0"
+                            >
+                                Unseated
+                            </span>
+                        </div>
+
+                        <div v-if="!filteredRoster.length" class="py-12 text-center text-xs text-muted-foreground">
+                            {{ rosterSearchQuery ? 'No students match your search query.' : 'No students enrolled in this section.' }}
+                        </div>
+                    </div>
+                </section>
             </div>
         </main>
     </AppLayout>

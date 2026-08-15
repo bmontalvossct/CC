@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import CommandPalette from '@/components/CommandPalette.vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { SidebarTrigger } from '@/components/ui/sidebar';
@@ -19,7 +18,7 @@ defineProps<{ breadcrumbs?: BreadcrumbItemType[] }>();
                     <BreadcrumbList>
                         <template v-for="(item, index) in breadcrumbs" :key="index">
                             <BreadcrumbItem>
-                                <BreadcrumbPage v-if="index === breadcrumbs.length - 1" class="text-xs font-bold">{{ item.title }}</BreadcrumbPage>
+                                <BreadcrumbPage v-if="index === breadcrumbs.length - 1" class="text-xs font-medium">{{ item.title }}</BreadcrumbPage>
                                 <BreadcrumbLink v-else :href="item.href" class="text-xs font-medium text-muted-foreground hover:text-foreground">{{ item.title }}</BreadcrumbLink>
                             </BreadcrumbItem>
                             <BreadcrumbSeparator v-if="index !== breadcrumbs.length - 1" />
@@ -30,8 +29,8 @@ defineProps<{ breadcrumbs?: BreadcrumbItemType[] }>();
         </div>
 
         <div class="flex items-center gap-2.5">
-            <CommandPalette />
             <ThemeToggle />
         </div>
     </header>
 </template>
+

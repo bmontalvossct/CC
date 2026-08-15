@@ -19,6 +19,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('sections/{section}/reports/gradebook', [AssessmentReportController::class, 'gradebook'])->name('sections.reports.gradebook');
     Route::get('sections/{section}/reports/gradebook/print', [AssessmentReportController::class, 'print'])->name('sections.reports.gradebook.print');
+    Route::put('sections/{section}/grading-weights', [AssessmentReportController::class, 'updateWeights'])->name('sections.grading-weights.update');
     Route::get('sections/{section}/exports/roster', [AssessmentExportController::class, 'roster'])->name('sections.exports.roster');
     Route::get('sections/{section}/exports/attendance', [AssessmentExportController::class, 'attendance'])->name('sections.exports.attendance');
     Route::get('sections/{section}/exports/gradebook', [AssessmentExportController::class, 'gradebook'])->name('sections.exports.gradebook');

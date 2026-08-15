@@ -23,5 +23,9 @@ class AppServiceProvider extends ServiceProvider
         if ($this->app->environment('production')) {
             URL::forceScheme('https');
         }
+
+        \Illuminate\Auth\SessionGuard::macro('id', function () {
+            return $this->user()?->getAuthIdentifier();
+        });
     }
 }
