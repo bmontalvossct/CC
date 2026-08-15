@@ -153,13 +153,13 @@ const initials = (name?: string) => {
                                         @click.stop="chooseSeat(seat)"
                                     >
                                         <div class="flex flex-col items-center justify-center h-full text-center">
-                                            <span class="flex size-7 items-center justify-center rounded-full bg-white/20 text-[10px] font-extrabold text-white">
+                                            <span class="flex size-7 items-center justify-center rounded-full bg-primary-foreground/20 text-[10px] font-extrabold text-primary-foreground">
                                                 {{ initials(seat.student.first_name + ' ' + seat.student.last_name) }}
                                             </span>
-                                            <span class="mt-1 block max-w-[4.5rem] truncate text-[11px] font-bold leading-tight text-white">
+                                            <span class="mt-1 block max-w-[4.5rem] truncate text-[11px] font-bold leading-tight text-primary-foreground">
                                                 {{ seat.student.first_name }}
                                             </span>
-                                            <span class="text-[9px] font-mono opacity-80 leading-none mt-0.5 text-white/90">
+                                            <span class="text-[9px] font-mono opacity-85 leading-none mt-0.5 text-primary-foreground/90">
                                                 {{ seat.label }}
                                             </span>
                                         </div>

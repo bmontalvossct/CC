@@ -3,7 +3,7 @@ import AppLogoIcon from '@/components/AppLogoIcon.vue';
 </script>
 
 <template>
-    <div class="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-primary/90 to-blue-700 text-white shadow-sm shadow-primary/25">
+    <div class="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-amber-600 text-primary-foreground shadow-sm shadow-primary/25">
         <AppLogoIcon class-name="size-5.5" />
     </div>
     <div class="ml-3 grid min-w-0 flex-1 text-left">
