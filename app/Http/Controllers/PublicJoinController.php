@@ -71,11 +71,16 @@ class PublicJoinController extends Controller
                     throw ValidationException::withMessages(['seat_id' => 'That chair was just claimed. Please choose another.']);
                 }
 
-                $student = Student::query()
-                    ->where('section_id', $section->id)
-                    ->where('student_number', $request->string('student_number')->toString())
-                    ->lockForUpdate()
-                    ->first();
+                $studentNumber = $request->filled('student_number') ? $request->string('student_number')->toString() : null;
+
+                $student = null;
+                if ($studentNumber) {
+                    $student = Student::query()
+                        ->where('section_id', $section->id)
+                        ->where('student_number', $studentNumber)
+                        ->lockForUpdate()
+                        ->first();
+                }
 
                 if ($student?->seat()->exists()) {
                     throw ValidationException::withMessages(['student_number' => 'This student number already has a chair.']);
@@ -99,7 +104,7 @@ class PublicJoinController extends Controller
                 } else {
                     $student = $section->students()->create([
                         ...$attributes,
-                        'student_number' => $request->string('student_number')->toString(),
+                        'student_number' => $studentNumber,
                     ]);
                 }
                 $seat->update(['student_id' => $student->id]);

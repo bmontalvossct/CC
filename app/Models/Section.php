@@ -23,6 +23,19 @@ class Section extends Model
         return ['enrollment_open' => 'boolean', 'grading_weights' => 'array', 'archived_at' => 'datetime'];
     }
 
+    public function attributesToArray(): array
+    {
+        $attributes = parent::attributesToArray();
+
+        return array_map(function ($value) {
+            if (is_string($value)) {
+                return mb_convert_encoding($value, 'UTF-8', 'UTF-8');
+            }
+
+            return $value;
+        }, $attributes);
+    }
+
     protected static function booted(): void
     {
         static::creating(function (Section $section) {
@@ -73,5 +86,10 @@ class Section extends Model
     public function recitations(): HasMany
     {
         return $this->hasMany(Recitation::class);
+    }
+
+    public function projects(): HasMany
+    {
+        return $this->hasMany(Project::class);
     }
 }

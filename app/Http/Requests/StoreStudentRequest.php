@@ -17,7 +17,7 @@ class StoreStudentRequest extends FormRequest
         $section = $this->route('section');
 
         return [
-            'student_number' => ['required', 'string', 'max:80', Rule::unique('students')->where('section_id', $section?->id)],
+            'student_number' => ['nullable', 'string', 'max:80', Rule::unique('students')->where('section_id', $section?->id)->whereNotNull('student_number')],
             'first_name' => ['required', 'string', 'max:255'],
             'middle_name' => ['nullable', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],

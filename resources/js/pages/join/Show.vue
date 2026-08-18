@@ -28,15 +28,19 @@ const submit = () => form.post(`/join/${props.token}`, { forceFormData: true, pr
     <main class="page-enter min-h-screen bg-background px-4 py-8 text-foreground md:py-12">
         <div class="mx-auto max-w-5xl">
             <!-- Hero Header -->
-            <header class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 p-7 text-white shadow-xl md:p-10 border border-white/10">
+            <header
+                class="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 p-7 text-white shadow-xl md:p-10"
+            >
                 <div class="relative">
-                    <span class="inline-flex items-center gap-1.5 rounded-full bg-primary/20 px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-widest text-blue-400 border border-blue-400/30">
+                    <span
+                        class="inline-flex items-center gap-1.5 rounded-full border border-blue-400/30 bg-primary/20 px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-widest text-blue-400"
+                    >
                         <Sparkles class="size-3" /> Student Self-Enrollment
                     </span>
                     <h1 class="mt-4 text-3xl font-extrabold tracking-tight md:text-5xl">
                         {{ section.subject_code }} <span class="text-primary">/</span> {{ section.name }}
                     </h1>
-                    <p class="mt-2 max-w-2xl text-sm md:text-base text-zinc-300">
+                    <p class="mt-2 max-w-2xl text-sm text-zinc-300 md:text-base">
                         {{ section.subject_title }}<span v-if="section.room"> · {{ section.room }}</span>
                     </p>
                 </div>
@@ -46,7 +50,7 @@ const submit = () => form.post(`/join/${props.token}`, { forceFormData: true, pr
             <div v-if="page.props.flash?.success" class="paper-card mt-6 border-emerald-500/30 bg-emerald-500/10 p-8 text-center shadow-lg">
                 <CheckCircle2 class="mx-auto size-12 text-emerald-600 dark:text-emerald-400" />
                 <h2 class="mt-4 text-2xl font-extrabold text-foreground">Chair Reserved!</h2>
-                <p class="mt-2 text-sm text-emerald-600 dark:text-emerald-400 font-medium">{{ page.props.flash.success }}</p>
+                <p class="mt-2 text-sm font-medium text-emerald-600 dark:text-emerald-400">{{ page.props.flash.success }}</p>
             </div>
 
             <!-- Enrollment Closed State -->
@@ -65,13 +69,14 @@ const submit = () => form.post(`/join/${props.token}`, { forceFormData: true, pr
                             <span class="eyebrow">Step 1</span>
                             <h2 class="mt-1 text-2xl font-bold tracking-tight">Choose your chair</h2>
                         </div>
-                        <span v-if="selectedLabel" class="badge-primary font-mono text-xs font-bold">
-                            Selected: {{ selectedLabel }}
-                        </span>
+                        <span v-if="selectedLabel" class="badge-primary font-mono text-xs font-bold"> Selected: {{ selectedLabel }} </span>
                     </div>
 
-                    <div class="my-6 rounded-xl bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 py-2.5 text-center text-[10px] font-extrabold uppercase tracking-[0.25em] text-white shadow-xs">
-                        Front / Teaching board
+                    <!-- Teaching Wall Bar -->
+                    <div
+                        class="my-6 flex items-center justify-center rounded-2xl bg-[#164e3f] py-3 px-6 text-center text-xs font-bold uppercase tracking-[0.25em] text-white shadow-xs dark:bg-[#134e48]"
+                    >
+                        Teaching Wall / Front Board
                     </div>
 
                     <div
@@ -89,28 +94,30 @@ const submit = () => form.post(`/join/${props.token}`, { forceFormData: true, pr
                             <article
                                 v-for="block in section.blocks"
                                 :key="block.id"
-                                class="rounded-2xl border border-dashed border-border/80 bg-secondary/30 p-3.5"
+                                class="rounded-2xl border border-border/80 bg-card p-4 shadow-xs"
                                 :style="{ gridColumn: block.block_column, gridRow: block.block_row }"
                             >
-                                <p class="mb-2.5 text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground text-center">Block {{ block.label }}</p>
-                                <div class="grid gap-2" :style="{ gridTemplateColumns: `repeat(${block.internal_columns}, 1fr)` }">
+                                <p v-if="block.label && block.label !== 'Classroom'" class="mb-3 text-center text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                    {{ block.label }}
+                                </p>
+                                <div class="grid gap-2.5" :style="{ gridTemplateColumns: `repeat(${block.internal_columns}, 1fr)` }">
                                     <button
                                         v-for="seat in block.seats"
                                         :key="seat.id"
                                         type="button"
                                         :disabled="!seat.is_available"
-                                        class="aspect-square rounded-xl border-2 p-1 transition-all flex flex-col items-center justify-center text-center"
+                                        class="flex min-h-[4.75rem] flex-col items-center justify-center rounded-2xl border-2 p-2 text-center transition-all duration-150"
                                         :class="
                                             seat.id === form.seat_id
-                                                ? 'scale-105 border-primary bg-primary text-white shadow-md'
+                                                ? 'scale-105 border-emerald-400 bg-[#164e3f] text-white shadow-md ring-2 ring-emerald-400 ring-offset-2'
                                                 : seat.is_available
-                                                  ? 'border-border/90 bg-card text-muted-foreground hover:-translate-y-0.5 hover:border-primary hover:text-primary hover:bg-primary/5'
+                                                  ? 'border-slate-200/90 bg-card text-muted-foreground hover:-translate-y-0.5 hover:border-primary/50 hover:bg-secondary/40 hover:text-foreground dark:border-border/80'
                                                   : 'cursor-not-allowed border-transparent bg-muted/40 text-muted-foreground/40 opacity-50'
                                         "
                                         @click="form.seat_id = seat.id"
                                     >
-                                        <Armchair class="size-4" />
-                                        <span class="mt-0.5 block font-mono text-[8.5px] font-bold">
+                                        <Armchair class="size-4.5" :class="seat.id === form.seat_id ? 'text-white' : 'text-slate-400 dark:text-muted-foreground/60'" />
+                                        <span class="mt-1 block font-mono text-[9px] font-bold uppercase tracking-wider">
                                             {{ seat.is_available ? seat.label : 'TAKEN' }}
                                         </span>
                                     </button>
@@ -120,7 +127,7 @@ const submit = () => form.post(`/join/${props.token}`, { forceFormData: true, pr
                     </div>
 
                     <InputError class="mt-3 text-xs" :message="form.errors.seat_id || enrollmentError" />
-                    <p class="mt-4 flex items-center gap-2 text-xs text-muted-foreground font-medium">
+                    <p class="mt-4 flex items-center gap-2 text-xs font-medium text-muted-foreground">
                         <LockKeyhole class="size-3.5 shrink-0 text-primary" />
                         <span>Only chair availability is visible. Other students' names and private data remain hidden.</span>
                     </p>
@@ -129,41 +136,45 @@ const submit = () => form.post(`/join/${props.token}`, { forceFormData: true, pr
                 <!-- Step 2: Student Identity Form -->
                 <section class="paper-card h-fit p-6 md:p-8 lg:sticky lg:top-6">
                     <span class="eyebrow">Step 2</span>
-                    <h2 class="mt-1 text-2xl font-bold tracking-tight">Your student info</h2>
+                    <h2 class="mt-1 text-2xl font-medium tracking-tight">Your student info</h2>
 
                     <div class="mt-5 grid gap-4">
                         <div class="grid gap-1.5">
-                            <Label for="student-number" class="text-xs font-semibold">Student number</Label>
+                            <Label for="student-number" class="text-xs font-medium"
+                                >ID / Student number <span class="font-normal text-muted-foreground">(optional)</span></Label
+                            >
                             <Input
                                 id="student-number"
                                 v-model="form.student_number"
                                 autocomplete="off"
-                                placeholder="e.g. 2026-00001"
-                                class="rounded-xl h-10 text-sm"
+                                placeholder="e.g. 2026-00001 (optional)"
+                                class="h-10 rounded-xl text-sm"
                             />
-                            <InputError class="text-xs mt-1" :message="form.errors.student_number" />
+                            <InputError class="mt-1 text-xs" :message="form.errors.student_number" />
                         </div>
                         <div class="grid gap-1.5">
-                            <Label for="first-name" class="text-xs font-semibold">First name</Label>
-                            <Input id="first-name" v-model="form.first_name" autocomplete="given-name" class="rounded-xl h-10 text-sm" />
+                            <Label for="first-name" class="text-xs font-medium">First name</Label>
+                            <Input id="first-name" v-model="form.first_name" autocomplete="given-name" class="h-10 rounded-xl text-sm" />
                         </div>
                         <div class="grid gap-1.5">
-                            <Label for="middle-name" class="text-xs font-semibold">Middle name <span class="text-muted-foreground font-normal">(optional)</span></Label>
-                            <Input id="middle-name" v-model="form.middle_name" autocomplete="additional-name" class="rounded-xl h-10 text-sm" />
+                            <Label for="middle-name" class="text-xs font-medium"
+                                >Middle name <span class="font-normal text-muted-foreground">(optional)</span></Label
+                            >
+                            <Input id="middle-name" v-model="form.middle_name" autocomplete="additional-name" class="h-10 rounded-xl text-sm" />
                         </div>
                         <div class="grid gap-1.5">
-                            <Label for="last-name" class="text-xs font-semibold">Last name</Label>
-                            <Input id="last-name" v-model="form.last_name" autocomplete="family-name" class="rounded-xl h-10 text-sm" />
+                            <Label for="last-name" class="text-xs font-medium">Last name</Label>
+                            <Input id="last-name" v-model="form.last_name" autocomplete="family-name" class="h-10 rounded-xl text-sm" />
                         </div>
 
                         <label
                             class="group grid cursor-pointer place-items-center rounded-2xl border-2 border-dashed border-border/80 p-5 text-center transition-all hover:border-primary hover:bg-primary/5"
                         >
-                            <Camera class="size-6 text-primary group-hover:scale-110 transition-transform" />
+                            <Camera class="size-6 text-primary transition-transform group-hover:scale-110" />
                             <span class="mt-2 text-xs font-medium text-foreground">
                                 {{ form.photo?.name || 'Upload profile photo' }}
                             </span>
-                            <span class="text-[10px] text-muted-foreground mt-0.5">JPG, PNG or WebP · Up to 5MB</span>
+                            <span class="mt-0.5 text-[10px] text-muted-foreground">JPG, PNG or WebP · Up to 5MB</span>
                             <input
                                 type="file"
                                 accept="image/jpeg,image/png,image/webp"
@@ -171,14 +182,10 @@ const submit = () => form.post(`/join/${props.token}`, { forceFormData: true, pr
                                 @change="form.photo = ($event.target as HTMLInputElement).files?.[0] ?? null"
                             />
                         </label>
-                        <InputError class="text-xs mt-1" :message="form.errors.photo" />
+                        <InputError class="mt-1 text-xs" :message="form.errors.photo" />
                     </div>
 
-                    <Button
-                        type="submit"
-                        class="ink-button !h-11 !w-full mt-6 !rounded-xl"
-                        :disabled="form.processing || !form.seat_id"
-                    >
+                    <Button type="submit" class="ink-button mt-6 !h-11 !w-full !rounded-xl" :disabled="form.processing || !form.seat_id">
                         {{ form.processing ? 'Claiming chair...' : `Reserve ${selectedLabel || 'Chair'}` }}
                     </Button>
                 </section>

@@ -1,18 +1,22 @@
 <script setup lang="ts">
+import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
 import {
     ArrowLeft,
     Check,
-    CheckCircle2,
     Clock3,
+    FileCheck,
+    LayoutGrid,
     LoaderCircle,
     RotateCcw,
+    Search,
+    UserCheck,
+    UserMinus,
     UserRound,
-    Users,
+    UserX,
     X,
-    XCircle,
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
@@ -50,9 +54,17 @@ const localSeats = ref(props.seats);
 const localUnseated = ref(props.unseated);
 const saveState = ref<Record<number, 'saving' | 'saved' | 'error'>>({});
 
-const presentCount = computed(
-    () => [...localSeats.value.map((x) => x.record), ...localUnseated.value.map((x) => x.record)].filter((x) => x?.status === 'present').length,
-);
+// View Mode: Seating Map vs Paper Sign-in / List View
+const viewMode = ref<'map' | 'list'>('map');
+
+const allRecords = computed(() => [
+    ...localSeats.value.map((x) => x.record).filter((r): r is RecordData => r !== null),
+    ...localUnseated.value.map((x) => x.record),
+]);
+
+const presentCount = computed(() => allRecords.value.filter((x) => x.status === 'present').length);
+const lateCount = computed(() => allRecords.value.filter((x) => x.status === 'late').length);
+const absentCount = computed(() => allRecords.value.filter((x) => x.status === 'absent').length);
 
 const blocks = computed(() => {
     const grouped = new Map<number, { id: number; label: string; row: number; column: number; seats: Seat[] }>();
@@ -61,6 +73,54 @@ const blocks = computed(() => {
         grouped.get(seat.block.id)!.seats.push(seat);
     }
     return [...grouped.values()].sort((a, b) => a.row - b.row || a.column - b.column);
+});
+
+// Flat student list for Paper Sign-in Sheet Roster
+const rosterStudents = computed(() => {
+    const list: Array<{
+        student: Student;
+        record: RecordData;
+        seatLabel: string;
+    }> = [];
+
+    for (const seat of localSeats.value) {
+        if (seat.student && seat.record) {
+            list.push({
+                student: seat.student,
+                record: seat.record,
+                seatLabel: `${seat.block.label} · Seat ${seat.label}`,
+            });
+        }
+    }
+
+    for (const un of localUnseated.value) {
+        list.push({
+            student: un.student,
+            record: un.record,
+            seatLabel: 'Unseated',
+        });
+    }
+
+    return list.sort((a, b) => a.student.name.localeCompare(b.student.name));
+});
+
+// List View Search and Filter
+const searchQuery = ref('');
+const filterStatus = ref<'all' | 'present' | 'late' | 'absent'>('all');
+
+const filteredRoster = computed(() => {
+    let list = rosterStudents.value;
+
+    if (filterStatus.value !== 'all') {
+        list = list.filter((item) => item.record.status === filterStatus.value);
+    }
+
+    const q = searchQuery.value.trim().toLowerCase();
+    if (!q) return list;
+
+    return list.filter(
+        (item) => item.student.name.toLowerCase().includes(q) || item.student.student_number.toLowerCase().includes(q),
+    );
 });
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -86,7 +146,7 @@ function xsrfToken() {
 
 async function updateStatus(record: RecordData | null, newStatus: RecordData['status']) {
     if (!record || saveState.value[record.id] === 'saving') return;
-    if (record.status === newStatus) return; // No change needed
+    if (record.status === newStatus) return;
 
     const oldStatus = record.status;
     record.status = newStatus;
@@ -113,8 +173,14 @@ async function updateStatus(record: RecordData | null, newStatus: RecordData['st
 
 function toggle(record: RecordData | null) {
     if (!record) return;
-    // Cycling present -> absent -> present (late goes to present or absent)
-    const newStatus = record.status === 'present' ? 'absent' : 'present';
+    let newStatus: RecordData['status'] = 'present';
+    if (record.status === 'present') {
+        newStatus = 'absent';
+    } else if (record.status === 'absent') {
+        newStatus = 'late';
+    } else {
+        newStatus = 'present';
+    }
     updateStatus(record, newStatus);
 }
 
@@ -132,6 +198,14 @@ function dropStatus(event: DragEvent, record: RecordData | null) {
         updateStatus(record, status);
     }
 }
+
+// Bulk marking
+function markAll(status: 'present' | 'absent') {
+    const targets = rosterStudents.value.filter((item) => item.record.status !== status);
+    for (const item of targets) {
+        updateStatus(item.record, status);
+    }
+}
 </script>
 
 <template>
@@ -139,205 +213,475 @@ function dropStatus(event: DragEvent, record: RecordData | null) {
     <AppLayout :breadcrumbs="breadcrumbs">
         <main class="page-enter mx-auto flex w-full max-w-[1360px] flex-1 flex-col gap-6 px-5 pb-16 pt-8 md:px-10 md:pt-10">
             <!-- Header Banner -->
-            <header class="relative overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card to-primary/5 p-6 sm:p-8 shadow-sm">
+            <header
+                class="relative overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card to-primary/5 p-6 shadow-sm sm:p-8"
+            >
                 <div class="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
                     <div>
                         <Link
                             :href="`/sections/${section.id}/attendance`"
                             prefetch="hover"
-                            class="mb-3 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors"
+                            class="mb-3 inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground transition-colors hover:text-primary"
                         >
-                            <ArrowLeft class="size-3.5" /> Back to attendance register
+                            <ArrowLeft class="size-4" /> Back to attendance register
                         </Link>
                         <div class="flex items-center gap-2">
-                            <span class="badge-primary font-mono font-bold">{{ section.subject_code }}</span>
+                            <span class="badge-primary font-mono">{{ section.subject_code }}</span>
                             <span class="badge-muted">{{ session.session_date }}</span>
                         </div>
-                        <h1 class="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">{{ section.name }} · Live Roll Call</h1>
+                        <h1 class="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">{{ section.name }} · Live Roll Call</h1>
                         <p class="mt-1 text-sm text-muted-foreground">
                             {{ session.starts_at }} – {{ session.ends_at }} · {{ session.duration_minutes }} minutes
                         </p>
                     </div>
 
-                    <div class="flex items-center gap-4">
-                        <div class="rounded-2xl border border-border/80 bg-card/90 px-6 py-3.5 text-right shadow-sm">
-                            <p class="text-3xl font-extrabold tracking-tight text-primary">
-                                {{ presentCount }}<span class="text-sm font-semibold text-muted-foreground">/{{ session.total_count }}</span>
-                            </p>
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Present now</p>
+                    <!-- Live KPI Tally Card -->
+                    <div class="flex flex-wrap items-center gap-3">
+                        <div class="flex items-center gap-4 rounded-2xl border border-border/80 bg-card/90 px-6 py-3.5 shadow-sm">
+                            <div class="text-center">
+                                <span class="block text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Present</span>
+                                <span class="font-mono text-2xl font-semibold text-emerald-700 dark:text-emerald-400">{{ presentCount }}</span>
+                            </div>
+                            <div class="h-8 w-px bg-border/80" />
+                            <div class="text-center">
+                                <span class="block text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">Late (0.5 pt)</span>
+                                <span class="font-mono text-2xl font-semibold text-amber-700 dark:text-amber-400">{{ lateCount }}</span>
+                            </div>
+                            <div class="h-8 w-px bg-border/80" />
+                            <div class="text-center">
+                                <span class="block text-xs font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-400">Absent</span>
+                                <span class="font-mono text-2xl font-semibold text-rose-700 dark:text-rose-400">{{ absentCount }}</span>
+                            </div>
+                            <div class="h-8 w-px bg-border/80" />
+                            <div class="text-center">
+                                <span class="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total</span>
+                                <span class="font-mono text-2xl font-semibold text-foreground">{{ session.total_count }}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
             </header>
 
-            <!-- Instructions & Status Legend -->
-            <div class="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border/80 bg-secondary/40 px-5 py-3 text-xs font-medium">
-                <div class="flex flex-wrap items-center gap-5">
-                    <span 
-                        class="inline-flex items-center gap-2 font-bold text-primary cursor-grab active:cursor-grabbing"
-                        draggable="true"
-                        @dragstart="startDrag($event, 'present')"
+            <!-- View Switcher (Seating Map vs Paper Sign-in / List View) -->
+            <div class="flex flex-wrap items-center justify-between gap-4 border-b border-border/80 pb-3">
+                <div class="flex items-center gap-2">
+                    <button
+                        type="button"
+                        class="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all"
+                        :class="
+                            viewMode === 'map'
+                                ? 'bg-primary text-white shadow-xs'
+                                : 'border border-border bg-white text-foreground hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card'
+                        "
+                        @click="viewMode = 'map'"
                     >
-                        <span class="size-3 rounded-full bg-primary ring-4 ring-primary/20" /> Present
-                    </span>
-                    <span 
-                        class="inline-flex items-center gap-2 font-bold text-rose-600 dark:text-rose-400 cursor-grab active:cursor-grabbing"
-                        draggable="true"
-                        @dragstart="startDrag($event, 'absent')"
-                    >
-                        <span class="size-3 rounded-full bg-rose-500 ring-4 ring-rose-500/20" /> Absent
-                    </span>
-                    <span 
-                        class="inline-flex items-center gap-2 font-bold text-amber-600 dark:text-amber-500 cursor-grab active:cursor-grabbing"
-                        draggable="true"
-                        @dragstart="startDrag($event, 'late')"
-                    >
-                        <span class="size-3 rounded-full bg-amber-500 ring-4 ring-amber-500/20" /> Late
-                    </span>
-                </div>
-                <span class="text-muted-foreground">
-                    Tap a seat to toggle present/absent, or drag a status onto a seat.
-                </span>
-            </div>
+                        <LayoutGrid class="size-4" />
+                        <span>Seating Map View</span>
+                    </button>
 
-            <div v-if="session.notes" class="rounded-xl border-l-4 border-primary bg-primary/5 p-4 text-xs">
-                <strong>Session note:</strong> {{ session.notes }}
-            </div>
-
-            <!-- Interactive Live Classroom Floor -->
-            <section class="paper-card p-6 md:p-8 shadow-sm overflow-hidden" aria-label="Interactive classroom attendance map">
-                <div class="mx-auto mb-8 w-2/3 max-w-md rounded-xl bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 py-2.5 text-center text-[10px] font-extrabold uppercase tracking-[0.25em] text-white shadow-xs">
-                    Front of classroom / teaching board
+                    <button
+                        type="button"
+                        class="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all"
+                        :class="
+                            viewMode === 'list'
+                                ? 'bg-primary text-white shadow-xs'
+                                : 'border border-border bg-white text-foreground hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card'
+                        "
+                        @click="viewMode = 'list'"
+                    >
+                        <FileCheck class="size-4" />
+                        <span>Paper Sign-in / List View</span>
+                    </button>
                 </div>
 
+                <!-- Session Note if available -->
+                <div v-if="session.notes" class="text-sm italic text-muted-foreground">
+                    Note: {{ session.notes }}
+                </div>
+            </div>
+
+            <!-- VIEW 1: SEATING MAP VIEW -->
+            <div v-if="viewMode === 'map'" class="space-y-6">
+                <!-- Instructions & Status Legend -->
                 <div
-                    class="w-full max-w-full overflow-x-auto overscroll-x-contain pb-4 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable]"
+                    class="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border/80 bg-secondary/40 px-5 py-3 text-sm font-medium"
                 >
-                    <div
-                        class="grid min-w-[680px] gap-6"
-                        :style="{ gridTemplateColumns: `repeat(${Math.max(1, ...blocks.map((b) => b.column))}, minmax(0, 1fr))` }"
-                    >
-                        <article
-                            v-for="block in blocks"
-                            :key="block.id"
-                            class="rounded-2xl border border-dashed border-border/80 bg-secondary/30 p-4"
-                            :style="{ gridColumn: block.column, gridRow: block.row }"
+                    <div class="flex flex-wrap items-center gap-5">
+                        <span
+                            class="inline-flex cursor-grab items-center gap-2 text-primary active:cursor-grabbing"
+                            draggable="true"
+                            @dragstart="startDrag($event, 'present')"
                         >
-                            <h2 class="mb-3 text-center text-xs font-extrabold uppercase tracking-wider text-muted-foreground">{{ block.label }}</h2>
-                            <div
-                                class="grid gap-2.5"
-                                :style="{ gridTemplateColumns: `repeat(${Math.max(1, ...block.seats.map((s) => s.column_number))}, minmax(5.5rem, 1fr))` }"
+                            <span class="size-3 rounded-full bg-primary ring-4 ring-primary/20" /> Present (1.0 pt)
+                        </span>
+                        <span
+                            class="inline-flex cursor-grab items-center gap-2 text-rose-700 active:cursor-grabbing dark:text-rose-400"
+                            draggable="true"
+                            @dragstart="startDrag($event, 'absent')"
+                        >
+                            <span class="size-3 rounded-full bg-rose-700 ring-4 ring-rose-700/20" /> Absent (0 pt)
+                        </span>
+                        <span
+                            class="inline-flex cursor-grab items-center gap-2 text-amber-700 active:cursor-grabbing dark:text-amber-400"
+                            draggable="true"
+                            @dragstart="startDrag($event, 'late')"
+                        >
+                            <span class="size-3 rounded-full bg-amber-700 ring-4 ring-amber-700/20" /> Late (0.5 pt)
+                        </span>
+                    </div>
+                    <span class="text-xs text-muted-foreground">
+                        Tap a seat: 1st click Absent → 2nd click Late → 3rd click Present.
+                    </span>
+                </div>
+
+                <!-- Interactive Live Classroom Floor -->
+                <section class="paper-card overflow-hidden rounded-3xl p-6 shadow-sm md:p-8" aria-label="Interactive classroom attendance map">
+                    <div
+                        class="mb-6 flex items-center justify-center rounded-2xl bg-[#164e3f] py-3.5 px-6 text-center text-xs md:text-sm font-bold uppercase tracking-[0.25em] text-white shadow-xs dark:bg-[#134e48]"
+                    >
+                        Teaching Wall / Front Board
+                    </div>
+
+                    <div class="w-full max-w-full overflow-x-auto overscroll-x-contain pb-4 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable]">
+                        <div
+                            class="grid min-w-[680px] gap-6"
+                            :style="{ gridTemplateColumns: `repeat(${Math.max(1, ...blocks.map((b) => b.column))}, minmax(0, 1fr))` }"
+                        >
+                            <article
+                                v-for="block in blocks"
+                                :key="block.id"
+                                class="rounded-2xl border border-border/80 bg-card p-5 shadow-xs"
+                                :style="{ gridColumn: block.column, gridRow: block.row }"
                             >
-                                <button
-                                    v-for="seat in block.seats"
-                                    :key="seat.id"
-                                    type="button"
-                                    :disabled="seat.is_disabled || !seat.record"
-                                    :aria-label="seat.student ? `${seat.student.name}, ${seat.record?.status}` : `${seat.label}, empty`"
-                                    :aria-pressed="seat.record?.status === 'present'"
-                                    class="relative min-h-[5.5rem] rounded-xl border-2 p-2.5 text-left transition-all duration-150 focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-default"
-                                    :class="
-                                        seat.is_disabled
-                                            ? 'border-transparent bg-muted/20 opacity-30 cursor-not-allowed'
-                                            : !seat.student
-                                              ? 'border-dashed border-border/70 bg-card/60 text-muted-foreground'
-                                              : seat.record?.status === 'present'
-                                                ? 'border-primary/80 bg-primary/10 text-primary shadow-xs hover:bg-primary/15'
-                                                : seat.record?.status === 'late'
-                                                  ? 'border-amber-500/80 bg-amber-500/10 text-amber-600 dark:text-amber-500 shadow-xs hover:bg-amber-500/15'
-                                                  : 'border-rose-500/80 bg-rose-500/10 text-rose-600 dark:text-rose-400 shadow-xs hover:bg-rose-500/15'
-                                    "
-                                    @click="toggle(seat.record)"
-                                    @dragover.prevent
-                                    @drop.prevent="dropStatus($event, seat.record)"
+                                <h2 v-if="block.label && block.label !== 'Classroom'" class="mb-3 text-center text-xs font-bold uppercase tracking-wider text-muted-foreground">{{ block.label }}</h2>
+                                <div
+                                    class="grid gap-3"
+                                    :style="{
+                                        gridTemplateColumns: `repeat(${Math.max(1, ...block.seats.map((s) => s.column_number))}, minmax(7rem, 1fr))`,
+                                    }"
                                 >
-                                    <template v-if="seat.student">
-                                        <div class="flex items-start gap-2">
+                                    <button
+                                        v-for="seat in block.seats"
+                                        :key="seat.id"
+                                        type="button"
+                                        :disabled="seat.is_disabled || !seat.record"
+                                        :aria-label="seat.student ? `${seat.student.name}, ${seat.record?.status}` : `${seat.label}, empty`"
+                                        :aria-pressed="seat.record?.status === 'present'"
+                                        class="group relative flex min-h-[6.75rem] sm:min-h-[7.25rem] flex-col items-center justify-center rounded-2xl border p-3 text-center transition-all duration-150 focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-default"
+                                        :class="
+                                            seat.is_disabled
+                                                ? 'cursor-not-allowed border-transparent bg-muted/20 opacity-30'
+                                                : !seat.student
+                                                  ? 'border-2 border-slate-200/90 bg-card text-muted-foreground hover:border-primary/50 dark:border-border/80'
+                                                  : seat.record?.status === 'present'
+                                                    ? 'border-[#1b5d4e]/80 bg-[#164e3f] text-white shadow-xs hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-[#134e48]'
+                                                    : seat.record?.status === 'late'
+                                                      ? 'border-amber-600/80 bg-amber-800 text-white shadow-xs hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-amber-900'
+                                                      : 'border-rose-600/80 bg-rose-900 text-white shadow-xs hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-rose-950'
+                                        "
+                                        @click="toggle(seat.record)"
+                                        @dragover.prevent
+                                        @drop.prevent="dropStatus($event, seat.record)"
+                                    >
+                                        <template v-if="seat.student">
+                                            <!-- Enlarged Photo / Avatar -->
+                                            <div
+                                                class="flex size-10 sm:size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/20 ring-2 ring-white/25 shadow-xs"
+                                            >
+                                                <img
+                                                    v-if="seat.student.photo_url"
+                                                    :src="seat.student.photo_url"
+                                                    :alt="seat.student.name"
+                                                    class="size-full object-cover"
+                                                />
+                                                <span v-else class="text-xs sm:text-sm font-black uppercase text-white tracking-wider">
+                                                    {{ initials(seat.student.name) }}
+                                                </span>
+                                            </div>
+
+                                            <!-- Complete Name -->
+                                            <span
+                                                class="mt-2 block w-full max-w-[7.5rem] truncate text-center text-[11px] sm:text-xs font-bold uppercase leading-tight tracking-tight text-white"
+                                                :title="seat.student.name"
+                                            >
+                                                {{ seat.student.name }}
+                                            </span>
+
+                                            <!-- Seat Label & Status -->
+                                            <div class="mt-0.5 flex items-center justify-center gap-1 font-mono text-[9px] sm:text-[10px] font-medium leading-none text-white/70 tracking-wider uppercase">
+                                                <span>{{ seat.label }}</span>
+                                                <span v-if="seat.record?.status === 'late'" class="text-amber-300 font-bold">· LATE</span>
+                                                <span v-else-if="seat.record?.status === 'absent'" class="text-rose-300 font-bold">· ABS</span>
+                                                <LoaderCircle
+                                                    v-if="saveState[seat.record!.id] === 'saving'"
+                                                    class="size-3 animate-spin text-white"
+                                                />
+                                            </div>
+                                        </template>
+
+                                        <template v-else>
+                                            <Armchair class="size-6 text-slate-400 transition-transform group-hover:scale-110 dark:text-muted-foreground/60" />
+                                            <span class="mt-2 block font-mono text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-muted-foreground">
+                                                {{ seat.is_disabled ? 'Unavailable' : seat.label }}
+                                            </span>
+                                        </template>
+                                    </button>
+                                </div>
+                            </article>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Unseated Students Section -->
+                <section v-if="unseated.length" class="paper-card p-6 shadow-sm">
+                    <div class="mb-4 flex items-center gap-2">
+                        <UserRound class="size-4 text-amber-700 dark:text-amber-400" />
+                        <h2 class="text-base font-semibold text-foreground">Unseated Students ({{ unseated.length }})</h2>
+                    </div>
+
+                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        <div
+                            v-for="item in localUnseated"
+                            :key="item.student.id"
+                            class="flex items-center justify-between rounded-xl border border-border/80 bg-secondary/30 p-3"
+                        >
+                            <div class="flex items-center gap-2.5">
+                                <span class="flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-card text-xs font-medium">
+                                    {{ initials(item.student.name) }}
+                                </span>
+                                <div>
+                                    <p class="text-sm font-medium text-foreground">{{ item.student.name }}</p>
+                                    <p class="font-mono text-xs text-muted-foreground">{{ item.student.student_number }}</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center gap-1">
+                                <button
+                                    type="button"
+                                    class="rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors"
+                                    :class="item.record.status === 'present' ? 'border-emerald-700 bg-emerald-700 text-white' : 'border-border bg-white text-foreground hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card'"
+                                    @click="updateStatus(item.record, 'present')"
+                                >
+                                    Present
+                                </button>
+                                <button
+                                    type="button"
+                                    class="rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors"
+                                    :class="item.record.status === 'late' ? 'border-amber-700 bg-amber-700 text-white' : 'border-border bg-white text-foreground hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card'"
+                                    @click="updateStatus(item.record, 'late')"
+                                >
+                                    Late
+                                </button>
+                                <button
+                                    type="button"
+                                    class="rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors"
+                                    :class="item.record.status === 'absent' ? 'border-rose-700 bg-rose-700 text-white' : 'border-border bg-white text-foreground hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card'"
+                                    @click="updateStatus(item.record, 'absent')"
+                                >
+                                    Absent
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- VIEW 2: PAPER SIGN-IN / LIST VIEW -->
+            <div v-else class="space-y-4">
+                <section class="paper-card overflow-hidden p-6 shadow-sm">
+                    <!-- Controls Bar -->
+                    <div class="flex flex-col justify-between gap-4 border-b border-border/80 pb-4 lg:flex-row lg:items-center">
+                        <div>
+                            <h2 class="text-xl font-medium text-foreground">Paper Sign-in Roster Check</h2>
+                            <p class="text-sm text-muted-foreground">
+                                Rapid alphabetical list view for easy attendance recording from physical signed sheets.
+                            </p>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-3">
+                            <!-- Search -->
+                            <div class="relative min-w-[220px]">
+                                <Search class="absolute left-3 top-2.5 size-4 text-muted-foreground" />
+                                <input
+                                    v-model="searchQuery"
+                                    type="text"
+                                    placeholder="Find student by name or ID..."
+                                    class="w-full rounded-xl border border-input bg-background pl-9 pr-3 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                />
+                            </div>
+
+                            <!-- Filter Pills -->
+                            <div class="flex items-center gap-1 rounded-xl border border-border/80 bg-secondary/30 p-1">
+                                <button
+                                    type="button"
+                                    class="rounded-lg px-3 py-1 text-xs font-medium transition-colors"
+                                    :class="filterStatus === 'all' ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-amber-400 hover:text-white'"
+                                    @click="filterStatus = 'all'"
+                                >
+                                    All ({{ rosterStudents.length }})
+                                </button>
+                                <button
+                                    type="button"
+                                    class="rounded-lg px-3 py-1 text-xs font-medium transition-colors"
+                                    :class="filterStatus === 'present' ? 'bg-emerald-700 text-white' : 'text-muted-foreground hover:text-foreground'"
+                                    @click="filterStatus = 'present'"
+                                >
+                                    Present ({{ presentCount }})
+                                </button>
+                                <button
+                                    type="button"
+                                    class="rounded-lg px-3 py-1 text-xs font-medium transition-colors"
+                                    :class="filterStatus === 'late' ? 'bg-amber-700 text-white' : 'text-muted-foreground hover:text-foreground'"
+                                    @click="filterStatus = 'late'"
+                                >
+                                    Late ({{ lateCount }})
+                                </button>
+                                <button
+                                    type="button"
+                                    class="rounded-lg px-3 py-1 text-xs font-medium transition-colors"
+                                    :class="filterStatus === 'absent' ? 'bg-rose-700 text-white' : 'text-muted-foreground hover:text-foreground'"
+                                    @click="filterStatus = 'absent'"
+                                >
+                                    Absent ({{ absentCount }})
+                                </button>
+                            </div>
+
+                            <!-- Bulk Actions -->
+                            <div class="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    class="rounded-xl bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-800"
+                                    @click="markAll('present')"
+                                >
+                                    All Present
+                                </button>
+                                <button
+                                    type="button"
+                                    class="rounded-xl bg-rose-700 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-rose-800"
+                                    @click="markAll('absent')"
+                                >
+                                    All Absent
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Alphabetical Roster List Table -->
+                    <div class="mt-4 overflow-x-auto">
+                        <table class="w-full min-w-[760px] text-base">
+                            <thead>
+                                <tr class="border-b border-border/80 bg-secondary/40 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                    <th class="w-12 rounded-l-lg px-4 py-3">#</th>
+                                    <th class="px-4 py-3">Student Name</th>
+                                    <th class="px-4 py-3">Student Number</th>
+                                    <th class="px-4 py-3">Seat Location</th>
+                                    <th class="rounded-r-lg px-4 py-3 text-right">Attendance Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-border/60">
+                                <tr
+                                    v-for="(item, idx) in filteredRoster"
+                                    :key="item.student.id"
+                                    class="transition-colors hover:bg-secondary/30"
+                                >
+                                    <td class="px-4 py-3 font-mono text-sm text-muted-foreground">
+                                        {{ idx + 1 }}
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <div class="flex items-center gap-3">
                                             <img
-                                                v-if="seat.student.photo_url"
-                                                :src="seat.student.photo_url"
+                                                v-if="item.student.photo_url"
+                                                :src="item.student.photo_url"
                                                 alt=""
-                                                class="size-8 rounded-full object-cover border border-border"
+                                                class="size-8 rounded-full border border-border object-cover"
                                             />
                                             <span
                                                 v-else
-                                                class="flex size-8 shrink-0 items-center justify-center rounded-full bg-card font-extrabold text-[10px] shadow-xs border border-border"
+                                                class="flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-card text-xs font-medium"
                                             >
-                                                {{ initials(seat.student.name) }}
+                                                {{ initials(item.student.name) }}
                                             </span>
-                                            <div class="min-w-0 flex-1">
-                                                <span class="block truncate text-xs font-bold leading-tight">{{ seat.student.name }}</span>
-                                                <span class="block font-mono text-[9px] text-muted-foreground">{{ seat.student.student_number }}</span>
-                                            </div>
+                                            <span class="text-base font-semibold text-foreground">{{ item.student.name }}</span>
                                         </div>
-
-                                        <div class="mt-2.5 flex items-center justify-between border-t border-border/40 pt-1.5">
-                                            <span class="font-mono text-[9px] font-semibold text-muted-foreground">{{ seat.label }}</span>
-                                            <span class="inline-flex items-center gap-1 font-mono text-[10px] font-extrabold uppercase">
-                                                <LoaderCircle v-if="saveState[seat.record!.id] === 'saving'" class="size-3 animate-spin text-primary" />
-                                                <RotateCcw v-else-if="saveState[seat.record!.id] === 'error'" class="size-3 text-rose-600" />
-                                                <X v-else-if="seat.record?.status === 'absent'" class="size-3 text-rose-600 dark:text-rose-400" />
-                                                <Check v-else class="size-3 text-primary" />
-                                                <span>{{ seat.record?.status }}</span>
+                                    </td>
+                                    <td class="px-4 py-3 font-mono text-sm text-muted-foreground">
+                                        {{ item.student.student_number }}
+                                    </td>
+                                    <td class="px-4 py-3 text-xs text-muted-foreground">
+                                        <span class="rounded bg-secondary/60 px-2 py-0.5 font-mono">
+                                            {{ item.seatLabel }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3 text-right">
+                                        <div class="inline-flex items-center gap-1.5">
+                                            <!-- Save Indicator -->
+                                            <span class="mr-1 inline-flex size-4 items-center justify-center">
+                                                <LoaderCircle
+                                                    v-if="saveState[item.record.id] === 'saving'"
+                                                    class="size-3.5 animate-spin text-primary"
+                                                />
+                                                <Check
+                                                    v-else-if="saveState[item.record.id] === 'saved'"
+                                                    class="size-3.5 text-emerald-700 dark:text-emerald-400"
+                                                />
+                                                <RotateCcw
+                                                    v-else-if="saveState[item.record.id] === 'error'"
+                                                    class="size-3.5 text-rose-700"
+                                                />
                                             </span>
+
+                                            <!-- 3 Action Buttons -->
+                                            <button
+                                                type="button"
+                                                class="rounded-lg border px-3 py-1.5 text-xs font-medium transition-all"
+                                                :class="
+                                                    item.record.status === 'present'
+                                                        ? 'border-emerald-700 bg-emerald-700 text-white shadow-sm ring-2 ring-emerald-600/50'
+                                                        : 'border-border bg-white text-foreground hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card'
+                                                "
+                                                @click="updateStatus(item.record, 'present')"
+                                            >
+                                                Present (1.0)
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                class="rounded-lg border px-3 py-1.5 text-xs font-medium transition-all"
+                                                :class="
+                                                    item.record.status === 'late'
+                                                        ? 'border-amber-700 bg-amber-700 text-white shadow-sm ring-2 ring-amber-600/50'
+                                                        : 'border-border bg-white text-foreground hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card'
+                                                "
+                                                @click="updateStatus(item.record, 'late')"
+                                            >
+                                                Late (0.5)
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                class="rounded-lg border px-3 py-1.5 text-xs font-medium transition-all"
+                                                :class="
+                                                    item.record.status === 'absent'
+                                                        ? 'border-rose-700 bg-rose-700 text-white shadow-sm ring-2 ring-rose-600/50'
+                                                        : 'border-border bg-white text-foreground hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card'
+                                                "
+                                                @click="updateStatus(item.record, 'absent')"
+                                            >
+                                                Absent (0)
+                                            </button>
                                         </div>
-                                    </template>
-
-                                    <span v-else class="flex h-full items-center justify-center text-xs font-mono font-semibold text-muted-foreground/80">
-                                        {{ seat.is_disabled ? 'Unavailable' : seat.label }}
-                                    </span>
-                                </button>
-                            </div>
-                        </article>
+                                    </td>
+                                </tr>
+                                <tr v-if="!filteredRoster.length">
+                                    <td colspan="5" class="py-12 text-center text-sm text-muted-foreground">
+                                        No students found matching your search.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
-                </div>
-            </section>
-
-            <!-- Unseated Students Section -->
-            <section v-if="unseated.length" class="paper-card p-6 shadow-sm">
-                <div class="mb-4 flex items-center gap-2">
-                    <UserRound class="size-4 text-amber-600 dark:text-amber-400" />
-                    <div>
-                        <h2 class="text-base font-bold">Unseated students ({{ unseated.length }})</h2>
-                        <p class="text-xs text-muted-foreground">Students enrolled without an assigned chair.</p>
-                    </div>
-                </div>
-                <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    <button
-                        v-for="item in localUnseated"
-                        :key="item.student.id"
-                        type="button"
-                        class="flex items-center justify-between rounded-xl border-2 p-3 text-left transition-all hover:scale-[1.01]"
-                        :class="
-                            item.record.status === 'present'
-                                ? 'border-primary/80 bg-primary/10 text-primary'
-                                : item.record.status === 'late'
-                                  ? 'border-amber-500/80 bg-amber-500/10 text-amber-600 dark:text-amber-500'
-                                  : 'border-rose-500/80 bg-rose-500/10 text-rose-600 dark:text-rose-400'
-                        "
-                        @click="toggle(item.record)"
-                        @dragover.prevent
-                        @drop.prevent="dropStatus($event, item.record)"
-                    >
-                        <div>
-                            <span class="block text-xs font-bold">{{ item.student.name }}</span>
-                            <span class="block font-mono text-[10px] text-muted-foreground">{{ item.student.student_number }}</span>
-                        </div>
-                        <span class="font-mono text-[10px] font-extrabold uppercase flex items-center gap-1">
-                            <LoaderCircle v-if="saveState[item.record.id] === 'saving'" class="size-3.5 animate-spin" />
-                            <Check v-else-if="item.record.status === 'present'" class="size-3.5" />
-                            <Clock3 v-else-if="item.record.status === 'late'" class="size-3.5" />
-                            <X v-else class="size-3.5" />
-                            <span>{{ item.record.status }}</span>
-                        </span>
-                    </button>
-                </div>
-            </section>
-
-            <footer class="flex items-center gap-2 text-xs text-muted-foreground font-medium">
-                <Clock3 class="size-4 text-primary" />
-                <span>Present students receive {{ session.duration_minutes }} minutes; absent students receive zero.</span>
-            </footer>
+                </section>
+            </div>
         </main>
     </AppLayout>
 </template>

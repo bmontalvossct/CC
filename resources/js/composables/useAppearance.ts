@@ -15,20 +15,20 @@ const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
 const handleSystemThemeChange = () => {
     const currentAppearance = localStorage.getItem('appearance') as Appearance | null;
-    updateTheme(currentAppearance || 'system');
+    if (currentAppearance === 'system') {
+        updateTheme('system');
+    }
 };
 
 export function initializeTheme() {
-    // Initialize theme from saved preference or default to system...
     const savedAppearance = localStorage.getItem('appearance') as Appearance | null;
-    updateTheme(savedAppearance || 'system');
+    updateTheme(savedAppearance || 'light');
 
-    // Set up system theme change listener...
     mediaQuery.addEventListener('change', handleSystemThemeChange);
 }
 
 export function useAppearance() {
-    const appearance = ref<Appearance>('system');
+    const appearance = ref<Appearance>('light');
 
     onMounted(() => {
         initializeTheme();
@@ -37,6 +37,8 @@ export function useAppearance() {
 
         if (savedAppearance) {
             appearance.value = savedAppearance;
+        } else {
+            appearance.value = 'light';
         }
     });
 

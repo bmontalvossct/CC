@@ -11,6 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -21,14 +22,43 @@ class SectionController extends Controller
     {
         Gate::authorize('viewAny', Section::class);
 
+        $userId = request()->user()->id;
+
         return Inertia::render('sections/Index', [
             'sections' => Section::query()
-                ->where('user_id', request()->user()->id)
+                ->where('user_id', $userId)
+                ->whereNull('archived_at')
                 ->with('academicTerm')
                 ->withCount(['students', 'layoutBlocks'])
-                ->orderByRaw('archived_at is not null')
                 ->latest()
-                ->get(),
+                ->paginate(6)
+                ->withQueryString(),
+            'archivedCount' => Section::query()
+                ->where('user_id', $userId)
+                ->whereNotNull('archived_at')
+                ->count(),
+        ]);
+    }
+
+    public function archived(): Response
+    {
+        Gate::authorize('viewAny', Section::class);
+
+        $userId = request()->user()->id;
+
+        return Inertia::render('sections/Archived', [
+            'sections' => Section::query()
+                ->where('user_id', $userId)
+                ->whereNotNull('archived_at')
+                ->with('academicTerm')
+                ->withCount(['students', 'layoutBlocks'])
+                ->latest('archived_at')
+                ->paginate(6)
+                ->withQueryString(),
+            'activeCount' => Section::query()
+                ->where('user_id', $userId)
+                ->whereNull('archived_at')
+                ->count(),
         ]);
     }
 
@@ -46,8 +76,10 @@ class SectionController extends Controller
         $term = AcademicTerm::resolveForUser($userId, $data['term']);
 
         $section = DB::transaction(function () use ($data, $term, $userId) {
+            $primaryRoom = $data['room'] ?? ($data['schedules'][0]['room'] ?? null);
             $section = Section::create([
-                ...collect($data)->only(['subject_code', 'subject_title', 'name', 'room'])->all(),
+                ...collect($data)->only(['subject_code', 'subject_title', 'name'])->all(),
+                'room' => $primaryRoom,
                 'user_id' => $userId,
                 'academic_term_id' => $term->id,
             ]);
@@ -107,8 +139,10 @@ class SectionController extends Controller
         $term = AcademicTerm::resolveForUser($request->user()->id, $data['term']);
 
         DB::transaction(function () use ($data, $term, $section) {
+            $primaryRoom = $data['room'] ?? ($data['schedules'][0]['room'] ?? null);
             $section->update([
-                ...collect($data)->only(['subject_code', 'subject_title', 'name', 'room'])->all(),
+                ...collect($data)->only(['subject_code', 'subject_title', 'name'])->all(),
+                'room' => $primaryRoom,
                 'academic_term_id' => $term->id,
             ]);
             $section->schedules()->delete();
@@ -121,9 +155,16 @@ class SectionController extends Controller
     public function destroy(Section $section): RedirectResponse
     {
         Gate::authorize('delete', $section);
+
+        foreach ($section->students()->whereNotNull('photo_path')->get() as $student) {
+            if ($student->photo_path && Storage::disk('local')->exists($student->photo_path)) {
+                Storage::disk('local')->delete($student->photo_path);
+            }
+        }
+
         $section->delete();
 
-        return to_route('sections.index')->with('success', 'Section deleted.');
+        return back()->with('success', 'Section and all associated records permanently deleted.');
     }
 
     public function enrollment(Section $section): RedirectResponse

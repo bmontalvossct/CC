@@ -6,6 +6,7 @@ use App\Http\Requests\Assessments\StoreAssessmentRequest;
 use App\Http\Requests\Assessments\UpdateAssessmentRequest;
 use App\Models\Assessment;
 use App\Models\AttendanceSession;
+use App\Models\Project;
 use App\Models\Section;
 use App\Models\Student;
 use Illuminate\Http\RedirectResponse;
@@ -33,16 +34,31 @@ class AssessmentController extends AssessmentModuleController
             ->latest('id')
             ->get();
 
+        $projects = Project::query()
+            ->where('section_id', $section->id)
+            ->withCount(['groups', 'members'])
+            ->latest('conducted_on')
+            ->latest('id')
+            ->get();
+
+        $activeStudentsCount = Student::query()
+            ->where('section_id', $section->id)
+            ->where('is_active', true)
+            ->count();
+
         return Inertia::render('assessments/Index', [
             'section' => $section->only('id', 'name', 'subject_code', 'subject_title'),
             'assessments' => $assessments,
-            'filter' => in_array($type, Assessment::TYPES, true) ? $type : 'all',
+            'projects' => $projects,
+            'activeStudentsCount' => $activeStudentsCount,
+            'filter' => in_array($type, [...Assessment::TYPES, 'project'], true) ? $type : 'all',
             'attendanceSessions' => AttendanceSession::query()
                 ->where('section_id', $section->id)
                 ->latest('session_date')
                 ->get(['id', 'session_date', 'starts_at']),
         ]);
     }
+
 
     public function store(StoreAssessmentRequest $request, Section $section): RedirectResponse
     {

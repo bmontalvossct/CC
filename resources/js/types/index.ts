@@ -16,10 +16,23 @@ export interface NavItem {
     isActive?: boolean;
 }
 
+export interface UserSectionItem {
+    id: number;
+    name: string;
+    subject_code: string;
+}
+
 export interface SharedData extends Record<string, unknown> {
     name: string;
     quote: { message: string; author: string };
     auth: Auth;
+    userSections?: UserSectionItem[];
+    section?: {
+        id: number;
+        name: string;
+        subject_code?: string;
+        subject_title?: string;
+    };
     ziggy: {
         location: string;
         url: string;

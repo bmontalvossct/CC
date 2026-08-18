@@ -1,5 +1,3 @@
-import '@fontsource/atkinson-hyperlegible/400.css';
-import '@fontsource/atkinson-hyperlegible/700.css';
 import '../css/app.css';
 
 import { createInertiaApp } from '@inertiajs/vue3';

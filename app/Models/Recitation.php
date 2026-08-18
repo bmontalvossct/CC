@@ -20,7 +20,7 @@ class Recitation extends Model
     protected function casts(): array
     {
         return [
-            'conducted_on' => 'date',
+            'conducted_on' => 'date:Y-m-d',
             'score' => 'decimal:2',
             'accuracy' => 'integer',
             'delivery' => 'integer',

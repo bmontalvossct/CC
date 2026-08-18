@@ -12,8 +12,19 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['SF Pro Text', 'SF Pro Display', 'Atkinson Hyperlegible', ...defaultTheme.fontFamily.sans],
-                display: ['SF Pro Display', 'SF Pro Text', 'Atkinson Hyperlegible', ...defaultTheme.fontFamily.sans],
+                sans: ['Tahoma', 'Segoe UI', 'Geneva', 'Verdana', ...defaultTheme.fontFamily.sans],
+                display: ['Tahoma', 'Segoe UI', 'Geneva', 'Verdana', ...defaultTheme.fontFamily.sans],
+            },
+            fontWeight: {
+                thin: '100',
+                extralight: '200',
+                light: '300',
+                normal: '400',
+                medium: '500',
+                semibold: '500',
+                bold: '500',
+                extrabold: '500',
+                black: '500',
             },
             borderRadius: {
                 lg: 'var(--radius)',

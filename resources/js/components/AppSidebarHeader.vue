@@ -19,7 +19,9 @@ defineProps<{ breadcrumbs?: BreadcrumbItemType[] }>();
                         <template v-for="(item, index) in breadcrumbs" :key="index">
                             <BreadcrumbItem>
                                 <BreadcrumbPage v-if="index === breadcrumbs.length - 1" class="text-xs font-medium">{{ item.title }}</BreadcrumbPage>
-                                <BreadcrumbLink v-else :href="item.href" class="text-xs font-medium text-muted-foreground hover:text-foreground">{{ item.title }}</BreadcrumbLink>
+                                <BreadcrumbLink v-else :href="item.href" class="text-xs font-medium text-muted-foreground hover:text-foreground">{{
+                                    item.title
+                                }}</BreadcrumbLink>
                             </BreadcrumbItem>
                             <BreadcrumbSeparator v-if="index !== breadcrumbs.length - 1" />
                         </template>
@@ -33,4 +35,3 @@ defineProps<{ breadcrumbs?: BreadcrumbItemType[] }>();
         </div>
     </header>
 </template>
-

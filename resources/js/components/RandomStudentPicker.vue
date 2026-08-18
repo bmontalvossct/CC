@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
-import { Armchair, Dices, RotateCcw, Sparkles, User, X } from 'lucide-vue-next';
+import { Link } from '@inertiajs/vue3';
+import { Armchair, Dices, Mic, RotateCcw, Sparkles, X } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
 const props = defineProps<{
+    sectionId?: number;
     students: Array<{
         id: number;
         student_number: string;
@@ -70,38 +72,39 @@ const close = () => {
 
 <template>
     <div>
-        <Button
+        <button
             type="button"
-            variant="outline"
-            class="h-10 rounded-xl text-xs font-medium hover:bg-secondary hover:text-primary transition-colors gap-2"
+            class="group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white disabled:opacity-50 dark:bg-card"
             :disabled="!eligibleStudents.length"
             @click="pickRandom"
         >
-            <Dices class="size-4 text-primary" />
+            <Dices class="size-4 text-primary transition-colors group-hover:text-white" />
             <span>Pick student</span>
-        </Button>
+        </button>
 
         <!-- Random Picker Modal -->
         <div
             v-if="open"
-            class="fixed inset-0 z-50 grid place-items-center bg-zinc-950/70 p-4 backdrop-blur-md animate-in fade-in duration-200"
+            class="fixed inset-0 z-50 grid place-items-center bg-zinc-950/70 p-4 backdrop-blur-md duration-200 animate-in fade-in"
             @click.self="close"
         >
             <div
-                class="paper-card relative w-full max-w-md overflow-hidden p-8 text-center shadow-2xl animate-in zoom-in-95 duration-200 border-border/90"
+                class="paper-card relative w-full max-w-md overflow-hidden border-border/90 p-8 text-center shadow-2xl duration-200 animate-in zoom-in-95"
                 role="dialog"
                 aria-modal="true"
                 aria-label="Random student selector"
             >
                 <button
                     type="button"
-                    class="absolute right-4 top-4 grid size-8 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                    class="absolute right-4 top-4 grid size-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                     @click="close"
                 >
                     <X class="size-4.5" />
                 </button>
 
-                <div class="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1 font-mono text-[11px] font-medium uppercase tracking-wider text-white shadow-sm">
+                <div
+                    class="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1 font-mono text-[11px] font-medium uppercase tracking-wider text-white shadow-sm"
+                >
                     <Sparkles class="size-3.5" /> Random recitation
                 </div>
 
@@ -109,27 +112,29 @@ const close = () => {
 
                 <!-- Rolling State -->
                 <div v-if="isRolling" class="my-8 py-6">
-                    <div class="mx-auto flex size-24 items-center justify-center rounded-full bg-primary/15 border-2 border-primary animate-pulse shadow-lg">
-                        <Dices class="size-10 text-primary animate-spin" />
+                    <div
+                        class="mx-auto flex size-24 animate-pulse items-center justify-center rounded-full border-2 border-primary bg-primary/15 shadow-lg"
+                    >
+                        <Dices class="size-10 animate-spin text-primary" />
                     </div>
-                    <p class="mt-6 text-xl font-medium tracking-tight text-foreground truncate">
+                    <p class="mt-6 truncate text-xl font-medium tracking-tight text-foreground">
                         {{ currentDisplayName }}
                     </p>
-                    <p class="mt-1 text-xs text-muted-foreground font-normal">Selecting a student...</p>
+                    <p class="mt-1 text-xs font-normal text-muted-foreground">Selecting a student...</p>
                 </div>
 
                 <!-- Landed Result State -->
-                <div v-else-if="selectedStudent" class="my-6 animate-in zoom-in-90 duration-300">
+                <div v-else-if="selectedStudent" class="my-6 duration-300 animate-in zoom-in-90">
                     <div class="relative mx-auto size-28">
                         <img
                             v-if="selectedStudent.photo_url"
                             :src="selectedStudent.photo_url"
                             alt=""
-                            class="size-28 rounded-3xl object-cover border-4 border-primary/40 shadow-xl"
+                            class="size-28 rounded-3xl border-4 border-primary/40 object-cover shadow-xl"
                         />
                         <div
                             v-else
-                            class="grid size-28 place-items-center rounded-3xl bg-primary text-3xl font-medium text-white shadow-xl shadow-primary/25 border-4 border-white/20"
+                            class="grid size-28 place-items-center rounded-3xl border-4 border-white/20 bg-primary text-3xl font-medium text-white shadow-xl shadow-primary/25"
                         >
                             {{ initials(selectedStudent.full_name || `${selectedStudent.first_name} ${selectedStudent.last_name}`) }}
                         </div>
@@ -141,33 +146,38 @@ const close = () => {
                     <p class="mt-0.5 font-mono text-xs text-muted-foreground">{{ selectedStudent.student_number }}</p>
 
                     <!-- Location chip -->
-                    <div class="mt-4 inline-flex items-center gap-2 rounded-xl bg-secondary/80 px-4 py-2 text-xs font-medium border border-border">
+                    <div class="mt-4 inline-flex items-center gap-2 rounded-xl border border-border bg-secondary/80 px-4 py-2 text-xs font-medium">
                         <Armchair class="size-4 text-primary" />
-                        <span>Seated at: <span class="font-mono text-primary font-medium">{{ selectedStudent.seat?.label || 'Unseated' }}</span></span>
+                        <span
+                            >Seated at: <span class="font-mono font-medium text-primary">{{ selectedStudent.seat?.label || 'Unseated' }}</span></span
+                        >
                     </div>
 
-                    <div class="mt-7 flex justify-center gap-3">
+                    <div class="mt-7 flex flex-wrap justify-center gap-2.5">
                         <Button
                             type="button"
                             variant="outline"
-                            class="rounded-xl text-xs font-medium px-4"
+                            class="rounded-xl px-3.5 text-xs font-medium"
                             :disabled="!eligibleStudents.length"
                             @click="pickRandom"
                         >
-                            <RotateCcw class="size-3.5 mr-1.5" /> Pick another
+                            <RotateCcw class="mr-1.5 size-3.5" /> Pick another
                         </Button>
-                        <Button
-                            type="button"
-                            class="ink-button !h-10 !rounded-xl !px-5 text-xs font-medium"
+                        <Link
+                            v-if="sectionId"
+                            :href="`/sections/${sectionId}/recitation`"
+                            class="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-primary/20 bg-primary/10 px-4 text-xs font-bold text-primary transition-all hover:bg-primary/20"
                             @click="close"
                         >
-                            Done
-                        </Button>
+                            <Mic class="size-3.5" />
+                            <span>Score Oral Participation</span>
+                        </Link>
+                        <Button type="button" class="ink-button !h-10 !rounded-xl !px-5 text-xs font-medium" @click="close"> Done </Button>
                     </div>
                 </div>
 
                 <div v-else class="my-8 text-center">
-                    <p v-if="!eligibleStudents.length" class="text-xs text-muted-foreground font-medium">All students have been called today!</p>
+                    <p v-if="!eligibleStudents.length" class="text-xs font-medium text-muted-foreground">All students have been called today!</p>
                     <p v-else class="text-xs text-muted-foreground">Click below to pick a student randomly.</p>
                 </div>
             </div>

@@ -38,7 +38,7 @@ const submit = () => {
 
         <a
             href="/auth/google/redirect"
-            class="mb-4 flex min-h-11 w-full items-center justify-center gap-3 rounded-xl border border-border/80 bg-card px-5 text-sm font-semibold text-foreground transition-all hover:bg-secondary hover:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-xs"
+            class="shadow-xs mb-4 flex min-h-11 w-full items-center justify-center gap-3 rounded-xl border border-border/80 bg-card px-5 text-sm font-semibold text-foreground transition-all hover:border-border hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
             <svg class="size-5" viewBox="0 0 24 24" aria-hidden="true">
                 <path
@@ -82,15 +82,20 @@ const submit = () => {
                         autocomplete="username"
                         v-model="form.login"
                         placeholder="teacher@school.edu"
-                        class="rounded-xl h-10 text-sm"
+                        class="h-10 rounded-xl text-sm"
                     />
-                    <InputError class="text-xs mt-1" :message="form.errors.login" />
+                    <InputError class="mt-1 text-xs" :message="form.errors.login" />
                 </div>
 
                 <div class="grid gap-1.5">
                     <div class="flex items-center justify-between">
                         <Label for="password" class="text-xs font-semibold">Password</Label>
-                        <TextLink v-if="canResetPassword" :href="route('password.request')" class="text-xs text-primary hover:underline" :tabindex="5">
+                        <TextLink
+                            v-if="canResetPassword"
+                            :href="route('password.request')"
+                            class="text-xs text-primary hover:underline"
+                            :tabindex="5"
+                        >
                             Forgot password?
                         </TextLink>
                     </div>
@@ -102,26 +107,26 @@ const submit = () => {
                         autocomplete="current-password"
                         v-model="form.password"
                         placeholder="••••••••"
-                        class="rounded-xl h-10 text-sm"
+                        class="h-10 rounded-xl text-sm"
                     />
-                    <InputError class="text-xs mt-1" :message="form.errors.password" />
+                    <InputError class="mt-1 text-xs" :message="form.errors.password" />
                 </div>
 
                 <div class="flex items-center justify-between" :tabindex="3">
-                    <Label for="remember" class="flex items-center space-x-2 text-xs font-medium cursor-pointer">
+                    <Label for="remember" class="flex cursor-pointer items-center space-x-2 text-xs font-medium">
                         <Checkbox id="remember" v-model:checked="form.remember" :tabindex="4" class="rounded-md" />
                         <span>Remember me</span>
                     </Label>
                 </div>
 
-                <Button type="submit" class="ink-button !h-10 !w-full !rounded-xl mt-2" :tabindex="4" :disabled="form.processing">
+                <Button type="submit" class="ink-button mt-2 !h-10 !w-full !rounded-xl" :tabindex="4" :disabled="form.processing">
                     <LoaderCircle v-if="form.processing" class="size-4 animate-spin" />
                     <LogIn v-else class="size-4" />
                     <span>Log in</span>
                 </Button>
             </div>
 
-            <div class="text-center text-xs text-muted-foreground mt-2">
+            <div class="mt-2 text-center text-xs text-muted-foreground">
                 Don't have an account?
                 <TextLink :href="route('register')" class="font-bold text-primary hover:underline" :tabindex="5">Sign up</TextLink>
             </div>

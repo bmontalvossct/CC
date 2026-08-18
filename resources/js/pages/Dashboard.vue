@@ -2,17 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
-import {
-    ArrowRight,
-    CalendarCheck2,
-    CheckCircle2,
-    ClipboardList,
-    GraduationCap,
-    LayoutGrid,
-    Plus,
-    Sparkles,
-    Users,
-} from 'lucide-vue-next';
+import { ArrowRight, CalendarCheck2, CheckCircle2, ClipboardList, GraduationCap, LayoutGrid, Plus, Sparkles, Users } from 'lucide-vue-next';
 
 interface SectionCard {
     id: number;
@@ -44,18 +34,20 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Overview', href: '/dashboard' }
     <AppLayout :breadcrumbs="breadcrumbs">
         <main class="page-enter mx-auto w-full max-w-[1360px] px-5 pb-16 pt-8 md:px-10 md:pt-10">
             <!-- Header Section -->
-            <section class="relative overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card to-primary/5 p-6 sm:p-8 md:p-10 shadow-sm">
-                <div class="absolute right-0 top-0 -mt-8 -mr-8 size-64 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
+            <section
+                class="relative overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card to-primary/5 p-6 shadow-sm sm:p-8 md:p-10"
+            >
+                <div class="pointer-events-none absolute right-0 top-0 -mr-8 -mt-8 size-64 rounded-full bg-primary/5 blur-3xl" />
                 <div class="relative flex flex-col justify-between gap-6 md:flex-row md:items-end">
                     <div>
-                        <div class="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary border border-primary/20">
+                        <div
+                            class="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary"
+                        >
                             <Sparkles class="size-3.5" />
                             <span>Teacher workspace</span>
                         </div>
-                        <h1 class="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl md:text-5xl">
-                            Good day, {{ teacherName.split(' ')[0] }}
-                        </h1>
-                        <p class="mt-2 max-w-2xl text-sm sm:text-base text-muted-foreground">
+                        <h1 class="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl md:text-5xl">Good day, {{ teacherName.split(' ')[0] }}</h1>
+                        <p class="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">
                             Here is your classroom overview. Manage seats, run roll-call, and log assessments in real time.
                         </p>
                     </div>
@@ -73,49 +65,57 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Overview', href: '/dashboard' }
 
             <!-- KPI Summary Cards -->
             <section class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Key Performance Indicators">
-                <article class="paper-card group relative overflow-hidden p-6 hover:shadow-md hover:border-primary/40">
+                <article class="paper-card group relative overflow-hidden p-6 hover:border-primary/40 hover:shadow-md">
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Active sections</span>
-                        <span class="grid size-10 place-items-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
+                        <span
+                            class="grid size-10 place-items-center rounded-xl bg-blue-500/10 text-blue-600 transition-transform group-hover:scale-110 dark:text-blue-400"
+                        >
                             <GraduationCap class="size-5" />
                         </span>
                     </div>
                     <div class="mt-6 flex items-baseline justify-between">
                         <p class="text-3xl font-extrabold tracking-tight">{{ stats.sections }}</p>
-                        <span class="text-xs text-muted-foreground font-medium">courses</span>
+                        <span class="text-xs font-medium text-muted-foreground">courses</span>
                     </div>
                 </article>
 
-                <article class="paper-card group relative overflow-hidden p-6 hover:shadow-md hover:border-primary/40">
+                <article class="paper-card group relative overflow-hidden p-6 hover:border-primary/40 hover:shadow-md">
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Enrolled students</span>
-                        <span class="grid size-10 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform">
+                        <span
+                            class="grid size-10 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600 transition-transform group-hover:scale-110 dark:text-emerald-400"
+                        >
                             <Users class="size-5" />
                         </span>
                     </div>
                     <div class="mt-6 flex items-baseline justify-between">
                         <p class="text-3xl font-extrabold tracking-tight">{{ stats.students }}</p>
-                        <span class="text-xs text-muted-foreground font-medium">seated</span>
+                        <span class="text-xs font-medium text-muted-foreground">seated</span>
                     </div>
                 </article>
 
-                <article class="paper-card group relative overflow-hidden p-6 hover:shadow-md hover:border-primary/40">
+                <article class="paper-card group relative overflow-hidden p-6 hover:border-primary/40 hover:shadow-md">
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Meetings logged</span>
-                        <span class="grid size-10 place-items-center rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform">
+                        <span
+                            class="grid size-10 place-items-center rounded-xl bg-purple-500/10 text-purple-600 transition-transform group-hover:scale-110 dark:text-purple-400"
+                        >
                             <CalendarCheck2 class="size-5" />
                         </span>
                     </div>
                     <div class="mt-6 flex items-baseline justify-between">
                         <p class="text-3xl font-extrabold tracking-tight">{{ stats.meetings }}</p>
-                        <span class="text-xs text-muted-foreground font-medium">sessions</span>
+                        <span class="text-xs font-medium text-muted-foreground">sessions</span>
                     </div>
                 </article>
 
-                <article class="paper-card group relative overflow-hidden p-6 hover:shadow-md hover:border-primary/40">
+                <article class="paper-card group relative overflow-hidden p-6 hover:border-primary/40 hover:shadow-md">
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Attendance rate</span>
-                        <span class="grid size-10 place-items-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform">
+                        <span
+                            class="grid size-10 place-items-center rounded-xl bg-amber-500/10 text-amber-600 transition-transform group-hover:scale-110 dark:text-amber-400"
+                        >
                             <CheckCircle2 class="size-5" />
                         </span>
                     </div>
@@ -123,7 +123,7 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Overview', href: '/dashboard' }
                         <p class="text-3xl font-extrabold tracking-tight">
                             {{ stats.attendance_rate === null ? '—' : stats.attendance_rate + '%' }}
                         </p>
-                        <span class="text-xs text-muted-foreground font-medium">overall</span>
+                        <span class="text-xs font-medium text-muted-foreground">overall</span>
                     </div>
                 </article>
             </section>
@@ -135,7 +135,11 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Overview', href: '/dashboard' }
                         <span class="eyebrow">Classrooms</span>
                         <h2 class="mt-1 text-2xl font-bold tracking-tight">Your active sections</h2>
                     </div>
-                    <Link href="/sections" prefetch="hover" class="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
+                    <Link
+                        href="/sections"
+                        prefetch="hover"
+                        class="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
+                    >
                         <span>View all</span>
                         <ArrowRight class="size-4" />
                     </Link>
@@ -150,18 +154,20 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Overview', href: '/dashboard' }
                         <div>
                             <div class="flex items-start justify-between gap-3">
                                 <div>
-                                    <span class="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 font-mono text-xs font-bold text-primary">
+                                    <span
+                                        class="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 font-mono text-xs font-bold text-primary"
+                                    >
                                         {{ section.subject }}
                                     </span>
-                                    <h3 class="mt-2.5 text-xl font-bold tracking-tight group-hover:text-primary transition-colors">
+                                    <h3 class="mt-2.5 text-xl font-bold tracking-tight transition-colors group-hover:text-primary">
                                         {{ section.name }}
                                     </h3>
-                                    <p class="mt-1 text-xs text-muted-foreground line-clamp-1">{{ section.term }}</p>
+                                    <p class="mt-1 line-clamp-1 text-xs text-muted-foreground">{{ section.term }}</p>
                                 </div>
                                 <Link
                                     :href="`/sections/${section.id}`"
                                     prefetch="hover"
-                                    class="grid size-9 shrink-0 place-items-center rounded-full border border-border bg-secondary/50 text-muted-foreground transition-colors group-hover:bg-primary group-hover:border-primary group-hover:text-white"
+                                    class="grid size-9 shrink-0 place-items-center rounded-full border border-border bg-secondary/50 text-muted-foreground transition-colors group-hover:border-primary group-hover:bg-primary group-hover:text-white"
                                     aria-label="Open section details"
                                 >
                                     <ArrowRight class="size-4" />
@@ -171,16 +177,23 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Overview', href: '/dashboard' }
                             <!-- Metrics Strip -->
                             <div class="mt-6 grid grid-cols-3 gap-2 rounded-lg bg-secondary/60 p-3 text-center text-xs">
                                 <div>
-                                    <span class="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider">Students</span>
+                                    <span class="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Students</span>
                                     <strong class="mt-1 block text-sm font-bold">{{ section.students }}</strong>
                                 </div>
                                 <div class="border-x border-border/80">
-                                    <span class="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider">Seats</span>
+                                    <span class="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Seats</span>
                                     <strong class="mt-1 block text-sm font-bold">{{ section.seats }}</strong>
                                 </div>
                                 <div>
-                                    <span class="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider">Attendance</span>
-                                    <strong class="mt-1 block text-sm font-bold" :class="section.attendance_rate !== null && section.attendance_rate >= 80 ? 'text-emerald-600 dark:text-emerald-400' : ''">
+                                    <span class="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Attendance</span>
+                                    <strong
+                                        class="mt-1 block text-sm font-bold"
+                                        :class="
+                                            section.attendance_rate !== null && section.attendance_rate >= 80
+                                                ? 'text-emerald-600 dark:text-emerald-400'
+                                                : ''
+                                        "
+                                    >
                                         {{ section.attendance_rate === null ? '—' : section.attendance_rate + '%' }}
                                     </strong>
                                 </div>

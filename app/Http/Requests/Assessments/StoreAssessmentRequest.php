@@ -13,6 +13,13 @@ class StoreAssessmentRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('attendance_session_id') && ($this->attendance_session_id === '' || $this->attendance_session_id === 'null')) {
+            $this->merge(['attendance_session_id' => null]);
+        }
+    }
+
     public function rules(): array
     {
         return [
@@ -22,7 +29,16 @@ class StoreAssessmentRequest extends FormRequest
             'conducted_on' => ['required', 'date'],
             'max_points' => ['required', 'numeric', 'gt:0', 'max:99999999.99'],
             'attendance_session_id' => ['nullable', 'integer', 'exists:attendance_sessions,id'],
-            'attachment' => ['nullable', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx,ppt,pptx'],
+            'attachment' => ['nullable', 'file', 'max:51200', 'extensions:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx,ppt,pptx,txt,csv,zip,rar,7z,rtf,odt,ods,odp,svg,gif,bmp,heic,pages,numbers,key'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'attachment.max' => 'The attachment must not be larger than 50MB.',
+            'attachment.extensions' => 'The attachment must be a valid file type (PDF, Word, Excel, PowerPoint, Text, Image, Zip).',
+            'attachment.file' => 'The uploaded file is invalid or could not be processed.',
         ];
     }
 }

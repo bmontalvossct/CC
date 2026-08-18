@@ -14,7 +14,7 @@ class JoinSectionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'student_number' => ['required', 'string', 'max:80'],
+            'student_number' => ['nullable', 'string', 'max:80'],
             'first_name' => ['required', 'string', 'max:255'],
             'middle_name' => ['nullable', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],

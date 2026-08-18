@@ -28,9 +28,62 @@ class AttendanceController extends Controller
         $periods = $this->periods($section, $referenceDate);
         $aggregates = $this->attendanceAggregates($section, $periods);
 
+        $sessions = AttendanceSession::query()
+            ->where('section_id', $section->id)
+            ->with('records:id,attendance_session_id,student_id,status,attended_minutes')
+            ->latest('session_date')
+            ->latest('starts_at')
+            ->limit(50)
+            ->get();
+
+        $students = $section->students()
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->get(['id', 'section_id', 'student_number', 'first_name', 'middle_name', 'last_name']);
+
+        $studentHistoryMap = [];
+        foreach ($students as $student) {
+            $studentHistoryMap[$student->id] = [
+                'absent_days' => [],
+                'late_days' => [],
+                'present_count' => 0,
+                'total_sessions' => 0,
+            ];
+        }
+
+        foreach ($sessions as $session) {
+            $dateStr = $session->session_date->toDateString();
+            $timeStr = substr($session->starts_at, 0, 5).' – '.substr($session->ends_at, 0, 5);
+            $sessionInfo = [
+                'session_id' => $session->id,
+                'date' => $dateStr,
+                'time' => $timeStr,
+                'notes' => $session->notes,
+                'duration_minutes' => $session->duration_minutes,
+            ];
+
+            foreach ($session->records as $rec) {
+                if (isset($studentHistoryMap[$rec->student_id])) {
+                    $studentHistoryMap[$rec->student_id]['total_sessions']++;
+                    if ($rec->status === AttendanceRecord::STATUS_ABSENT) {
+                        $studentHistoryMap[$rec->student_id]['absent_days'][] = $sessionInfo;
+                    } elseif ($rec->status === AttendanceRecord::STATUS_LATE) {
+                        $studentHistoryMap[$rec->student_id]['late_days'][] = $sessionInfo;
+                    } elseif ($rec->status === AttendanceRecord::STATUS_PRESENT) {
+                        $studentHistoryMap[$rec->student_id]['present_count']++;
+                    }
+                }
+            }
+        }
+
         return Inertia::render('attendance/Index', [
             'section' => $this->sectionData($section),
             'referenceDate' => $referenceDate->toDateString(),
+            'students' => $students->map(fn ($s) => [
+                'id' => $s->id,
+                'student_number' => $s->student_number,
+                'name' => trim("{$s->last_name}, {$s->first_name} {$s->middle_name}"),
+            ]),
             'periodSummaries' => collect(array_keys($periods))->mapWithKeys(fn ($period) => [
                 $period => $this->formatSummary(
                     $aggregates->sum($period.'_sessions'),
@@ -38,43 +91,70 @@ class AttendanceController extends Controller
                     $aggregates->sum($period.'_minutes'),
                 ),
             ]),
-            'studentSummaries' => $section->students()
-                ->orderBy('last_name')
-                ->orderBy('first_name')
-                ->get(['id', 'section_id', 'student_number', 'first_name', 'middle_name', 'last_name'])
-                ->map(function ($student) use ($aggregates) {
-                    $summary = $aggregates->get($student->id);
+            'studentSummaries' => $students->map(function ($student) use ($aggregates, $studentHistoryMap) {
+                $summary = $aggregates->get($student->id);
+                $history = $studentHistoryMap[$student->id] ?? [
+                    'absent_days' => [],
+                    'late_days' => [],
+                    'present_count' => 0,
+                    'total_sessions' => 0,
+                ];
 
-                    return [
-                        'id' => $student->id,
-                        'student_number' => $student->student_number,
-                        'name' => trim("{$student->last_name}, {$student->first_name} {$student->middle_name}"),
-                        'week' => $this->summaryFromAggregate($summary, 'week'),
-                        'month' => $this->summaryFromAggregate($summary, 'month'),
-                        'term' => $this->summaryFromAggregate($summary, 'term'),
-                        'overall' => $this->summaryFromAggregate($summary, 'overall'),
-                    ];
-                })->values(),
-            'sessions' => AttendanceSession::query()
-                ->where('section_id', $section->id)
-                ->withCount([
-                    'records',
-                    'records as present_count' => fn ($query) => $query->where('status', AttendanceRecord::STATUS_PRESENT),
-                ])
-                ->latest('session_date')
-                ->latest('starts_at')
-                ->limit(50)
-                ->get()
-                ->map(fn ($session) => [
-                    'id' => $session->id,
-                    'session_date' => $session->session_date->toDateString(),
-                    'starts_at' => substr($session->starts_at, 0, 5),
-                    'ends_at' => substr($session->ends_at, 0, 5),
-                    'duration_minutes' => $session->duration_minutes,
-                    'notes' => $session->notes,
-                    'records_count' => $session->records_count,
-                    'present_count' => $session->present_count,
+                $absentCount = count($history['absent_days']);
+                $lateCount = count($history['late_days']);
+                $presentCount = $history['present_count'];
+                $totalSessions = $history['total_sessions'];
+                $earnedPoints = round(($presentCount * 1.0) + ($lateCount * 0.5), 1);
+                $possiblePoints = (float) $totalSessions;
+                $gradeRate = $totalSessions > 0 ? round(($earnedPoints / $totalSessions) * 100, 1) : null;
+                $absencesRemaining = max(0, 3 - $absentCount);
+
+                $absenceStatus = match (true) {
+                    $absentCount > 3 => 'exceeded',
+                    $absentCount === 3 => 'limit_reached',
+                    $absentCount === 2 => 'warning',
+                    default => 'good',
+                };
+
+                return [
+                    'id' => $student->id,
+                    'student_number' => $student->student_number,
+                    'name' => trim("{$student->last_name}, {$student->first_name} {$student->middle_name}"),
+                    'week' => $this->summaryFromAggregate($summary, 'week'),
+                    'month' => $this->summaryFromAggregate($summary, 'month'),
+                    'term' => $this->summaryFromAggregate($summary, 'term'),
+                    'overall' => $this->summaryFromAggregate($summary, 'overall'),
+                    'absent_days' => $history['absent_days'],
+                    'late_days' => $history['late_days'],
+                    'absent_count' => $absentCount,
+                    'late_count' => $lateCount,
+                    'present_count' => $presentCount,
+                    'total_sessions' => $totalSessions,
+                    'earned_points' => $earnedPoints,
+                    'possible_points' => $possiblePoints,
+                    'grade_rate' => $gradeRate,
+                    'absences_allowed' => 3,
+                    'absences_remaining' => $absencesRemaining,
+                    'absence_status' => $absenceStatus,
+                ];
+            })->values(),
+            'sessions' => $sessions->map(fn ($session) => [
+                'id' => $session->id,
+                'session_date' => $session->session_date->toDateString(),
+                'starts_at' => substr($session->starts_at, 0, 5),
+                'ends_at' => substr($session->ends_at, 0, 5),
+                'duration_minutes' => $session->duration_minutes,
+                'notes' => $session->notes,
+                'records_count' => $session->records->count(),
+                'present_count' => $session->records->where('status', AttendanceRecord::STATUS_PRESENT)->count(),
+                'late_count' => $session->records->where('status', AttendanceRecord::STATUS_LATE)->count(),
+                'absent_count' => $session->records->where('status', AttendanceRecord::STATUS_ABSENT)->count(),
+                'records' => $session->records->map(fn ($r) => [
+                    'student_id' => $r->student_id,
+                    'status' => $r->status,
+                    'attended_minutes' => $r->attended_minutes,
                 ]),
+            ]),
         ]);
     }
 

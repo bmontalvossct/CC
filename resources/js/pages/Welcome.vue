@@ -2,15 +2,7 @@
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import type { SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import {
-    ArrowRight,
-    CheckCircle2,
-    ClipboardCheck,
-    Grid3X3,
-    QrCode,
-    Sparkles,
-    Users,
-} from 'lucide-vue-next';
+import { ArrowRight, CheckCircle2, ClipboardCheck, Grid3X3, QrCode, Sparkles } from 'lucide-vue-next';
 
 const page = usePage<SharedData>();
 const seats = [
@@ -31,11 +23,13 @@ const seats = [
         <!-- Navigation -->
         <nav class="sticky top-0 z-30 border-b border-border/80 bg-background/80 backdrop-blur-xl">
             <div class="mx-auto flex h-14 max-w-6xl items-center justify-between px-5 lg:px-8">
-                <Link href="/" class="flex items-center gap-3" aria-label="ClassCheck home">
-                    <span class="flex size-8 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-primary/90 to-blue-700 text-white shadow-sm shadow-primary/25">
-                        <AppLogoIcon class-name="size-5" />
+                <Link href="/" class="flex items-center gap-2.5" aria-label="ClassCheck home">
+                    <span
+                        class="flex size-9 items-center justify-center rounded-xl bg-card border border-border/80 p-0.5 shadow-sm"
+                    >
+                        <AppLogoIcon class-name="size-7" />
                     </span>
-                    <span class="text-base font-extrabold tracking-tight">ClassCheck</span>
+                    <span class="text-base font-medium tracking-tight">ClassCheck</span>
                 </Link>
                 <div class="hidden items-center gap-8 text-xs font-semibold text-muted-foreground md:flex">
                     <a href="#product" class="transition-colors hover:text-primary">Product</a>
@@ -43,16 +37,18 @@ const seats = [
                     <a href="#features" class="transition-colors hover:text-primary">Features</a>
                 </div>
                 <div class="flex items-center gap-2">
-                    <Link v-if="page.props.auth.user" href="/dashboard" prefetch="hover" class="ink-button !h-9 !px-4 !text-xs !rounded-xl">
+                    <Link v-if="page.props.auth.user" href="/dashboard" prefetch="hover" class="ink-button !h-9 !rounded-xl !px-4 !text-xs">
                         Open dashboard
                     </Link>
                     <template v-else>
-                        <Link href="/login" prefetch="hover" class="px-3.5 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground">
+                        <Link
+                            href="/login"
+                            prefetch="hover"
+                            class="px-3.5 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
+                        >
                             Log in
                         </Link>
-                        <Link href="/register" prefetch="hover" class="ink-button !h-9 !px-4 !text-xs !rounded-xl">
-                            Get started
-                        </Link>
+                        <Link href="/register" prefetch="hover" class="ink-button !h-9 !rounded-xl !px-4 !text-xs"> Get started </Link>
                     </template>
                 </div>
             </div>
@@ -60,7 +56,9 @@ const seats = [
 
         <!-- Hero Section -->
         <section id="product" class="page-enter relative mx-auto max-w-6xl px-5 pb-16 pt-16 text-center sm:pt-24 lg:px-8 lg:pb-24">
-            <div class="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3.5 py-1 text-xs font-semibold text-primary border border-primary/20">
+            <div
+                class="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-1 text-xs font-semibold text-primary"
+            >
                 <Sparkles class="size-3.5" />
                 <span>Classroom clarity, from the first bell</span>
             </div>
@@ -70,25 +68,24 @@ const seats = [
                 <span class="bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">Right where they belong.</span>
             </h1>
 
-            <p class="mx-auto mt-6 max-w-2xl text-base sm:text-xl leading-relaxed text-muted-foreground">
-                Build your classroom seating floor, take instant roll-call attendance, and record scores in one focused workspace designed for the speed of teaching.
+            <p class="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-xl">
+                Build your classroom seating floor, take instant roll-call attendance, and record scores in one focused workspace designed for the
+                speed of teaching.
             </p>
 
             <div class="mt-8 flex flex-wrap justify-center gap-3">
-                <Link href="/register" prefetch="hover" class="ink-button !h-11 !px-6 !text-sm !rounded-xl">
+                <Link href="/register" prefetch="hover" class="ink-button !h-11 !rounded-xl !px-6 !text-sm">
                     <span>Start your first class</span>
                     <ArrowRight class="size-4" />
                 </Link>
-                <a href="#workflow" class="secondary-button !h-11 !px-6 !text-sm !rounded-xl">
-                    See how it works
-                </a>
+                <a href="#workflow" class="secondary-button !h-11 !rounded-xl !px-6 !text-sm"> See how it works </a>
             </div>
         </section>
 
         <!-- Live Classroom Preview Showcase -->
-        <section class="bg-secondary/40 px-5 py-16 sm:py-24 border-y border-border/80">
+        <section class="border-y border-border/80 bg-secondary/40 px-5 py-16 sm:py-24">
             <div class="mx-auto max-w-5xl">
-                <div class="paper-card overflow-hidden p-0 shadow-xl border-border/80">
+                <div class="paper-card overflow-hidden border-border/80 p-0 shadow-xl">
                     <div class="flex items-center justify-between border-b border-border/80 bg-secondary/50 px-6 py-4">
                         <div class="text-left">
                             <span class="badge-primary font-mono text-[10px]">CS 101</span>
@@ -120,7 +117,7 @@ const seats = [
                         <aside class="border-t border-border/80 pt-6 text-left md:border-l md:border-t-0 md:pl-6 md:pt-0">
                             <span class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Today's session</span>
                             <p class="mt-2 text-4xl font-extrabold tracking-tight text-primary">97%</p>
-                            <p class="mt-0.5 text-xs text-muted-foreground font-medium">Attendance rate</p>
+                            <p class="mt-0.5 text-xs font-medium text-muted-foreground">Attendance rate</p>
                             <div class="mt-6 space-y-2.5 text-xs">
                                 <div class="flex justify-between font-medium">
                                     <span class="text-muted-foreground">Present</span>
@@ -149,7 +146,7 @@ const seats = [
             </div>
 
             <div id="features" class="mt-14 grid gap-6 md:grid-cols-3">
-                <article class="paper-card p-8 hover:border-primary/40 hover:shadow-md transition-all">
+                <article class="paper-card p-8 transition-all hover:border-primary/40 hover:shadow-md">
                     <span class="grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary">
                         <Grid3X3 class="size-6" />
                     </span>
@@ -159,7 +156,7 @@ const seats = [
                     </p>
                 </article>
 
-                <article class="paper-card p-8 hover:border-primary/40 hover:shadow-md transition-all">
+                <article class="paper-card p-8 transition-all hover:border-primary/40 hover:shadow-md">
                     <span class="grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary">
                         <QrCode class="size-6" />
                     </span>
@@ -169,7 +166,7 @@ const seats = [
                     </p>
                 </article>
 
-                <article class="paper-card p-8 hover:border-primary/40 hover:shadow-md transition-all">
+                <article class="paper-card p-8 transition-all hover:border-primary/40 hover:shadow-md">
                     <span class="grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary">
                         <ClipboardCheck class="size-6" />
                     </span>
@@ -184,13 +181,9 @@ const seats = [
         <!-- Call to Action Banner -->
         <section class="border-t border-border/80 bg-secondary/40 px-5 py-20 text-center">
             <CheckCircle2 class="mx-auto size-10 text-primary" />
-            <h2 class="mx-auto mt-4 max-w-xl text-3xl font-extrabold tracking-tight sm:text-4xl">
-                Ready before the next class begins.
-            </h2>
-            <p class="mx-auto mt-3 max-w-md text-sm text-muted-foreground">
-                Create your free teacher account and set up your first classroom today.
-            </p>
-            <Link href="/register" prefetch="hover" class="ink-button !h-11 !px-6 !text-sm !rounded-xl mt-6">
+            <h2 class="mx-auto mt-4 max-w-xl text-3xl font-extrabold tracking-tight sm:text-4xl">Ready before the next class begins.</h2>
+            <p class="mx-auto mt-3 max-w-md text-sm text-muted-foreground">Create your free teacher account and set up your first classroom today.</p>
+            <Link href="/register" prefetch="hover" class="ink-button mt-6 !h-11 !rounded-xl !px-6 !text-sm">
                 <span>Get started now</span>
                 <ArrowRight class="size-4" />
             </Link>

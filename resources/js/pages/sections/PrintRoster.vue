@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { ArrowLeft, Printer, Users } from 'lucide-vue-next';
+import { ArrowLeft, Printer } from 'lucide-vue-next';
 import { onMounted } from 'vue';
 
 const props = defineProps<{
@@ -40,15 +40,11 @@ onMounted(() => {
             <div class="mb-6 flex items-center justify-between print:hidden">
                 <Link
                     :href="`/sections/${section.id}`"
-                    class="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors"
+                    class="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-primary"
                 >
                     <ArrowLeft class="size-3.5" /> Back to section
                 </Link>
-                <button
-                    type="button"
-                    class="ink-button !h-9 !rounded-xl !px-4 text-xs font-semibold"
-                    @click="print"
-                >
+                <button type="button" class="ink-button !h-9 !rounded-xl !px-4 text-xs font-semibold" @click="print">
                     <Printer class="size-3.5" /> Print directory
                 </button>
             </div>
@@ -80,17 +76,17 @@ onMounted(() => {
                 <article
                     v-for="student in section.students"
                     :key="student.id"
-                    class="flex items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-xs print:rounded-none print:border print:border-zinc-300 print:shadow-none break-inside-avoid"
+                    class="shadow-xs flex break-inside-avoid items-center gap-3 rounded-xl border border-border bg-card p-3 print:rounded-none print:border print:border-zinc-300 print:shadow-none"
                 >
                     <img
                         v-if="student.photo_url"
                         :src="student.photo_url"
                         alt=""
-                        class="size-12 rounded-xl object-cover border border-border shrink-0 print:size-10"
+                        class="size-12 shrink-0 rounded-xl border border-border object-cover print:size-10"
                     />
                     <div
                         v-else
-                        class="grid size-12 shrink-0 place-items-center rounded-xl bg-secondary font-mono text-xs font-bold text-muted-foreground border border-border print:size-10"
+                        class="grid size-12 shrink-0 place-items-center rounded-xl border border-border bg-secondary font-mono text-xs font-bold text-muted-foreground print:size-10"
                     >
                         {{ initials(student.first_name, student.last_name) }}
                     </div>
@@ -103,7 +99,7 @@ onMounted(() => {
                             {{ student.student_number }}
                         </span>
                         <span
-                            class="mt-1 inline-block rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-primary print:bg-transparent print:border print:border-black print:text-black"
+                            class="mt-1 inline-block rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-primary print:border print:border-black print:bg-transparent print:text-black"
                         >
                             {{ student.seat?.label || 'Unseated' }}
                         </span>

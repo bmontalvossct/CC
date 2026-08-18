@@ -178,4 +178,77 @@ class AttendanceTest extends TestCase
                 ->component('attendance/Show')
                 ->where('unseated.0.student.photo_url', route('sections.students.photo', [$section, $student])));
     }
+
+    public function test_attendance_index_provides_calendar_data_and_student_absent_late_breakdown(): void
+    {
+        $teacher = User::factory()->create();
+        $section = $this->makeSection($teacher, 2);
+        $studentA = $section->students()->first();
+        $studentB = $section->students()->skip(1)->first();
+
+        $session1 = AttendanceSession::create([
+            'section_id' => $section->id,
+            'session_date' => '2026-08-10',
+            'starts_at' => '08:00',
+            'ends_at' => '09:00',
+            'duration_minutes' => 60,
+            'notes' => 'Quiz day',
+        ]);
+        AttendanceRecord::create(['attendance_session_id' => $session1->id, 'student_id' => $studentA->id, 'status' => 'absent', 'attended_minutes' => 0]);
+        AttendanceRecord::create(['attendance_session_id' => $session1->id, 'student_id' => $studentB->id, 'status' => 'late', 'attended_minutes' => 45]);
+
+        $this->actingAs($teacher)->get(route('attendance.sections.index', $section))
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('attendance/Index')
+                ->has('sessions.0.records', 2)
+                ->where('sessions.0.absent_count', 1)
+                ->where('sessions.0.late_count', 1)
+                ->where('studentSummaries.0.absent_count', 1)
+                ->where('studentSummaries.1.late_count', 1)
+                ->has('studentSummaries.0.absent_days', 1)
+                ->where('studentSummaries.0.absent_days.0.date', '2026-08-10'));
+    }
+
+    public function test_attendance_grading_rules_with_3_absence_limit_and_half_points_for_late(): void
+    {
+        $teacher = User::factory()->create();
+        $section = $this->makeSection($teacher, 2);
+        $studentA = $section->students()->first();
+        $studentB = $section->students()->skip(1)->first();
+
+        // 4 sessions: Student A: 2 present, 1 late, 1 absent -> 2.5/4 pts (62.5%), 2 absences left, status: good
+        // Student B: 4 absences -> 0/4 pts (0%), 0 absences left, status: exceeded
+        $statuses = [
+            ['present', 'absent'],
+            ['present', 'absent'],
+            ['late', 'absent'],
+            ['absent', 'absent'],
+        ];
+
+        foreach ($statuses as $idx => [$statusA, $statusB]) {
+            $sess = AttendanceSession::create([
+                'section_id' => $section->id,
+                'session_date' => "2026-08-1{$idx}",
+                'starts_at' => '08:00',
+                'ends_at' => '09:00',
+                'duration_minutes' => 60,
+            ]);
+            AttendanceRecord::create(['attendance_session_id' => $sess->id, 'student_id' => $studentA->id, 'status' => $statusA, 'attended_minutes' => 60]);
+            AttendanceRecord::create(['attendance_session_id' => $sess->id, 'student_id' => $studentB->id, 'status' => $statusB, 'attended_minutes' => 0]);
+        }
+
+        $this->actingAs($teacher)->get(route('attendance.sections.index', $section))
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('attendance/Index')
+                ->where('studentSummaries.0.earned_points', 2.5)
+                ->where('studentSummaries.0.possible_points', 4)
+                ->where('studentSummaries.0.grade_rate', 62.5)
+                ->where('studentSummaries.0.absences_remaining', 2)
+                ->where('studentSummaries.0.absence_status', 'good')
+                ->where('studentSummaries.1.earned_points', 0)
+                ->where('studentSummaries.1.possible_points', 4)
+                ->where('studentSummaries.1.grade_rate', 0)
+                ->where('studentSummaries.1.absences_remaining', 0)
+                ->where('studentSummaries.1.absence_status', 'exceeded'));
+    }
 }

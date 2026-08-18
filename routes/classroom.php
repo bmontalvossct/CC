@@ -2,15 +2,18 @@
 
 use App\Http\Controllers\LayoutBlockController;
 use App\Http\Controllers\PublicJoinController;
+use App\Http\Controllers\RecitationController;
 use App\Http\Controllers\SectionController;
 use App\Http\Controllers\StudentController;
-use App\Http\Controllers\RecitationController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('sections/archived', [SectionController::class, 'archived'])->name('sections.archived');
     Route::resource('sections', SectionController::class);
     Route::get('sections/{section}/recitation', [RecitationController::class, 'index'])->name('sections.recitation.index');
     Route::post('sections/{section}/recitation/score/{student}', [RecitationController::class, 'storeScore'])->name('sections.recitation.score');
+    Route::put('sections/{section}/recitations/{recitation}', [RecitationController::class, 'updateScore'])->name('sections.recitations.update');
+    Route::delete('sections/{section}/recitations/{recitation}', [RecitationController::class, 'destroyScore'])->name('sections.recitations.destroy');
     Route::patch('sections/{section}/enrollment', [SectionController::class, 'enrollment'])->name('sections.enrollment');
     Route::post('sections/{section}/enrollment-token', [SectionController::class, 'regenerateToken'])->name('sections.enrollment-token');
     Route::patch('sections/{section}/archive', [SectionController::class, 'archive'])->name('sections.archive');
@@ -21,6 +24,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('sections/{section}/layout-blocks', [LayoutBlockController::class, 'store'])->name('sections.layout-blocks.store');
     Route::delete('sections/{section}/layout-blocks/{layoutBlock}', [LayoutBlockController::class, 'destroy'])->name('sections.layout-blocks.destroy');
     Route::post('sections/{section}/students', [StudentController::class, 'store'])->name('sections.students.store');
+    Route::get('sections/{section}/roster/template', [StudentController::class, 'downloadTemplate'])->name('sections.students.template');
     Route::post('sections/{section}/students-import', [StudentController::class, 'import'])->name('sections.students.import');
     Route::patch('sections/{section}/students/{student}', [StudentController::class, 'update'])->name('sections.students.update');
     Route::patch('sections/{section}/students/{student}/seat', [StudentController::class, 'move'])->name('sections.students.move');

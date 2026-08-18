@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('students', function (Blueprint $table) {
             $table->id();
             $table->foreignId('section_id')->constrained()->cascadeOnDelete();
-            $table->string('student_number', 80);
+            $table->string('student_number', 80)->nullable();
             $table->string('first_name');
             $table->string('middle_name')->nullable();
             $table->string('last_name');

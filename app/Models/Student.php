@@ -28,6 +28,19 @@ class Student extends Model
         return collect([$this->first_name, $this->middle_name, $this->last_name])->filter()->join(' ');
     }
 
+    public function attributesToArray(): array
+    {
+        $attributes = parent::attributesToArray();
+
+        return array_map(function ($value) {
+            if (is_string($value)) {
+                return mb_convert_encoding($value, 'UTF-8', 'UTF-8');
+            }
+
+            return $value;
+        }, $attributes);
+    }
+
     public function section(): BelongsTo
     {
         return $this->belongsTo(Section::class);

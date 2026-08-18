@@ -23,10 +23,12 @@ class StoreSectionRequest extends FormRequest
             'term.school_year' => ['required', 'string', 'max:20'],
             'term.starts_on' => ['required', 'date'],
             'term.ends_on' => ['required', 'date', 'after_or_equal:term.starts_on'],
-            'schedules' => ['array', 'max:35'],
-            'schedules.*.day_of_week' => ['required', 'integer', 'between:1,5'],
+            'schedules' => ['array', 'max:42'],
+            'schedules.*.day_of_week' => ['required', 'integer', 'between:1,7'],
             'schedules.*.starts_at' => ['required', 'date_format:H:i'],
             'schedules.*.ends_at' => ['required', 'date_format:H:i', 'after:schedules.*.starts_at'],
+            'schedules.*.room' => ['nullable', 'string', 'max:255'],
+            'schedules.*.schedule_type' => ['nullable', 'string', 'in:lecture,lab'],
         ];
     }
 
