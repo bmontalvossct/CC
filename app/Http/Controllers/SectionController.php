@@ -229,6 +229,7 @@ class SectionController extends Controller
         });
 
         $modeLabel = $mode === 'alphabetical' ? 'last name' : 'random shuffle';
+
         return back()->with('success', "{$assignedCount} students assigned to chairs by {$modeLabel}.");
     }
 

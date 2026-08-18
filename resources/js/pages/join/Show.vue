@@ -74,7 +74,7 @@ const submit = () => form.post(`/join/${props.token}`, { forceFormData: true, pr
 
                     <!-- Teaching Wall Bar -->
                     <div
-                        class="my-6 flex items-center justify-center rounded-2xl bg-[#164e3f] py-3 px-6 text-center text-xs font-bold uppercase tracking-[0.25em] text-white shadow-xs dark:bg-[#134e48]"
+                        class="shadow-xs my-6 flex items-center justify-center rounded-2xl bg-[#164e3f] px-6 py-3 text-center text-xs font-bold uppercase tracking-[0.25em] text-white dark:bg-[#134e48]"
                     >
                         Teaching Wall / Front Board
                     </div>
@@ -94,10 +94,13 @@ const submit = () => form.post(`/join/${props.token}`, { forceFormData: true, pr
                             <article
                                 v-for="block in section.blocks"
                                 :key="block.id"
-                                class="rounded-2xl border border-border/80 bg-card p-4 shadow-xs"
+                                class="shadow-xs rounded-2xl border border-border/80 bg-card p-4"
                                 :style="{ gridColumn: block.block_column, gridRow: block.block_row }"
                             >
-                                <p v-if="block.label && block.label !== 'Classroom'" class="mb-3 text-center text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                <p
+                                    v-if="block.label && block.label !== 'Classroom'"
+                                    class="mb-3 text-center text-xs font-bold uppercase tracking-wider text-muted-foreground"
+                                >
                                     {{ block.label }}
                                 </p>
                                 <div class="grid gap-2.5" :style="{ gridTemplateColumns: `repeat(${block.internal_columns}, 1fr)` }">
@@ -116,7 +119,10 @@ const submit = () => form.post(`/join/${props.token}`, { forceFormData: true, pr
                                         "
                                         @click="form.seat_id = seat.id"
                                     >
-                                        <Armchair class="size-4.5" :class="seat.id === form.seat_id ? 'text-white' : 'text-slate-400 dark:text-muted-foreground/60'" />
+                                        <Armchair
+                                            class="size-4.5"
+                                            :class="seat.id === form.seat_id ? 'text-white' : 'text-slate-400 dark:text-muted-foreground/60'"
+                                        />
                                         <span class="mt-1 block font-mono text-[9px] font-bold uppercase tracking-wider">
                                             {{ seat.is_available ? seat.label : 'TAKEN' }}
                                         </span>

@@ -59,7 +59,6 @@ class AssessmentController extends AssessmentModuleController
         ]);
     }
 
-
     public function store(StoreAssessmentRequest $request, Section $section): RedirectResponse
     {
         $this->authorizeSection($section);

@@ -71,7 +71,7 @@ const groupedSchedules = (schedules: StoredSchedule[]): Schedule[] => {
 
         const startsAt = schedule.starts_at.slice(0, 5);
         const endsAt = schedule.ends_at.slice(0, 5);
-        const room = schedule.room ?? (props.section?.room ?? '');
+        const room = schedule.room ?? props.section?.room ?? '';
         const scheduleType = schedule.schedule_type === 'lab' ? 'lab' : 'lecture';
         const key = `${startsAt}-${endsAt}-${room}-${scheduleType}`;
         const existing = groups.get(key);
@@ -215,7 +215,12 @@ const submit = () => {
             </div>
             <div class="grid gap-2 md:col-span-2">
                 <Label for="title" class="text-xs font-medium">Subject title</Label>
-                <Input id="title" v-model="form.subject_title" class="h-10 rounded-xl text-sm font-medium" placeholder="e.g. Introduction to Computing" />
+                <Input
+                    id="title"
+                    v-model="form.subject_title"
+                    class="h-10 rounded-xl text-sm font-medium"
+                    placeholder="e.g. Introduction to Computing"
+                />
                 <InputError class="mt-1 text-xs" :message="form.errors.subject_title" />
             </div>
         </section>
@@ -348,7 +353,9 @@ const submit = () => {
                             />
                         </div>
                         <div class="grid gap-1.5">
-                            <Label :for="`schedule-end-${index}`" class="text-xs font-medium">End time <span class="text-[11px] text-muted-foreground">(suggested)</span></Label>
+                            <Label :for="`schedule-end-${index}`" class="text-xs font-medium"
+                                >End time <span class="text-[11px] text-muted-foreground">(suggested)</span></Label
+                            >
                             <Input
                                 :id="`schedule-end-${index}`"
                                 v-model="schedule.ends_at"
@@ -371,10 +378,7 @@ const submit = () => {
                     </div>
 
                     <!-- Inline warning when end time <= start time -->
-                    <p
-                        v-if="schedule.starts_at && schedule.ends_at && schedule.ends_at <= schedule.starts_at"
-                        class="mt-2 text-xs text-destructive"
-                    >
+                    <p v-if="schedule.starts_at && schedule.ends_at && schedule.ends_at <= schedule.starts_at" class="mt-2 text-xs text-destructive">
                         End time must be later than start time.
                     </p>
                 </div>

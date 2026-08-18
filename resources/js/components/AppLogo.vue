@@ -4,7 +4,7 @@ import AppLogoIcon from '@/components/AppLogoIcon.vue';
 
 <template>
     <div class="flex items-center gap-2.5">
-        <div class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-card border border-border/80 p-0.5 shadow-sm">
+        <div class="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border/80 bg-card p-0.5 shadow-sm">
             <AppLogoIcon class-name="size-7" />
         </div>
         <div class="grid min-w-0 flex-1 text-left">

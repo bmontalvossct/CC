@@ -104,6 +104,7 @@ class StudentController extends Controller
         $rawHeaders = fgetcsv($tempStream) ?: [];
         $headers = array_map(function ($header) {
             $cleaned = preg_replace('/[\x00-\x1F\x7F\xEF\xBB\xBF]/u', '', (string) $header);
+
             return strtolower(trim((string) $cleaned));
         }, $rawHeaders);
 
@@ -122,6 +123,7 @@ class StudentController extends Controller
 
                 $cleanRow = array_map(function ($val) {
                     $str = (string) $val;
+
                     return trim((string) mb_convert_encoding($str, 'UTF-8', 'UTF-8'));
                 }, $row);
 
@@ -138,6 +140,7 @@ class StudentController extends Controller
                         'reason' => 'Column count mismatch (expected '.count($headers).', got '.count($cleanRow).')',
                         'raw' => implode(', ', array_slice($cleanRow, 0, 4)),
                     ];
+
                     continue;
                 }
 
@@ -163,6 +166,7 @@ class StudentController extends Controller
                         'reason' => 'Missing required field(s): '.implode(', ', $missingFields),
                         'raw' => implode(', ', $cleanRow),
                     ];
+
                     continue;
                 }
 

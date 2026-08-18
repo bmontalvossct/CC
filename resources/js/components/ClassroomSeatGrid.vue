@@ -76,7 +76,7 @@ const dropSeat = (event: DragEvent, targetSeat: any) => {
         if (data.studentId) {
             emit('dragMoveStudent', { studentId: data.studentId, targetSeatId: targetSeat.id });
         }
-    } catch (e) {
+    } catch {
         if (!isNaN(Number(dataStr))) {
             emit('dragMoveStudent', { studentId: Number(dataStr), targetSeatId: targetSeat.id });
         }
@@ -118,7 +118,7 @@ const initials = (name?: string) => {
                 <div class="my-3 flex items-stretch gap-3 first:mt-0 last:mb-0">
                     <template v-for="seat in seats" :key="seat.id">
                         <div
-                            class="relative flex min-w-[6rem] sm:min-w-[7.5rem] flex-1 flex-col items-stretch"
+                            class="relative flex min-w-[6rem] flex-1 flex-col items-stretch sm:min-w-[7.5rem]"
                             @dragover.prevent
                             @dragenter="activeDragOverSeatId = seat.id"
                             @dragleave="activeDragOverSeatId = null"
@@ -131,15 +131,19 @@ const initials = (name?: string) => {
                                         :disabled="seat.is_disabled"
                                         draggable="true"
                                         @dragstart="dragStart($event, seat.student)"
-                                        :aria-label="seat.student ? `${seat.student.first_name} ${seat.student.last_name}, ${seat.label}` : `${seat.label}, available chair`"
+                                        :aria-label="
+                                            seat.student
+                                                ? `${seat.student.first_name} ${seat.student.last_name}, ${seat.label}`
+                                                : `${seat.label}, available chair`
+                                        "
                                         :aria-pressed="!seat.student && selectedSeatId === seat.id"
-                                        class="group relative min-h-[6.75rem] sm:min-h-[7.25rem] w-full flex-1 rounded-2xl border p-3 transition-all duration-150 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+                                        class="group relative min-h-[6.75rem] w-full flex-1 rounded-2xl border p-3 transition-all duration-150 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 sm:min-h-[7.25rem]"
                                         :class="[
                                             seat.is_disabled
                                                 ? 'cursor-not-allowed border-transparent bg-[repeating-linear-gradient(135deg,hsl(var(--border)),hsl(var(--border))_4px,transparent_4px,transparent_8px)] opacity-30'
                                                 : selectedSeatId === seat.id
                                                   ? 'scale-[1.03] border-emerald-400 bg-[#164e3f] text-white shadow-lg ring-2 ring-emerald-400 ring-offset-2 dark:bg-[#134e48]'
-                                                  : 'border-[#1b5d4e]/80 bg-[#164e3f] text-white shadow-xs hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-[#134e48]',
+                                                  : 'shadow-xs border-[#1b5d4e]/80 bg-[#164e3f] text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-[#134e48]',
                                             activeDragOverSeatId === seat.id && !seat.is_disabled
                                                 ? 'scale-[1.02] border-dashed border-white bg-[#1a5a49] shadow-md ring-2 ring-white/40'
                                                 : '',
@@ -149,7 +153,7 @@ const initials = (name?: string) => {
                                         <div class="flex h-full flex-col items-center justify-center text-center">
                                             <!-- Enlarged Photo / Avatar -->
                                             <div
-                                                class="flex size-10 sm:size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/20 ring-2 ring-white/25 shadow-xs"
+                                                class="shadow-xs flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/20 ring-2 ring-white/25 sm:size-11"
                                             >
                                                 <img
                                                     v-if="seat.student.photo_url"
@@ -157,21 +161,23 @@ const initials = (name?: string) => {
                                                     :alt="`${seat.student.first_name} ${seat.student.last_name}`"
                                                     class="size-full object-cover"
                                                 />
-                                                <span v-else class="text-xs sm:text-sm font-black uppercase text-white tracking-wider">
+                                                <span v-else class="text-xs font-black uppercase tracking-wider text-white sm:text-sm">
                                                     {{ initials(seat.student.first_name + ' ' + seat.student.last_name) }}
                                                 </span>
                                             </div>
 
                                             <!-- Complete Name -->
                                             <span
-                                                class="mt-2 block w-full max-w-[7.5rem] truncate text-center text-[11px] sm:text-xs font-bold uppercase leading-tight tracking-tight text-white"
+                                                class="mt-2 block w-full max-w-[7.5rem] truncate text-center text-[11px] font-bold uppercase leading-tight tracking-tight text-white sm:text-xs"
                                                 :title="`${seat.student.first_name} ${seat.student.last_name}`"
                                             >
                                                 {{ seat.student.first_name }} {{ seat.student.last_name }}
                                             </span>
 
                                             <!-- Seat Label -->
-                                            <span class="mt-0.5 font-mono text-[9px] sm:text-[10px] font-medium leading-none text-white/70 tracking-wider uppercase">
+                                            <span
+                                                class="mt-0.5 font-mono text-[9px] font-medium uppercase leading-none tracking-wider text-white/70 sm:text-[10px]"
+                                            >
                                                 {{ seat.label }}
                                             </span>
                                         </div>
@@ -204,7 +210,7 @@ const initials = (name?: string) => {
                                 :disabled="seat.is_disabled"
                                 :aria-label="`${seat.label}, available chair`"
                                 :aria-pressed="selectedSeatId === seat.id"
-                                class="group relative min-h-[6.75rem] sm:min-h-[7.25rem] w-full flex-1 rounded-2xl border-2 p-3 transition-all duration-150 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                                class="group relative min-h-[6.75rem] w-full flex-1 rounded-2xl border-2 p-3 transition-all duration-150 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:min-h-[7.25rem]"
                                 :class="[
                                     seat.is_disabled
                                         ? 'cursor-not-allowed border-transparent bg-[repeating-linear-gradient(135deg,hsl(var(--border)),hsl(var(--border))_4px,transparent_4px,transparent_8px)] opacity-30'
@@ -218,8 +224,12 @@ const initials = (name?: string) => {
                                 @click.stop="chooseSeat(seat)"
                             >
                                 <div class="flex h-full flex-col items-center justify-center text-center">
-                                    <Armchair class="size-6 text-slate-400 transition-transform group-hover:scale-110 dark:text-muted-foreground/60" />
-                                    <span class="mt-2 block font-mono text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-muted-foreground">
+                                    <Armchair
+                                        class="size-6 text-slate-400 transition-transform group-hover:scale-110 dark:text-muted-foreground/60"
+                                    />
+                                    <span
+                                        class="mt-2 block font-mono text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-muted-foreground sm:text-[11px]"
+                                    >
                                         {{ seat.label }}
                                     </span>
                                     <span

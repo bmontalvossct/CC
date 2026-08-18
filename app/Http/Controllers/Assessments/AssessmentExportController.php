@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Assessments;
 use App\Models\Assessment;
 use App\Models\AssessmentScore;
 use App\Models\AttendanceRecord;
+use App\Models\AttendanceSession;
+use App\Models\Project;
+use App\Models\Recitation;
 use App\Models\Section;
 use App\Models\Student;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -55,9 +58,9 @@ class AssessmentExportController extends AssessmentModuleController
         $assessments = Assessment::where('section_id', $section->id)->orderBy('conducted_on')->orderBy('id')->get();
         $scores = AssessmentScore::whereIn('assessment_id', $assessments->pluck('id'))->get()->groupBy('student_id');
 
-        $projects = \App\Models\Project::where('section_id', $section->id)->orderBy('conducted_on')->orderBy('id')->with(['groups.members'])->get();
-        $attendanceSessions = \App\Models\AttendanceSession::where('section_id', $section->id)->with('records')->get();
-        $recitations = \App\Models\Recitation::where('section_id', $section->id)->get()->groupBy('student_id');
+        $projects = Project::where('section_id', $section->id)->orderBy('conducted_on')->orderBy('id')->with(['groups.members'])->get();
+        $attendanceSessions = AttendanceSession::where('section_id', $section->id)->with('records')->get();
+        $recitations = Recitation::where('section_id', $section->id)->get()->groupBy('student_id');
 
         $defaultWeights = [
             'activity' => 20,

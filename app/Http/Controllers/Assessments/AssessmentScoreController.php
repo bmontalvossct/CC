@@ -125,6 +125,7 @@ class AssessmentScoreController extends AssessmentModuleController
 
         if ($request->wantsJson()) {
             $saved = $assessment->scores()->pluck('score', 'student_id');
+
             return response()->json([
                 'success' => true,
                 'message' => 'All scores have been saved successfully.',

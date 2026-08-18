@@ -70,7 +70,7 @@ const sizeClasses = computed(() => {
     <!-- Overlay Mode -->
     <div
         v-if="overlay"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-xs"
+        class="backdrop-blur-xs fixed inset-0 z-50 flex items-center justify-center bg-background/80"
         role="status"
         aria-live="polite"
     >
@@ -90,30 +90,15 @@ const sizeClasses = computed(() => {
                     :class="['aspect-square object-contain transition-transform duration-150', sizeClasses]"
                 />
             </div>
-            <span v-if="label" class="text-sm font-medium text-foreground tracking-tight">{{ label }}</span>
+            <span v-if="label" class="text-sm font-medium tracking-tight text-foreground">{{ label }}</span>
         </div>
     </div>
 
     <!-- Inline Mode -->
-    <div
-        v-else
-        class="inline-flex items-center gap-2"
-        role="status"
-        aria-live="polite"
-    >
+    <div v-else class="inline-flex items-center gap-2" role="status" aria-live="polite">
         <div class="relative inline-flex items-center justify-center">
-            <img
-                v-show="!isBlinking"
-                src="/images/logo-open.png"
-                alt="Loading..."
-                :class="['aspect-square object-contain', sizeClasses]"
-            />
-            <img
-                v-show="isBlinking"
-                src="/images/logo-closed.png"
-                alt="Loading..."
-                :class="['aspect-square object-contain', sizeClasses]"
-            />
+            <img v-show="!isBlinking" src="/images/logo-open.png" alt="Loading..." :class="['aspect-square object-contain', sizeClasses]" />
+            <img v-show="isBlinking" src="/images/logo-closed.png" alt="Loading..." :class="['aspect-square object-contain', sizeClasses]" />
         </div>
         <span v-if="showLabel && label" class="text-sm font-medium text-muted-foreground">{{ label }}</span>
         <span v-else-if="label" class="sr-only">{{ label }}</span>

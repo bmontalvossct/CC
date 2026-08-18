@@ -33,7 +33,7 @@ class AssessmentAttachmentController extends AssessmentModuleController
             $name,
             [
                 'Content-Type' => $mime,
-                'Content-Disposition' => 'inline; filename="' . addslashes($name) . '"',
+                'Content-Disposition' => 'inline; filename="'.addslashes($name).'"',
             ]
         );
     }

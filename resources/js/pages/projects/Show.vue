@@ -3,15 +3,12 @@ import FilePreviewModal from '@/components/FilePreviewModal.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
-    AlertTriangle,
     ArrowLeft,
     BookOpen,
     CalendarDays,
     Check,
     Dices,
-    Download,
     Edit3,
-    Eye,
     FileText,
     FolderKanban,
     LoaderCircle,
@@ -320,9 +317,7 @@ const handleGroupScoreKey = (event: KeyboardEvent, group: Group) => {
 };
 
 // Flattened member list across all groups for smooth sequential navigation
-const allGroupMembers = computed(() =>
-    props.project.groups.flatMap((g) => g.members.map((m) => ({ group: g, member: m })))
-);
+const allGroupMembers = computed(() => props.project.groups.flatMap((g) => g.members.map((m) => ({ group: g, member: m }))));
 
 // Move to next/prev member score input across groups
 const moveMemberScore = (currentMember: Member, currentGroup: Group, direction: number) => {
@@ -484,11 +479,7 @@ const filteredUnassigned = computed(() => {
                 <div class="flex items-center gap-2">
                     <span
                         class="rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider"
-                        :class="
-                            project.type === 'project'
-                                ? 'bg-emerald-800 text-white'
-                                : 'bg-amber-800 text-white'
-                        "
+                        :class="project.type === 'project' ? 'bg-emerald-800 text-white' : 'bg-amber-800 text-white'"
                     >
                         {{ project.type === 'project' ? 'Project' : 'Reporting' }}
                     </span>
@@ -561,7 +552,7 @@ const filteredUnassigned = computed(() => {
                     <!-- Action Buttons Toolbar -->
                     <div class="flex shrink-0 flex-wrap items-center gap-2.5">
                         <button
-                            class="group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             @click="showRandomizeModal = true"
                         >
                             <Dices class="size-4 text-primary transition-colors group-hover:text-white" />
@@ -569,7 +560,7 @@ const filteredUnassigned = computed(() => {
                         </button>
 
                         <button
-                            class="group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-3.5 text-sm font-medium text-primary shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-3.5 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             @click="showAddGroupModal = true"
                         >
                             <Plus class="size-4 text-primary transition-colors group-hover:text-white" />
@@ -579,7 +570,7 @@ const filteredUnassigned = computed(() => {
                         <a
                             :href="`/sections/${section.id}/projects/${project.id}/print`"
                             target="_blank"
-                            class="group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-3.5 text-sm font-medium text-primary shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-3.5 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             title="Print group sheets and presentation roster"
                         >
                             <Printer class="size-4 text-primary transition-colors group-hover:text-white" />
@@ -587,7 +578,7 @@ const filteredUnassigned = computed(() => {
                         </a>
 
                         <button
-                            class="group inline-flex h-10 items-center justify-center rounded-xl border border-primary bg-white px-3 text-sm font-medium text-primary shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            class="shadow-xs group inline-flex h-10 items-center justify-center rounded-xl border border-primary bg-white px-3 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             title="Edit project details"
                             @click="showEditModal = true"
                         >
@@ -595,9 +586,9 @@ const filteredUnassigned = computed(() => {
                         </button>
 
                         <button
-                            class="group inline-flex h-10 items-center justify-center rounded-xl border border-rose-600 bg-white px-3 text-sm font-medium text-rose-700 shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            class="shadow-xs group inline-flex h-10 items-center justify-center rounded-xl border border-rose-600 bg-white px-3 text-sm font-medium text-rose-700 transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             :title="`Delete ${project.type}`"
-                            @click="showDeleteModal = true"
+                            @click="deleteProject"
                         >
                             <Trash2 class="size-4 text-rose-700 transition-colors group-hover:text-white" />
                         </button>
@@ -733,10 +724,14 @@ const filteredUnassigned = computed(() => {
                                 </span>
 
                                 <!-- Group Score Input -->
-                                <div class="flex items-center gap-1.5 rounded-xl border border-border/80 bg-card px-2.5 py-1 shadow-2xs">
+                                <div class="shadow-2xs flex items-center gap-1.5 rounded-xl border border-border/80 bg-card px-2.5 py-1">
                                     <span class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Group Score:</span>
                                     <input
-                                        :ref="(el) => { if (el) groupScoreInputs.set(group.id, el as HTMLInputElement); }"
+                                        :ref="
+                                            (el) => {
+                                                if (el) groupScoreInputs.set(group.id, el as HTMLInputElement);
+                                            }
+                                        "
                                         v-model="groupScores[group.id]"
                                         type="number"
                                         step="0.01"
@@ -745,9 +740,12 @@ const filteredUnassigned = computed(() => {
                                         placeholder="—"
                                         class="w-16 rounded-lg border px-2 py-0.5 text-center font-mono text-xs font-bold transition-all focus:outline-none"
                                         :class="[
-                                            groupScores[group.id] !== '' && groupScores[group.id] !== null && groupScores[group.id] !== undefined && (Number(groupScores[group.id]) < 0 || Number(groupScores[group.id]) > Number(project.max_points || 100))
-                                                ? '!border-rose-500 !ring-2 !ring-rose-500 !bg-rose-500/10 !text-rose-600 dark:!text-rose-400'
-                                                : 'border-input bg-background text-foreground focus:ring-1 focus:ring-primary'
+                                            groupScores[group.id] !== '' &&
+                                            groupScores[group.id] !== null &&
+                                            groupScores[group.id] !== undefined &&
+                                            (Number(groupScores[group.id]) < 0 || Number(groupScores[group.id]) > Number(project.max_points || 100))
+                                                ? '!border-rose-500 !bg-rose-500/10 !text-rose-600 !ring-2 !ring-rose-500 dark:!text-rose-400'
+                                                : 'border-input bg-background text-foreground focus:ring-1 focus:ring-primary',
                                         ]"
                                         @focus="($event.target as HTMLInputElement)?.select()"
                                         @blur="saveGroupScore(group)"
@@ -755,7 +753,9 @@ const filteredUnassigned = computed(() => {
                                     />
                                     <span class="font-mono text-[10px] text-muted-foreground">/ {{ project.max_points || '100' }}</span>
                                     <span v-if="scoreSaving[group.id]" class="animate-pulse text-[9px] text-muted-foreground">Saving…</span>
-                                    <span v-else-if="scoreSaved[group.id]" class="text-[9px] font-semibold text-emerald-600 dark:text-emerald-400">✓ Saved</span>
+                                    <span v-else-if="scoreSaved[group.id]" class="text-[9px] font-semibold text-emerald-600 dark:text-emerald-400"
+                                        >✓ Saved</span
+                                    >
                                 </div>
                             </div>
 
@@ -825,27 +825,46 @@ const filteredUnassigned = computed(() => {
 
                                         <div class="flex items-center gap-1.5 opacity-80 group-hover/member:opacity-100">
                                             <!-- Individual Student Score Override -->
-                                            <div class="flex items-center gap-1" title="Individual student score override (defaults to group score if left empty)">
+                                            <div
+                                                class="flex items-center gap-1"
+                                                title="Individual student score override (defaults to group score if left empty)"
+                                            >
                                                 <span class="font-mono text-[9px] text-muted-foreground">Ind:</span>
                                                 <input
-                                                    :ref="(el) => { if (el) memberScoreInputs.set(member.id, el as HTMLInputElement); }"
+                                                    :ref="
+                                                        (el) => {
+                                                            if (el) memberScoreInputs.set(member.id, el as HTMLInputElement);
+                                                        }
+                                                    "
                                                     v-model="memberScores[member.id]"
                                                     type="number"
                                                     step="0.01"
                                                     min="0"
                                                     :max="project.max_points || 1000"
-                                                    :placeholder="groupScores[group.id] !== '' && groupScores[group.id] !== undefined ? String(groupScores[group.id]) : '—'"
+                                                    :placeholder="
+                                                        groupScores[group.id] !== '' && groupScores[group.id] !== undefined
+                                                            ? String(groupScores[group.id])
+                                                            : '—'
+                                                    "
                                                     class="w-14 rounded-lg border px-1.5 py-0.5 text-center font-mono text-[11px] font-medium transition-all focus:outline-none"
                                                     :class="[
-                                                        memberScores[member.id] !== '' && memberScores[member.id] !== null && memberScores[member.id] !== undefined && (Number(memberScores[member.id]) < 0 || Number(memberScores[member.id]) > Number(project.max_points || 100))
-                                                            ? '!border-rose-500 !ring-2 !ring-rose-500 !bg-rose-500/10 !text-rose-600 dark:!text-rose-400'
-                                                            : 'border-input bg-card text-foreground focus:ring-1 focus:ring-primary'
+                                                        memberScores[member.id] !== '' &&
+                                                        memberScores[member.id] !== null &&
+                                                        memberScores[member.id] !== undefined &&
+                                                        (Number(memberScores[member.id]) < 0 ||
+                                                            Number(memberScores[member.id]) > Number(project.max_points || 100))
+                                                            ? '!border-rose-500 !bg-rose-500/10 !text-rose-600 !ring-2 !ring-rose-500 dark:!text-rose-400'
+                                                            : 'border-input bg-card text-foreground focus:ring-1 focus:ring-primary',
                                                     ]"
                                                     @focus="($event.target as HTMLInputElement)?.select()"
                                                     @blur="saveMemberScore(group, member)"
                                                     @keydown="handleMemberScoreKey($event, member, group)"
                                                 />
-                                                <span v-if="memberSaved[member.id]" class="text-[8px] font-semibold text-emerald-600 dark:text-emerald-400">✓</span>
+                                                <span
+                                                    v-if="memberSaved[member.id]"
+                                                    class="text-[8px] font-semibold text-emerald-600 dark:text-emerald-400"
+                                                    >✓</span
+                                                >
                                             </div>
 
                                             <!-- Quick Move to Another Group Selector -->
@@ -1257,9 +1276,13 @@ const filteredUnassigned = computed(() => {
 
                     <label class="block">
                         <span class="text-xs font-bold uppercase tracking-wider text-muted-foreground"
-                            >Attachment / Reference Guidelines <em class="font-normal normal-case text-muted-foreground">(optional, max 50MB)</em></span
+                            >Attachment / Reference Guidelines
+                            <em class="font-normal normal-case text-muted-foreground">(optional, max 50MB)</em></span
                         >
-                        <div v-if="project.attachment_name && !editForm.attachment" class="mb-2 flex items-center justify-between rounded-xl border border-border/80 bg-muted/40 p-2.5 text-xs">
+                        <div
+                            v-if="project.attachment_name && !editForm.attachment"
+                            class="mb-2 flex items-center justify-between rounded-xl border border-border/80 bg-muted/40 p-2.5 text-xs"
+                        >
                             <span class="flex items-center gap-1.5 font-medium text-foreground">
                                 <Paperclip class="size-3.5 text-primary" />
                                 Current: {{ project.attachment_name }}
@@ -1275,7 +1298,9 @@ const filteredUnassigned = computed(() => {
                         <span v-if="editForm.attachment" class="mt-1 block font-mono text-[10px] text-primary">
                             Selected: {{ editForm.attachment.name }} ({{ (editForm.attachment.size / 1024 / 1024).toFixed(2) }} MB)
                         </span>
-                        <small v-if="editForm.errors.attachment" class="mt-1 block text-xs font-semibold text-rose-600">{{ editForm.errors.attachment }}</small>
+                        <small v-if="editForm.errors.attachment" class="mt-1 block text-xs font-semibold text-rose-600">{{
+                            editForm.errors.attachment
+                        }}</small>
                     </label>
 
                     <div class="flex flex-wrap items-center justify-between gap-3 border-t border-border/80 pt-3">
@@ -1342,9 +1367,7 @@ const filteredUnassigned = computed(() => {
                         <li>Assigned presentation topics, notes, and individual/group scores</li>
                         <li v-if="project.attachment_name">Attached guidelines file: {{ project.attachment_name }}</li>
                     </ul>
-                    <p class="mt-2 font-bold text-rose-700 dark:text-rose-400">
-                        This action cannot be undone.
-                    </p>
+                    <p class="mt-2 font-bold text-rose-700 dark:text-rose-400">This action cannot be undone.</p>
                 </div>
 
                 <div class="mt-6 flex flex-wrap items-center justify-end gap-3 border-t border-border/80 pt-4">

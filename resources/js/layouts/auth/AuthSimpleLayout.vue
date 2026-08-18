@@ -9,9 +9,7 @@ defineProps<{ title?: string; description?: string }>();
     <div class="flex min-h-svh flex-col bg-background p-5 sm:items-center sm:justify-center sm:p-10">
         <div class="mx-auto flex w-full max-w-md flex-1 flex-col justify-center sm:flex-none">
             <Link :href="route('home')" class="mb-8 flex items-center gap-2.5 self-center">
-                <span
-                    class="flex size-10 items-center justify-center rounded-xl bg-card border border-border/80 p-0.5 shadow-sm"
-                >
+                <span class="flex size-10 items-center justify-center rounded-xl border border-border/80 bg-card p-0.5 shadow-sm">
                     <AppLogoIcon class-name="size-8" />
                 </span>
                 <span class="text-lg font-medium tracking-tight text-foreground">ClassCheck</span>

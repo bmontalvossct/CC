@@ -10,7 +10,6 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import {
     AlertCircle,
-    AlertTriangle,
     Armchair,
     CalendarCheck2,
     Check,
@@ -233,12 +232,6 @@ const copyLink = async () => {
         copied.value = false;
     }, 2000);
 };
-const dragStartUnseated = (event: DragEvent, student: any) => {
-    if (event.dataTransfer) {
-        event.dataTransfer.effectAllowed = 'move';
-        event.dataTransfer.setData('text/plain', JSON.stringify({ studentId: student.id }));
-    }
-};
 
 const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number; targetSeatId: number }) => {
     const student = props.section.students.find((s: any) => s.id === studentId);
@@ -286,7 +279,7 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                             <Link
                                 :href="`/sections/${section.id}/attendance`"
                                 prefetch="hover"
-                                class="group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             >
                                 <CalendarCheck2 class="size-4 text-primary transition-colors group-hover:text-white" />
                                 <span>Attendance</span>
@@ -294,7 +287,7 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                             <Link
                                 :href="`/sections/${section.id}/assessments`"
                                 prefetch="hover"
-                                class="group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             >
                                 <ClipboardList class="size-4 text-primary transition-colors group-hover:text-white" />
                                 <span>Scores</span>
@@ -302,7 +295,7 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                             <Link
                                 :href="`/sections/${section.id}/projects`"
                                 prefetch="hover"
-                                class="group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             >
                                 <FolderKanban class="size-4 text-primary transition-colors group-hover:text-white" />
                                 <span>Projects & Groups</span>
@@ -310,7 +303,7 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                             <Link
                                 :href="`/sections/${section.id}/recitation`"
                                 prefetch="hover"
-                                class="group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             >
                                 <MessageSquare class="size-4 text-primary transition-colors group-hover:text-white" />
                                 <span>Oral Participation</span>
@@ -318,7 +311,7 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                             <Link
                                 :href="`/sections/${section.id}/edit`"
                                 prefetch="hover"
-                                class="group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-3 text-sm font-medium text-primary shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-3 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                                 title="Edit section details"
                             >
                                 <Edit3 class="size-4 text-primary transition-colors group-hover:text-white" />
@@ -384,7 +377,7 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
 
                         <!-- Teaching Wall Bar -->
                         <div
-                            class="mb-6 flex items-center justify-center rounded-2xl bg-[#164e3f] py-3.5 px-6 text-center text-xs md:text-sm font-bold uppercase tracking-[0.25em] text-white shadow-xs dark:bg-[#134e48]"
+                            class="shadow-xs mb-6 flex items-center justify-center rounded-2xl bg-[#164e3f] px-6 py-3.5 text-center text-xs font-bold uppercase tracking-[0.25em] text-white dark:bg-[#134e48] md:text-sm"
                         >
                             Teaching Wall / Front Board
                         </div>
@@ -453,7 +446,7 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                             <div class="mt-4 flex flex-col gap-2">
                                 <button
                                     type="button"
-                                    class="group inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-primary bg-white px-3 text-xs font-medium text-primary shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                    class="shadow-xs group inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-primary bg-white px-3 text-xs font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                                     @click="showRosterModal = true"
                                 >
                                     <Users class="size-4 text-primary transition-colors group-hover:text-white" />
@@ -462,7 +455,7 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                                 <div class="grid grid-cols-2 gap-2">
                                     <button
                                         type="button"
-                                        class="group inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-primary bg-white px-3 text-xs font-medium text-primary shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                        class="shadow-xs group inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-primary bg-white px-3 text-xs font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                                         @click="showEnrollModal = true"
                                     >
                                         <UserPlus class="size-3.5 text-primary transition-colors group-hover:text-white" />
@@ -470,7 +463,7 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                                     </button>
                                     <button
                                         type="button"
-                                        class="group inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-primary bg-white px-3 text-xs font-medium text-primary shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                        class="shadow-xs group inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-primary bg-white px-3 text-xs font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                                         @click="showImportModal = true"
                                     >
                                         <Upload class="size-3.5 text-primary transition-colors group-hover:text-white" />
@@ -795,7 +788,7 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                             </div>
                             <a
                                 :href="`/sections/${section.id}/roster/template`"
-                                class="group inline-flex items-center justify-center gap-1.5 rounded-xl border border-primary bg-white px-3.5 py-2 text-xs font-medium text-primary shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                class="shadow-xs group inline-flex items-center justify-center gap-1.5 rounded-xl border border-primary bg-white px-3.5 py-2 text-xs font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             >
                                 <FileDown class="size-3.5 text-primary transition-colors group-hover:text-white" />
                                 <span>Download Template</span>
@@ -908,9 +901,7 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                             type="button"
                             class="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
                             :class="
-                                importActiveTab === 'success'
-                                    ? 'bg-primary text-white'
-                                    : 'text-muted-foreground hover:bg-amber-400 hover:text-white'
+                                importActiveTab === 'success' ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-amber-400 hover:text-white'
                             "
                             @click="importActiveTab = 'success'"
                         >
@@ -921,9 +912,7 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                             type="button"
                             class="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
                             :class="
-                                importActiveTab === 'failed'
-                                    ? 'bg-rose-700 text-white'
-                                    : 'text-muted-foreground hover:bg-amber-400 hover:text-white'
+                                importActiveTab === 'failed' ? 'bg-rose-700 text-white' : 'text-muted-foreground hover:bg-amber-400 hover:text-white'
                             "
                             @click="importActiveTab = 'failed'"
                         >
@@ -969,9 +958,7 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                                         {{ fail.reason }}
                                     </span>
                                 </div>
-                                <p v-if="fail.raw" class="mt-1 font-mono text-[11px] text-muted-foreground truncate">
-                                    Data: {{ fail.raw }}
-                                </p>
+                                <p v-if="fail.raw" class="mt-1 truncate font-mono text-[11px] text-muted-foreground">Data: {{ fail.raw }}</p>
                             </div>
                         </div>
                         <div v-else class="py-8 text-center text-xs text-muted-foreground">
@@ -995,7 +982,7 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                         </button>
                         <button
                             type="button"
-                            class="inline-flex h-9 items-center justify-center rounded-xl border border-primary bg-white px-5 text-xs font-medium text-primary shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            class="shadow-xs inline-flex h-9 items-center justify-center rounded-xl border border-primary bg-white px-5 text-xs font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             @click="showImportResults = false"
                         >
                             <span>Done</span>
@@ -1028,7 +1015,6 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                     <!-- Search Input -->
                     <div class="mt-4">
                         <Input
-                            v-slot="{ value }"
                             v-model="rosterSearchQuery"
                             placeholder="Search students by name or student number..."
                             class="h-10 rounded-xl text-xs"

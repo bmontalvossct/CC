@@ -24,9 +24,7 @@ const seats = [
         <nav class="sticky top-0 z-30 border-b border-border/80 bg-background/80 backdrop-blur-xl">
             <div class="mx-auto flex h-14 max-w-6xl items-center justify-between px-5 lg:px-8">
                 <Link href="/" class="flex items-center gap-2.5" aria-label="ClassCheck home">
-                    <span
-                        class="flex size-9 items-center justify-center rounded-xl bg-card border border-border/80 p-0.5 shadow-sm"
-                    >
+                    <span class="flex size-9 items-center justify-center rounded-xl border border-border/80 bg-card p-0.5 shadow-sm">
                         <AppLogoIcon class-name="size-7" />
                     </span>
                     <span class="text-base font-medium tracking-tight">ClassCheck</span>

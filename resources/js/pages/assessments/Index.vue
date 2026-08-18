@@ -4,12 +4,10 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
     AlertCircle,
-    AlertTriangle,
     BarChart3,
     CalendarDays,
     ClipboardCheck,
     Download,
-    Eye,
     FolderKanban,
     LoaderCircle,
     Paperclip,
@@ -238,20 +236,20 @@ const submitProject = () =>
                         <Link
                             :href="`/sections/${section.id}/reports/gradebook`"
                             prefetch="hover"
-                            class="group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                         >
                             <BarChart3 class="size-4 text-primary transition-colors group-hover:text-white" />
                             <span>Gradebook</span>
                         </Link>
                         <a
                             :href="`/sections/${section.id}/exports/gradebook`"
-                            class="group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                         >
                             <Download class="size-4 text-primary transition-colors group-hover:text-white" />
                             <span>Export CSV</span>
                         </a>
                         <button
-                            class="group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             @click="
                                 creating = true;
                                 creationMode = 'project';
@@ -308,7 +306,10 @@ const submitProject = () =>
 
                 <!-- STANDARD ASSESSMENT FORM -->
                 <form v-if="creationMode === 'assessment'" class="grid gap-5 lg:grid-cols-12" @submit.prevent="submitAssessment">
-                    <div v-if="form.hasErrors" class="rounded-xl border border-rose-200 bg-rose-50/80 p-3.5 text-xs text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-300 lg:col-span-12">
+                    <div
+                        v-if="form.hasErrors"
+                        class="rounded-xl border border-rose-200 bg-rose-50/80 p-3.5 text-xs text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-300 lg:col-span-12"
+                    >
                         <div class="flex items-center gap-2 font-bold">
                             <AlertCircle class="size-4 shrink-0 text-rose-600 dark:text-rose-400" />
                             <span>Unable to create activity. Please check the fields below:</span>
@@ -377,7 +378,9 @@ const submitProject = () =>
                                 {{ session.session_date }} · {{ session.starts_at }}
                             </option>
                         </select>
-                        <small v-if="form.errors.attendance_session_id" class="mt-1 block text-xs text-rose-600">{{ form.errors.attendance_session_id }}</small>
+                        <small v-if="form.errors.attendance_session_id" class="mt-1 block text-xs text-rose-600">{{
+                            form.errors.attendance_session_id
+                        }}</small>
                     </label>
 
                     <label class="lg:col-span-5">
@@ -405,7 +408,9 @@ const submitProject = () =>
                         <span v-if="form.attachment" class="mt-1 block font-mono text-[10px] text-primary">
                             Attached: {{ form.attachment.name }} ({{ (form.attachment.size / 1024 / 1024).toFixed(2) }} MB)
                         </span>
-                        <small v-if="form.errors.attachment" class="mt-1 block text-xs font-semibold text-rose-600">{{ form.errors.attachment }}</small>
+                        <small v-if="form.errors.attachment" class="mt-1 block text-xs font-semibold text-rose-600">{{
+                            form.errors.attachment
+                        }}</small>
                     </label>
 
                     <label class="lg:col-span-9">
@@ -437,7 +442,10 @@ const submitProject = () =>
 
                 <!-- GROUP PROJECT & REPORTING FORM -->
                 <form v-else class="grid gap-5 lg:grid-cols-12" @submit.prevent="submitProject">
-                    <div v-if="projectForm.hasErrors" class="rounded-xl border border-rose-200 bg-rose-50/80 p-3.5 text-xs text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-300 lg:col-span-12">
+                    <div
+                        v-if="projectForm.hasErrors"
+                        class="rounded-xl border border-rose-200 bg-rose-50/80 p-3.5 text-xs text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-300 lg:col-span-12"
+                    >
                         <div class="flex items-center gap-2 font-bold">
                             <AlertCircle class="size-4 shrink-0 text-rose-600 dark:text-rose-400" />
                             <span>Unable to create group project. Please check the fields below:</span>
@@ -488,7 +496,9 @@ const submitProject = () =>
                             placeholder="Instructions, guidelines, or scope details..."
                             class="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs focus-visible:ring-2 focus-visible:ring-primary"
                         />
-                        <small v-if="projectForm.errors.description" class="mt-1 block text-xs text-rose-600">{{ projectForm.errors.description }}</small>
+                        <small v-if="projectForm.errors.description" class="mt-1 block text-xs text-rose-600">{{
+                            projectForm.errors.description
+                        }}</small>
                     </label>
 
                     <label class="lg:col-span-3">
@@ -498,7 +508,9 @@ const submitProject = () =>
                             type="date"
                             class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
                         />
-                        <small v-if="projectForm.errors.conducted_on" class="mt-1 block text-xs text-rose-600">{{ projectForm.errors.conducted_on }}</small>
+                        <small v-if="projectForm.errors.conducted_on" class="mt-1 block text-xs text-rose-600">{{
+                            projectForm.errors.conducted_on
+                        }}</small>
                     </label>
 
                     <label class="lg:col-span-3">
@@ -510,7 +522,9 @@ const submitProject = () =>
                             max="50"
                             class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
                         />
-                        <small v-if="projectForm.errors.group_count" class="mt-1 block text-xs text-rose-600">{{ projectForm.errors.group_count }}</small>
+                        <small v-if="projectForm.errors.group_count" class="mt-1 block text-xs text-rose-600">{{
+                            projectForm.errors.group_count
+                        }}</small>
                     </label>
 
                     <label class="lg:col-span-3">
@@ -524,7 +538,9 @@ const submitProject = () =>
                             placeholder="e.g. 50"
                             class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
                         />
-                        <small v-if="projectForm.errors.max_points" class="mt-1 block text-xs text-rose-600">{{ projectForm.errors.max_points }}</small>
+                        <small v-if="projectForm.errors.max_points" class="mt-1 block text-xs text-rose-600">{{
+                            projectForm.errors.max_points
+                        }}</small>
                     </label>
 
                     <label class="lg:col-span-5">
@@ -552,7 +568,9 @@ const submitProject = () =>
                         <span v-if="projectForm.attachment" class="mt-1 block font-mono text-[10px] text-primary">
                             Attached: {{ projectForm.attachment.name }} ({{ (projectForm.attachment.size / 1024 / 1024).toFixed(2) }} MB)
                         </span>
-                        <small v-if="projectForm.errors.attachment" class="mt-1 block text-xs font-semibold text-rose-600">{{ projectForm.errors.attachment }}</small>
+                        <small v-if="projectForm.errors.attachment" class="mt-1 block text-xs font-semibold text-rose-600">{{
+                            projectForm.errors.attachment
+                        }}</small>
                     </label>
 
                     <div class="flex items-center pt-6 lg:col-span-4">
@@ -624,16 +642,14 @@ const submitProject = () =>
                             <div class="flex items-center justify-between">
                                 <span
                                     class="rounded-md px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider"
-                                    :class="
-                                        item.type === 'project'
-                                            ? 'bg-emerald-800 text-white'
-                                            : 'bg-amber-800 text-white'
-                                    "
+                                    :class="item.type === 'project' ? 'bg-emerald-800 text-white' : 'bg-amber-800 text-white'"
                                 >
                                     {{ item.type === 'project' ? 'Project' : 'Reporting' }}
                                 </span>
                                 <div class="flex items-center gap-2">
-                                    <span v-if="item.max_points" class="font-mono text-xs font-medium text-foreground"> {{ item.max_points }} pts </span>
+                                    <span v-if="item.max_points" class="font-mono text-xs font-medium text-foreground">
+                                        {{ item.max_points }} pts
+                                    </span>
                                     <button
                                         type="button"
                                         class="grid size-7 place-items-center rounded-lg text-muted-foreground/60 transition-colors hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400"
@@ -788,7 +804,8 @@ const submitProject = () =>
                         <span class="eyebrow text-rose-700 dark:text-rose-400">Permanent Deletion</span>
                         <h3 class="mt-1 text-xl font-bold text-foreground">Delete {{ deleteAssessmentTarget.title }}?</h3>
                         <p class="mt-1 text-xs text-muted-foreground">
-                            {{ deleteAssessmentTarget.type.toUpperCase() }} · {{ deleteAssessmentTarget.max_points }} max points · {{ formatDate(deleteAssessmentTarget.conducted_on) }}
+                            {{ deleteAssessmentTarget.type.toUpperCase() }} · {{ deleteAssessmentTarget.max_points }} max points ·
+                            {{ formatDate(deleteAssessmentTarget.conducted_on) }}
                         </p>
                     </div>
                 </div>
@@ -802,13 +819,9 @@ const submitProject = () =>
                         <li>
                             All <strong class="text-foreground">{{ deleteAssessmentTarget.graded_count }} recorded scores</strong> for this item
                         </li>
-                        <li v-if="deleteAssessmentTarget.attachment_name">
-                            Attached file: {{ deleteAssessmentTarget.attachment_name }}
-                        </li>
+                        <li v-if="deleteAssessmentTarget.attachment_name">Attached file: {{ deleteAssessmentTarget.attachment_name }}</li>
                     </ul>
-                    <p class="mt-2 font-bold text-rose-700 dark:text-rose-400">
-                        This action cannot be undone.
-                    </p>
+                    <p class="mt-2 font-bold text-rose-700 dark:text-rose-400">This action cannot be undone.</p>
                 </div>
 
                 <div class="mt-6 flex flex-wrap items-center justify-end gap-3 border-t border-border/80 pt-4">
@@ -866,13 +879,9 @@ const submitProject = () =>
                     <ul class="mt-2 list-disc space-y-1 pl-4 text-muted-foreground">
                         <li>The project configuration and group assignments</li>
                         <li>All assigned group topics, notes, and individual grades</li>
-                        <li v-if="deleteProjectTarget.attachment_name">
-                            Attached guidelines file: {{ deleteProjectTarget.attachment_name }}
-                        </li>
+                        <li v-if="deleteProjectTarget.attachment_name">Attached guidelines file: {{ deleteProjectTarget.attachment_name }}</li>
                     </ul>
-                    <p class="mt-2 font-bold text-rose-700 dark:text-rose-400">
-                        This action cannot be undone.
-                    </p>
+                    <p class="mt-2 font-bold text-rose-700 dark:text-rose-400">This action cannot be undone.</p>
                 </div>
 
                 <div class="mt-6 flex flex-wrap items-center justify-end gap-3 border-t border-border/80 pt-4">

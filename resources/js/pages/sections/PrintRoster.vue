@@ -3,7 +3,7 @@ import { Head, Link } from '@inertiajs/vue3';
 import { ArrowLeft, Printer } from 'lucide-vue-next';
 import { onMounted } from 'vue';
 
-const props = defineProps<{
+defineProps<{
     section: {
         id: number;
         name: string;

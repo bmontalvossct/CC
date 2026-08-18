@@ -28,7 +28,7 @@ type Project = {
     groups: Group[];
 };
 
-const props = defineProps<{
+defineProps<{
     section: { id: number; name: string; subject_code?: string; subject_title: string };
     project: Project;
 }>();

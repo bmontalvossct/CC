@@ -8,21 +8,7 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import {
-    AlertCircle,
-    ArrowRight,
-    Calendar,
-    CalendarCheck2,
-    CalendarDays,
-    CheckCircle2,
-    Clock3,
-    History,
-    Plus,
-    Search,
-    UserCheck,
-    Users,
-    UserX,
-} from 'lucide-vue-next';
+import { ArrowRight, Calendar, CalendarCheck2, CalendarDays, CheckCircle2, Clock3, History, Plus, Search, Users } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
 type Summary = { sessions: number; present: number; absent: number; rate: number | null; attended_hours: number };
@@ -189,7 +175,7 @@ const filteredStudentSummaries = computed(() => {
                     class="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all"
                     :class="
                         currentTab === 'overview'
-                            ? 'bg-primary text-white shadow-xs'
+                            ? 'shadow-xs bg-primary text-white'
                             : 'border border-border bg-white text-foreground hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card'
                     "
                     @click="currentTab = 'overview'"
@@ -203,7 +189,7 @@ const filteredStudentSummaries = computed(() => {
                     class="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all"
                     :class="
                         currentTab === 'calendar'
-                            ? 'bg-primary text-white shadow-xs'
+                            ? 'shadow-xs bg-primary text-white'
                             : 'border border-border bg-white text-foreground hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card'
                     "
                     @click="currentTab = 'calendar'"
@@ -217,7 +203,7 @@ const filteredStudentSummaries = computed(() => {
                     class="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all"
                     :class="
                         currentTab === 'summaries'
-                            ? 'bg-primary text-white shadow-xs'
+                            ? 'shadow-xs bg-primary text-white'
                             : 'border border-border bg-white text-foreground hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card'
                     "
                     @click="currentTab = 'summaries'"
@@ -346,7 +332,9 @@ const filteredStudentSummaries = computed(() => {
                                             {{ session.absent_count }} absent
                                         </span>
                                     </div>
-                                    <ArrowRight class="size-4.5 text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-primary" />
+                                    <ArrowRight
+                                        class="size-4.5 text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-primary"
+                                    />
                                 </div>
                             </Link>
                         </div>
@@ -359,11 +347,7 @@ const filteredStudentSummaries = computed(() => {
 
             <!-- TAB 2: ATTENDANCE CALENDAR -->
             <div v-else-if="currentTab === 'calendar'">
-                <AttendanceCalendar
-                    :section-id="section.id"
-                    :sessions="sessions"
-                    :students="calendarStudents"
-                />
+                <AttendanceCalendar :section-id="section.id" :sessions="sessions" :students="calendarStudents" />
             </div>
 
             <!-- TAB 3: STUDENT CUMULATIVE SUMMARIES WITH DRILLDOWN -->
@@ -385,7 +369,7 @@ const filteredStudentSummaries = computed(() => {
                                     v-model="searchQuery"
                                     type="text"
                                     placeholder="Search by student name or ID..."
-                                    class="w-full rounded-xl border border-input bg-background pl-9 pr-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                    class="w-full rounded-xl border border-input bg-background py-2 pl-9 pr-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                                 />
                             </div>
 
@@ -393,7 +377,9 @@ const filteredStudentSummaries = computed(() => {
                                 <button
                                     type="button"
                                     class="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors"
-                                    :class="filterOption === 'all' ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-amber-400 hover:text-white'"
+                                    :class="
+                                        filterOption === 'all' ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-amber-400 hover:text-white'
+                                    "
                                     @click="filterOption = 'all'"
                                 >
                                     All ({{ studentSummaries.length }})
@@ -470,10 +456,7 @@ const filteredStudentSummaries = computed(() => {
                                             >
                                                 Limit reached (0 left)
                                             </span>
-                                            <span
-                                                v-else-if="student.absent_count === 2"
-                                                class="block text-xs text-amber-700 dark:text-amber-400"
-                                            >
+                                            <span v-else-if="student.absent_count === 2" class="block text-xs text-amber-700 dark:text-amber-400">
                                                 1 absence left
                                             </span>
                                         </div>
@@ -499,10 +482,17 @@ const filteredStudentSummaries = computed(() => {
                                                             : 'text-rose-700 dark:text-rose-400'
                                                 "
                                             >
-                                                {{ (student.grade_rate ?? student.overall.rate) === null ? '—' : `${student.grade_rate ?? student.overall.rate}%` }}
+                                                {{
+                                                    (student.grade_rate ?? student.overall.rate) === null
+                                                        ? '—'
+                                                        : `${student.grade_rate ?? student.overall.rate}%`
+                                                }}
                                             </span>
                                             <span class="block text-xs text-muted-foreground">
-                                                {{ student.earned_points ?? student.present_count }}/{{ student.possible_points ?? student.overall.sessions }} pts
+                                                {{ student.earned_points ?? student.present_count }}/{{
+                                                    student.possible_points ?? student.overall.sessions
+                                                }}
+                                                pts
                                             </span>
                                         </div>
                                     </td>
@@ -534,11 +524,7 @@ const filteredStudentSummaries = computed(() => {
             </div>
 
             <!-- Student Attendance Modal Drilldown -->
-            <StudentAttendanceModal
-                :student="selectedStudent"
-                :open="isModalOpen"
-                @close="closeStudentModal"
-            />
+            <StudentAttendanceModal :student="selectedStudent" :open="isModalOpen" @close="closeStudentModal" />
         </main>
     </AppLayout>
 </template>

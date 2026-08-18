@@ -58,17 +58,11 @@ const variantClasses = computed(() => {
 </script>
 
 <template>
-    <BlinkingMascotLoader
-        v-if="useMascot"
-        :size="size"
-        :label="label"
-        :overlay="overlay"
-        :show-label="showLabel"
-    />
+    <BlinkingMascotLoader v-if="useMascot" :size="size" :label="label" :overlay="overlay" :show-label="showLabel" />
 
     <div
         v-else-if="overlay"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-background/70 backdrop-blur-xs"
+        class="backdrop-blur-xs fixed inset-0 z-50 flex items-center justify-center bg-background/70"
         role="status"
         aria-live="polite"
     >
@@ -80,14 +74,7 @@ const variantClasses = computed(() => {
                 viewBox="0 0 24 24"
                 aria-hidden="true"
             >
-                <circle
-                    class="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    stroke-width="3"
-                />
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" />
                 <path
                     class="opacity-75"
                     fill="currentColor"
@@ -98,12 +85,7 @@ const variantClasses = computed(() => {
         </div>
     </div>
 
-    <div
-        v-else
-        class="inline-flex items-center gap-2"
-        role="status"
-        aria-live="polite"
-    >
+    <div v-else class="inline-flex items-center gap-2" role="status" aria-live="polite">
         <svg
             :class="[sizeClasses, variantClasses, 'animate-spin']"
             xmlns="http://www.w3.org/2000/svg"
@@ -111,14 +93,7 @@ const variantClasses = computed(() => {
             viewBox="0 0 24 24"
             aria-hidden="true"
         >
-            <circle
-                class="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="3"
-            />
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" />
             <path
                 class="opacity-75"
                 fill="currentColor"

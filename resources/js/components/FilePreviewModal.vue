@@ -1,16 +1,6 @@
 <script setup lang="ts">
+import { Download, ExternalLink, FileSpreadsheet, FileText, FileType2, FolderArchive, Image as ImageIcon, Presentation, X } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted } from 'vue';
-import {
-    Download,
-    ExternalLink,
-    FileSpreadsheet,
-    FileText,
-    FileType2,
-    FolderArchive,
-    Image as ImageIcon,
-    Presentation,
-    X,
-} from 'lucide-vue-next';
 
 const props = defineProps<{
     show: boolean;
@@ -69,10 +59,6 @@ const categoryLabel = computed(() => {
     }
 });
 
-const isPreviewableInline = computed(() => {
-    return ['pdf', 'image', 'text'].includes(fileCategory.value);
-});
-
 // Keyboard close handler
 const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Escape' && props.show) {
@@ -117,7 +103,9 @@ onUnmounted(() => {
                             <h3 class="truncate text-sm font-bold text-foreground sm:text-base">
                                 {{ fileName || title || 'Attached Reference' }}
                             </h3>
-                            <span class="hidden rounded-md bg-secondary px-2 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground sm:inline-block">
+                            <span
+                                class="hidden rounded-md bg-secondary px-2 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground sm:inline-block"
+                            >
                                 {{ categoryLabel }}
                             </span>
                         </div>
@@ -164,23 +152,15 @@ onUnmounted(() => {
             <div class="flex-1 overflow-auto bg-muted/20 p-3 sm:p-5">
                 <!-- PDF Viewer -->
                 <div v-if="fileCategory === 'pdf'" class="h-[68vh] w-full sm:h-[72vh]">
-                    <iframe
-                        :src="fileUrl"
-                        class="size-full rounded-xl border border-border/80 bg-white shadow-inner"
-                        title="PDF Viewer"
-                    />
+                    <iframe :src="fileUrl" class="size-full rounded-xl border border-border/80 bg-white shadow-inner" title="PDF Viewer" />
                 </div>
 
                 <!-- Image Viewer -->
                 <div
                     v-else-if="fileCategory === 'image'"
-                    class="flex min-h-[50vh] max-h-[72vh] items-center justify-center overflow-auto rounded-xl border border-border/60 bg-black/5 p-4 dark:bg-black/30"
+                    class="flex max-h-[72vh] min-h-[50vh] items-center justify-center overflow-auto rounded-xl border border-border/60 bg-black/5 p-4 dark:bg-black/30"
                 >
-                    <img
-                        :src="fileUrl"
-                        :alt="fileName || 'Attached Image'"
-                        class="max-h-[66vh] max-w-full rounded-lg object-contain shadow-md"
-                    />
+                    <img :src="fileUrl" :alt="fileName || 'Attached Image'" class="max-h-[66vh] max-w-full rounded-lg object-contain shadow-md" />
                 </div>
 
                 <!-- Text / CSV Viewer -->
@@ -213,11 +193,7 @@ onUnmounted(() => {
                     </p>
 
                     <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
-                        <a
-                            :href="effectiveDownloadUrl"
-                            download
-                            class="ink-button !h-10 !rounded-xl !px-6 text-xs font-bold"
-                        >
+                        <a :href="effectiveDownloadUrl" download class="ink-button !h-10 !rounded-xl !px-6 text-xs font-bold">
                             <Download class="size-4" />
                             <span>Download {{ fileName }}</span>
                         </a>

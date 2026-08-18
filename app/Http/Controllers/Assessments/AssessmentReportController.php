@@ -286,4 +286,3 @@ class AssessmentReportController extends AssessmentModuleController
         return [$assessments, $students, $scores, $projects, $attendanceSessions, $recitations];
     }
 }
-

@@ -10,14 +10,12 @@ import {
     ClipboardList,
     FolderKanban,
     GraduationCap,
-    LayoutDashboard,
     MessageSquare,
-    School,
     Settings,
 } from 'lucide-vue-next';
 import { computed, onMounted, ref, watch } from 'vue';
 
-const props = defineProps<{ items: NavItem[] }>();
+defineProps<{ items: NavItem[] }>();
 const page = usePage<SharedData>();
 
 // Stored active section state
@@ -214,7 +212,7 @@ const selectSection = (sec: UserSectionItem) => {
                     <SidebarMenuButton
                         as-child
                         :is-active="page.url === item.href || (item.href === '/sections' && page.url === '/sections')"
-                        class="h-10 rounded-xl px-3.5 font-medium text-sidebar-foreground/80 transition-all duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground data-[active=true]:bg-primary data-[active=true]:text-white data-[active=true]:shadow-xs [&[data-active=true]_svg]:text-white"
+                        class="data-[active=true]:shadow-xs h-10 rounded-xl px-3.5 font-medium text-sidebar-foreground/80 transition-all duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground data-[active=true]:bg-primary data-[active=true]:text-white [&[data-active=true]_svg]:text-white"
                     >
                         <Link :href="item.href" prefetch="hover" class="flex items-center gap-3">
                             <component :is="item.icon" class="size-4 shrink-0 transition-transform group-hover:scale-110" />
@@ -231,7 +229,7 @@ const selectSection = (sec: UserSectionItem) => {
                 <div class="flex flex-col">
                     <span class="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Active Section</span>
                     <span class="truncate text-xs font-medium text-foreground" :title="activeSection.name">
-                        <span v-if="activeSection.subject_code" class="mr-1 inline-block rounded bg-primary px-1.5 py-0.2 text-[10px] text-white">
+                        <span v-if="activeSection.subject_code" class="py-0.2 mr-1 inline-block rounded bg-primary px-1.5 text-[10px] text-white">
                             {{ activeSection.subject_code }}
                         </span>
                         {{ activeSection.name }}
@@ -276,7 +274,7 @@ const selectSection = (sec: UserSectionItem) => {
                     <SidebarMenuButton
                         as-child
                         :is-active="isSubNavActive(nav.href, nav.exact)"
-                        class="h-9 rounded-xl px-3 text-xs font-medium text-sidebar-foreground/80 transition-all duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground data-[active=true]:bg-primary data-[active=true]:text-white data-[active=true]:shadow-xs [&[data-active=true]_svg]:text-white"
+                        class="data-[active=true]:shadow-xs h-9 rounded-xl px-3 text-xs font-medium text-sidebar-foreground/80 transition-all duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground data-[active=true]:bg-primary data-[active=true]:text-white [&[data-active=true]_svg]:text-white"
                     >
                         <Link :href="nav.href" prefetch="hover" class="flex items-center gap-2.5">
                             <component :is="nav.icon" class="size-3.5 shrink-0" />
@@ -303,7 +301,10 @@ const selectSection = (sec: UserSectionItem) => {
                                 <GraduationCap class="size-3.5 shrink-0 text-primary" />
                                 <span class="truncate">{{ sec.name }}</span>
                             </div>
-                            <span v-if="sec.subject_code" class="rounded bg-primary px-1.5 py-0.5 font-mono text-[9px] font-medium text-white shadow-xs">
+                            <span
+                                v-if="sec.subject_code"
+                                class="shadow-xs rounded bg-primary px-1.5 py-0.5 font-mono text-[9px] font-medium text-white"
+                            >
                                 {{ sec.subject_code }}
                             </span>
                         </Link>

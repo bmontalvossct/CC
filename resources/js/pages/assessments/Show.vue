@@ -3,13 +3,9 @@ import FilePreviewModal from '@/components/FilePreviewModal.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
-    AlertCircle,
     ArrowLeft,
-    Check,
     CheckCircle2,
     Download,
-    Eye,
-    FileText,
     Keyboard,
     LoaderCircle,
     Paperclip,
@@ -22,7 +18,7 @@ import {
     UserX,
     X,
 } from 'lucide-vue-next';
-import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 
 type Student = {
     id: number;
@@ -142,10 +138,6 @@ const hasUnsavedChanges = computed(() => {
 
 const unsavedCount = computed(() => {
     return props.students.filter((s) => isUnsaved(s.id)).length;
-});
-
-const hasAnyInvalidScore = computed(() => {
-    return props.students.some((s) => hasInvalidScore(s.id));
 });
 
 const eligible = computed(() => props.students.filter((student) => !student.is_absent || includeAbsent.value));
@@ -311,7 +303,7 @@ onUnmounted(() => {
                             <span class="badge-muted">{{ formatDate(assessment.conducted_on) }}</span>
                             <span class="badge-muted font-mono font-medium">{{ assessment.max_points }} max points</span>
                         </div>
-                        <h1 class="mt-3 text-3xl font-bold tracking-tight sm:text-4xl text-foreground">{{ assessment.title }}</h1>
+                        <h1 class="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">{{ assessment.title }}</h1>
                         <p v-if="assessment.description" class="mt-2 max-w-2xl text-sm text-muted-foreground">
                             {{ assessment.description }}
                         </p>
@@ -327,7 +319,9 @@ onUnmounted(() => {
                         >
                             <LoaderCircle v-if="isSaving" class="size-4 animate-spin" />
                             <Save v-else class="size-4" />
-                            <span>{{ isSaving ? 'Saving all scores…' : hasUnsavedChanges ? `Save All Scores (${unsavedCount})` : 'Save All Scores' }}</span>
+                            <span>{{
+                                isSaving ? 'Saving all scores…' : hasUnsavedChanges ? `Save All Scores (${unsavedCount})` : 'Save All Scores'
+                            }}</span>
                         </button>
 
                         <button
@@ -452,7 +446,10 @@ onUnmounted(() => {
                         <h2 class="text-xl font-bold text-foreground">Score Entry Table</h2>
                         <p class="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
                             <Keyboard class="size-3.5 text-primary" />
-                            <span>Type a score and press <strong>Tab</strong> or <strong>Enter</strong> to quickly advance down the list. Click <strong>Save All Scores</strong> when finished (or press Ctrl+S).</span>
+                            <span
+                                >Type a score and press <strong>Tab</strong> or <strong>Enter</strong> to quickly advance down the list. Click
+                                <strong>Save All Scores</strong> when finished (or press Ctrl+S).</span
+                            >
                         </p>
                     </div>
 
@@ -464,12 +461,7 @@ onUnmounted(() => {
                             <span>Allow scoring absent students</span>
                         </label>
 
-                        <button
-                            type="button"
-                            :disabled="isSaving"
-                            class="ink-button !h-9 !rounded-xl !px-4 text-xs font-bold"
-                            @click="saveAll"
-                        >
+                        <button type="button" :disabled="isSaving" class="ink-button !h-9 !rounded-xl !px-4 text-xs font-bold" @click="saveAll">
                             <LoaderCircle v-if="isSaving" class="size-3.5 animate-spin" />
                             <Save v-else class="size-3.5" />
                             <span>Save All Scores</span>
@@ -496,11 +488,7 @@ onUnmounted(() => {
                                 class="transition-colors hover:bg-secondary/30"
                                 :class="[
                                     student.is_absent && !includeAbsent ? 'bg-muted/20 opacity-60' : '',
-                                    hasInvalidScore(student.id)
-                                        ? 'bg-rose-500/5'
-                                        : isUnsaved(student.id)
-                                          ? 'bg-primary/5'
-                                          : ''
+                                    hasInvalidScore(student.id) ? 'bg-rose-500/5' : isUnsaved(student.id) ? 'bg-primary/5' : '',
                                 ]"
                             >
                                 <td class="px-4 py-3">
@@ -550,23 +538,29 @@ onUnmounted(() => {
                                             class="w-full rounded-xl border px-3 py-1.5 font-mono text-base font-bold tabular-nums transition-all focus:outline-none disabled:cursor-not-allowed disabled:bg-muted/40"
                                             :class="[
                                                 hasInvalidScore(student.id)
-                                                    ? '!border-rose-500 !ring-2 !ring-rose-500 !bg-rose-500/10 !text-rose-600 dark:!text-rose-400'
+                                                    ? '!border-rose-500 !bg-rose-500/10 !text-rose-600 !ring-2 !ring-rose-500 dark:!text-rose-400'
                                                     : isUnsaved(student.id)
-                                                      ? 'border-primary ring-1 ring-primary/40 bg-primary/5 text-foreground focus:ring-2 focus:ring-primary'
-                                                      : 'border-input bg-background text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20'
+                                                      ? 'border-primary bg-primary/5 text-foreground ring-1 ring-primary/40 focus:ring-2 focus:ring-primary'
+                                                      : 'border-input bg-background text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20',
                                             ]"
                                             :aria-label="`Score for ${student.full_name}`"
                                             @focus="($event.target as HTMLInputElement)?.select()"
                                             @keydown="handleKey($event, student)"
                                         />
                                     </div>
-                                    <p v-if="hasInvalidScore(student.id)" class="mt-1 flex items-center gap-1 text-[11px] font-bold text-rose-600 dark:text-rose-400">
+                                    <p
+                                        v-if="hasInvalidScore(student.id)"
+                                        class="mt-1 flex items-center gap-1 text-[11px] font-bold text-rose-600 dark:text-rose-400"
+                                    >
                                         <TriangleAlert class="size-3.5 shrink-0" />
                                         <span>{{ getScoreError(student.id) }}</span>
                                     </p>
                                 </td>
                                 <td class="px-4 py-3 text-xs font-medium">
-                                    <div v-if="hasInvalidScore(student.id)" class="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 font-mono text-xs font-bold text-rose-600 dark:text-rose-400">
+                                    <div
+                                        v-if="hasInvalidScore(student.id)"
+                                        class="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 font-mono text-xs font-bold text-rose-600 dark:text-rose-400"
+                                    >
                                         <TriangleAlert class="size-3" />
                                         <span>Error</span>
                                     </div>
@@ -590,19 +584,10 @@ onUnmounted(() => {
                                         >
                                             ● Unsaved
                                         </span>
-                                        <span
-                                            v-else
-                                            class="font-mono text-[10px] font-medium text-muted-foreground"
-                                        >
-                                            Saved
-                                        </span>
+                                        <span v-else class="font-mono text-[10px] font-medium text-muted-foreground"> Saved </span>
                                     </div>
-                                    <div v-else-if="student.is_absent" class="italic text-muted-foreground">
-                                        Absent (Skipped)
-                                    </div>
-                                    <div v-else class="text-muted-foreground">
-                                        Not recorded
-                                    </div>
+                                    <div v-else-if="student.is_absent" class="italic text-muted-foreground">Absent (Skipped)</div>
+                                    <div v-else class="text-muted-foreground">Not recorded</div>
                                 </td>
                             </tr>
                         </tbody>
@@ -615,9 +600,7 @@ onUnmounted(() => {
                         <span v-if="hasUnsavedChanges" class="font-semibold text-amber-600 dark:text-amber-400">
                             {{ unsavedCount }} student score{{ unsavedCount !== 1 ? 's' : '' }} modified
                         </span>
-                        <span v-else class="text-muted-foreground">
-                            All scores are up to date with the database.
-                        </span>
+                        <span v-else class="text-muted-foreground"> All scores are up to date with the database. </span>
                     </div>
 
                     <div class="flex items-center gap-3">
@@ -631,12 +614,7 @@ onUnmounted(() => {
                             <span>Discard changes</span>
                         </button>
 
-                        <button
-                            type="button"
-                            :disabled="isSaving"
-                            class="ink-button !h-9 !rounded-xl !px-5 text-xs font-bold"
-                            @click="saveAll"
-                        >
+                        <button type="button" :disabled="isSaving" class="ink-button !h-9 !rounded-xl !px-5 text-xs font-bold" @click="saveAll">
                             <LoaderCircle v-if="isSaving" class="size-3.5 animate-spin" />
                             <Save v-else class="size-3.5" />
                             <span>{{ isSaving ? 'Saving…' : 'Save All Scores' }}</span>
@@ -659,17 +637,12 @@ onUnmounted(() => {
                 v-if="hasUnsavedChanges"
                 class="fixed bottom-6 right-6 z-40 flex items-center gap-3 rounded-2xl border border-border/90 bg-card/95 p-3 shadow-2xl backdrop-blur-md"
             >
-                <div class="hidden sm:block pl-2 text-xs">
+                <div class="hidden pl-2 text-xs sm:block">
                     <p class="font-bold text-foreground">{{ unsavedCount }} unsaved score{{ unsavedCount !== 1 ? 's' : '' }}</p>
                     <p class="text-[10px] text-muted-foreground">Press Ctrl+S to save anytime</p>
                 </div>
 
-                <button
-                    type="button"
-                    :disabled="isSaving"
-                    class="ink-button !h-10 !rounded-xl !px-5 text-xs font-bold shadow-lg"
-                    @click="saveAll"
-                >
+                <button type="button" :disabled="isSaving" class="ink-button !h-10 !rounded-xl !px-5 text-xs font-bold shadow-lg" @click="saveAll">
                     <LoaderCircle v-if="isSaving" class="size-4 animate-spin" />
                     <Save v-else class="size-4" />
                     <span>{{ isSaving ? 'Saving…' : 'Save All Scores' }}</span>
@@ -862,9 +835,7 @@ onUnmounted(() => {
                         </li>
                         <li v-if="assessment.attachment_name">Attached reference file: {{ assessment.attachment_name }}</li>
                     </ul>
-                    <p class="mt-2 font-bold text-rose-700 dark:text-rose-400">
-                        This action cannot be undone.
-                    </p>
+                    <p class="mt-2 font-bold text-rose-700 dark:text-rose-400">This action cannot be undone.</p>
                 </div>
 
                 <div class="mt-6 flex flex-wrap items-center justify-end gap-3 border-t border-border/80 pt-4">

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
 import { Link } from '@inertiajs/vue3';
-import { ArrowRight, Calendar, ChevronLeft, ChevronRight, Clock, UserCheck, UserMinus, UserX } from 'lucide-vue-next';
+import { ArrowRight, Calendar, ChevronLeft, ChevronRight, Clock, UserCheck, UserX } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
 type Student = {
@@ -246,14 +246,7 @@ const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
                         Today
                     </Button>
                     <div class="flex items-center gap-1">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            class="size-8 rounded-lg"
-                            title="Previous month"
-                            @click="prevMonth"
-                        >
+                        <Button type="button" variant="outline" size="icon" class="size-8 rounded-lg" title="Previous month" @click="prevMonth">
                             <ChevronLeft class="size-4" />
                         </Button>
                         <Button type="button" variant="outline" size="icon" class="size-8 rounded-lg" title="Next month" @click="nextMonth">
@@ -279,7 +272,7 @@ const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
                     class="group relative flex min-h-[5rem] flex-col justify-between rounded-xl border p-1.5 text-left transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     :class="[
                         selectedDate === cell.dateString
-                            ? 'border-primary ring-2 ring-primary/40 bg-primary/5'
+                            ? 'border-primary bg-primary/5 ring-2 ring-primary/40'
                             : cell.isCurrentMonth
                               ? 'border-border/70 bg-card hover:bg-secondary/40'
                               : 'border-transparent bg-muted/20 opacity-40 hover:opacity-70',
@@ -308,16 +301,10 @@ const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
                             v-for="s in cell.sessions.slice(0, 1)"
                             :key="s.id"
                             class="flex items-center justify-between rounded px-1.5 py-0.5 text-[11px] font-medium"
-                            :class="
-                                s.absent_count > 0
-                                    ? 'bg-primary text-white'
-                                    : 'bg-emerald-800 text-white'
-                            "
+                            :class="s.absent_count > 0 ? 'bg-primary text-white' : 'bg-emerald-800 text-white'"
                         >
                             <span class="truncate">{{ s.present_count }} pres</span>
-                            <span v-if="s.absent_count > 0" class="rounded bg-rose-700 px-1 text-[10px] text-white">
-                                {{ s.absent_count }} abs
-                            </span>
+                            <span v-if="s.absent_count > 0" class="rounded bg-rose-700 px-1 text-[10px] text-white"> {{ s.absent_count }} abs </span>
                         </div>
                         <div v-if="cell.sessions.length > 1" class="text-right text-[10px] font-medium text-muted-foreground">
                             +{{ cell.sessions.length - 1 }} more
@@ -346,7 +333,7 @@ const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
                         class="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors"
                         :class="
                             currentSessionForDate?.id === sess.id
-                                ? 'bg-primary text-white shadow-xs'
+                                ? 'shadow-xs bg-primary text-white'
                                 : 'border border-border bg-white text-foreground hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card'
                         "
                         @click="activeSelectedSession = sess"
@@ -360,7 +347,12 @@ const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-2 text-sm text-muted-foreground">
                             <Clock class="size-4" />
-                            <span>{{ currentSessionForDate.starts_at }} – {{ currentSessionForDate.ends_at }} ({{ currentSessionForDate.duration_minutes }} mins)</span>
+                            <span
+                                >{{ currentSessionForDate.starts_at }} – {{ currentSessionForDate.ends_at }} ({{
+                                    currentSessionForDate.duration_minutes
+                                }}
+                                mins)</span
+                            >
                         </div>
                         <Link
                             :href="`/attendance/${currentSessionForDate.id}`"
@@ -380,7 +372,10 @@ const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
                         <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-700 px-3 py-1 text-xs font-medium text-white shadow-sm">
                             <UserCheck class="size-3.5" /> {{ sessionStudentsBreakdown.present.length }} Present
                         </span>
-                        <span v-if="sessionStudentsBreakdown.late.length > 0" class="inline-flex items-center gap-1.5 rounded-full bg-amber-700 px-3 py-1 text-xs font-medium text-white shadow-sm">
+                        <span
+                            v-if="sessionStudentsBreakdown.late.length > 0"
+                            class="inline-flex items-center gap-1.5 rounded-full bg-amber-700 px-3 py-1 text-xs font-medium text-white shadow-sm"
+                        >
                             <Clock class="size-3.5" /> {{ sessionStudentsBreakdown.late.length }} Late
                         </span>
                         <span class="inline-flex items-center gap-1.5 rounded-full bg-rose-700 px-3 py-1 text-xs font-medium text-white shadow-sm">
@@ -397,7 +392,11 @@ const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
                         </span>
                     </div>
                     <ul v-if="sessionStudentsBreakdown.absent.length > 0" class="mt-2 max-h-48 divide-y divide-border/60 overflow-y-auto pr-1">
-                        <li v-for="student in sessionStudentsBreakdown.absent" :key="student.id" class="flex items-center justify-between py-2 text-sm">
+                        <li
+                            v-for="student in sessionStudentsBreakdown.absent"
+                            :key="student.id"
+                            class="flex items-center justify-between py-2 text-sm"
+                        >
                             <span class="truncate font-medium text-foreground">{{ student.name }}</span>
                             <span class="rounded bg-rose-700 px-2 py-0.5 font-mono text-xs text-white">
                                 {{ student.student_number }}
@@ -432,7 +431,11 @@ const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
                         </span>
                     </div>
                     <ul v-if="sessionStudentsBreakdown.present.length > 0" class="mt-2 max-h-48 divide-y divide-border/60 overflow-y-auto pr-1">
-                        <li v-for="student in sessionStudentsBreakdown.present" :key="student.id" class="flex items-center justify-between py-2 text-sm">
+                        <li
+                            v-for="student in sessionStudentsBreakdown.present"
+                            :key="student.id"
+                            class="flex items-center justify-between py-2 text-sm"
+                        >
                             <span class="truncate font-medium text-foreground">{{ student.name }}</span>
                             <span class="rounded bg-emerald-700 px-2 py-0.5 font-mono text-xs text-white">
                                 {{ student.student_number }}

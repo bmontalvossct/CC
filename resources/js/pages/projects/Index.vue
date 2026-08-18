@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { AlertTriangle, ArrowLeft, CalendarDays, FolderKanban, LoaderCircle, Plus, Trash2, Users } from 'lucide-vue-next';
+import { ArrowLeft, CalendarDays, FolderKanban, LoaderCircle, Plus, Trash2, Users } from 'lucide-vue-next';
 import { ref } from 'vue';
 
 type Project = {
@@ -226,11 +226,7 @@ const submit = () => {
                         <div class="flex items-center justify-between">
                             <span
                                 class="rounded-md px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider"
-                                :class="
-                                    item.type === 'project'
-                                        ? 'bg-emerald-800 text-white'
-                                        : 'bg-amber-800 text-white'
-                                "
+                                :class="item.type === 'project' ? 'bg-emerald-800 text-white' : 'bg-amber-800 text-white'"
                             >
                                 {{ item.type === 'project' ? 'Project' : 'Reporting' }}
                             </span>
@@ -319,9 +315,7 @@ const submit = () => {
                         <li>The project configuration and all {{ deleteProjectTarget.groups_count }} group assignments</li>
                         <li>Assigned group topics, notes, and all recorded member grades</li>
                     </ul>
-                    <p class="mt-2 font-bold text-rose-700 dark:text-rose-400">
-                        This action cannot be undone.
-                    </p>
+                    <p class="mt-2 font-bold text-rose-700 dark:text-rose-400">This action cannot be undone.</p>
                 </div>
 
                 <div class="mt-6 flex flex-wrap items-center justify-end gap-3 border-t border-border/80 pt-4">

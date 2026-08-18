@@ -1,29 +1,7 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import {
-    AlertCircle,
-    Armchair,
-    ArrowLeft,
-    Calendar,
-    Check,
-    CheckCircle2,
-    Edit2,
-    History,
-    MessageSquare,
-    Mic,
-    Plus,
-    Save,
-    Sliders,
-    Sparkles,
-    Star,
-    Trash2,
-    Trophy,
-    UserCheck,
-    UserPlus,
-    Users,
-    X,
-} from 'lucide-vue-next';
+import { AlertCircle, Armchair, ArrowLeft, Calendar, Edit2, History, Mic, Plus, Save, Trash2, Trophy, X } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
 interface RecitationLog {
@@ -395,7 +373,7 @@ const ratingLabel = (val: number) => {
 
                     <!-- Teaching Wall Bar -->
                     <div
-                        class="mb-6 flex items-center justify-center rounded-2xl bg-[#164e3f] py-3.5 px-6 text-center text-xs md:text-sm font-bold uppercase tracking-[0.25em] text-white shadow-xs dark:bg-[#134e48]"
+                        class="shadow-xs mb-6 flex items-center justify-center rounded-2xl bg-[#164e3f] px-6 py-3.5 text-center text-xs font-bold uppercase tracking-[0.25em] text-white dark:bg-[#134e48] md:text-sm"
                     >
                         Teaching Wall / Front Board
                     </div>
@@ -405,8 +383,13 @@ const ratingLabel = (val: number) => {
                         <div class="inline-block min-w-full">
                             <div v-for="(row, ri) in blockGrid" :key="ri" class="flex gap-6">
                                 <template v-for="(block, ci) in row" :key="`${ri}-${ci}`">
-                                    <div v-if="block" class="mb-4 rounded-2xl border border-border/80 bg-card p-5 shadow-xs">
-                                        <p v-if="block.label && block.label !== 'Classroom'" class="mb-3 text-center text-xs font-bold uppercase tracking-wider text-muted-foreground">{{ block.label }}</p>
+                                    <div v-if="block" class="shadow-xs mb-4 rounded-2xl border border-border/80 bg-card p-5">
+                                        <p
+                                            v-if="block.label && block.label !== 'Classroom'"
+                                            class="mb-3 text-center text-xs font-bold uppercase tracking-wider text-muted-foreground"
+                                        >
+                                            {{ block.label }}
+                                        </p>
                                         <div
                                             class="grid gap-3"
                                             :style="{
@@ -416,20 +399,20 @@ const ratingLabel = (val: number) => {
                                             <template v-for="seat in block.seats" :key="seat.id">
                                                 <div
                                                     v-if="!seat.is_disabled && seat.student_id"
-                                                    class="group relative flex min-h-[7rem] sm:min-h-[7.5rem] flex-col items-center justify-center rounded-2xl border p-2.5 text-center transition-all duration-150"
+                                                    class="group relative flex min-h-[7rem] flex-col items-center justify-center rounded-2xl border p-2.5 text-center transition-all duration-150 sm:min-h-[7.5rem]"
                                                     :class="[
                                                         studentMap.get(Number(seat.student_id))?.called_today
                                                             ? 'border-emerald-400/80 bg-[#164e3f] text-white shadow-md ring-2 ring-emerald-400 ring-offset-2 hover:brightness-105 dark:bg-[#134e48]'
-                                                            : 'border-[#1b5d4e]/80 bg-[#164e3f] text-white shadow-xs hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-[#134e48]',
+                                                            : 'shadow-xs border-[#1b5d4e]/80 bg-[#164e3f] text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-[#134e48]',
                                                     ]"
                                                 >
                                                     <!-- Quick Actions on Hover / Top Bar -->
-                                                    <div class="absolute right-1.5 top-1.5 flex items-center gap-1 z-20">
+                                                    <div class="absolute right-1.5 top-1.5 z-20 flex items-center gap-1">
                                                         <button
                                                             v-if="studentMap.get(Number(seat.student_id))"
                                                             type="button"
                                                             title="View recitation logs"
-                                                            class="grid size-5 place-items-center rounded-md bg-black/30 text-white/80 hover:bg-black/60 hover:text-white transition-colors"
+                                                            class="grid size-5 place-items-center rounded-md bg-black/30 text-white/80 transition-colors hover:bg-black/60 hover:text-white"
                                                             @click.stop="openStudentLogs(studentMap.get(Number(seat.student_id))!)"
                                                         >
                                                             <History class="size-3" />
@@ -439,38 +422,43 @@ const ratingLabel = (val: number) => {
                                                     <!-- Main Card Clickable to Score -->
                                                     <button
                                                         type="button"
-                                                        class="flex w-full flex-col items-center justify-center cursor-pointer focus:outline-none"
-                                                        @click="studentMap.get(Number(seat.student_id)) && openScoring(studentMap.get(Number(seat.student_id))!)"
+                                                        class="flex w-full cursor-pointer flex-col items-center justify-center focus:outline-none"
+                                                        @click="
+                                                            studentMap.get(Number(seat.student_id)) &&
+                                                            openScoring(studentMap.get(Number(seat.student_id))!)
+                                                        "
                                                     >
                                                         <!-- Enlarged Photo / Avatar -->
                                                         <div
-                                                            class="flex size-9 sm:size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/20 ring-2 ring-white/25 shadow-xs"
+                                                            class="shadow-xs flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/20 ring-2 ring-white/25 sm:size-10"
                                                         >
-                                                            <span class="text-xs sm:text-sm font-black uppercase text-white tracking-wider">
+                                                            <span class="text-xs font-black uppercase tracking-wider text-white sm:text-sm">
                                                                 {{ initials(studentMap.get(Number(seat.student_id))?.full_name) }}
                                                             </span>
                                                         </div>
 
                                                         <!-- Complete Name -->
                                                         <span
-                                                            class="mt-1.5 block w-full max-w-[7.25rem] truncate text-center text-[11px] sm:text-xs font-bold uppercase leading-tight tracking-tight text-white"
+                                                            class="mt-1.5 block w-full max-w-[7.25rem] truncate text-center text-[11px] font-bold uppercase leading-tight tracking-tight text-white sm:text-xs"
                                                             :title="studentMap.get(Number(seat.student_id))?.full_name || '—'"
                                                         >
                                                             {{ studentMap.get(Number(seat.student_id))?.full_name || '—' }}
                                                         </span>
 
                                                         <!-- Seat Label & Recitation Status -->
-                                                        <div class="mt-0.5 flex items-center justify-center gap-1 font-mono text-[9px] sm:text-[10px] font-medium leading-none text-white/70 tracking-wider uppercase">
+                                                        <div
+                                                            class="mt-0.5 flex items-center justify-center gap-1 font-mono text-[9px] font-medium uppercase leading-none tracking-wider text-white/70 sm:text-[10px]"
+                                                        >
                                                             <span>{{ seat.label }}</span>
                                                             <span
                                                                 v-if="studentMap.get(Number(seat.student_id))?.today_recitation"
-                                                                class="text-emerald-300 font-bold"
+                                                                class="font-bold text-emerald-300"
                                                             >
                                                                 · {{ studentMap.get(Number(seat.student_id))!.today_recitation!.score }}/10
                                                             </span>
                                                             <span
                                                                 v-else-if="studentMap.get(Number(seat.student_id))?.called_today"
-                                                                class="text-emerald-300 font-bold"
+                                                                class="font-bold text-emerald-300"
                                                             >
                                                                 · Scored
                                                             </span>
@@ -479,10 +467,13 @@ const ratingLabel = (val: number) => {
                                                 </div>
                                                 <div
                                                     v-else-if="!seat.is_disabled"
-                                                    class="flex min-h-[7rem] sm:min-h-[7.5rem] flex-col items-center justify-center rounded-2xl border-2 border-slate-200/90 bg-card p-3 text-center text-muted-foreground dark:border-border/80"
+                                                    class="flex min-h-[7rem] flex-col items-center justify-center rounded-2xl border-2 border-slate-200/90 bg-card p-3 text-center text-muted-foreground dark:border-border/80 sm:min-h-[7.5rem]"
                                                 >
                                                     <Armchair class="size-6 text-slate-400 dark:text-muted-foreground/60" />
-                                                    <span class="mt-2 font-mono text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-muted-foreground">{{ seat.label }}</span>
+                                                    <span
+                                                        class="mt-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-muted-foreground sm:text-[11px]"
+                                                        >{{ seat.label }}</span
+                                                    >
                                                 </div>
                                                 <div v-else class="min-h-[7rem] sm:min-h-[7.5rem]" />
                                             </template>
@@ -515,23 +506,25 @@ const ratingLabel = (val: number) => {
                                 :class="[
                                     student.called_today
                                         ? 'border-emerald-400/80 bg-[#164e3f] text-white shadow-md'
-                                        : 'border-border bg-card text-foreground hover:bg-secondary'
+                                        : 'border-border bg-card text-foreground hover:bg-secondary',
                                 ]"
                             >
                                 <button
                                     type="button"
                                     title="View recitation logs"
-                                    class="absolute right-2 top-2 grid size-5 place-items-center rounded-md bg-black/20 text-muted-foreground hover:bg-black/50 hover:text-white transition-colors"
+                                    class="absolute right-2 top-2 grid size-5 place-items-center rounded-md bg-black/20 text-muted-foreground transition-colors hover:bg-black/50 hover:text-white"
                                     @click.stop="openStudentLogs(student)"
                                 >
                                     <History class="size-3" />
                                 </button>
                                 <button
                                     type="button"
-                                    class="flex w-full flex-col items-center justify-center cursor-pointer focus:outline-none"
+                                    class="flex w-full cursor-pointer flex-col items-center justify-center focus:outline-none"
                                     @click="openScoring(student)"
                                 >
-                                    <div class="flex size-9 items-center justify-center rounded-full bg-primary/20 font-bold uppercase text-primary dark:text-primary-foreground">
+                                    <div
+                                        class="flex size-9 items-center justify-center rounded-full bg-primary/20 font-bold uppercase text-primary dark:text-primary-foreground"
+                                    >
                                         {{ initials(student.full_name) }}
                                     </div>
                                     <span class="mt-2 block w-full truncate text-xs font-bold">{{ student.full_name }}</span>
@@ -552,8 +545,11 @@ const ratingLabel = (val: number) => {
                         <h2 class="mt-1 text-xl font-medium tracking-tight">Oral recitation rubrics, scores (0–10) & student logs</h2>
                         <p class="mt-2 max-w-2xl text-xs text-muted-foreground">
                             Each recitation can be scored from <strong class="font-medium text-foreground">0 to 10</strong> points. Recitations earn
-                            <strong class="font-medium text-amber-600 dark:text-amber-400">additional bonus points (up to +{{ bonusCap || 5 }} pts)</strong>
-                            added directly to the student's Activities score. Click <strong class="font-medium text-foreground">Logs</strong> on any student to review and adjust their full recitation history.
+                            <strong class="font-medium text-amber-600 dark:text-amber-400"
+                                >additional bonus points (up to +{{ bonusCap || 5 }} pts)</strong
+                            >
+                            added directly to the student's Activities score. Click <strong class="font-medium text-foreground">Logs</strong> on any
+                            student to review and adjust their full recitation history.
                         </p>
                     </div>
 
@@ -594,7 +590,7 @@ const ratingLabel = (val: number) => {
                                     <td class="px-4 py-3 text-center">
                                         <button
                                             type="button"
-                                            class="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary/70 px-2.5 py-1 text-xs font-semibold text-foreground transition-all hover:bg-secondary hover:scale-105"
+                                            class="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary/70 px-2.5 py-1 text-xs font-semibold text-foreground transition-all hover:scale-105 hover:bg-secondary"
                                             @click.stop="openStudentLogs(student)"
                                         >
                                             <History class="size-3 text-primary" />
@@ -641,7 +637,7 @@ const ratingLabel = (val: number) => {
                                                 :class="[
                                                     student.called_today
                                                         ? 'bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 dark:text-emerald-400'
-                                                        : 'bg-primary/10 text-primary hover:bg-primary/20'
+                                                        : 'bg-primary/10 text-primary hover:bg-primary/20',
                                                 ]"
                                                 @click="openScoring(student)"
                                             >
@@ -669,7 +665,7 @@ const ratingLabel = (val: number) => {
             @click.self="closeScoring"
         >
             <div
-                class="paper-card relative w-full max-w-lg overflow-hidden border-border/90 p-8 shadow-2xl duration-200 animate-in zoom-in-95 max-h-[90vh] overflow-y-auto"
+                class="paper-card relative max-h-[90vh] w-full max-w-lg overflow-hidden overflow-y-auto border-border/90 p-8 shadow-2xl duration-200 animate-in zoom-in-95"
                 role="dialog"
                 aria-modal="true"
                 aria-label="Score oral participation"
@@ -702,7 +698,9 @@ const ratingLabel = (val: number) => {
                 </div>
 
                 <h3 class="mt-3 text-2xl font-bold tracking-tight text-foreground">{{ scoringStudent.full_name }}</h3>
-                <p class="mt-1 text-xs text-muted-foreground">Chair {{ scoringStudent.seat_label || 'Unassigned' }} · {{ scoringStudent.student_number }}</p>
+                <p class="mt-1 text-xs text-muted-foreground">
+                    Chair {{ scoringStudent.seat_label || 'Unassigned' }} · {{ scoringStudent.student_number }}
+                </p>
 
                 <!-- Date Picker for Recitation -->
                 <div class="mt-4 flex items-center gap-2">
@@ -735,7 +733,7 @@ const ratingLabel = (val: number) => {
                             step="0.5"
                             class="h-2 w-full cursor-pointer appearance-none rounded-lg bg-border accent-primary"
                         />
-                        <div class="flex justify-between text-[10px] font-mono text-muted-foreground mt-1">
+                        <div class="mt-1 flex justify-between font-mono text-[10px] text-muted-foreground">
                             <span>0 pts</span>
                             <span>2.5</span>
                             <span>5 pts</span>
@@ -753,7 +751,7 @@ const ratingLabel = (val: number) => {
                             class="min-w-[32px] rounded-lg border px-2 py-1 text-center font-mono text-xs font-bold transition-all"
                             :class="
                                 Number(scoreForm.score) === s
-                                    ? 'border-primary bg-primary text-primary-foreground shadow-xs'
+                                    ? 'shadow-xs border-primary bg-primary text-primary-foreground'
                                     : 'border-border bg-card text-foreground hover:bg-secondary'
                             "
                             @click="setPreset(s)"
@@ -820,7 +818,9 @@ const ratingLabel = (val: number) => {
 
                     <!-- Total Preview -->
                     <div class="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-center">
-                        <span class="text-xs font-medium uppercase tracking-wider text-muted-foreground">Recitation Score & Bonus (Added to Activities)</span>
+                        <span class="text-xs font-medium uppercase tracking-wider text-muted-foreground"
+                            >Recitation Score & Bonus (Added to Activities)</span
+                        >
                         <div class="mt-1 flex items-baseline justify-center gap-2">
                             <p class="text-3xl font-bold tracking-tight text-primary">
                                 {{ scoreForm.score }}<span class="text-sm font-normal text-muted-foreground">/10</span>
@@ -868,13 +868,13 @@ const ratingLabel = (val: number) => {
             @click.self="closeStudentLogs"
         >
             <div
-                class="paper-card relative w-full max-w-2xl overflow-hidden border-border/90 p-6 md:p-8 shadow-2xl duration-200 animate-in zoom-in-95 max-h-[90vh] flex flex-col"
+                class="paper-card relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden border-border/90 p-6 shadow-2xl duration-200 animate-in zoom-in-95 md:p-8"
                 role="dialog"
                 aria-modal="true"
                 aria-label="Oral participation logs per student"
             >
                 <!-- Modal Header -->
-                <div class="flex items-center justify-between pb-4 border-b border-border/80">
+                <div class="flex items-center justify-between border-b border-border/80 pb-4">
                     <div>
                         <div class="flex items-center gap-2">
                             <span class="eyebrow">Recitation History</span>
@@ -887,7 +887,10 @@ const ratingLabel = (val: number) => {
                         <button
                             type="button"
                             class="ink-button !h-9 !rounded-xl !px-3 text-xs font-semibold"
-                            @click="openScoring(currentLogsStudent); closeStudentLogs()"
+                            @click="
+                                openScoring(currentLogsStudent);
+                                closeStudentLogs();
+                            "
                         >
                             <Plus class="size-3.5" />
                             <span>Log Today's Oral</span>
@@ -903,7 +906,7 @@ const ratingLabel = (val: number) => {
                 </div>
 
                 <!-- Stats Summary Row -->
-                <div class="grid grid-cols-3 gap-3 my-4">
+                <div class="my-4 grid grid-cols-3 gap-3">
                     <div class="rounded-2xl border border-border/70 bg-secondary/30 p-3 text-center">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total Sessions</span>
                         <p class="mt-0.5 font-mono text-lg font-bold text-foreground">{{ currentLogsStudent.recitations?.length || 0 }}</p>
@@ -923,28 +926,22 @@ const ratingLabel = (val: number) => {
                 </div>
 
                 <!-- Log List (Scrollable) -->
-                <div class="flex-1 overflow-y-auto pr-1 space-y-3">
-                    <div v-if="!currentLogsStudent.recitations || !currentLogsStudent.recitations.length" class="py-12 text-center text-muted-foreground text-xs">
-                        <History class="size-8 mx-auto mb-2 opacity-40 text-muted-foreground" />
+                <div class="flex-1 space-y-3 overflow-y-auto pr-1">
+                    <div
+                        v-if="!currentLogsStudent.recitations || !currentLogsStudent.recitations.length"
+                        class="py-12 text-center text-xs text-muted-foreground"
+                    >
+                        <History class="mx-auto mb-2 size-8 text-muted-foreground opacity-40" />
                         No recitation entries recorded yet for {{ currentLogsStudent.full_name }}.
                     </div>
 
                     <!-- Edit Log Inline Form -->
-                    <div
-                        v-if="editingLog"
-                        class="rounded-2xl border-2 border-primary/40 bg-primary/5 p-4 shadow-sm duration-150 animate-in fade-in"
-                    >
-                        <div class="flex items-center justify-between mb-3">
+                    <div v-if="editingLog" class="rounded-2xl border-2 border-primary/40 bg-primary/5 p-4 shadow-sm duration-150 animate-in fade-in">
+                        <div class="mb-3 flex items-center justify-between">
                             <span class="text-xs font-bold uppercase tracking-wider text-primary">
                                 Adjust Log Entry · {{ editingLog.conducted_on_formatted }}
                             </span>
-                            <button
-                                type="button"
-                                class="text-xs text-muted-foreground hover:text-foreground"
-                                @click="cancelEditLog"
-                            >
-                                Cancel
-                            </button>
+                            <button type="button" class="text-xs text-muted-foreground hover:text-foreground" @click="cancelEditLog">Cancel</button>
                         </div>
 
                         <!-- Date & Score Adjuster -->
@@ -955,11 +952,11 @@ const ratingLabel = (val: number) => {
                                     <input
                                         v-model="editLogForm.conducted_on"
                                         type="date"
-                                        class="mt-1 rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-mono"
+                                        class="mt-1 rounded-lg border border-border bg-card px-2.5 py-1 font-mono text-xs"
                                     />
                                 </div>
-                                <div class="flex-1 min-w-[200px]">
-                                    <div class="flex justify-between items-center">
+                                <div class="min-w-[200px] flex-1">
+                                    <div class="flex items-center justify-between">
                                         <label class="text-[10px] font-bold uppercase text-muted-foreground">Score (0–10)</label>
                                         <span class="font-mono text-sm font-black text-primary">{{ editLogForm.score }}/10</span>
                                     </div>
@@ -969,7 +966,7 @@ const ratingLabel = (val: number) => {
                                         min="0"
                                         max="10"
                                         step="0.5"
-                                        class="h-2 w-full mt-1 cursor-pointer appearance-none rounded-lg bg-border accent-primary"
+                                        class="mt-1 h-2 w-full cursor-pointer appearance-none rounded-lg bg-border accent-primary"
                                     />
                                 </div>
                             </div>
@@ -996,13 +993,17 @@ const ratingLabel = (val: number) => {
                             <div class="grid grid-cols-2 gap-3 pt-2">
                                 <div>
                                     <label class="block text-[10px] font-bold uppercase text-muted-foreground">Accuracy (0–5)</label>
-                                    <div class="flex items-center gap-1 mt-1">
+                                    <div class="mt-1 flex items-center gap-1">
                                         <button
                                             v-for="n in [0, 1, 2, 3, 4, 5]"
                                             :key="`edit-acc-${n}`"
                                             type="button"
                                             class="size-7 rounded-md border font-mono text-[10px] font-bold"
-                                            :class="n === editLogForm.accuracy ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card'"
+                                            :class="
+                                                n === editLogForm.accuracy
+                                                    ? 'border-primary bg-primary text-primary-foreground'
+                                                    : 'border-border bg-card'
+                                            "
                                             @click="setEditAccuracy(n)"
                                         >
                                             {{ n }}
@@ -1011,13 +1012,17 @@ const ratingLabel = (val: number) => {
                                 </div>
                                 <div>
                                     <label class="block text-[10px] font-bold uppercase text-muted-foreground">Delivery (0–5)</label>
-                                    <div class="flex items-center gap-1 mt-1">
+                                    <div class="mt-1 flex items-center gap-1">
                                         <button
                                             v-for="n in [0, 1, 2, 3, 4, 5]"
                                             :key="`edit-del-${n}`"
                                             type="button"
                                             class="size-7 rounded-md border font-mono text-[10px] font-bold"
-                                            :class="n === editLogForm.delivery ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card'"
+                                            :class="
+                                                n === editLogForm.delivery
+                                                    ? 'border-primary bg-primary text-primary-foreground'
+                                                    : 'border-border bg-card'
+                                            "
                                             @click="setEditDelivery(n)"
                                         >
                                             {{ n }}
@@ -1066,12 +1071,12 @@ const ratingLabel = (val: number) => {
                     >
                         <div class="flex items-start justify-between gap-4">
                             <div class="flex items-start gap-3">
-                                <div class="grid size-9 place-items-center rounded-xl bg-primary/10 text-primary font-bold">
+                                <div class="grid size-9 place-items-center rounded-xl bg-primary/10 font-bold text-primary">
                                     <Mic class="size-4" />
                                 </div>
                                 <div>
                                     <div class="flex items-center gap-2">
-                                        <span class="font-bold text-sm text-foreground">{{ log.conducted_on_formatted }}</span>
+                                        <span class="text-sm font-bold text-foreground">{{ log.conducted_on_formatted }}</span>
                                         <span class="font-mono text-[10px] text-muted-foreground">{{ log.conducted_on }}</span>
                                     </div>
                                     <div class="mt-1 flex flex-wrap items-center gap-2 text-xs">
@@ -1089,11 +1094,11 @@ const ratingLabel = (val: number) => {
                                         >
                                             {{ log.score }} / 10 pts
                                         </span>
-                                        <span v-if="log.accuracy !== null && log.delivery !== null" class="text-muted-foreground text-[11px]">
+                                        <span v-if="log.accuracy !== null && log.delivery !== null" class="text-[11px] text-muted-foreground">
                                             (Accuracy: {{ log.accuracy }}/5 · Delivery: {{ log.delivery }}/5)
                                         </span>
                                     </div>
-                                    <p v-if="log.comments" class="mt-2 text-xs text-muted-foreground bg-secondary/30 rounded-lg p-2 italic">
+                                    <p v-if="log.comments" class="mt-2 rounded-lg bg-secondary/30 p-2 text-xs italic text-muted-foreground">
                                         "{{ log.comments }}"
                                     </p>
                                 </div>
@@ -1104,7 +1109,7 @@ const ratingLabel = (val: number) => {
                                 <button
                                     type="button"
                                     title="Adjust score from 0-10"
-                                    class="inline-flex items-center gap-1 rounded-lg border border-border bg-secondary/50 px-2.5 py-1 text-xs font-semibold text-foreground hover:bg-secondary hover:text-primary transition-colors"
+                                    class="inline-flex items-center gap-1 rounded-lg border border-border bg-secondary/50 px-2.5 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-secondary hover:text-primary"
                                     @click="startEditLog(log)"
                                 >
                                     <Edit2 class="size-3" />
@@ -1113,7 +1118,7 @@ const ratingLabel = (val: number) => {
                                 <button
                                     type="button"
                                     title="Delete this recitation entry"
-                                    class="grid size-7 place-items-center rounded-lg text-muted-foreground hover:bg-rose-500/10 hover:text-rose-600 transition-colors"
+                                    class="grid size-7 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-rose-500/10 hover:text-rose-600"
                                     @click="confirmDeleteLog(log)"
                                 >
                                     <Trash2 class="size-3.5" />
@@ -1142,12 +1147,13 @@ const ratingLabel = (val: number) => {
                         <AlertCircle class="size-5" />
                     </div>
                     <div>
-                        <h4 class="font-bold text-sm text-foreground">Delete Recitation Log?</h4>
+                        <h4 class="text-sm font-bold text-foreground">Delete Recitation Log?</h4>
                         <p class="text-xs text-muted-foreground">Date: {{ deletingLog.conducted_on_formatted }} ({{ deletingLog.score }}/10)</p>
                     </div>
                 </div>
                 <p class="mt-3 text-xs text-muted-foreground">
-                    Are you sure you want to delete this recitation entry? The student's average recitation score and bonus points will be automatically recalculated.
+                    Are you sure you want to delete this recitation entry? The student's average recitation score and bonus points will be
+                    automatically recalculated.
                 </p>
                 <div class="mt-5 flex justify-end gap-2">
                     <button
@@ -1160,7 +1166,7 @@ const ratingLabel = (val: number) => {
                     <button
                         type="button"
                         :disabled="deleteLogForm.processing"
-                        class="rounded-xl bg-rose-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-rose-700 transition-colors"
+                        class="rounded-xl bg-rose-600 px-3.5 py-1.5 text-xs font-bold text-white transition-colors hover:bg-rose-700"
                         @click="submitDeleteLog"
                     >
                         {{ deleteLogForm.processing ? 'Deleting…' : 'Delete Entry' }}

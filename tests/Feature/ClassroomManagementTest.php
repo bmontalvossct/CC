@@ -200,11 +200,11 @@ class ClassroomManagementTest extends TestCase
         $section = $this->section($user);
 
         $csvContent = "student_number,first_name,last_name,middle_name\n"
-            . "2026-001,Alan,Turing,Mathison\n"
-            . "2026-002,Margaret,Hamilton,\n"
-            . ",NoIdStudent,ValidLastName,\n" // Optional student_number - Valid!
-            . "2026-004,NoLastName,,\n"        // Missing last_name - Failed
-            . "2026-005,,NoFirstName,\n";      // Missing first_name - Failed
+            ."2026-001,Alan,Turing,Mathison\n"
+            ."2026-002,Margaret,Hamilton,\n"
+            .",NoIdStudent,ValidLastName,\n" // Optional student_number - Valid!
+            ."2026-004,NoLastName,,\n"        // Missing last_name - Failed
+            ."2026-005,,NoFirstName,\n";      // Missing first_name - Failed
 
         $csv = UploadedFile::fake()->createWithContent('roster.csv', $csvContent);
 
@@ -231,8 +231,8 @@ class ClassroomManagementTest extends TestCase
         $section = $this->section($user);
 
         $csvContent = "\xEF\xBB\xBFstudent_number,first_name,last_name,middle_name\n"
-            . "2026-001,Niño,Peña,Dela Cruz\n"
-            . "2026-002,José,González,\n";
+            ."2026-001,Niño,Peña,Dela Cruz\n"
+            ."2026-002,José,González,\n";
 
         $csv = UploadedFile::fake()->createWithContent('roster.csv', $csvContent);
 

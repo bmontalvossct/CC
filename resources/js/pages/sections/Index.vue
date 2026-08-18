@@ -64,19 +64,24 @@ const pagination = computed<PaginatedSections | null>(() => {
 const pageLinks = computed(() => {
     if (!pagination.value) return [];
     return pagination.value.links.filter(
-        (link) => !link.label.includes('Previous') && !link.label.includes('Next') && !link.label.includes('&laquo;') && !link.label.includes('&raquo;'),
+        (link) =>
+            !link.label.includes('Previous') && !link.label.includes('Next') && !link.label.includes('&laquo;') && !link.label.includes('&raquo;'),
     );
 });
 
 const archivingId = ref<number | null>(null);
 const toggleArchive = (id: number) => {
     archivingId.value = id;
-    router.patch(`/sections/${id}/archive`, {}, {
-        preserveScroll: true,
-        onFinish: () => {
-            archivingId.value = null;
+    router.patch(
+        `/sections/${id}/archive`,
+        {},
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                archivingId.value = null;
+            },
         },
-    });
+    );
 };
 </script>
 
@@ -97,7 +102,7 @@ const toggleArchive = (id: number) => {
                     <Link
                         href="/sections/archived"
                         prefetch="hover"
-                        class="group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-white px-4 text-sm font-medium text-foreground shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                        class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-white px-4 text-sm font-medium text-foreground transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                     >
                         <Archive class="size-4 text-muted-foreground transition-colors group-hover:text-white" />
                         <span>Archived classes</span>
@@ -121,7 +126,7 @@ const toggleArchive = (id: number) => {
             <!-- Navigation Tabs / Switcher -->
             <div class="mt-6 flex items-center gap-2 border-b border-border/80 pb-3">
                 <div
-                    class="inline-flex items-center gap-2 rounded-xl border border-primary bg-primary px-4 py-2 text-sm font-medium text-white shadow-xs"
+                    class="shadow-xs inline-flex items-center gap-2 rounded-xl border border-primary bg-primary px-4 py-2 text-sm font-medium text-white"
                 >
                     <School class="size-4" />
                     <span>Active Classes</span>
@@ -149,7 +154,9 @@ const toggleArchive = (id: number) => {
                     >
                         <div>
                             <div class="flex items-center justify-between gap-3">
-                                <span class="inline-flex items-center rounded-md bg-primary/10 px-2.5 py-0.5 font-mono text-xs font-medium text-primary">
+                                <span
+                                    class="inline-flex items-center rounded-md bg-primary/10 px-2.5 py-0.5 font-mono text-xs font-medium text-primary"
+                                >
                                     {{ section.subject_code }}
                                 </span>
                                 <span
@@ -183,7 +190,7 @@ const toggleArchive = (id: number) => {
                             <div class="mt-5 flex items-center justify-between border-t border-border/60 pt-3">
                                 <button
                                     type="button"
-                                    class="group/btn inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-white px-3 text-xs font-medium text-muted-foreground shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white disabled:opacity-50 dark:bg-card"
+                                    class="group/btn shadow-xs inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-white px-3 text-xs font-medium text-muted-foreground transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white disabled:opacity-50 dark:bg-card"
                                     :disabled="archivingId === section.id"
                                     title="Move section to archive"
                                     @click="toggleArchive(section.id)"
@@ -195,7 +202,7 @@ const toggleArchive = (id: number) => {
                                 <Link
                                     :href="`/sections/${section.id}`"
                                     prefetch="hover"
-                                    class="group/open inline-flex h-9 items-center gap-1.5 rounded-xl border border-primary bg-white px-3.5 text-xs font-medium text-primary shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                    class="group/open shadow-xs inline-flex h-9 items-center gap-1.5 rounded-xl border border-primary bg-white px-3.5 text-xs font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                                 >
                                     <span>Open classroom</span>
                                     <ArrowRight class="size-3.5 text-primary transition-colors group-hover/open:text-white" />
@@ -227,7 +234,7 @@ const toggleArchive = (id: number) => {
                             v-if="pagination.prev_page_url"
                             :href="pagination.prev_page_url"
                             prefetch="hover"
-                            class="inline-flex h-9 items-center gap-1 rounded-xl border border-border bg-white px-3 text-xs font-medium text-foreground shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            class="shadow-xs inline-flex h-9 items-center gap-1 rounded-xl border border-border bg-white px-3 text-xs font-medium text-foreground transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                         >
                             <ChevronLeft class="size-3.5" />
                             <span>Previous</span>
@@ -242,20 +249,18 @@ const toggleArchive = (id: number) => {
 
                         <!-- Page Number Buttons -->
                         <template v-for="link in pageLinks" :key="link.label">
-                            <span v-if="link.label === '...'" class="px-2 text-xs font-medium text-muted-foreground">
-                                ...
-                            </span>
+                            <span v-if="link.label === '...'" class="px-2 text-xs font-medium text-muted-foreground"> ... </span>
                             <Link
                                 v-else-if="link.url && !link.active"
                                 :href="link.url"
                                 prefetch="hover"
-                                class="inline-flex size-9 items-center justify-center rounded-xl border border-border bg-white text-xs font-medium text-foreground shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                class="shadow-xs inline-flex size-9 items-center justify-center rounded-xl border border-border bg-white text-xs font-medium text-foreground transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             >
                                 {{ link.label }}
                             </Link>
                             <span
                                 v-else-if="link.active"
-                                class="inline-flex size-9 items-center justify-center rounded-xl border border-primary bg-primary text-xs font-medium text-white shadow-xs"
+                                class="shadow-xs inline-flex size-9 items-center justify-center rounded-xl border border-primary bg-primary text-xs font-medium text-white"
                                 aria-current="page"
                             >
                                 {{ link.label }}
@@ -267,7 +272,7 @@ const toggleArchive = (id: number) => {
                             v-if="pagination.next_page_url"
                             :href="pagination.next_page_url"
                             prefetch="hover"
-                            class="inline-flex h-9 items-center gap-1 rounded-xl border border-border bg-white px-3 text-xs font-medium text-foreground shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            class="shadow-xs inline-flex h-9 items-center gap-1 rounded-xl border border-border bg-white px-3 text-xs font-medium text-foreground transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                         >
                             <span>Next</span>
                             <ChevronRight class="size-3.5" />

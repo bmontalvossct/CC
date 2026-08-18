@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
 import { Link } from '@inertiajs/vue3';
-import { ArrowRight, Calendar, CheckCircle2, Clock, History, UserCheck, UserX, X } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { ArrowRight, CheckCircle2, Clock, UserX, X } from 'lucide-vue-next';
 
 type DayRecord = {
     session_id: number;
@@ -42,7 +41,7 @@ export type StudentSummary = {
     absence_status?: 'good' | 'warning' | 'limit_reached' | 'exceeded';
 };
 
-const props = defineProps<{
+defineProps<{
     student: StudentSummary | null;
     open: boolean;
 }>();
@@ -86,14 +85,7 @@ const readableDate = (date: string) => {
                     <h2 class="mt-1 text-2xl font-semibold text-foreground">{{ student.name }}</h2>
                 </div>
 
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    class="size-8 rounded-lg"
-                    title="Close"
-                    @click="emit('close')"
-                >
+                <Button type="button" variant="outline" size="icon" class="size-8 rounded-lg" title="Close" @click="emit('close')">
                     <X class="size-4" />
                 </Button>
             </div>
@@ -138,7 +130,8 @@ const readableDate = (date: string) => {
                                     2/3 absences used — Warning: 1 absence remaining
                                 </template>
                                 <template v-else>
-                                    {{ student.absent_count }}/3 absences used ({{ student.absences_remaining ?? (3 - student.absent_count) }} remaining)
+                                    {{ student.absent_count }}/3 absences used ({{ student.absences_remaining ?? 3 - student.absent_count }}
+                                    remaining)
                                 </template>
                             </p>
                         </div>
@@ -153,16 +146,16 @@ const readableDate = (date: string) => {
                 <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     <div class="rounded-xl border border-border/80 bg-secondary/30 p-3.5 text-center">
                         <span class="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Grade Score</span>
-                        <p class="mt-1 font-mono text-3xl font-semibold text-foreground">
-                            {{ student.grade_rate ?? student.overall.rate ?? '—' }}%
-                        </p>
+                        <p class="mt-1 font-mono text-3xl font-semibold text-foreground">{{ student.grade_rate ?? student.overall.rate ?? '—' }}%</p>
                         <span class="text-xs text-muted-foreground">
                             {{ student.earned_points ?? student.present_count }}/{{ student.possible_points ?? student.overall.sessions }} pts
                         </span>
                     </div>
 
                     <div class="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3.5 text-center">
-                        <span class="block text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Present (1 pt)</span>
+                        <span class="block text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400"
+                            >Present (1 pt)</span
+                        >
                         <p class="mt-1 font-mono text-3xl font-semibold text-emerald-700 dark:text-emerald-400">
                             {{ student.present_count }}
                         </p>
@@ -219,7 +212,7 @@ const readableDate = (date: string) => {
                             <Link
                                 :href="`/attendance/${day.session_id}`"
                                 prefetch="hover"
-                                class="inline-flex items-center gap-1 rounded-lg border border-primary bg-white px-3 py-1.5 text-sm font-medium text-primary shadow-xs transition-colors hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                class="shadow-xs inline-flex items-center gap-1 rounded-lg border border-primary bg-white px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             >
                                 <span>Session</span>
                                 <ArrowRight class="size-3.5" />
@@ -265,7 +258,7 @@ const readableDate = (date: string) => {
                             <Link
                                 :href="`/attendance/${day.session_id}`"
                                 prefetch="hover"
-                                class="inline-flex items-center gap-1 rounded-lg border border-primary bg-white px-3 py-1.5 text-sm font-medium text-primary shadow-xs transition-colors hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                class="shadow-xs inline-flex items-center gap-1 rounded-lg border border-primary bg-white px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             >
                                 <span>Session</span>
                                 <ArrowRight class="size-3.5" />
@@ -281,9 +274,7 @@ const readableDate = (date: string) => {
 
             <!-- Modal Footer -->
             <div class="flex items-center justify-end border-t border-border/80 pt-3">
-                <Button type="button" variant="secondary" class="h-9 px-4 text-sm font-semibold" @click="emit('close')">
-                    Close File
-                </Button>
+                <Button type="button" variant="secondary" class="h-9 px-4 text-sm font-semibold" @click="emit('close')"> Close File </Button>
             </div>
         </div>
     </div>

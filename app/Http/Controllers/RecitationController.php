@@ -32,13 +32,14 @@ class RecitationController extends Controller
             ->orderBy('students.last_name')
             ->get([
                 'students.id', 'students.student_number', 'students.first_name', 'students.middle_name',
-                'students.last_name', 'students.photo_path', 'seats.label as seat_label'
+                'students.last_name', 'students.photo_path', 'seats.label as seat_label',
             ]);
 
         // Map full name
         $students = $students->map(function ($s) {
             $s->full_name = trim("{$s->last_name}, {$s->first_name} {$s->middle_name}");
-            $s->photo_url = $s->photo_path ? asset('storage/' . $s->photo_path) : null;
+            $s->photo_url = $s->photo_path ? asset('storage/'.$s->photo_path) : null;
+
             return $s;
         });
 
@@ -210,4 +211,3 @@ class RecitationController extends Controller
         return back()->with('success', 'Recitation log entry deleted.');
     }
 }
-

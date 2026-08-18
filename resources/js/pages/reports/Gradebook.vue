@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { ArrowLeft, Download, FolderKanban, Printer, Save, Settings, Trophy, UserCheck } from 'lucide-vue-next';
+import { ArrowLeft, Download, Printer, Save, Settings, Trophy } from 'lucide-vue-next';
 import { computed, onMounted, ref } from 'vue';
 
 type Assessment = { id: number; type: 'activity' | 'quiz' | 'exam'; title: string; conducted_on: string; max_points: string };
@@ -60,16 +60,10 @@ const weightsForm = useForm({
 
 const coreWeightsTotal = computed(
     () =>
-        (weightsForm.activity || 0) +
-        (weightsForm.quiz || 0) +
-        (weightsForm.exam || 0) +
-        (weightsForm.project || 0) +
-        (weightsForm.attendance || 0),
+        (weightsForm.activity || 0) + (weightsForm.quiz || 0) + (weightsForm.exam || 0) + (weightsForm.project || 0) + (weightsForm.attendance || 0),
 );
 
-const weightsValid = computed(
-    () => coreWeightsTotal.value === 100 || coreWeightsTotal.value + (weightsForm.recitation || 0) === 100,
-);
+const weightsValid = computed(() => coreWeightsTotal.value === 100 || coreWeightsTotal.value + (weightsForm.recitation || 0) === 100);
 
 const saveWeights = () => {
     if (!weightsValid.value) return;
@@ -247,13 +241,17 @@ onMounted(() => {
                         </div>
                     </div>
                     <p class="mb-5 text-xs text-muted-foreground">
-                        Core coursework components (Activities, Quizzes, Major Exams, Projects/Reporting, and Attendance) form the base 100%. Oral recitations award additional bonus points directly added to the student's Activities score (without inflating the max points denominator).
+                        Core coursework components (Activities, Quizzes, Major Exams, Projects/Reporting, and Attendance) form the base 100%. Oral
+                        recitations award additional bonus points directly added to the student's Activities score (without inflating the max points
+                        denominator).
                     </p>
 
                     <form class="space-y-5" @submit.prevent="saveWeights">
                         <!-- Core Coursework Row -->
                         <div>
-                            <span class="mb-2 block text-xs font-bold uppercase tracking-wider text-foreground">Core Coursework (Must Total 100%)</span>
+                            <span class="mb-2 block text-xs font-bold uppercase tracking-wider text-foreground"
+                                >Core Coursework (Must Total 100%)</span
+                            >
                             <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
                                 <label class="rounded-xl border border-border/80 bg-secondary/30 p-3">
                                     <span class="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
@@ -341,7 +339,8 @@ onMounted(() => {
                                         ✨ Oral Participation (Bonus Points Added to Activities)
                                     </span>
                                     <p class="mt-0.5 text-xs text-muted-foreground">
-                                        Awarded as bonus score (0–20 pts max) added directly into student Activities scores. Maximum points denominator is not increased, so non-called students are never penalized.
+                                        Awarded as bonus score (0–20 pts max) added directly into student Activities scores. Maximum points
+                                        denominator is not increased, so non-called students are never penalized.
                                     </p>
                                 </div>
                                 <div class="flex items-center gap-2">
@@ -397,7 +396,8 @@ onMounted(() => {
                     <p class="mt-1 text-xs text-muted-foreground print:text-black">
                         Weighted gradebook with college grading scale (1.0–5.0). Core: Activities {{ gradingWeights.activity }}%, Quizzes
                         {{ gradingWeights.quiz }}%, Major Exams {{ gradingWeights.exam }}%, Project / Reporting {{ gradingWeights.project }}%,
-                        Attendance {{ gradingWeights.attendance }}% · ✨ Oral Recitation: Up to +{{ gradingWeights.recitation ?? 5 }} bonus pts added to Activities.
+                        Attendance {{ gradingWeights.attendance }}% · ✨ Oral Recitation: Up to +{{ gradingWeights.recitation ?? 5 }} bonus pts added
+                        to Activities.
                     </p>
                 </header>
 
@@ -452,17 +452,17 @@ onMounted(() => {
                 <div class="paper-card overflow-hidden p-0 shadow-sm print:rounded-none print:border print:border-black print:shadow-none">
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-xs">
-                            <thead class="border-b border-border/80 bg-secondary/50 text-[11px] uppercase tracking-wider text-muted-foreground print:bg-gray-100 print:text-black">
+                            <thead
+                                class="border-b border-border/80 bg-secondary/50 text-[11px] uppercase tracking-wider text-muted-foreground print:bg-gray-100 print:text-black"
+                            >
                                 <tr>
-                                    <th class="backdrop-blur-xs sticky left-0 z-10 min-w-44 border-r border-border/60 bg-card/95 px-4 py-3 print:static print:bg-gray-100">
+                                    <th
+                                        class="backdrop-blur-xs sticky left-0 z-10 min-w-44 border-r border-border/60 bg-card/95 px-4 py-3 print:static print:bg-gray-100"
+                                    >
                                         Student
                                     </th>
                                     <!-- Assessment columns -->
-                                    <th
-                                        v-for="item in assessments"
-                                        :key="item.id"
-                                        class="min-w-24 border-l border-border/60 px-3 py-3 text-center"
-                                    >
+                                    <th v-for="item in assessments" :key="item.id" class="min-w-24 border-l border-border/60 px-3 py-3 text-center">
                                         <span
                                             class="block font-mono text-[9px] font-medium uppercase tracking-wider"
                                             :class="
@@ -484,7 +484,9 @@ onMounted(() => {
                                         :key="`project-${item.id}`"
                                         class="min-w-28 border-l border-teal-500/30 bg-teal-500/5 px-3 py-3 text-center"
                                     >
-                                        <span class="block font-mono text-[9px] font-medium uppercase tracking-wider text-teal-600 dark:text-teal-400">
+                                        <span
+                                            class="block font-mono text-[9px] font-medium uppercase tracking-wider text-teal-600 dark:text-teal-400"
+                                        >
                                             {{ item.type === 'project' ? 'Project' : 'Report' }}
                                         </span>
                                         <span class="mx-auto mt-0.5 block max-w-28 truncate font-medium text-foreground">{{ item.title }}</span>
@@ -558,7 +560,11 @@ onMounted(() => {
                                         class="border-l border-teal-500/20 bg-teal-500/5 px-3 py-3 text-center font-mono text-xs"
                                         :class="row.project_scores?.[item.id] === null ? 'text-muted-foreground/60' : 'font-medium text-foreground'"
                                     >
-                                        {{ row.project_scores?.[item.id] !== null && row.project_scores?.[item.id] !== undefined ? row.project_scores[item.id] : '—' }}
+                                        {{
+                                            row.project_scores?.[item.id] !== null && row.project_scores?.[item.id] !== undefined
+                                                ? row.project_scores[item.id]
+                                                : '—'
+                                        }}
                                     </td>
                                     <!-- Category percentages -->
                                     <td
@@ -570,7 +576,11 @@ onMounted(() => {
                                             {{ row.categories[type]?.percentage !== null ? `${row.categories[type]?.percentage}%` : '—' }}
                                         </span>
                                         <span
-                                            v-if="type === 'activity' && row.categories.activity?.bonus_earned && row.categories.activity.bonus_earned > 0"
+                                            v-if="
+                                                type === 'activity' &&
+                                                row.categories.activity?.bonus_earned &&
+                                                row.categories.activity.bonus_earned > 0
+                                            "
                                             class="mt-0.5 inline-block text-[9px] font-semibold text-emerald-600 dark:text-emerald-400"
                                             title="Includes oral bonus added to activity score"
                                         >
@@ -578,17 +588,23 @@ onMounted(() => {
                                         </span>
                                     </td>
                                     <!-- Project percentage -->
-                                    <td class="border-l-2 border-border bg-secondary/20 px-2.5 py-3 text-center font-mono text-xs font-medium text-teal-600 dark:text-teal-400">
+                                    <td
+                                        class="border-l-2 border-border bg-secondary/20 px-2.5 py-3 text-center font-mono text-xs font-medium text-teal-600 dark:text-teal-400"
+                                    >
                                         {{ row.projectSummary?.percentage !== null ? `${row.projectSummary.percentage}%` : '—' }}
                                     </td>
                                     <!-- Attendance percentage -->
-                                    <td class="border-l-2 border-border bg-secondary/20 px-2.5 py-3 text-center font-mono text-xs font-medium text-cyan-600 dark:text-cyan-400">
+                                    <td
+                                        class="border-l-2 border-border bg-secondary/20 px-2.5 py-3 text-center font-mono text-xs font-medium text-cyan-600 dark:text-cyan-400"
+                                    >
                                         {{ row.attendance?.percentage !== null ? `${row.attendance.percentage}%` : '—' }}
                                     </td>
                                     <!-- Recitation Bonus Points Cell -->
                                     <td class="border-l-2 border-amber-500/30 bg-amber-500/5 px-2.5 py-3 text-center font-mono">
                                         <template v-if="row.recitation && row.recitation.count > 0 && row.recitation.avg_score !== null">
-                                            <span class="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                                            <span
+                                                class="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-bold text-emerald-600 dark:text-emerald-400"
+                                            >
                                                 +{{ computeBonus(row) }} pts
                                             </span>
                                             <span class="mt-0.5 block text-[9px] text-muted-foreground">
@@ -621,22 +637,35 @@ onMounted(() => {
                                     </td>
                                     <td
                                         class="border-l-2 border-primary/30 bg-primary/5 px-3 py-3 text-center font-mono text-xs font-medium"
-                                        :class="isFailing(percentToGrade(computeOverall(row))) ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'"
+                                        :class="
+                                            isFailing(percentToGrade(computeOverall(row)))
+                                                ? 'text-rose-600 dark:text-rose-400'
+                                                : 'text-emerald-600 dark:text-emerald-400'
+                                        "
                                     >
-                                        {{ computeOverall(row) !== null ? (isFailing(percentToGrade(computeOverall(row))) ? 'FAILED' : 'PASSED') : '—' }}
+                                        {{
+                                            computeOverall(row) !== null
+                                                ? isFailing(percentToGrade(computeOverall(row)))
+                                                    ? 'FAILED'
+                                                    : 'PASSED'
+                                                : '—'
+                                        }}
                                     </td>
                                 </tr>
-                            <tr v-if="!rows.length">
-                                <td :colspan="6 + assessments.length + projectsList.length + types.length" class="py-12 text-center text-xs text-muted-foreground">
-                                    No students are enrolled in this section.
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                                <tr v-if="!rows.length">
+                                    <td
+                                        :colspan="6 + assessments.length + projectsList.length + types.length"
+                                        class="py-12 text-center text-xs text-muted-foreground"
+                                    >
+                                        No students are enrolled in this section.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Grading Scale Legend -->
+                <!-- Grading Scale Legend -->
                 <div class="paper-card mt-6 p-5 print:rounded-none print:border print:border-black print:bg-white">
                     <h3 class="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">College Grading Scale</h3>
                     <div class="grid grid-cols-2 gap-2 text-center text-[10px] sm:grid-cols-5 lg:grid-cols-10">
@@ -684,4 +713,3 @@ onMounted(() => {
     }
 }
 </style>
-

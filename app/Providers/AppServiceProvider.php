@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use Illuminate\Auth\SessionGuard;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
@@ -24,7 +25,7 @@ class AppServiceProvider extends ServiceProvider
             URL::forceScheme('https');
         }
 
-        \Illuminate\Auth\SessionGuard::macro('id', function () {
+        SessionGuard::macro('id', function () {
             return $this->user()?->getAuthIdentifier();
         });
     }

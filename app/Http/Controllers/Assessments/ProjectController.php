@@ -6,6 +6,7 @@ use App\Http\Requests\Projects\StoreProjectRequest;
 use App\Http\Requests\Projects\UpdateProjectRequest;
 use App\Models\Project;
 use App\Models\ProjectGroup;
+use App\Models\ProjectGroupMember;
 use App\Models\Section;
 use App\Models\Student;
 use Illuminate\Http\JsonResponse;
@@ -211,7 +212,7 @@ class ProjectController extends AssessmentModuleController
 
         return Storage::disk('local')->response($project->attachment_path, $name, [
             'Content-Type' => $mime,
-            'Content-Disposition' => 'inline; filename="' . addslashes($name) . '"',
+            'Content-Disposition' => 'inline; filename="'.addslashes($name).'"',
         ]);
     }
 
@@ -332,7 +333,7 @@ class ProjectController extends AssessmentModuleController
         DB::transaction(function () use ($project, $group, $student, $data) {
             // Remove student from any other group in this project
             $otherGroupIds = $project->groups()->pluck('id');
-            \App\Models\ProjectGroupMember::whereIn('project_group_id', $otherGroupIds)
+            ProjectGroupMember::whereIn('project_group_id', $otherGroupIds)
                 ->where('student_id', $student->id)
                 ->delete();
 
@@ -394,7 +395,7 @@ class ProjectController extends AssessmentModuleController
 
         DB::transaction(function () use ($project, $targetGroup, $student) {
             $otherGroupIds = $project->groups()->pluck('id');
-            \App\Models\ProjectGroupMember::whereIn('project_group_id', $otherGroupIds)
+            ProjectGroupMember::whereIn('project_group_id', $otherGroupIds)
                 ->where('student_id', $student->id)
                 ->delete();
 

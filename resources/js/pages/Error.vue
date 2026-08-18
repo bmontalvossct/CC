@@ -1,16 +1,7 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
 import { Head, Link } from '@inertiajs/vue3';
-import {
-    ArrowLeft,
-    Clock,
-    Home,
-    RotateCcw,
-    SearchX,
-    ServerCrash,
-    ShieldAlert,
-    Wrench,
-} from 'lucide-vue-next';
+import { ArrowLeft, Clock, Home, RotateCcw, SearchX, ServerCrash, ShieldAlert, Wrench } from 'lucide-vue-next';
 import { computed } from 'vue';
 
 const props = defineProps<{
@@ -19,24 +10,28 @@ const props = defineProps<{
 }>();
 
 const title = computed(() => {
-    return {
-        404: 'Page Not Found',
-        403: 'Access Forbidden',
-        500: 'Internal Server Error',
-        503: 'Service Unavailable',
-        419: 'Session Expired',
-    }[props.status] || 'An Error Occurred';
+    return (
+        {
+            404: 'Page Not Found',
+            403: 'Access Forbidden',
+            500: 'Internal Server Error',
+            503: 'Service Unavailable',
+            419: 'Session Expired',
+        }[props.status] || 'An Error Occurred'
+    );
 });
 
 const description = computed(() => {
     if (props.message) return props.message;
-    return {
-        404: 'The page or resource you are looking for does not exist, has been moved, or is temporarily unavailable.',
-        403: 'You do not have permission to view or modify this resource. Please ensure you are logged into the correct teacher account.',
-        500: 'The application encountered an unexpected issue while processing your request. Our team has been notified.',
-        503: 'We are performing brief system maintenance or updates. Please try again in a few moments.',
-        419: 'Your security session has expired due to inactivity. Please refresh the page or log in again to continue.',
-    }[props.status] || 'An unexpected error occurred while loading this page.';
+    return (
+        {
+            404: 'The page or resource you are looking for does not exist, has been moved, or is temporarily unavailable.',
+            403: 'You do not have permission to view or modify this resource. Please ensure you are logged into the correct teacher account.',
+            500: 'The application encountered an unexpected issue while processing your request. Our team has been notified.',
+            503: 'We are performing brief system maintenance or updates. Please try again in a few moments.',
+            419: 'Your security session has expired due to inactivity. Please refresh the page or log in again to continue.',
+        }[props.status] || 'An unexpected error occurred while loading this page.'
+    );
 });
 
 const goBack = () => {
@@ -56,7 +51,7 @@ const reloadPage = () => {
     <Head :title="`${status}: ${title}`" />
 
     <div class="flex min-h-screen flex-col items-center justify-center bg-background p-6 selection:bg-primary/20 selection:text-primary">
-        <div class="relative w-full max-w-lg overflow-hidden rounded-2xl border border-border/80 bg-card p-8 shadow-xl text-center">
+        <div class="relative w-full max-w-lg overflow-hidden rounded-2xl border border-border/80 bg-card p-8 text-center shadow-xl">
             <!-- Decorative Accent Line -->
             <div class="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-emerald-600 to-primary" />
 
@@ -88,7 +83,7 @@ const reloadPage = () => {
                 <Link
                     href="/dashboard"
                     prefetch="hover"
-                    class="group inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-primary bg-white px-5 text-sm font-medium text-primary shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white sm:w-auto dark:bg-card"
+                    class="shadow-xs group inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-primary bg-white px-5 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card sm:w-auto"
                 >
                     <Home class="size-4 text-primary transition-colors group-hover:text-white" />
                     <span>Go to Dashboard</span>
@@ -96,7 +91,7 @@ const reloadPage = () => {
 
                 <button
                     type="button"
-                    class="group inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-primary bg-white px-5 text-sm font-medium text-primary shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white sm:w-auto dark:bg-card"
+                    class="shadow-xs group inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-primary bg-white px-5 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card sm:w-auto"
                     @click="goBack"
                 >
                     <ArrowLeft class="size-4 text-primary transition-colors group-hover:text-white" />

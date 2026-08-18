@@ -76,7 +76,8 @@ const pagination = computed<PaginatedSections | null>(() => {
 const pageLinks = computed(() => {
     if (!pagination.value) return [];
     return pagination.value.links.filter(
-        (link) => !link.label.includes('Previous') && !link.label.includes('Next') && !link.label.includes('&laquo;') && !link.label.includes('&raquo;'),
+        (link) =>
+            !link.label.includes('Previous') && !link.label.includes('Next') && !link.label.includes('&laquo;') && !link.label.includes('&raquo;'),
     );
 });
 
@@ -84,12 +85,16 @@ const pageLinks = computed(() => {
 const restoringId = ref<number | null>(null);
 const restoreSection = (id: number) => {
     restoringId.value = id;
-    router.patch(`/sections/${id}/archive`, {}, {
-        preserveScroll: true,
-        onFinish: () => {
-            restoringId.value = null;
+    router.patch(
+        `/sections/${id}/archive`,
+        {},
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                restoringId.value = null;
+            },
         },
-    });
+    );
 };
 
 // Delete confirmation modal state
@@ -147,14 +152,15 @@ const formatDate = (dateStr: string | null) => {
                     <span class="eyebrow">Classroom Archives</span>
                     <h1 class="mt-2 text-3xl font-medium tracking-tight sm:text-4xl">Archived classes</h1>
                     <p class="mt-1.5 text-sm text-muted-foreground sm:text-base">
-                        Review past terms and archived sections. Restore a class to make it active, or permanently delete a section and all its records.
+                        Review past terms and archived sections. Restore a class to make it active, or permanently delete a section and all its
+                        records.
                     </p>
                 </div>
                 <div class="flex flex-wrap items-center gap-3">
                     <Link
                         href="/sections"
                         prefetch="hover"
-                        class="group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                        class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                     >
                         <School class="size-4 text-primary transition-colors group-hover:text-white" />
                         <span>Active sections</span>
@@ -181,7 +187,7 @@ const formatDate = (dateStr: string | null) => {
                 </Link>
 
                 <div
-                    class="inline-flex items-center gap-2 rounded-xl border border-primary bg-primary px-4 py-2 text-sm font-medium text-white shadow-xs"
+                    class="shadow-xs inline-flex items-center gap-2 rounded-xl border border-primary bg-primary px-4 py-2 text-sm font-medium text-white"
                 >
                     <Archive class="size-4" />
                     <span>Archived Classes</span>
@@ -199,7 +205,9 @@ const formatDate = (dateStr: string | null) => {
                     >
                         <div>
                             <div class="flex items-center justify-between gap-3">
-                                <span class="inline-flex items-center rounded-md bg-primary/10 px-2.5 py-0.5 font-mono text-xs font-medium text-primary">
+                                <span
+                                    class="inline-flex items-center rounded-md bg-primary/10 px-2.5 py-0.5 font-mono text-xs font-medium text-primary"
+                                >
                                     {{ section.subject_code }}
                                 </span>
                                 <span
@@ -237,7 +245,7 @@ const formatDate = (dateStr: string | null) => {
                             <div class="mt-5 flex items-center justify-between border-t border-border/60 pt-3">
                                 <button
                                     type="button"
-                                    class="group/btn inline-flex h-9 items-center gap-1.5 rounded-xl border border-primary bg-white px-3 text-xs font-medium text-primary shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white disabled:opacity-50 dark:bg-card"
+                                    class="group/btn shadow-xs inline-flex h-9 items-center gap-1.5 rounded-xl border border-primary bg-white px-3 text-xs font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white disabled:opacity-50 dark:bg-card"
                                     :disabled="restoringId === section.id"
                                     title="Restore this section back to active classes"
                                     @click="restoreSection(section.id)"
@@ -248,7 +256,7 @@ const formatDate = (dateStr: string | null) => {
 
                                 <button
                                     type="button"
-                                    class="group/btn inline-flex h-9 items-center gap-1.5 rounded-xl border border-rose-600 bg-white px-3 text-xs font-medium text-rose-700 shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                    class="group/btn shadow-xs inline-flex h-9 items-center gap-1.5 rounded-xl border border-rose-600 bg-white px-3 text-xs font-medium text-rose-700 transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                                     title="Permanently delete this section and all associated data"
                                     @click="confirmDelete(section)"
                                 >
@@ -282,7 +290,7 @@ const formatDate = (dateStr: string | null) => {
                             v-if="pagination.prev_page_url"
                             :href="pagination.prev_page_url"
                             prefetch="hover"
-                            class="inline-flex h-9 items-center gap-1 rounded-xl border border-border bg-white px-3 text-xs font-medium text-foreground shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            class="shadow-xs inline-flex h-9 items-center gap-1 rounded-xl border border-border bg-white px-3 text-xs font-medium text-foreground transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                         >
                             <ChevronLeft class="size-3.5" />
                             <span>Previous</span>
@@ -297,20 +305,18 @@ const formatDate = (dateStr: string | null) => {
 
                         <!-- Page Number Buttons -->
                         <template v-for="link in pageLinks" :key="link.label">
-                            <span v-if="link.label === '...'" class="px-2 text-xs font-medium text-muted-foreground">
-                                ...
-                            </span>
+                            <span v-if="link.label === '...'" class="px-2 text-xs font-medium text-muted-foreground"> ... </span>
                             <Link
                                 v-else-if="link.url && !link.active"
                                 :href="link.url"
                                 prefetch="hover"
-                                class="inline-flex size-9 items-center justify-center rounded-xl border border-border bg-white text-xs font-medium text-foreground shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                class="shadow-xs inline-flex size-9 items-center justify-center rounded-xl border border-border bg-white text-xs font-medium text-foreground transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             >
                                 {{ link.label }}
                             </Link>
                             <span
                                 v-else-if="link.active"
-                                class="inline-flex size-9 items-center justify-center rounded-xl border border-primary bg-primary text-xs font-medium text-white shadow-xs"
+                                class="shadow-xs inline-flex size-9 items-center justify-center rounded-xl border border-primary bg-primary text-xs font-medium text-white"
                                 aria-current="page"
                             >
                                 {{ link.label }}
@@ -322,7 +328,7 @@ const formatDate = (dateStr: string | null) => {
                             v-if="pagination.next_page_url"
                             :href="pagination.next_page_url"
                             prefetch="hover"
-                            class="inline-flex h-9 items-center gap-1 rounded-xl border border-border bg-white px-3 text-xs font-medium text-foreground shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            class="shadow-xs inline-flex h-9 items-center gap-1 rounded-xl border border-border bg-white px-3 text-xs font-medium text-foreground transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                         >
                             <span>Next</span>
                             <ChevronRight class="size-3.5" />
@@ -351,7 +357,7 @@ const formatDate = (dateStr: string | null) => {
                     <Link
                         href="/sections"
                         prefetch="hover"
-                        class="group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                        class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                     >
                         <ArrowLeft class="size-4 text-primary transition-colors group-hover:text-white" />
                         <span>Go to active sections</span>
@@ -378,12 +384,8 @@ const formatDate = (dateStr: string | null) => {
                     </div>
                     <div class="flex-1">
                         <span class="eyebrow text-rose-700 dark:text-rose-400">Permanent Deletion</span>
-                        <h3 class="mt-1 text-xl font-medium text-foreground">
-                            Delete {{ sectionToDelete.name }}?
-                        </h3>
-                        <p class="mt-1 text-xs text-muted-foreground">
-                            {{ sectionToDelete.subject_code }} · {{ sectionToDelete.subject_title }}
-                        </p>
+                        <h3 class="mt-1 text-xl font-medium text-foreground">Delete {{ sectionToDelete.name }}?</h3>
+                        <p class="mt-1 text-xs text-muted-foreground">{{ sectionToDelete.subject_code }} · {{ sectionToDelete.subject_title }}</p>
                     </div>
                 </div>
 
@@ -398,9 +400,7 @@ const formatDate = (dateStr: string | null) => {
                         <li>Oral recitation participation scores and grading records</li>
                         <li>Project assignments, groupings, and presentation scores</li>
                     </ul>
-                    <p class="mt-2 text-rose-700 dark:text-rose-400 font-medium">
-                        This action cannot be undone.
-                    </p>
+                    <p class="mt-2 font-medium text-rose-700 dark:text-rose-400">This action cannot be undone.</p>
                 </div>
 
                 <div class="mt-6 flex flex-wrap items-center justify-end gap-3 border-t border-border/80 pt-4">
@@ -416,7 +416,7 @@ const formatDate = (dateStr: string | null) => {
 
                     <button
                         type="button"
-                        class="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-rose-700 bg-rose-700 px-4 text-xs font-medium text-white shadow-xs transition-all hover:border-rose-800 hover:bg-rose-800 disabled:opacity-50"
+                        class="shadow-xs inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-rose-700 bg-rose-700 px-4 text-xs font-medium text-white transition-all hover:border-rose-800 hover:bg-rose-800 disabled:opacity-50"
                         :disabled="isDeleting"
                         @click="executeDelete"
                     >

@@ -4,20 +4,7 @@ import LoadingSpinner from '@/components/LoadingSpinner.vue';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { router, useForm } from '@inertiajs/vue3';
-import {
-    Check,
-    CheckCircle2,
-    Columns3,
-    GripHorizontal,
-    GripVertical,
-    RotateCcw,
-    Rows3,
-    Save,
-    Sparkles,
-    Trash2,
-    Undo2,
-    X,
-} from 'lucide-vue-next';
+import { CheckCircle2, Columns3, GripHorizontal, GripVertical, RotateCcw, Rows3, Save, Sparkles, Trash2, Undo2, X } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 
 interface FloorPlan {
@@ -157,15 +144,7 @@ watch(
                 <Label for="floor-rows" class="flex items-center gap-1.5 text-xs font-medium text-foreground">
                     <Rows3 class="size-3.5 text-primary" /> Chair rows
                 </Label>
-                <Input
-                    id="floor-rows"
-                    v-model.number="inputRows"
-                    type="number"
-                    min="1"
-                    max="20"
-                    class="h-9 text-sm"
-                    @change="applyDimensions"
-                />
+                <Input id="floor-rows" v-model.number="inputRows" type="number" min="1" max="20" class="h-9 text-sm" @change="applyDimensions" />
             </div>
             <div class="grid gap-1.5">
                 <Label for="floor-columns" class="flex items-center gap-1.5 text-xs font-medium text-foreground">
@@ -187,7 +166,7 @@ watch(
         <div class="mt-4 flex flex-wrap gap-2.5">
             <button
                 type="button"
-                class="group inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white disabled:opacity-50 dark:bg-card"
+                class="shadow-xs group inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white disabled:opacity-50 dark:bg-card"
                 :disabled="!validDimensions || form.processing"
                 @click="saveFloorPlan"
             >
@@ -199,7 +178,7 @@ watch(
             <button
                 v-if="isDirty"
                 type="button"
-                class="group inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-primary bg-white px-3.5 text-sm font-medium text-primary shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                class="shadow-xs group inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-primary bg-white px-3.5 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                 @click="revertDraft"
                 title="Discard unsaved edits"
             >
@@ -209,7 +188,7 @@ watch(
 
             <button
                 type="button"
-                class="group inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-rose-600 bg-white px-3.5 text-sm font-medium text-rose-700 shadow-xs transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                class="shadow-xs group inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-rose-600 bg-white px-3.5 text-sm font-medium text-rose-700 transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                 @click="resetSeating"
                 title="Unseat all students"
             >
@@ -221,9 +200,7 @@ watch(
         <!-- Interactive Aisles Management Panel -->
         <div class="mt-5 rounded-2xl border border-border/80 bg-secondary/30 p-3.5">
             <div class="flex items-center justify-between">
-                <span class="flex items-center gap-1.5 text-xs font-medium text-foreground">
-                    Aisles ({{ totalAislesCount }})
-                </span>
+                <span class="flex items-center gap-1.5 text-xs font-medium text-foreground"> Aisles ({{ totalAislesCount }}) </span>
                 <button
                     v-if="totalAislesCount > 0"
                     type="button"
@@ -293,7 +270,7 @@ watch(
         <!-- Status Bar -->
         <div
             class="mt-4 flex items-center gap-2 rounded-xl border border-border/80 px-3.5 py-2.5 text-xs font-medium"
-            :class="isDirty ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30' : 'bg-secondary/60 text-secondary-foreground'"
+            :class="isDirty ? 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400' : 'bg-secondary/60 text-secondary-foreground'"
             aria-live="polite"
         >
             <LoadingSpinner v-if="form.processing" size="xs" variant="primary" />

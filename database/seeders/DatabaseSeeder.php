@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Models\AcademicTerm;
 use App\Models\Assessment;
-use App\Models\AssessmentScore;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
 use App\Models\LayoutBlock;

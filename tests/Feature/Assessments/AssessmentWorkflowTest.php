@@ -7,6 +7,8 @@ use App\Models\Assessment;
 use App\Models\AssessmentScore;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
+use App\Models\Project;
+use App\Models\Recitation;
 use App\Models\Section;
 use App\Models\Student;
 use App\Models\User;
@@ -263,7 +265,7 @@ class AssessmentWorkflowTest extends TestCase
         AttendanceRecord::create(['attendance_session_id' => $sess2->id, 'student_id' => $studentB->id, 'status' => 'present', 'attended_minutes' => 60]);
 
         // Create Project & Group
-        $project = \App\Models\Project::create([
+        $project = Project::create([
             'section_id' => $section->id, 'type' => 'project',
             'title' => 'Term Project', 'max_points' => 50,
         ]);
@@ -321,7 +323,7 @@ class AssessmentWorkflowTest extends TestCase
         AssessmentScore::create(['assessment_id' => $act2->id, 'student_id' => $studentB->id, 'score' => 24]);
 
         // Student A has a recitation score of 10/10 -> earns (10/10)*5 = 5.0 bonus points
-        \App\Models\Recitation::create([
+        Recitation::create([
             'section_id' => $section->id,
             'student_id' => $studentA->id,
             'conducted_on' => '2026-08-12',

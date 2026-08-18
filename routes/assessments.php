@@ -44,4 +44,3 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('sections/{section}/exports/attendance', [AssessmentExportController::class, 'attendance'])->name('sections.exports.attendance');
     Route::get('sections/{section}/exports/gradebook', [AssessmentExportController::class, 'gradebook'])->name('sections.exports.gradebook');
 });
-

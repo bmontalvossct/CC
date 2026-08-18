@@ -1,23 +1,8 @@
 <script setup lang="ts">
-import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
-import {
-    ArrowLeft,
-    Check,
-    Clock3,
-    FileCheck,
-    LayoutGrid,
-    LoaderCircle,
-    RotateCcw,
-    Search,
-    UserCheck,
-    UserMinus,
-    UserRound,
-    UserX,
-    X,
-} from 'lucide-vue-next';
+import { ArrowLeft, Check, FileCheck, LayoutGrid, LoaderCircle, RotateCcw, Search, UserRound } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
 type RecordData = { id: number; status: 'present' | 'absent' | 'late'; attended_minutes: number };
@@ -118,9 +103,7 @@ const filteredRoster = computed(() => {
     const q = searchQuery.value.trim().toLowerCase();
     if (!q) return list;
 
-    return list.filter(
-        (item) => item.student.name.toLowerCase().includes(q) || item.student.student_number.toLowerCase().includes(q),
-    );
+    return list.filter((item) => item.student.name.toLowerCase().includes(q) || item.student.student_number.toLowerCase().includes(q));
 });
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -239,12 +222,16 @@ function markAll(status: 'present' | 'absent') {
                     <div class="flex flex-wrap items-center gap-3">
                         <div class="flex items-center gap-4 rounded-2xl border border-border/80 bg-card/90 px-6 py-3.5 shadow-sm">
                             <div class="text-center">
-                                <span class="block text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Present</span>
+                                <span class="block text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400"
+                                    >Present</span
+                                >
                                 <span class="font-mono text-2xl font-semibold text-emerald-700 dark:text-emerald-400">{{ presentCount }}</span>
                             </div>
                             <div class="h-8 w-px bg-border/80" />
                             <div class="text-center">
-                                <span class="block text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">Late (0.5 pt)</span>
+                                <span class="block text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400"
+                                    >Late (0.5 pt)</span
+                                >
                                 <span class="font-mono text-2xl font-semibold text-amber-700 dark:text-amber-400">{{ lateCount }}</span>
                             </div>
                             <div class="h-8 w-px bg-border/80" />
@@ -270,7 +257,7 @@ function markAll(status: 'present' | 'absent') {
                         class="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all"
                         :class="
                             viewMode === 'map'
-                                ? 'bg-primary text-white shadow-xs'
+                                ? 'shadow-xs bg-primary text-white'
                                 : 'border border-border bg-white text-foreground hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card'
                         "
                         @click="viewMode = 'map'"
@@ -284,7 +271,7 @@ function markAll(status: 'present' | 'absent') {
                         class="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all"
                         :class="
                             viewMode === 'list'
-                                ? 'bg-primary text-white shadow-xs'
+                                ? 'shadow-xs bg-primary text-white'
                                 : 'border border-border bg-white text-foreground hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card'
                         "
                         @click="viewMode = 'list'"
@@ -295,9 +282,7 @@ function markAll(status: 'present' | 'absent') {
                 </div>
 
                 <!-- Session Note if available -->
-                <div v-if="session.notes" class="text-sm italic text-muted-foreground">
-                    Note: {{ session.notes }}
-                </div>
+                <div v-if="session.notes" class="text-sm italic text-muted-foreground">Note: {{ session.notes }}</div>
             </div>
 
             <!-- VIEW 1: SEATING MAP VIEW -->
@@ -329,20 +314,20 @@ function markAll(status: 'present' | 'absent') {
                             <span class="size-3 rounded-full bg-amber-700 ring-4 ring-amber-700/20" /> Late (0.5 pt)
                         </span>
                     </div>
-                    <span class="text-xs text-muted-foreground">
-                        Tap a seat: 1st click Absent → 2nd click Late → 3rd click Present.
-                    </span>
+                    <span class="text-xs text-muted-foreground"> Tap a seat: 1st click Absent → 2nd click Late → 3rd click Present. </span>
                 </div>
 
                 <!-- Interactive Live Classroom Floor -->
                 <section class="paper-card overflow-hidden rounded-3xl p-6 shadow-sm md:p-8" aria-label="Interactive classroom attendance map">
                     <div
-                        class="mb-6 flex items-center justify-center rounded-2xl bg-[#164e3f] py-3.5 px-6 text-center text-xs md:text-sm font-bold uppercase tracking-[0.25em] text-white shadow-xs dark:bg-[#134e48]"
+                        class="shadow-xs mb-6 flex items-center justify-center rounded-2xl bg-[#164e3f] px-6 py-3.5 text-center text-xs font-bold uppercase tracking-[0.25em] text-white dark:bg-[#134e48] md:text-sm"
                     >
                         Teaching Wall / Front Board
                     </div>
 
-                    <div class="w-full max-w-full overflow-x-auto overscroll-x-contain pb-4 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable]">
+                    <div
+                        class="w-full max-w-full overflow-x-auto overscroll-x-contain pb-4 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable]"
+                    >
                         <div
                             class="grid min-w-[680px] gap-6"
                             :style="{ gridTemplateColumns: `repeat(${Math.max(1, ...blocks.map((b) => b.column))}, minmax(0, 1fr))` }"
@@ -350,10 +335,15 @@ function markAll(status: 'present' | 'absent') {
                             <article
                                 v-for="block in blocks"
                                 :key="block.id"
-                                class="rounded-2xl border border-border/80 bg-card p-5 shadow-xs"
+                                class="shadow-xs rounded-2xl border border-border/80 bg-card p-5"
                                 :style="{ gridColumn: block.column, gridRow: block.row }"
                             >
-                                <h2 v-if="block.label && block.label !== 'Classroom'" class="mb-3 text-center text-xs font-bold uppercase tracking-wider text-muted-foreground">{{ block.label }}</h2>
+                                <h2
+                                    v-if="block.label && block.label !== 'Classroom'"
+                                    class="mb-3 text-center text-xs font-bold uppercase tracking-wider text-muted-foreground"
+                                >
+                                    {{ block.label }}
+                                </h2>
                                 <div
                                     class="grid gap-3"
                                     :style="{
@@ -367,17 +357,17 @@ function markAll(status: 'present' | 'absent') {
                                         :disabled="seat.is_disabled || !seat.record"
                                         :aria-label="seat.student ? `${seat.student.name}, ${seat.record?.status}` : `${seat.label}, empty`"
                                         :aria-pressed="seat.record?.status === 'present'"
-                                        class="group relative flex min-h-[6.75rem] sm:min-h-[7.25rem] flex-col items-center justify-center rounded-2xl border p-3 text-center transition-all duration-150 focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-default"
+                                        class="group relative flex min-h-[6.75rem] flex-col items-center justify-center rounded-2xl border p-3 text-center transition-all duration-150 focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-default sm:min-h-[7.25rem]"
                                         :class="
                                             seat.is_disabled
                                                 ? 'cursor-not-allowed border-transparent bg-muted/20 opacity-30'
                                                 : !seat.student
                                                   ? 'border-2 border-slate-200/90 bg-card text-muted-foreground hover:border-primary/50 dark:border-border/80'
                                                   : seat.record?.status === 'present'
-                                                    ? 'border-[#1b5d4e]/80 bg-[#164e3f] text-white shadow-xs hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-[#134e48]'
+                                                    ? 'shadow-xs border-[#1b5d4e]/80 bg-[#164e3f] text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-[#134e48]'
                                                     : seat.record?.status === 'late'
-                                                      ? 'border-amber-600/80 bg-amber-800 text-white shadow-xs hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-amber-900'
-                                                      : 'border-rose-600/80 bg-rose-900 text-white shadow-xs hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-rose-950'
+                                                      ? 'shadow-xs border-amber-600/80 bg-amber-800 text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-amber-900'
+                                                      : 'shadow-xs border-rose-600/80 bg-rose-900 text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-rose-950'
                                         "
                                         @click="toggle(seat.record)"
                                         @dragover.prevent
@@ -386,7 +376,7 @@ function markAll(status: 'present' | 'absent') {
                                         <template v-if="seat.student">
                                             <!-- Enlarged Photo / Avatar -->
                                             <div
-                                                class="flex size-10 sm:size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/20 ring-2 ring-white/25 shadow-xs"
+                                                class="shadow-xs flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/20 ring-2 ring-white/25 sm:size-11"
                                             >
                                                 <img
                                                     v-if="seat.student.photo_url"
@@ -394,34 +384,37 @@ function markAll(status: 'present' | 'absent') {
                                                     :alt="seat.student.name"
                                                     class="size-full object-cover"
                                                 />
-                                                <span v-else class="text-xs sm:text-sm font-black uppercase text-white tracking-wider">
+                                                <span v-else class="text-xs font-black uppercase tracking-wider text-white sm:text-sm">
                                                     {{ initials(seat.student.name) }}
                                                 </span>
                                             </div>
 
                                             <!-- Complete Name -->
                                             <span
-                                                class="mt-2 block w-full max-w-[7.5rem] truncate text-center text-[11px] sm:text-xs font-bold uppercase leading-tight tracking-tight text-white"
+                                                class="mt-2 block w-full max-w-[7.5rem] truncate text-center text-[11px] font-bold uppercase leading-tight tracking-tight text-white sm:text-xs"
                                                 :title="seat.student.name"
                                             >
                                                 {{ seat.student.name }}
                                             </span>
 
                                             <!-- Seat Label & Status -->
-                                            <div class="mt-0.5 flex items-center justify-center gap-1 font-mono text-[9px] sm:text-[10px] font-medium leading-none text-white/70 tracking-wider uppercase">
+                                            <div
+                                                class="mt-0.5 flex items-center justify-center gap-1 font-mono text-[9px] font-medium uppercase leading-none tracking-wider text-white/70 sm:text-[10px]"
+                                            >
                                                 <span>{{ seat.label }}</span>
-                                                <span v-if="seat.record?.status === 'late'" class="text-amber-300 font-bold">· LATE</span>
-                                                <span v-else-if="seat.record?.status === 'absent'" class="text-rose-300 font-bold">· ABS</span>
-                                                <LoaderCircle
-                                                    v-if="saveState[seat.record!.id] === 'saving'"
-                                                    class="size-3 animate-spin text-white"
-                                                />
+                                                <span v-if="seat.record?.status === 'late'" class="font-bold text-amber-300">· LATE</span>
+                                                <span v-else-if="seat.record?.status === 'absent'" class="font-bold text-rose-300">· ABS</span>
+                                                <LoaderCircle v-if="saveState[seat.record!.id] === 'saving'" class="size-3 animate-spin text-white" />
                                             </div>
                                         </template>
 
                                         <template v-else>
-                                            <Armchair class="size-6 text-slate-400 transition-transform group-hover:scale-110 dark:text-muted-foreground/60" />
-                                            <span class="mt-2 block font-mono text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-muted-foreground">
+                                            <Armchair
+                                                class="size-6 text-slate-400 transition-transform group-hover:scale-110 dark:text-muted-foreground/60"
+                                            />
+                                            <span
+                                                class="mt-2 block font-mono text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-muted-foreground sm:text-[11px]"
+                                            >
                                                 {{ seat.is_disabled ? 'Unavailable' : seat.label }}
                                             </span>
                                         </template>
@@ -446,7 +439,9 @@ function markAll(status: 'present' | 'absent') {
                             class="flex items-center justify-between rounded-xl border border-border/80 bg-secondary/30 p-3"
                         >
                             <div class="flex items-center gap-2.5">
-                                <span class="flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-card text-xs font-medium">
+                                <span
+                                    class="flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-card text-xs font-medium"
+                                >
                                     {{ initials(item.student.name) }}
                                 </span>
                                 <div>
@@ -459,7 +454,11 @@ function markAll(status: 'present' | 'absent') {
                                 <button
                                     type="button"
                                     class="rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors"
-                                    :class="item.record.status === 'present' ? 'border-emerald-700 bg-emerald-700 text-white' : 'border-border bg-white text-foreground hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card'"
+                                    :class="
+                                        item.record.status === 'present'
+                                            ? 'border-emerald-700 bg-emerald-700 text-white'
+                                            : 'border-border bg-white text-foreground hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card'
+                                    "
                                     @click="updateStatus(item.record, 'present')"
                                 >
                                     Present
@@ -467,7 +466,11 @@ function markAll(status: 'present' | 'absent') {
                                 <button
                                     type="button"
                                     class="rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors"
-                                    :class="item.record.status === 'late' ? 'border-amber-700 bg-amber-700 text-white' : 'border-border bg-white text-foreground hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card'"
+                                    :class="
+                                        item.record.status === 'late'
+                                            ? 'border-amber-700 bg-amber-700 text-white'
+                                            : 'border-border bg-white text-foreground hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card'
+                                    "
                                     @click="updateStatus(item.record, 'late')"
                                 >
                                     Late
@@ -475,7 +478,11 @@ function markAll(status: 'present' | 'absent') {
                                 <button
                                     type="button"
                                     class="rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors"
-                                    :class="item.record.status === 'absent' ? 'border-rose-700 bg-rose-700 text-white' : 'border-border bg-white text-foreground hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card'"
+                                    :class="
+                                        item.record.status === 'absent'
+                                            ? 'border-rose-700 bg-rose-700 text-white'
+                                            : 'border-border bg-white text-foreground hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card'
+                                    "
                                     @click="updateStatus(item.record, 'absent')"
                                 >
                                     Absent
@@ -506,7 +513,7 @@ function markAll(status: 'present' | 'absent') {
                                     v-model="searchQuery"
                                     type="text"
                                     placeholder="Find student by name or ID..."
-                                    class="w-full rounded-xl border border-input bg-background pl-9 pr-3 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                    class="w-full rounded-xl border border-input bg-background py-1.5 pl-9 pr-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                                 />
                             </div>
 
@@ -515,7 +522,9 @@ function markAll(status: 'present' | 'absent') {
                                 <button
                                     type="button"
                                     class="rounded-lg px-3 py-1 text-xs font-medium transition-colors"
-                                    :class="filterStatus === 'all' ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-amber-400 hover:text-white'"
+                                    :class="
+                                        filterStatus === 'all' ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-amber-400 hover:text-white'
+                                    "
                                     @click="filterStatus = 'all'"
                                 >
                                     All ({{ rosterStudents.length }})
@@ -570,7 +579,9 @@ function markAll(status: 'present' | 'absent') {
                     <div class="mt-4 overflow-x-auto">
                         <table class="w-full min-w-[760px] text-base">
                             <thead>
-                                <tr class="border-b border-border/80 bg-secondary/40 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                <tr
+                                    class="border-b border-border/80 bg-secondary/40 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                                >
                                     <th class="w-12 rounded-l-lg px-4 py-3">#</th>
                                     <th class="px-4 py-3">Student Name</th>
                                     <th class="px-4 py-3">Student Number</th>
@@ -579,11 +590,7 @@ function markAll(status: 'present' | 'absent') {
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-border/60">
-                                <tr
-                                    v-for="(item, idx) in filteredRoster"
-                                    :key="item.student.id"
-                                    class="transition-colors hover:bg-secondary/30"
-                                >
+                                <tr v-for="(item, idx) in filteredRoster" :key="item.student.id" class="transition-colors hover:bg-secondary/30">
                                     <td class="px-4 py-3 font-mono text-sm text-muted-foreground">
                                         {{ idx + 1 }}
                                     </td>
@@ -624,10 +631,7 @@ function markAll(status: 'present' | 'absent') {
                                                     v-else-if="saveState[item.record.id] === 'saved'"
                                                     class="size-3.5 text-emerald-700 dark:text-emerald-400"
                                                 />
-                                                <RotateCcw
-                                                    v-else-if="saveState[item.record.id] === 'error'"
-                                                    class="size-3.5 text-rose-700"
-                                                />
+                                                <RotateCcw v-else-if="saveState[item.record.id] === 'error'" class="size-3.5 text-rose-700" />
                                             </span>
 
                                             <!-- 3 Action Buttons -->
