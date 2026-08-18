@@ -406,7 +406,8 @@ const daysWithEvents = computed(() => {
                                 <div
                                     v-for="(cls, cIdx) in day.classes.slice(0, 3)"
                                     :key="cIdx"
-                                    class="group/item flex flex-col rounded-lg border p-1.5 text-[11px] shadow-2xs transition-all hover:scale-[1.01]"
+                                    class="group/item flex flex-col rounded-lg border p-1.5 text-[11px] shadow-2xs transition-all hover:scale-[1.02] hover:shadow-xs cursor-pointer"
+                                    :title="`${cls.subject_title || cls.subject_code} (${cls.subject_code}) · ${cls.section_name} · ${formatTime12h(cls.starts_at)} - ${formatTime12h(cls.ends_at)}${cls.room ? ' · ' + cls.room : ''}`"
                                     :class="[
                                         cls.is_conducted
                                             ? 'border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-950/20'
@@ -418,8 +419,12 @@ const daysWithEvents = computed(() => {
                                     ]"
                                 >
                                     <div class="flex items-center justify-between gap-1">
-                                        <span class="font-bold text-foreground truncate">
+                                        <!-- Course code by default; Course title/description when hovered -->
+                                        <span class="font-bold text-foreground truncate group-hover/item:hidden">
                                             {{ cls.subject_code }}
+                                        </span>
+                                        <span class="hidden font-bold text-primary truncate group-hover/item:block text-[10.5px]">
+                                            {{ cls.subject_title || cls.subject_code }}
                                         </span>
                                         <span class="font-mono text-[9px] text-muted-foreground shrink-0">
                                             {{ cls.starts_at }}
