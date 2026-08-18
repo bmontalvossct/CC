@@ -92,4 +92,47 @@ class ScheduleTest extends TestCase
 
         Carbon::setTestNow();
     }
+
+    public function test_holidays_do_not_include_scheduled_subjects_unless_conducted(): void
+    {
+        $user = User::factory()->create();
+
+        $term = AcademicTerm::create([
+            'user_id' => $user->id,
+            'name' => '1st Semester',
+            'school_year' => '2026-2027',
+            'starts_on' => '2026-08-01',
+            'ends_on' => '2026-12-15',
+            'is_current' => true,
+        ]);
+
+        $section = Section::create([
+            'user_id' => $user->id,
+            'academic_term_id' => $term->id,
+            'subject_code' => 'CS 101',
+            'subject_title' => 'Computer Science',
+            'name' => 'BSCS 1-A',
+        ]);
+
+        // Aug 21, 2026 is Friday (Ninoy Aquino Day, Special Non-Working Holiday in PH)
+        // Friday is day_of_week = 5
+        $section->schedules()->create([
+            'day_of_week' => 5,
+            'starts_at' => '10:00',
+            'ends_at' => '11:30',
+            'schedule_type' => 'lecture',
+        ]);
+
+        $response = $this->actingAs($user)->get(route('schedule.index', ['month' => '2026-08']));
+
+        $response->assertOk();
+        $response->assertInertia(function ($page) {
+            $days = collect($page->toArray()['props']['calendarDays']);
+            $aug21 = $days->firstWhere('date', '2026-08-21');
+
+            $this->assertNotNull($aug21['holiday']);
+            $this->assertSame('Ninoy Aquino Day', $aug21['holiday']['name']);
+            $this->assertEmpty($aug21['classes']);
+        });
+    }
 }

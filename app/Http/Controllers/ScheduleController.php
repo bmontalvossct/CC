@@ -99,6 +99,11 @@ class ScheduleController extends Controller
                         $key = $section->id . '_' . $dateStr;
                         $session = $attendanceSessions->get($key)?->first();
 
+                        // If the date is a Philippine holiday, do not include scheduled subjects unless a class was conducted
+                        if ($holiday && ! $session) {
+                            continue;
+                        }
+
                         $presentCount = 0;
                         $lateCount = 0;
                         $excusedCount = 0;
