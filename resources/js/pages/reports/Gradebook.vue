@@ -2,7 +2,7 @@
 import StudentDeficienciesModal from '@/components/reports/StudentDeficienciesModal.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { ArrowLeft, Download, Printer, Save, Settings, Trophy } from 'lucide-vue-next';
+import { AlertCircle, ArrowLeft, Download, Printer, RotateCcw, Save, Settings, Trophy, Wand2, X } from 'lucide-vue-next';
 import { computed, onMounted, ref, watch } from 'vue';
 
 type Assessment = { id: number; type: 'activity' | 'quiz' | 'exam'; title: string; conducted_on: string; max_points: string };
@@ -99,6 +99,9 @@ const hasDeficiencies = (row: Row): boolean => {
     return countDeficiencies(row) > 0;
 };
 
+// Rubric Weights & Bonus State
+const saveError = ref<string | null>(null);
+
 const weightsForm = useForm({
     activity: props.gradingWeights.activity ?? 20,
     quiz: props.gradingWeights.quiz ?? 20,
@@ -111,7 +114,7 @@ const weightsForm = useForm({
 watch(
     () => props.gradingWeights,
     (newWeights) => {
-        if (!newWeights) return;
+        if (!newWeights || showWeightsEditor.value) return;
         weightsForm.activity = newWeights.activity ?? 20;
         weightsForm.quiz = newWeights.quiz ?? 20;
         weightsForm.exam = newWeights.exam ?? 25;
@@ -124,17 +127,79 @@ watch(
 
 const coreWeightsTotal = computed(
     () =>
-        (weightsForm.activity || 0) + (weightsForm.quiz || 0) + (weightsForm.exam || 0) + (weightsForm.project || 0) + (weightsForm.attendance || 0),
+        Number(weightsForm.activity || 0) +
+        Number(weightsForm.quiz || 0) +
+        Number(weightsForm.exam || 0) +
+        Number(weightsForm.project || 0) +
+        Number(weightsForm.attendance || 0),
 );
 
-const weightsValid = computed(() => coreWeightsTotal.value === 100 || coreWeightsTotal.value + (weightsForm.recitation || 0) === 100);
+const weightsValid = computed(() => coreWeightsTotal.value === 100 || coreWeightsTotal.value + Number(weightsForm.recitation || 0) === 100);
+
+const applyPreset = (preset: { activity: number; quiz: number; exam: number; project: number; attendance: number }) => {
+    weightsForm.activity = preset.activity;
+    weightsForm.quiz = preset.quiz;
+    weightsForm.exam = preset.exam;
+    weightsForm.project = preset.project;
+    weightsForm.attendance = preset.attendance;
+    saveError.value = null;
+    weightsForm.clearErrors();
+};
+
+const autoBalanceTo100 = () => {
+    const act = Number(weightsForm.activity) || 0;
+    const quiz = Number(weightsForm.quiz) || 0;
+    const exam = Number(weightsForm.exam) || 0;
+    const proj = Number(weightsForm.project) || 0;
+    const att = Number(weightsForm.attendance) || 0;
+
+    const sum = act + quiz + exam + proj + att;
+    if (sum === 0) {
+        applyPreset({ activity: 20, quiz: 20, exam: 25, project: 20, attendance: 15 });
+        return;
+    }
+
+    const rawAct = Math.round((act / sum) * 100);
+    const rawQuiz = Math.round((quiz / sum) * 100);
+    const rawExam = Math.round((exam / sum) * 100);
+    const rawProj = Math.round((proj / sum) * 100);
+    const rawAtt = Math.max(0, 100 - (rawAct + rawQuiz + rawExam + rawProj));
+
+    weightsForm.activity = rawAct;
+    weightsForm.quiz = rawQuiz;
+    weightsForm.exam = rawExam;
+    weightsForm.project = rawProj;
+    weightsForm.attendance = rawAtt;
+    saveError.value = null;
+    weightsForm.clearErrors();
+};
+
+const resetToCurrent = () => {
+    weightsForm.activity = props.gradingWeights.activity ?? 20;
+    weightsForm.quiz = props.gradingWeights.quiz ?? 20;
+    weightsForm.exam = props.gradingWeights.exam ?? 25;
+    weightsForm.project = props.gradingWeights.project ?? 20;
+    weightsForm.attendance = props.gradingWeights.attendance ?? 15;
+    weightsForm.recitation = props.gradingWeights.recitation ?? 5;
+    saveError.value = null;
+    weightsForm.clearErrors();
+};
 
 const saveWeights = () => {
-    if (!weightsValid.value) return;
+    saveError.value = null;
+    if (!weightsValid.value) {
+        saveError.value = `Core coursework total is currently ${coreWeightsTotal.value}%. Core weights must equal exactly 100% before saving. Click 'Auto-Adjust to 100%' below to balance automatically.`;
+        return;
+    }
+
     weightsForm.put(`/sections/${props.section.id}/grading-weights`, {
         preserveScroll: true,
         onSuccess: () => {
             showWeightsEditor.value = false;
+            saveError.value = null;
+        },
+        onError: (errors) => {
+            saveError.value = Object.values(errors).join(' ');
         },
     });
 };
@@ -298,24 +363,89 @@ onMounted(() => {
                     v-if="showWeightsEditor && !printMode"
                     class="paper-card mb-6 p-6 shadow-sm duration-200 animate-in slide-in-from-top-2 print:hidden"
                 >
-                    <div class="mb-4 flex items-center justify-between gap-4">
-                        <div class="flex items-center gap-2">
-                            <Trophy class="size-4 text-primary" />
-                            <h3 class="text-base font-bold">Grading rubrics & oral recitation bonus</h3>
+                    <div class="mb-4 flex items-start justify-between gap-4">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <Trophy class="size-4 text-primary" />
+                                <h3 class="text-base font-bold text-foreground">Grading rubrics & oral recitation bonus</h3>
+                            </div>
+                            <p class="mt-1 text-xs text-muted-foreground">
+                                Core components (Activities, Quizzes, Major Exams, Projects/Reporting, and Attendance) must total 100%. Oral
+                                recitations award additional bonus points directly added to student Activities.
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            class="grid size-7 place-items-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground"
+                            @click="showWeightsEditor = false"
+                        >
+                            <X class="size-4" />
+                        </button>
+                    </div>
+
+                    <!-- Quick Presets -->
+                    <div class="mb-5 flex flex-wrap items-center gap-2 border-y border-border/60 py-3">
+                        <span class="text-xs font-semibold text-muted-foreground">Quick Presets:</span>
+                        <button
+                            type="button"
+                            class="rounded-lg border border-border/80 bg-secondary/50 px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
+                            @click="applyPreset({ activity: 20, quiz: 20, exam: 25, project: 20, attendance: 15 })"
+                        >
+                            Standard (20-20-25-20-15)
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-lg border border-border/80 bg-secondary/50 px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
+                            @click="applyPreset({ activity: 15, quiz: 15, exam: 40, project: 15, attendance: 15 })"
+                        >
+                            Exam Focus (15-15-40-15-15)
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-lg border border-border/80 bg-secondary/50 px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
+                            @click="applyPreset({ activity: 15, quiz: 15, exam: 20, project: 35, attendance: 15 })"
+                        >
+                            Project Focus (15-15-20-35-15)
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-lg border border-border/80 bg-secondary/50 px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
+                            @click="applyPreset({ activity: 35, quiz: 20, exam: 20, project: 15, attendance: 10 })"
+                        >
+                            Activity Focus (35-20-20-15-10)
+                        </button>
+                    </div>
+
+                    <!-- Error Alert -->
+                    <div
+                        v-if="saveError || weightsForm.errors.weights"
+                        class="mb-5 flex items-start gap-2.5 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-700 dark:text-rose-400"
+                    >
+                        <AlertCircle class="size-4 shrink-0 mt-0.5" />
+                        <div>
+                            <p class="font-semibold">{{ saveError || weightsForm.errors.weights }}</p>
                         </div>
                     </div>
-                    <p class="mb-5 text-xs text-muted-foreground">
-                        Core coursework components (Activities, Quizzes, Major Exams, Projects/Reporting, and Attendance) form the base 100%. Oral
-                        recitations award additional bonus points directly added to the student's Activities score (without inflating the max points
-                        denominator).
-                    </p>
 
                     <form class="space-y-5" @submit.prevent="saveWeights">
                         <!-- Core Coursework Row -->
                         <div>
-                            <span class="mb-2 block text-xs font-bold uppercase tracking-wider text-foreground"
-                                >Core Coursework (Must Total 100%)</span
-                            >
+                            <div class="mb-2 flex items-center justify-between">
+                                <span class="text-xs font-bold uppercase tracking-wider text-foreground">
+                                    Core Coursework Components
+                                </span>
+                                <span
+                                    class="rounded-md px-2 py-0.5 font-mono text-xs font-bold"
+                                    :class="
+                                        weightsValid
+                                            ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                                            : 'bg-rose-500/10 text-rose-700 dark:text-rose-400'
+                                    "
+                                >
+                                    Total: {{ coreWeightsTotal }}% {{ weightsValid ? '✓' : '(Must be 100%)' }}
+                                </span>
+                            </div>
+
                             <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
                                 <label class="rounded-xl border border-border/80 bg-secondary/30 p-3">
                                     <span class="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
@@ -403,7 +533,7 @@ onMounted(() => {
                                         Oral Participation (Bonus Points Added to Activities)
                                     </span>
                                     <p class="mt-0.5 text-xs text-muted-foreground">
-                                        Awarded as bonus score (0–20 pts max) added directly into student Activities scores. Maximum points
+                                        Awarded as bonus score (0–50 pts max) added directly into student Activities scores. Maximum points
                                         denominator is not increased, so non-called students are never penalized.
                                     </p>
                                 </div>
@@ -415,7 +545,7 @@ onMounted(() => {
                                             v-model.number="weightsForm.recitation"
                                             type="number"
                                             min="0"
-                                            max="20"
+                                            max="50"
                                             class="w-20 rounded-lg border border-amber-500/40 bg-background px-3 py-1.5 text-center text-sm font-bold text-amber-600 focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-amber-400"
                                         />
                                         <span class="text-xs font-bold text-amber-600 dark:text-amber-400">pts</span>
@@ -425,26 +555,45 @@ onMounted(() => {
                         </div>
                     </form>
 
-                    <div class="mt-5 flex items-center justify-between border-t border-border/80 pt-4">
+                    <!-- Footer / Actions -->
+                    <div class="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border/80 pt-4">
                         <div class="flex items-center gap-3">
-                            <span class="text-xs font-medium text-muted-foreground">Core Coursework Total:</span>
+                            <button
+                                v-if="!weightsValid"
+                                type="button"
+                                class="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-700 transition-colors hover:bg-amber-500/20 dark:text-amber-400"
+                                @click="autoBalanceTo100"
+                            >
+                                <Wand2 class="size-3.5" />
+                                <span>Auto-Adjust to 100%</span>
+                            </button>
                             <span
-                                class="text-sm font-bold"
+                                class="text-xs font-medium"
                                 :class="weightsValid ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'"
                             >
-                                {{ coreWeightsTotal }}%
+                                {{ weightsValid ? 'Core weights balanced (100%)' : `Total is ${coreWeightsTotal}% — needs ${100 - coreWeightsTotal > 0 ? `+${100 - coreWeightsTotal}%` : `${100 - coreWeightsTotal}%`}` }}
                             </span>
-                            <span v-if="!weightsValid" class="text-[10px] font-bold text-rose-600 dark:text-rose-400">Core must equal 100%</span>
                         </div>
-                        <button
-                            type="button"
-                            :disabled="!weightsValid || weightsForm.processing"
-                            class="ink-button !h-9 !rounded-xl !px-4 text-xs font-medium"
-                            @click="saveWeights"
-                        >
-                            <Save class="size-3.5" />
-                            {{ weightsForm.processing ? 'Saving…' : 'Save Weights' }}
-                        </button>
+
+                        <div class="flex items-center gap-2">
+                            <button
+                                type="button"
+                                class="rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+                                @click="resetToCurrent"
+                            >
+                                <RotateCcw class="mr-1 inline size-3" />
+                                Reset
+                            </button>
+                            <button
+                                type="button"
+                                :disabled="weightsForm.processing"
+                                class="ink-button !h-9 !rounded-xl !px-4 text-xs font-bold"
+                                @click="saveWeights"
+                            >
+                                <Save class="size-3.5" />
+                                <span>{{ weightsForm.processing ? 'Saving…' : 'Save Weights' }}</span>
+                            </button>
+                        </div>
                     </div>
                 </section>
 

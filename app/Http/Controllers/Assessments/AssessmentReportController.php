@@ -41,25 +41,40 @@ class AssessmentReportController extends AssessmentModuleController
             'recitation' => 5,
         ], $section->grading_weights ?? []);
 
+        // Pre-cast all incoming numbers to integer
+        $input = $request->all();
+        foreach (['activity', 'quiz', 'exam', 'project', 'attendance', 'recitation'] as $key) {
+            if (isset($input[$key]) && is_numeric($input[$key])) {
+                $input[$key] = (int) $input[$key];
+            }
+        }
+        $request->merge($input);
+
         $data = $request->validate([
-            'activity' => ['sometimes', 'required', 'integer', 'min:0', 'max:100'],
-            'quiz' => ['sometimes', 'required', 'integer', 'min:0', 'max:100'],
-            'exam' => ['sometimes', 'required', 'integer', 'min:0', 'max:100'],
-            'project' => ['sometimes', 'required', 'integer', 'min:0', 'max:100'],
-            'attendance' => ['sometimes', 'required', 'integer', 'min:0', 'max:100'],
+            'activity' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:100'],
+            'quiz' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:100'],
+            'exam' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:100'],
+            'project' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:100'],
+            'attendance' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:100'],
             'recitation' => ['nullable', 'integer', 'min:0', 'max:50'],
         ]);
 
-        $merged = array_merge($current, $data);
-        if (array_key_exists('recitation', $data)) {
-            $merged['recitation'] = (int) ($data['recitation'] ?? 0);
-        }
+        $merged = [
+            'activity' => isset($data['activity']) && $data['activity'] !== null ? (int) $data['activity'] : (int) ($current['activity'] ?? 20),
+            'quiz' => isset($data['quiz']) && $data['quiz'] !== null ? (int) $data['quiz'] : (int) ($current['quiz'] ?? 20),
+            'exam' => isset($data['exam']) && $data['exam'] !== null ? (int) $data['exam'] : (int) ($current['exam'] ?? 25),
+            'project' => isset($data['project']) && $data['project'] !== null ? (int) $data['project'] : (int) ($current['project'] ?? 20),
+            'attendance' => isset($data['attendance']) && $data['attendance'] !== null ? (int) $data['attendance'] : (int) ($current['attendance'] ?? 15),
+            'recitation' => array_key_exists('recitation', $data) ? (int) ($data['recitation'] ?? 0) : (int) ($current['recitation'] ?? 5),
+        ];
 
         $baseTotal = $merged['activity'] + $merged['quiz'] + $merged['exam'] + $merged['project'] + $merged['attendance'];
-        $totalWithRec = $baseTotal + ($merged['recitation'] ?? 0);
+        $totalWithRec = $baseTotal + $merged['recitation'];
 
         if ($baseTotal !== 100 && $totalWithRec !== 100) {
-            return back()->withErrors(['weights' => 'Core coursework weights (Activity, Quiz, Exam, Project, Attendance) must total exactly 100%.']);
+            return back()->withErrors([
+                'weights' => "Core coursework weights currently total {$baseTotal}%. Core weights must equal exactly 100%.",
+            ]);
         }
 
         $section->update(['grading_weights' => $merged]);
