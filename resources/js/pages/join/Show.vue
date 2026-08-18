@@ -21,6 +21,13 @@ const form = useForm<{
 const enrollmentError = computed(() => (form.errors as Record<string, string | undefined>).enrollment);
 const selectedLabel = computed(() => props.section.blocks.flatMap((block: any) => block.seats).find((seat: any) => seat.id === form.seat_id)?.label);
 const submit = () => form.post(`/join/${props.token}`, { forceFormData: true, preserveScroll: true });
+
+const getBlockDensity = (columns: number): 'spacious' | 'compact' | 'condensed' | 'micro' => {
+    if (columns <= 5) return 'spacious';
+    if (columns <= 8) return 'compact';
+    if (columns <= 12) return 'condensed';
+    return 'micro';
+};
 </script>
 
 <template>
@@ -86,15 +93,16 @@ const submit = () => form.post(`/join/${props.token}`, { forceFormData: true, pr
                         tabindex="0"
                     >
                         <div
-                            class="grid min-w-[480px] gap-6"
+                            class="grid w-full min-w-0 gap-6"
                             :style="{
-                                gridTemplateColumns: `repeat(${Math.max(1, ...section.blocks.map((block: any) => block.block_column))}, minmax(190px, 1fr))`,
+                                gridTemplateColumns: `repeat(${Math.max(1, ...section.blocks.map((block: any) => block.block_column))}, minmax(0, 1fr))`,
                             }"
                         >
                             <article
                                 v-for="block in section.blocks"
                                 :key="block.id"
-                                class="shadow-xs rounded-2xl border border-border/80 bg-card p-4"
+                                class="shadow-xs rounded-2xl border border-border/80 bg-card transition-all"
+                                :class="getBlockDensity(block.internal_columns) === 'spacious' ? 'p-4' : 'p-2.5 sm:p-3'"
                                 :style="{ gridColumn: block.block_column, gridRow: block.block_row }"
                             >
                                 <p
@@ -103,27 +111,65 @@ const submit = () => form.post(`/join/${props.token}`, { forceFormData: true, pr
                                 >
                                     {{ block.label }}
                                 </p>
-                                <div class="grid gap-2.5" :style="{ gridTemplateColumns: `repeat(${block.internal_columns}, 1fr)` }">
+                                <div
+                                    class="grid"
+                                    :class="
+                                        getBlockDensity(block.internal_columns) === 'spacious'
+                                            ? 'gap-2.5'
+                                            : getBlockDensity(block.internal_columns) === 'compact'
+                                              ? 'gap-2'
+                                              : getBlockDensity(block.internal_columns) === 'condensed'
+                                                ? 'gap-1.5'
+                                                : 'gap-1'
+                                    "
+                                    :style="{ gridTemplateColumns: `repeat(${block.internal_columns}, minmax(0, 1fr))` }"
+                                >
                                     <button
                                         v-for="seat in block.seats"
                                         :key="seat.id"
                                         type="button"
                                         :disabled="!seat.is_available"
-                                        class="flex min-h-[4.75rem] flex-col items-center justify-center rounded-2xl border-2 p-2 text-center transition-all duration-150"
-                                        :class="
+                                        class="flex flex-col items-center justify-center border-2 text-center transition-all duration-150"
+                                        :class="[
+                                            getBlockDensity(block.internal_columns) === 'spacious'
+                                                ? 'min-h-[4.75rem] rounded-2xl p-2'
+                                                : getBlockDensity(block.internal_columns) === 'compact'
+                                                  ? 'min-h-[3.75rem] rounded-xl p-1.5'
+                                                  : getBlockDensity(block.internal_columns) === 'condensed'
+                                                    ? 'min-h-[3rem] rounded-lg p-1'
+                                                    : 'min-h-[2.5rem] rounded-md p-0.5',
                                             seat.id === form.seat_id
                                                 ? 'scale-105 border-emerald-400 bg-[#164e3f] text-white shadow-md ring-2 ring-emerald-400 ring-offset-2'
                                                 : seat.is_available
                                                   ? 'border-slate-200/90 bg-card text-muted-foreground hover:-translate-y-0.5 hover:border-primary/50 hover:bg-secondary/40 hover:text-foreground dark:border-border/80'
-                                                  : 'cursor-not-allowed border-transparent bg-muted/40 text-muted-foreground/40 opacity-50'
-                                        "
+                                                  : 'cursor-not-allowed border-transparent bg-muted/40 text-muted-foreground/40 opacity-50',
+                                        ]"
                                         @click="form.seat_id = seat.id"
                                     >
                                         <Armchair
-                                            class="size-4.5"
-                                            :class="seat.id === form.seat_id ? 'text-white' : 'text-slate-400 dark:text-muted-foreground/60'"
+                                            :class="[
+                                                getBlockDensity(block.internal_columns) === 'spacious'
+                                                    ? 'size-4.5'
+                                                    : getBlockDensity(block.internal_columns) === 'compact'
+                                                      ? 'size-3.5'
+                                                      : getBlockDensity(block.internal_columns) === 'condensed'
+                                                        ? 'size-3'
+                                                        : 'size-2.5',
+                                                seat.id === form.seat_id ? 'text-white' : 'text-slate-400 dark:text-muted-foreground/60',
+                                            ]"
                                         />
-                                        <span class="mt-1 block font-mono text-[9px] font-bold uppercase tracking-wider">
+                                        <span
+                                            class="block font-mono font-bold uppercase tracking-wider"
+                                            :class="
+                                                getBlockDensity(block.internal_columns) === 'spacious'
+                                                    ? 'mt-1 text-[9px]'
+                                                    : getBlockDensity(block.internal_columns) === 'compact'
+                                                      ? 'mt-0.5 text-[8px]'
+                                                      : getBlockDensity(block.internal_columns) === 'condensed'
+                                                        ? 'mt-0.25 text-[7px]'
+                                                        : 'mt-0 text-[6px]'
+                                            "
+                                        >
                                             {{ seat.is_available ? seat.label : 'TAKEN' }}
                                         </span>
                                     </button>

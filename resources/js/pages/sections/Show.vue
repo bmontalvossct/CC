@@ -390,9 +390,9 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                             tabindex="0"
                         >
                             <div
-                                class="grid min-w-[620px] gap-8"
+                                class="grid w-full min-w-0 gap-6"
                                 :style="{
-                                    gridTemplateColumns: `repeat(${Math.max(...section.layout_blocks.map((block: any) => block.block_column))}, minmax(220px, 1fr))`,
+                                    gridTemplateColumns: `repeat(${Math.max(...section.layout_blocks.map((block: any) => block.block_column))}, minmax(0, 1fr))`,
                                 }"
                             >
                                 <ClassroomSeatGrid

@@ -189,6 +189,16 @@ function markAll(status: 'present' | 'absent') {
         updateStatus(item.record, status);
     }
 }
+
+const getBlockCols = (block: any) => Math.max(1, ...(block.seats?.map((s: any) => s.column_number) ?? [1]));
+
+const getBlockDensity = (block: any): 'spacious' | 'compact' | 'condensed' | 'micro' => {
+    const cols = getBlockCols(block);
+    if (cols <= 5) return 'spacious';
+    if (cols <= 8) return 'compact';
+    if (cols <= 12) return 'condensed';
+    return 'micro';
+};
 </script>
 
 <template>
@@ -329,13 +339,14 @@ function markAll(status: 'present' | 'absent') {
                         class="w-full max-w-full overflow-x-auto overscroll-x-contain pb-4 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable]"
                     >
                         <div
-                            class="grid min-w-[680px] gap-6"
+                            class="grid w-full min-w-0 gap-6"
                             :style="{ gridTemplateColumns: `repeat(${Math.max(1, ...blocks.map((b) => b.column))}, minmax(0, 1fr))` }"
                         >
                             <article
                                 v-for="block in blocks"
                                 :key="block.id"
-                                class="shadow-xs rounded-2xl border border-border/80 bg-card p-5"
+                                class="shadow-xs rounded-2xl border border-border/80 bg-card transition-all"
+                                :class="getBlockDensity(block) === 'spacious' ? 'p-5' : getBlockDensity(block) === 'compact' ? 'p-3.5' : 'p-2.5 sm:p-3'"
                                 :style="{ gridColumn: block.column, gridRow: block.row }"
                             >
                                 <h2
@@ -345,9 +356,18 @@ function markAll(status: 'present' | 'absent') {
                                     {{ block.label }}
                                 </h2>
                                 <div
-                                    class="grid gap-3"
+                                    class="grid"
+                                    :class="
+                                        getBlockDensity(block) === 'spacious'
+                                            ? 'gap-3'
+                                            : getBlockDensity(block) === 'compact'
+                                              ? 'gap-2'
+                                              : getBlockDensity(block) === 'condensed'
+                                                ? 'gap-1.5'
+                                                : 'gap-1'
+                                    "
                                     :style="{
-                                        gridTemplateColumns: `repeat(${Math.max(1, ...block.seats.map((s) => s.column_number))}, minmax(7rem, 1fr))`,
+                                        gridTemplateColumns: `repeat(${getBlockCols(block)}, minmax(0, 1fr))`,
                                     }"
                                 >
                                     <button
@@ -357,8 +377,15 @@ function markAll(status: 'present' | 'absent') {
                                         :disabled="seat.is_disabled || !seat.record"
                                         :aria-label="seat.student ? `${seat.student.name}, ${seat.record?.status}` : `${seat.label}, empty`"
                                         :aria-pressed="seat.record?.status === 'present'"
-                                        class="group relative flex min-h-[6.75rem] flex-col items-center justify-center rounded-2xl border p-3 text-center transition-all duration-150 focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-default sm:min-h-[7.25rem]"
-                                        :class="
+                                        class="group relative flex flex-col items-center justify-center border text-center transition-all duration-150 focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-default"
+                                        :class="[
+                                            getBlockDensity(block) === 'spacious'
+                                                ? 'min-h-[6.5rem] rounded-2xl p-2.5 sm:min-h-[7.25rem] sm:p-3'
+                                                : getBlockDensity(block) === 'compact'
+                                                  ? 'min-h-[4.75rem] rounded-xl p-1.5 sm:min-h-[5.5rem] sm:p-2'
+                                                  : getBlockDensity(block) === 'condensed'
+                                                    ? 'min-h-[3.75rem] rounded-lg p-1 sm:min-h-[4.25rem]'
+                                                    : 'min-h-[3rem] rounded-md p-0.5 sm:min-h-[3.5rem]',
                                             seat.is_disabled
                                                 ? 'cursor-not-allowed border-transparent bg-muted/20 opacity-30'
                                                 : !seat.student
@@ -367,16 +394,25 @@ function markAll(status: 'present' | 'absent') {
                                                     ? 'shadow-xs border-[#1b5d4e]/80 bg-[#164e3f] text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-[#134e48]'
                                                     : seat.record?.status === 'late'
                                                       ? 'shadow-xs border-amber-600/80 bg-amber-800 text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-amber-900'
-                                                      : 'shadow-xs border-rose-600/80 bg-rose-900 text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-rose-950'
-                                        "
+                                                      : 'shadow-xs border-rose-600/80 bg-rose-900 text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-rose-950',
+                                        ]"
                                         @click="toggle(seat.record)"
                                         @dragover.prevent
                                         @drop.prevent="dropStatus($event, seat.record)"
                                     >
                                         <template v-if="seat.student">
-                                            <!-- Enlarged Photo / Avatar -->
+                                            <!-- Scaled Photo / Avatar -->
                                             <div
-                                                class="shadow-xs flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/20 ring-2 ring-white/25 sm:size-11"
+                                                class="shadow-xs flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/20 ring-1 ring-white/25 sm:ring-2"
+                                                :class="
+                                                    getBlockDensity(block) === 'spacious'
+                                                        ? 'size-10 sm:size-11'
+                                                        : getBlockDensity(block) === 'compact'
+                                                          ? 'size-7 sm:size-8'
+                                                          : getBlockDensity(block) === 'condensed'
+                                                            ? 'size-5 sm:size-6'
+                                                            : 'size-4 sm:size-5'
+                                                "
                                             >
                                                 <img
                                                     v-if="seat.student.photo_url"
@@ -384,14 +420,35 @@ function markAll(status: 'present' | 'absent') {
                                                     :alt="seat.student.name"
                                                     class="size-full object-cover"
                                                 />
-                                                <span v-else class="text-xs font-black uppercase tracking-wider text-white sm:text-sm">
+                                                <span
+                                                    v-else
+                                                    class="uppercase tracking-wider text-white"
+                                                    :class="
+                                                        getBlockDensity(block) === 'spacious'
+                                                            ? 'text-xs font-black sm:text-sm'
+                                                            : getBlockDensity(block) === 'compact'
+                                                              ? 'text-[10px] font-bold sm:text-xs'
+                                                              : getBlockDensity(block) === 'condensed'
+                                                                ? 'text-[8px] font-bold sm:text-[9px]'
+                                                                : 'text-[7px] font-bold'
+                                                    "
+                                                >
                                                     {{ initials(seat.student.name) }}
                                                 </span>
                                             </div>
 
                                             <!-- Complete Name -->
                                             <span
-                                                class="mt-2 block w-full max-w-[7.5rem] truncate text-center text-[11px] font-bold uppercase leading-tight tracking-tight text-white sm:text-xs"
+                                                class="block w-full truncate text-center font-bold uppercase leading-tight tracking-tight text-white"
+                                                :class="
+                                                    getBlockDensity(block) === 'spacious'
+                                                        ? 'mt-2 max-w-[7.5rem] text-[11px] sm:text-xs'
+                                                        : getBlockDensity(block) === 'compact'
+                                                          ? 'mt-1 max-w-[5rem] text-[9.5px] sm:text-[10.5px]'
+                                                          : getBlockDensity(block) === 'condensed'
+                                                            ? 'mt-0.5 max-w-[3.75rem] text-[8px] sm:text-[8.5px]'
+                                                            : 'mt-0.25 max-w-[2.75rem] text-[7px]'
+                                                "
                                                 :title="seat.student.name"
                                             >
                                                 {{ seat.student.name }}
@@ -399,7 +456,16 @@ function markAll(status: 'present' | 'absent') {
 
                                             <!-- Seat Label & Status -->
                                             <div
-                                                class="mt-0.5 flex items-center justify-center gap-1 font-mono text-[9px] font-medium uppercase leading-none tracking-wider text-white/70 sm:text-[10px]"
+                                                class="flex items-center justify-center gap-1 font-mono font-medium uppercase leading-none tracking-wider text-white/70"
+                                                :class="
+                                                    getBlockDensity(block) === 'spacious'
+                                                        ? 'mt-0.5 text-[9px] sm:text-[10px]'
+                                                        : getBlockDensity(block) === 'compact'
+                                                          ? 'mt-0.5 text-[8px] sm:text-[8.5px]'
+                                                          : getBlockDensity(block) === 'condensed'
+                                                            ? 'mt-0 text-[7px] sm:text-[7.5px]'
+                                                            : 'mt-0 text-[6.5px]'
+                                                "
                                             >
                                                 <span>{{ seat.label }}</span>
                                                 <span v-if="seat.record?.status === 'late'" class="font-bold text-amber-300">· LATE</span>
@@ -410,10 +476,28 @@ function markAll(status: 'present' | 'absent') {
 
                                         <template v-else>
                                             <Armchair
-                                                class="size-6 text-slate-400 transition-transform group-hover:scale-110 dark:text-muted-foreground/60"
+                                                class="text-slate-400 transition-transform group-hover:scale-110 dark:text-muted-foreground/60"
+                                                :class="
+                                                    getBlockDensity(block) === 'spacious'
+                                                        ? 'size-6'
+                                                        : getBlockDensity(block) === 'compact'
+                                                          ? 'size-4.5 sm:size-5'
+                                                          : getBlockDensity(block) === 'condensed'
+                                                            ? 'size-3.5 sm:size-4'
+                                                            : 'size-3'
+                                                "
                                             />
                                             <span
-                                                class="mt-2 block font-mono text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-muted-foreground sm:text-[11px]"
+                                                class="block font-mono font-semibold uppercase tracking-wider text-slate-500 dark:text-muted-foreground"
+                                                :class="
+                                                    getBlockDensity(block) === 'spacious'
+                                                        ? 'mt-2 text-[10px] sm:text-[11px]'
+                                                        : getBlockDensity(block) === 'compact'
+                                                          ? 'mt-1 text-[9px] sm:text-[9.5px]'
+                                                          : getBlockDensity(block) === 'condensed'
+                                                            ? 'mt-0.5 text-[7.5px] sm:text-[8px]'
+                                                            : 'mt-0.25 text-[6.5px]'
+                                                "
                                             >
                                                 {{ seat.is_disabled ? 'Unavailable' : seat.label }}
                                             </span>
