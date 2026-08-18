@@ -232,6 +232,23 @@ class AssessmentWorkflowTest extends TestCase
             ->assertSessionHasErrors('weights');
     }
 
+    public function test_teacher_can_update_only_recitation_bonus_cap(): void
+    {
+        $user = User::factory()->create();
+        $section = $this->section($user);
+
+        $this->actingAs($user)->put(route('sections.grading-weights.update', $section), ['recitation' => 8])
+            ->assertRedirect()->assertSessionHas('success');
+
+        $weights = $section->fresh()->grading_weights;
+        $this->assertSame(8, $weights['recitation']);
+        $this->assertSame(20, $weights['activity']);
+        $this->assertSame(20, $weights['quiz']);
+        $this->assertSame(25, $weights['exam']);
+        $this->assertSame(20, $weights['project']);
+        $this->assertSame(15, $weights['attendance']);
+    }
+
     public function test_gradebook_computes_project_and_attendance_scores_correctly(): void
     {
         $user = User::factory()->create();

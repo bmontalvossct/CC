@@ -31,23 +31,38 @@ class AssessmentReportController extends AssessmentModuleController
     public function updateWeights(Request $request, Section $section): RedirectResponse
     {
         $this->authorizeSection($section);
+
+        $current = array_merge([
+            'activity' => 20,
+            'quiz' => 20,
+            'exam' => 25,
+            'project' => 20,
+            'attendance' => 15,
+            'recitation' => 5,
+        ], $section->grading_weights ?? []);
+
         $data = $request->validate([
-            'activity' => ['required', 'integer', 'min:0', 'max:100'],
-            'quiz' => ['required', 'integer', 'min:0', 'max:100'],
-            'exam' => ['required', 'integer', 'min:0', 'max:100'],
-            'project' => ['required', 'integer', 'min:0', 'max:100'],
-            'attendance' => ['required', 'integer', 'min:0', 'max:100'],
+            'activity' => ['sometimes', 'required', 'integer', 'min:0', 'max:100'],
+            'quiz' => ['sometimes', 'required', 'integer', 'min:0', 'max:100'],
+            'exam' => ['sometimes', 'required', 'integer', 'min:0', 'max:100'],
+            'project' => ['sometimes', 'required', 'integer', 'min:0', 'max:100'],
+            'attendance' => ['sometimes', 'required', 'integer', 'min:0', 'max:100'],
             'recitation' => ['nullable', 'integer', 'min:0', 'max:50'],
         ]);
 
-        $baseTotal = $data['activity'] + $data['quiz'] + $data['exam'] + $data['project'] + $data['attendance'];
-        $totalWithRec = $baseTotal + ($data['recitation'] ?? 0);
+        $merged = array_merge($current, $data);
+        if (array_key_exists('recitation', $data)) {
+            $merged['recitation'] = (int) ($data['recitation'] ?? 0);
+        }
+
+        $baseTotal = $merged['activity'] + $merged['quiz'] + $merged['exam'] + $merged['project'] + $merged['attendance'];
+        $totalWithRec = $baseTotal + ($merged['recitation'] ?? 0);
 
         if ($baseTotal !== 100 && $totalWithRec !== 100) {
             return back()->withErrors(['weights' => 'Core coursework weights (Activity, Quiz, Exam, Project, Attendance) must total exactly 100%.']);
         }
 
-        $section->update(['grading_weights' => $data]);
+        $section->update(['grading_weights' => $merged]);
 
         return back()->with('success', 'Grading weights and oral recitation bonus saved.');
     }

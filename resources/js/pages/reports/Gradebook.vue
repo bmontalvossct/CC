@@ -3,7 +3,7 @@ import StudentDeficienciesModal from '@/components/reports/StudentDeficienciesMo
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { ArrowLeft, Download, Printer, Save, Settings, Trophy } from 'lucide-vue-next';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 
 type Assessment = { id: number; type: 'activity' | 'quiz' | 'exam'; title: string; conducted_on: string; max_points: string };
 type ProjectItem = { id: number; type: 'project' | 'reporting'; title: string; conducted_on: string | null; max_points: string | number };
@@ -107,6 +107,20 @@ const weightsForm = useForm({
     attendance: props.gradingWeights.attendance ?? 15,
     recitation: props.gradingWeights.recitation ?? 5,
 });
+
+watch(
+    () => props.gradingWeights,
+    (newWeights) => {
+        if (!newWeights) return;
+        weightsForm.activity = newWeights.activity ?? 20;
+        weightsForm.quiz = newWeights.quiz ?? 20;
+        weightsForm.exam = newWeights.exam ?? 25;
+        weightsForm.project = newWeights.project ?? 20;
+        weightsForm.attendance = newWeights.attendance ?? 15;
+        weightsForm.recitation = newWeights.recitation ?? 5;
+    },
+    { deep: true },
+);
 
 const coreWeightsTotal = computed(
     () =>
@@ -386,7 +400,7 @@ onMounted(() => {
                             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
                                     <span class="flex items-center gap-1.5 font-bold text-amber-700 dark:text-amber-400">
-                                        ✨ Oral Participation (Bonus Points Added to Activities)
+                                        Oral Participation (Bonus Points Added to Activities)
                                     </span>
                                     <p class="mt-0.5 text-xs text-muted-foreground">
                                         Awarded as bonus score (0–20 pts max) added directly into student Activities scores. Maximum points
@@ -446,7 +460,7 @@ onMounted(() => {
                     <p class="mt-1 text-xs text-muted-foreground print:text-black">
                         Weighted gradebook with college grading scale (1.0–5.0). Core: Activities {{ gradingWeights.activity }}%, Quizzes
                         {{ gradingWeights.quiz }}%, Major Exams {{ gradingWeights.exam }}%, Project / Reporting {{ gradingWeights.project }}%,
-                        Attendance {{ gradingWeights.attendance }}% · ✨ Oral Recitation: Up to +{{ gradingWeights.recitation ?? 5 }} bonus pts added
+                        Attendance {{ gradingWeights.attendance }}% · Oral Recitation: Up to +{{ gradingWeights.recitation ?? 5 }} bonus pts added
                         to Activities.
                     </p>
                 </header>
@@ -491,7 +505,7 @@ onMounted(() => {
                     <!-- Oral Participation Summary Card -->
                     <div class="paper-card border-amber-500/30 bg-amber-500/5 p-4 print:rounded-none print:border print:border-black print:bg-white">
                         <span class="font-mono text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
-                            ✨ Oral Bonus · +{{ gradingWeights.recitation ?? 5 }} pts max
+                            Oral Bonus · +{{ gradingWeights.recitation ?? 5 }} pts max
                         </span>
                         <p class="mt-2 text-xl font-bold tracking-tight text-amber-700 dark:text-amber-400">Added to Activities</p>
                         <p class="mt-0.5 text-[11px] font-normal text-muted-foreground">Max pts denominator is not increased</p>
@@ -570,7 +584,7 @@ onMounted(() => {
                                     <th
                                         class="min-w-28 border-l-2 border-amber-500/40 bg-amber-500/10 px-2.5 text-center font-bold text-amber-700 dark:text-amber-400"
                                     >
-                                        ✨ Oral Bonus
+                                        Oral Bonus
                                         <span class="block text-[9px] font-normal text-amber-600 dark:text-amber-300">
                                             +{{ gradingWeights.recitation ?? 5 }} pts → Activities
                                         </span>

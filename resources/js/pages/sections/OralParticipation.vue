@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { AlertCircle, Armchair, ArrowLeft, Calendar, Edit2, History, Mic, Plus, Save, Trash2, Trophy, X } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { AlertCircle, Armchair, ArrowLeft, Calendar, Edit2, History, Mic, Plus, Save, Settings, Trash2, Trophy, X } from 'lucide-vue-next';
+import { computed, ref, watch } from 'vue';
 
 interface RecitationLog {
     id: number;
@@ -71,6 +71,28 @@ const props = defineProps<{
 const page = usePage<any>();
 const activeTab = ref<'floor' | 'rubrics'>('floor');
 const scoringStudent = ref<StudentRow | null>(null);
+
+// Bonus Cap configuration state
+const showBonusCapModal = ref(false);
+const bonusCapForm = useForm({
+    recitation: props.bonusCap ?? 5,
+});
+
+watch(
+    () => props.bonusCap,
+    (val) => {
+        bonusCapForm.recitation = val ?? 5;
+    },
+);
+
+const saveBonusCap = () => {
+    bonusCapForm.put(`/sections/${props.section.id}/grading-weights`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            showBonusCapModal.value = false;
+        },
+    });
+};
 
 // Student Logs Modal state
 const selectedStudentForLogs = ref<StudentRow | null>(null);
@@ -311,12 +333,21 @@ const ratingLabel = (val: number) => {
                 <header class="rounded-3xl border border-border/80 bg-card p-6 shadow-sm sm:p-8">
                     <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                         <div>
-                            <div class="flex items-center gap-2">
+                            <div class="flex flex-wrap items-center gap-2">
                                 <span class="badge-primary font-mono font-medium">{{ section.subject_code }}</span>
                                 <span class="badge-muted">{{ section.name }}</span>
                                 <span class="badge-amber font-mono font-medium text-amber-700 dark:text-amber-400">
-                                    ✨ Recitation Bonus: +{{ bonusCap || 5 }} pts max
+                                    Recitation Bonus: +{{ bonusCap || 5 }} pts max
                                 </span>
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-500/20 dark:text-amber-400"
+                                    title="Change max bonus cap"
+                                    @click="showBonusCapModal = true"
+                                >
+                                    <Settings class="size-3" />
+                                    <span>Edit Cap</span>
+                                </button>
                             </div>
                             <h1 class="mt-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Oral Participation & Recitations</h1>
                             <p class="mt-1 text-xs text-muted-foreground sm:text-sm">
@@ -717,6 +748,40 @@ const ratingLabel = (val: number) => {
                             added directly to the student's Activities score. Click <strong class="font-medium text-foreground">Logs</strong> on any
                             student to review and adjust their full recitation history.
                         </p>
+                    </div>
+
+                    <!-- Bonus Cap Configuration Card -->
+                    <div class="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
+                        <div>
+                            <span class="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                                Oral Recitation Bonus Cap Configuration
+                            </span>
+                            <p class="mt-0.5 text-xs text-muted-foreground">
+                                Adjust the maximum bonus points (0 to 50 pts) awarded to students' Activities scores based on their recitation average.
+                            </p>
+                        </div>
+                        <form class="flex items-center gap-2" @submit.prevent="saveBonusCap">
+                            <span class="text-xs font-medium text-muted-foreground">Max Bonus Cap:</span>
+                            <div class="flex items-center gap-1">
+                                <span class="text-xs font-bold text-amber-600">+</span>
+                                <input
+                                    v-model.number="bonusCapForm.recitation"
+                                    type="number"
+                                    min="0"
+                                    max="50"
+                                    class="w-20 rounded-lg border border-amber-500/40 bg-background px-3 py-1.5 text-center text-sm font-bold text-amber-600 focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-amber-400"
+                                />
+                                <span class="text-xs font-bold text-amber-600 dark:text-amber-400">pts</span>
+                            </div>
+                            <button
+                                type="submit"
+                                :disabled="bonusCapForm.processing"
+                                class="ink-button !h-9 !rounded-xl !px-3.5 text-xs"
+                            >
+                                <Save class="size-3.5" />
+                                <span>{{ bonusCapForm.processing ? 'Saving…' : 'Save Cap' }}</span>
+                            </button>
+                        </form>
                     </div>
 
                     <div class="overflow-x-auto">
@@ -1338,6 +1403,80 @@ const ratingLabel = (val: number) => {
                         {{ deleteLogForm.processing ? 'Deleting…' : 'Delete Entry' }}
                     </button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Bonus Cap Editor Modal -->
+        <div
+            v-if="showBonusCapModal"
+            class="fixed inset-0 z-50 grid place-items-center bg-zinc-950/70 p-4 backdrop-blur-md duration-200 animate-in fade-in"
+            @click.self="showBonusCapModal = false"
+        >
+            <div
+                class="paper-card relative w-full max-w-md overflow-hidden border-border/90 p-6 shadow-2xl duration-200 animate-in zoom-in-95"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Oral Recitation Bonus Cap Configuration"
+            >
+                <div class="flex items-start justify-between border-b border-border/80 pb-4">
+                    <div>
+                        <span class="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">Oral Recitation</span>
+                        <h3 class="mt-0.5 text-lg font-bold text-foreground">Configure Max Bonus Cap</h3>
+                    </div>
+                    <button
+                        type="button"
+                        class="grid size-7 place-items-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground"
+                        @click="showBonusCapModal = false"
+                    >
+                        <X class="size-4" />
+                    </button>
+                </div>
+
+                <p class="mt-3 text-xs text-muted-foreground">
+                    Oral recitation scores earn bonus points (0 to 50 pts) directly added to student Activities coursework scores without increasing
+                    the maximum points denominator.
+                </p>
+
+                <form class="mt-4 space-y-4" @submit.prevent="saveBonusCap">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-foreground">
+                            Max Bonus Cap (Points)
+                        </label>
+                        <div class="mt-1.5 flex items-center gap-2">
+                            <span class="font-mono text-base font-bold text-amber-600 dark:text-amber-400">+</span>
+                            <input
+                                v-model.number="bonusCapForm.recitation"
+                                type="number"
+                                min="0"
+                                max="50"
+                                class="w-full rounded-xl border border-input bg-background px-3.5 py-2 text-center font-mono text-base font-bold text-foreground focus-visible:ring-2 focus-visible:ring-primary"
+                                placeholder="5"
+                            />
+                            <span class="font-mono text-sm font-bold text-muted-foreground">pts</span>
+                        </div>
+                        <p v-if="bonusCapForm.errors.recitation" class="mt-1 text-xs text-rose-600">
+                            {{ bonusCapForm.errors.recitation }}
+                        </p>
+                    </div>
+
+                    <div class="flex justify-end gap-2 border-t border-border/80 pt-4">
+                        <button
+                            type="button"
+                            class="rounded-xl border border-border bg-card px-4 py-2 text-xs font-medium hover:bg-secondary"
+                            @click="showBonusCapModal = false"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            :disabled="bonusCapForm.processing"
+                            class="ink-button !h-9 !rounded-xl !px-4 text-xs font-bold"
+                        >
+                            <Save class="size-3.5" />
+                            <span>{{ bonusCapForm.processing ? 'Saving…' : 'Save Bonus Cap' }}</span>
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </AppLayout>
