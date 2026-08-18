@@ -246,22 +246,17 @@ const unseatedStudents = computed(() => {
     return props.students.filter((s) => !seatedIds.has(Number(s.id)));
 });
 
-// Build grid from layout blocks
-const maxBlockRow = computed(() => Math.max(...props.section.layoutBlocks.map((b) => b.block_row), 0));
-const maxBlockCol = computed(() => Math.max(...props.section.layoutBlocks.map((b) => b.block_column), 0));
+// Classroom layout helpers
+const getBlockRows = (block: any) => {
+    const internalRows = block.internal_rows || Math.max(1, ...(block.seats?.map((s: any) => s.row_number) ?? [1]));
+    return Array.from({ length: internalRows }, (_, index) =>
+        (block.seats || []).filter((seat: any) => seat.row_number === index + 1).sort((a: any, b: any) => a.column_number - b.column_number),
+    );
+};
 
-const blockGrid = computed(() => {
-    const grid: (LayoutBlock | null)[][] = [];
-    for (let r = 0; r <= maxBlockRow.value; r++) {
-        grid[r] = [];
-        for (let c = 0; c <= maxBlockCol.value; c++) {
-            grid[r][c] = props.section.layoutBlocks.find((b) => b.block_row === r && b.block_column === c) || null;
-        }
-    }
-    return grid;
-});
-
-const getBlockCols = (block: any) => Math.max(1, ...(block.seats?.map((s: any) => s.column_number) ?? [0]) + 1);
+const getBlockCols = (block: any) => {
+    return block.internal_columns || Math.max(1, ...(block.seats?.map((s: any) => s.column_number) ?? [1]));
+};
 
 const getBlockDensity = (block: any): 'spacious' | 'compact' | 'condensed' | 'micro' => {
     const cols = getBlockCols(block);
@@ -270,6 +265,9 @@ const getBlockDensity = (block: any): 'spacious' | 'compact' | 'condensed' | 'mi
     if (cols <= 12) return 'condensed';
     return 'micro';
 };
+
+const hasColumnAisle = (block: any, position: number) => (block.aisle_after_columns ?? []).includes(position);
+const hasRowAisle = (block: any, position: number) => (block.aisle_after_rows ?? []).includes(position);
 
 // Grade color helper
 const gradeColor = (pct: number | null) => {
@@ -389,40 +387,63 @@ const ratingLabel = (val: number) => {
                     </div>
 
                     <!-- Classroom Grid -->
-                    <div v-if="section.layoutBlocks.length" class="w-full min-w-0 overflow-x-auto">
-                        <div class="w-full min-w-0">
-                            <div v-for="(row, ri) in blockGrid" :key="ri" class="flex flex-wrap gap-6">
-                                <template v-for="(block, ci) in row" :key="`${ri}-${ci}`">
+                    <div
+                        v-if="section.layoutBlocks && section.layoutBlocks.length"
+                        class="w-full max-w-full overflow-x-auto overscroll-x-contain pb-4 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable]"
+                        role="region"
+                        aria-label="Interactive classroom oral participation seating chart"
+                        tabindex="0"
+                    >
+                        <div
+                            class="grid w-full min-w-0 gap-6"
+                            :style="{
+                                gridTemplateColumns: `repeat(${Math.max(1, ...section.layoutBlocks.map((block: any) => block.block_column || 1))}, minmax(0, 1fr))`,
+                            }"
+                        >
+                            <article
+                                v-for="block in section.layoutBlocks"
+                                :key="block.id"
+                                class="shadow-xs rounded-2xl border border-border/80 bg-card transition-all"
+                                :class="getBlockDensity(block) === 'spacious' ? 'p-5' : getBlockDensity(block) === 'compact' ? 'p-3.5' : 'p-2 sm:p-3'"
+                                :style="{ gridColumn: block.block_column || 1, gridRow: block.block_row || 1 }"
+                            >
+                                <p
+                                    v-if="block.label && block.label !== 'Classroom'"
+                                    class="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground"
+                                >
+                                    {{ block.label }}
+                                </p>
+
+                                <template v-for="(seats, rowIndex) in getBlockRows(block)" :key="rowIndex">
                                     <div
-                                        v-if="block"
-                                        class="shadow-xs mb-4 min-w-0 flex-1 rounded-2xl border border-border/80 bg-card transition-all"
-                                        :class="getBlockDensity(block) === 'spacious' ? 'p-5' : getBlockDensity(block) === 'compact' ? 'p-3.5' : 'p-2.5 sm:p-3'"
+                                        class="flex items-stretch first:mt-0 last:mb-0"
+                                        :class="
+                                            getBlockDensity(block) === 'spacious'
+                                                ? 'my-3 gap-3'
+                                                : getBlockDensity(block) === 'compact'
+                                                  ? 'my-2 gap-2'
+                                                  : getBlockDensity(block) === 'condensed'
+                                                    ? 'my-1.5 gap-1.5'
+                                                    : 'my-1 gap-1'
+                                        "
                                     >
-                                        <p
-                                            v-if="block.label && block.label !== 'Classroom'"
-                                            class="mb-3 text-center text-xs font-bold uppercase tracking-wider text-muted-foreground"
-                                        >
-                                            {{ block.label }}
-                                        </p>
-                                        <div
-                                            class="grid"
-                                            :class="
-                                                getBlockDensity(block) === 'spacious'
-                                                    ? 'gap-3'
-                                                    : getBlockDensity(block) === 'compact'
-                                                      ? 'gap-2'
-                                                      : getBlockDensity(block) === 'condensed'
-                                                        ? 'gap-1.5'
-                                                        : 'gap-1'
-                                            "
-                                            :style="{
-                                                gridTemplateColumns: `repeat(${getBlockCols(block)}, minmax(0, 1fr))`,
-                                            }"
-                                        >
-                                            <template v-for="seat in block.seats" :key="seat.id">
+                                        <template v-for="seat in seats" :key="seat.id">
+                                            <div
+                                                class="relative flex min-w-0 flex-1 flex-col items-stretch"
+                                                :class="
+                                                    getBlockDensity(block) === 'spacious'
+                                                        ? 'min-w-[5.5rem] sm:min-w-[6.5rem]'
+                                                        : getBlockDensity(block) === 'compact'
+                                                          ? 'min-w-[3.75rem] sm:min-w-[4.5rem]'
+                                                          : getBlockDensity(block) === 'condensed'
+                                                            ? 'min-w-[2.75rem] sm:min-w-[3.25rem]'
+                                                            : 'min-w-[2rem] sm:min-w-[2.5rem]'
+                                                "
+                                            >
+                                                <!-- Student Seated -->
                                                 <div
-                                                    v-if="!seat.is_disabled && seat.student_id"
-                                                    class="group relative flex flex-col items-center justify-center border text-center transition-all duration-150"
+                                                    v-if="!seat.is_disabled && seat.student_id && studentMap.get(Number(seat.student_id))"
+                                                    class="group relative flex w-full flex-1 flex-col items-center justify-center border text-center transition-all duration-150"
                                                     :class="[
                                                         getBlockDensity(block) === 'spacious'
                                                             ? 'min-h-[6.5rem] rounded-2xl p-2.5 sm:min-h-[7.25rem] sm:p-3'
@@ -439,7 +460,6 @@ const ratingLabel = (val: number) => {
                                                     <!-- Quick Actions on Hover / Top Bar -->
                                                     <div class="absolute right-1 top-1 z-20 flex items-center gap-1">
                                                         <button
-                                                            v-if="studentMap.get(Number(seat.student_id))"
                                                             type="button"
                                                             title="View recitation logs"
                                                             class="grid place-items-center rounded-md bg-black/30 text-white/80 transition-colors hover:bg-black/60 hover:text-white"
@@ -453,18 +473,15 @@ const ratingLabel = (val: number) => {
                                                     <!-- Main Card Clickable to Score -->
                                                     <button
                                                         type="button"
-                                                        class="flex w-full cursor-pointer flex-col items-center justify-center focus:outline-none"
-                                                        @click="
-                                                            studentMap.get(Number(seat.student_id)) &&
-                                                            openScoring(studentMap.get(Number(seat.student_id))!)
-                                                        "
+                                                        class="flex size-full cursor-pointer flex-col items-center justify-center text-center focus:outline-none"
+                                                        @click="openScoring(studentMap.get(Number(seat.student_id))!)"
                                                     >
                                                         <!-- Scaled Photo / Avatar -->
                                                         <div
                                                             class="shadow-xs flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/20 ring-1 ring-white/25 sm:ring-2"
                                                             :class="
                                                                 getBlockDensity(block) === 'spacious'
-                                                                    ? 'size-9 sm:size-10'
+                                                                    ? 'size-10 sm:size-11'
                                                                     : getBlockDensity(block) === 'compact'
                                                                       ? 'size-7 sm:size-8'
                                                                       : getBlockDensity(block) === 'condensed'
@@ -472,7 +489,14 @@ const ratingLabel = (val: number) => {
                                                                         : 'size-4 sm:size-5'
                                                             "
                                                         >
+                                                            <img
+                                                                v-if="studentMap.get(Number(seat.student_id))?.photo_url"
+                                                                :src="studentMap.get(Number(seat.student_id))!.photo_url!"
+                                                                :alt="studentMap.get(Number(seat.student_id))!.full_name"
+                                                                class="size-full object-cover"
+                                                            />
                                                             <span
+                                                                v-else
                                                                 class="uppercase tracking-wider text-white"
                                                                 :class="
                                                                     getBlockDensity(block) === 'spacious'
@@ -493,7 +517,7 @@ const ratingLabel = (val: number) => {
                                                             class="block w-full truncate text-center font-bold uppercase leading-tight tracking-tight text-white"
                                                             :class="
                                                                 getBlockDensity(block) === 'spacious'
-                                                                    ? 'mt-1.5 max-w-[7.25rem] text-[11px] sm:text-xs'
+                                                                    ? 'mt-2 max-w-[7.5rem] text-[11px] sm:text-xs'
                                                                     : getBlockDensity(block) === 'compact'
                                                                       ? 'mt-1 max-w-[5rem] text-[9.5px] sm:text-[10.5px]'
                                                                       : getBlockDensity(block) === 'condensed'
@@ -534,9 +558,11 @@ const ratingLabel = (val: number) => {
                                                         </div>
                                                     </button>
                                                 </div>
+
+                                                <!-- Available / Vacant Chair -->
                                                 <div
                                                     v-else-if="!seat.is_disabled"
-                                                    class="flex flex-col items-center justify-center border-2 border-slate-200/90 bg-card text-center text-muted-foreground dark:border-border/80"
+                                                    class="flex w-full flex-1 flex-col items-center justify-center border-2 border-slate-200/90 bg-card text-center text-muted-foreground dark:border-border/80"
                                                     :class="
                                                         getBlockDensity(block) === 'spacious'
                                                             ? 'min-h-[6.5rem] rounded-2xl p-2.5 sm:min-h-[7.25rem] sm:p-3'
@@ -560,7 +586,7 @@ const ratingLabel = (val: number) => {
                                                         "
                                                     />
                                                     <span
-                                                        class="font-mono font-semibold uppercase tracking-wider text-slate-500 dark:text-muted-foreground"
+                                                        class="block font-mono font-semibold uppercase tracking-wider text-slate-500 dark:text-muted-foreground"
                                                         :class="
                                                             getBlockDensity(block) === 'spacious'
                                                                 ? 'mt-2 text-[10px] sm:text-[11px]'
@@ -570,11 +596,15 @@ const ratingLabel = (val: number) => {
                                                                     ? 'mt-0.5 text-[7.5px] sm:text-[8px]'
                                                                     : 'mt-0.25 text-[6.5px]'
                                                         "
-                                                        >{{ seat.label }}</span
                                                     >
+                                                        {{ seat.label }}
+                                                    </span>
                                                 </div>
+
+                                                <!-- Disabled / Unavailable Slot -->
                                                 <div
                                                     v-else
+                                                    class="w-full flex-1 rounded-lg border-2 border-transparent bg-[repeating-linear-gradient(135deg,hsl(var(--border)),hsl(var(--border))_4px,transparent_4px,transparent_8px)] opacity-30"
                                                     :class="
                                                         getBlockDensity(block) === 'spacious'
                                                             ? 'min-h-[6.5rem] sm:min-h-[7.25rem]'
@@ -585,12 +615,39 @@ const ratingLabel = (val: number) => {
                                                                 : 'min-h-[3rem] sm:min-h-[3.5rem]'
                                                     "
                                                 />
-                                            </template>
-                                        </div>
+                                            </div>
+
+                                            <!-- Column Aisle Spacer -->
+                                            <div
+                                                v-if="hasColumnAisle(block, seat.column_number)"
+                                                class="shrink-0 rounded-lg border-2 border-dashed border-primary/30 bg-primary/5"
+                                                :class="
+                                                    getBlockDensity(block) === 'spacious'
+                                                        ? 'mx-2 w-7'
+                                                        : getBlockDensity(block) === 'compact'
+                                                          ? 'mx-1.5 w-5'
+                                                          : 'mx-1 w-4'
+                                                "
+                                            />
+                                        </template>
                                     </div>
-                                    <div v-else class="mb-4 w-4" />
+
+                                    <!-- Row Aisle Spacer -->
+                                    <div
+                                        v-if="hasRowAisle(block, rowIndex + 1)"
+                                        class="flex w-full items-center justify-center rounded-lg border-2 border-dashed border-primary/30 bg-primary/5 text-center font-semibold uppercase tracking-wider text-primary/70"
+                                        :class="
+                                            getBlockDensity(block) === 'spacious'
+                                                ? 'my-2 h-7 text-[10px]'
+                                                : getBlockDensity(block) === 'compact'
+                                                  ? 'my-1.5 h-5.5 text-[9px]'
+                                                  : 'my-1 h-4.5 text-[8px]'
+                                        "
+                                    >
+                                        Aisle
+                                    </div>
                                 </template>
-                            </div>
+                            </article>
                         </div>
                     </div>
 

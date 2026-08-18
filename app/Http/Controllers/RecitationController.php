@@ -78,6 +78,7 @@ class RecitationController extends Controller
                 'id' => (int) $student->id,
                 'student_number' => $student->student_number,
                 'full_name' => $student->full_name,
+                'photo_url' => $student->photo_url,
                 'seat_label' => $student->seat_label,
                 'times_called' => $count,
                 'avg_accuracy' => $avgAccuracy,

@@ -201,7 +201,7 @@ class AttendanceController extends Controller
         $recordsByStudent = $attendanceSession->records->keyBy('student_id');
         $seats = Seat::query()
             ->whereHas('layoutBlock', fn ($query) => $query->where('section_id', $section->id))
-            ->with(['layoutBlock:id,section_id,label,block_row,block_column', 'student'])
+            ->with(['layoutBlock:id,section_id,label,block_row,block_column,internal_rows,internal_columns,aisle_after_rows,aisle_after_columns', 'student'])
             ->get()
             ->sortBy([
                 ['layoutBlock.block_row', 'asc'],
@@ -223,6 +223,10 @@ class AttendanceController extends Controller
                         'label' => $seat->layoutBlock->label,
                         'row' => $seat->layoutBlock->block_row,
                         'column' => $seat->layoutBlock->block_column,
+                        'internal_rows' => $seat->layoutBlock->internal_rows,
+                        'internal_columns' => $seat->layoutBlock->internal_columns,
+                        'aisle_after_rows' => $seat->layoutBlock->aisle_after_rows ?? [],
+                        'aisle_after_columns' => $seat->layoutBlock->aisle_after_columns ?? [],
                     ],
                     'student' => $seat->student ? $this->studentData($seat->student) : null,
                     'record' => $record ? $this->recordData($record) : null,

@@ -13,7 +13,16 @@ type Seat = {
     row_number: number;
     column_number: number;
     is_disabled: boolean;
-    block: { id: number; label: string; row: number; column: number };
+    block: {
+        id: number;
+        label: string;
+        row: number;
+        column: number;
+        internal_rows?: number;
+        internal_columns?: number;
+        aisle_after_rows?: number[];
+        aisle_after_columns?: number[];
+    };
     student: Student | null;
     record: RecordData | null;
 };
@@ -190,7 +199,16 @@ function markAll(status: 'present' | 'absent') {
     }
 }
 
-const getBlockCols = (block: any) => Math.max(1, ...(block.seats?.map((s: any) => s.column_number) ?? [1]));
+const getBlockRows = (block: any) => {
+    const internalRows = block.internal_rows || Math.max(1, ...(block.seats?.map((s: any) => s.row_number) ?? [1]));
+    return Array.from({ length: internalRows }, (_, index) =>
+        (block.seats || []).filter((seat: any) => seat.row_number === index + 1).sort((a: any, b: any) => a.column_number - b.column_number),
+    );
+};
+
+const getBlockCols = (block: any) => {
+    return block.internal_columns || Math.max(1, ...(block.seats?.map((s: any) => s.column_number) ?? [1]));
+};
 
 const getBlockDensity = (block: any): 'spacious' | 'compact' | 'condensed' | 'micro' => {
     const cols = getBlockCols(block);
@@ -199,6 +217,9 @@ const getBlockDensity = (block: any): 'spacious' | 'compact' | 'condensed' | 'mi
     if (cols <= 12) return 'condensed';
     return 'micro';
 };
+
+const hasColumnAisle = (block: any, position: number) => (block.aisle_after_columns ?? []).includes(position);
+const hasRowAisle = (block: any, position: number) => (block.aisle_after_rows ?? []).includes(position);
 </script>
 
 <template>
@@ -355,155 +376,196 @@ const getBlockDensity = (block: any): 'spacious' | 'compact' | 'condensed' | 'mi
                                 >
                                     {{ block.label }}
                                 </h2>
-                                <div
-                                    class="grid"
-                                    :class="
-                                        getBlockDensity(block) === 'spacious'
-                                            ? 'gap-3'
-                                            : getBlockDensity(block) === 'compact'
-                                              ? 'gap-2'
-                                              : getBlockDensity(block) === 'condensed'
-                                                ? 'gap-1.5'
-                                                : 'gap-1'
-                                    "
-                                    :style="{
-                                        gridTemplateColumns: `repeat(${getBlockCols(block)}, minmax(0, 1fr))`,
-                                    }"
-                                >
-                                    <button
-                                        v-for="seat in block.seats"
-                                        :key="seat.id"
-                                        type="button"
-                                        :disabled="seat.is_disabled || !seat.record"
-                                        :aria-label="seat.student ? `${seat.student.name}, ${seat.record?.status}` : `${seat.label}, empty`"
-                                        :aria-pressed="seat.record?.status === 'present'"
-                                        class="group relative flex flex-col items-center justify-center border text-center transition-all duration-150 focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-default"
-                                        :class="[
+
+                                <template v-for="(seats, rowIndex) in getBlockRows(block)" :key="rowIndex">
+                                    <div
+                                        class="flex items-stretch first:mt-0 last:mb-0"
+                                        :class="
                                             getBlockDensity(block) === 'spacious'
-                                                ? 'min-h-[6.5rem] rounded-2xl p-2.5 sm:min-h-[7.25rem] sm:p-3'
+                                                ? 'my-3 gap-3'
                                                 : getBlockDensity(block) === 'compact'
-                                                  ? 'min-h-[4.75rem] rounded-xl p-1.5 sm:min-h-[5.5rem] sm:p-2'
+                                                  ? 'my-2 gap-2'
                                                   : getBlockDensity(block) === 'condensed'
-                                                    ? 'min-h-[3.75rem] rounded-lg p-1 sm:min-h-[4.25rem]'
-                                                    : 'min-h-[3rem] rounded-md p-0.5 sm:min-h-[3.5rem]',
-                                            seat.is_disabled
-                                                ? 'cursor-not-allowed border-transparent bg-muted/20 opacity-30'
-                                                : !seat.student
-                                                  ? 'border-2 border-slate-200/90 bg-card text-muted-foreground hover:border-primary/50 dark:border-border/80'
-                                                  : seat.record?.status === 'present'
-                                                    ? 'shadow-xs border-[#1b5d4e]/80 bg-[#164e3f] text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-[#134e48]'
-                                                    : seat.record?.status === 'late'
-                                                      ? 'shadow-xs border-amber-600/80 bg-amber-800 text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-amber-900'
-                                                      : 'shadow-xs border-rose-600/80 bg-rose-900 text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-rose-950',
-                                        ]"
-                                        @click="toggle(seat.record)"
-                                        @dragover.prevent
-                                        @drop.prevent="dropStatus($event, seat.record)"
+                                                    ? 'my-1.5 gap-1.5'
+                                                    : 'my-1 gap-1'
+                                        "
                                     >
-                                        <template v-if="seat.student">
-                                            <!-- Scaled Photo / Avatar -->
+                                        <template v-for="seat in seats" :key="seat.id">
                                             <div
-                                                class="shadow-xs flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/20 ring-1 ring-white/25 sm:ring-2"
+                                                class="relative flex min-w-0 flex-1 flex-col items-stretch"
                                                 :class="
                                                     getBlockDensity(block) === 'spacious'
-                                                        ? 'size-10 sm:size-11'
+                                                        ? 'min-w-[5.5rem] sm:min-w-[6.5rem]'
                                                         : getBlockDensity(block) === 'compact'
-                                                          ? 'size-7 sm:size-8'
+                                                          ? 'min-w-[3.75rem] sm:min-w-[4.5rem]'
                                                           : getBlockDensity(block) === 'condensed'
-                                                            ? 'size-5 sm:size-6'
-                                                            : 'size-4 sm:size-5'
+                                                            ? 'min-w-[2.75rem] sm:min-w-[3.25rem]'
+                                                            : 'min-w-[2rem] sm:min-w-[2.5rem]'
                                                 "
                                             >
-                                                <img
-                                                    v-if="seat.student.photo_url"
-                                                    :src="seat.student.photo_url"
-                                                    :alt="seat.student.name"
-                                                    class="size-full object-cover"
-                                                />
-                                                <span
-                                                    v-else
-                                                    class="uppercase tracking-wider text-white"
-                                                    :class="
+                                                <button
+                                                    type="button"
+                                                    :disabled="seat.is_disabled || !seat.record"
+                                                    :aria-label="seat.student ? `${seat.student.name}, ${seat.record?.status}` : `${seat.label}, empty`"
+                                                    :aria-pressed="seat.record?.status === 'present'"
+                                                    class="group relative flex w-full flex-1 flex-col items-center justify-center border text-center transition-all duration-150 focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-default"
+                                                    :class="[
                                                         getBlockDensity(block) === 'spacious'
-                                                            ? 'text-xs font-black sm:text-sm'
+                                                            ? 'min-h-[6.5rem] rounded-2xl p-2.5 sm:min-h-[7.25rem] sm:p-3'
                                                             : getBlockDensity(block) === 'compact'
-                                                              ? 'text-[10px] font-bold sm:text-xs'
+                                                              ? 'min-h-[4.75rem] rounded-xl p-1.5 sm:min-h-[5.5rem] sm:p-2'
                                                               : getBlockDensity(block) === 'condensed'
-                                                                ? 'text-[8px] font-bold sm:text-[9px]'
-                                                                : 'text-[7px] font-bold'
-                                                    "
+                                                                ? 'min-h-[3.75rem] rounded-lg p-1 sm:min-h-[4.25rem]'
+                                                                : 'min-h-[3rem] rounded-md p-0.5 sm:min-h-[3.5rem]',
+                                                        seat.is_disabled
+                                                            ? 'cursor-not-allowed border-transparent bg-muted/20 opacity-30'
+                                                            : !seat.student
+                                                              ? 'border-2 border-slate-200/90 bg-card text-muted-foreground hover:border-primary/50 dark:border-border/80'
+                                                              : seat.record?.status === 'present'
+                                                                ? 'shadow-xs border-[#1b5d4e]/80 bg-[#164e3f] text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-[#134e48]'
+                                                                : seat.record?.status === 'late'
+                                                                  ? 'shadow-xs border-amber-600/80 bg-amber-800 text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-amber-900'
+                                                                  : 'shadow-xs border-rose-600/80 bg-rose-900 text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-rose-950',
+                                                    ]"
+                                                    @click="toggle(seat.record)"
+                                                    @dragover.prevent
+                                                    @drop.prevent="dropStatus($event, seat.record)"
                                                 >
-                                                    {{ initials(seat.student.name) }}
-                                                </span>
+                                                    <template v-if="seat.student">
+                                                        <!-- Scaled Photo / Avatar -->
+                                                        <div
+                                                            class="shadow-xs flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/20 ring-1 ring-white/25 sm:ring-2"
+                                                            :class="
+                                                                getBlockDensity(block) === 'spacious'
+                                                                    ? 'size-10 sm:size-11'
+                                                                    : getBlockDensity(block) === 'compact'
+                                                                      ? 'size-7 sm:size-8'
+                                                                      : getBlockDensity(block) === 'condensed'
+                                                                        ? 'size-5 sm:size-6'
+                                                                        : 'size-4 sm:size-5'
+                                                            "
+                                                        >
+                                                            <img
+                                                                v-if="seat.student.photo_url"
+                                                                :src="seat.student.photo_url"
+                                                                :alt="seat.student.name"
+                                                                class="size-full object-cover"
+                                                            />
+                                                            <span
+                                                                v-else
+                                                                class="uppercase tracking-wider text-white"
+                                                                :class="
+                                                                    getBlockDensity(block) === 'spacious'
+                                                                        ? 'text-xs font-black sm:text-sm'
+                                                                        : getBlockDensity(block) === 'compact'
+                                                                          ? 'text-[10px] font-bold sm:text-xs'
+                                                                          : getBlockDensity(block) === 'condensed'
+                                                                            ? 'text-[8px] font-bold sm:text-[9px]'
+                                                                            : 'text-[7px] font-bold'
+                                                                "
+                                                            >
+                                                                {{ initials(seat.student.name) }}
+                                                            </span>
+                                                        </div>
+
+                                                        <!-- Complete Name -->
+                                                        <span
+                                                            class="block w-full truncate text-center font-bold uppercase leading-tight tracking-tight text-white"
+                                                            :class="
+                                                                getBlockDensity(block) === 'spacious'
+                                                                    ? 'mt-2 max-w-[7.5rem] text-[11px] sm:text-xs'
+                                                                    : getBlockDensity(block) === 'compact'
+                                                                      ? 'mt-1 max-w-[5rem] text-[9.5px] sm:text-[10.5px]'
+                                                                      : getBlockDensity(block) === 'condensed'
+                                                                        ? 'mt-0.5 max-w-[3.75rem] text-[8px] sm:text-[8.5px]'
+                                                                        : 'mt-0.25 max-w-[2.75rem] text-[7px]'
+                                                            "
+                                                            :title="seat.student.name"
+                                                        >
+                                                            {{ seat.student.name }}
+                                                        </span>
+
+                                                        <!-- Seat Label & Status -->
+                                                        <div
+                                                            class="flex items-center justify-center gap-1 font-mono font-medium uppercase leading-none tracking-wider text-white/70"
+                                                            :class="
+                                                                getBlockDensity(block) === 'spacious'
+                                                                    ? 'mt-0.5 text-[9px] sm:text-[10px]'
+                                                                    : getBlockDensity(block) === 'compact'
+                                                                      ? 'mt-0.5 text-[8px] sm:text-[8.5px]'
+                                                                      : getBlockDensity(block) === 'condensed'
+                                                                        ? 'mt-0 text-[7px] sm:text-[7.5px]'
+                                                                        : 'mt-0 text-[6.5px]'
+                                                            "
+                                                        >
+                                                            <span>{{ seat.label }}</span>
+                                                            <span v-if="seat.record?.status === 'late'" class="font-bold text-amber-300">· LATE</span>
+                                                            <span v-else-if="seat.record?.status === 'absent'" class="font-bold text-rose-300">· ABS</span>
+                                                            <LoaderCircle v-if="saveState[seat.record!.id] === 'saving'" class="size-3 animate-spin text-white" />
+                                                        </div>
+                                                    </template>
+
+                                                    <template v-else>
+                                                        <Armchair
+                                                            class="text-slate-400 transition-transform group-hover:scale-110 dark:text-muted-foreground/60"
+                                                            :class="
+                                                                getBlockDensity(block) === 'spacious'
+                                                                    ? 'size-6'
+                                                                    : getBlockDensity(block) === 'compact'
+                                                                      ? 'size-4.5 sm:size-5'
+                                                                      : getBlockDensity(block) === 'condensed'
+                                                                        ? 'size-3.5 sm:size-4'
+                                                                        : 'size-3'
+                                                            "
+                                                        />
+                                                        <span
+                                                            class="block font-mono font-semibold uppercase tracking-wider text-slate-500 dark:text-muted-foreground"
+                                                            :class="
+                                                                getBlockDensity(block) === 'spacious'
+                                                                    ? 'mt-2 text-[10px] sm:text-[11px]'
+                                                                    : getBlockDensity(block) === 'compact'
+                                                                      ? 'mt-1 text-[9px] sm:text-[9.5px]'
+                                                                      : getBlockDensity(block) === 'condensed'
+                                                                        ? 'mt-0.5 text-[7.5px] sm:text-[8px]'
+                                                                        : 'mt-0.25 text-[6.5px]'
+                                                            "
+                                                        >
+                                                            {{ seat.is_disabled ? 'Unavailable' : seat.label }}
+                                                        </span>
+                                                    </template>
+                                                </button>
                                             </div>
 
-                                            <!-- Complete Name -->
-                                            <span
-                                                class="block w-full truncate text-center font-bold uppercase leading-tight tracking-tight text-white"
-                                                :class="
-                                                    getBlockDensity(block) === 'spacious'
-                                                        ? 'mt-2 max-w-[7.5rem] text-[11px] sm:text-xs'
-                                                        : getBlockDensity(block) === 'compact'
-                                                          ? 'mt-1 max-w-[5rem] text-[9.5px] sm:text-[10.5px]'
-                                                          : getBlockDensity(block) === 'condensed'
-                                                            ? 'mt-0.5 max-w-[3.75rem] text-[8px] sm:text-[8.5px]'
-                                                            : 'mt-0.25 max-w-[2.75rem] text-[7px]'
-                                                "
-                                                :title="seat.student.name"
-                                            >
-                                                {{ seat.student.name }}
-                                            </span>
-
-                                            <!-- Seat Label & Status -->
+                                            <!-- Column Aisle Spacer -->
                                             <div
-                                                class="flex items-center justify-center gap-1 font-mono font-medium uppercase leading-none tracking-wider text-white/70"
+                                                v-if="hasColumnAisle(block, seat.column_number)"
+                                                class="shrink-0 rounded-lg border-2 border-dashed border-primary/30 bg-primary/5"
                                                 :class="
                                                     getBlockDensity(block) === 'spacious'
-                                                        ? 'mt-0.5 text-[9px] sm:text-[10px]'
+                                                        ? 'mx-2 w-7'
                                                         : getBlockDensity(block) === 'compact'
-                                                          ? 'mt-0.5 text-[8px] sm:text-[8.5px]'
-                                                          : getBlockDensity(block) === 'condensed'
-                                                            ? 'mt-0 text-[7px] sm:text-[7.5px]'
-                                                            : 'mt-0 text-[6.5px]'
-                                                "
-                                            >
-                                                <span>{{ seat.label }}</span>
-                                                <span v-if="seat.record?.status === 'late'" class="font-bold text-amber-300">· LATE</span>
-                                                <span v-else-if="seat.record?.status === 'absent'" class="font-bold text-rose-300">· ABS</span>
-                                                <LoaderCircle v-if="saveState[seat.record!.id] === 'saving'" class="size-3 animate-spin text-white" />
-                                            </div>
-                                        </template>
-
-                                        <template v-else>
-                                            <Armchair
-                                                class="text-slate-400 transition-transform group-hover:scale-110 dark:text-muted-foreground/60"
-                                                :class="
-                                                    getBlockDensity(block) === 'spacious'
-                                                        ? 'size-6'
-                                                        : getBlockDensity(block) === 'compact'
-                                                          ? 'size-4.5 sm:size-5'
-                                                          : getBlockDensity(block) === 'condensed'
-                                                            ? 'size-3.5 sm:size-4'
-                                                            : 'size-3'
+                                                          ? 'mx-1.5 w-5'
+                                                          : 'mx-1 w-4'
                                                 "
                                             />
-                                            <span
-                                                class="block font-mono font-semibold uppercase tracking-wider text-slate-500 dark:text-muted-foreground"
-                                                :class="
-                                                    getBlockDensity(block) === 'spacious'
-                                                        ? 'mt-2 text-[10px] sm:text-[11px]'
-                                                        : getBlockDensity(block) === 'compact'
-                                                          ? 'mt-1 text-[9px] sm:text-[9.5px]'
-                                                          : getBlockDensity(block) === 'condensed'
-                                                            ? 'mt-0.5 text-[7.5px] sm:text-[8px]'
-                                                            : 'mt-0.25 text-[6.5px]'
-                                                "
-                                            >
-                                                {{ seat.is_disabled ? 'Unavailable' : seat.label }}
-                                            </span>
                                         </template>
-                                    </button>
-                                </div>
+                                    </div>
+
+                                    <!-- Row Aisle Spacer -->
+                                    <div
+                                        v-if="hasRowAisle(block, rowIndex + 1)"
+                                        class="flex w-full items-center justify-center rounded-lg border-2 border-dashed border-primary/30 bg-primary/5 text-center font-semibold uppercase tracking-wider text-primary/70"
+                                        :class="
+                                            getBlockDensity(block) === 'spacious'
+                                                ? 'my-2 h-7 text-[10px]'
+                                                : getBlockDensity(block) === 'compact'
+                                                  ? 'my-1.5 h-5.5 text-[9px]'
+                                                  : 'my-1 h-4.5 text-[8px]'
+                                        "
+                                    >
+                                        Aisle
+                                    </div>
+                                </template>
                             </article>
                         </div>
                     </div>
