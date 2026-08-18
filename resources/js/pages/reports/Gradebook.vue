@@ -533,19 +533,18 @@ onMounted(() => {
                                         Oral Participation (Bonus Points Added to Activities)
                                     </span>
                                     <p class="mt-0.5 text-xs text-muted-foreground">
-                                        Awarded as bonus score (0–100 pts max) added directly into student Activities scores. Maximum points
+                                        Awarded as additional bonus points added directly into student Activities scores. Maximum points
                                         denominator is not increased, so non-called students are never penalized.
                                     </p>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <span class="text-xs font-bold text-foreground">Max Bonus Cap:</span>
+                                    <span class="text-xs font-bold text-foreground">Bonus Points:</span>
                                     <div class="flex items-center gap-1">
                                         <span class="text-xs font-bold text-amber-600">+</span>
                                         <input
                                             v-model.number="weightsForm.recitation"
                                             type="number"
                                             min="0"
-                                            max="100"
                                             class="w-20 rounded-lg border border-amber-500/40 bg-background px-3 py-1.5 text-center text-sm font-bold text-amber-600 focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-amber-400"
                                         />
                                         <span class="text-xs font-bold text-amber-600 dark:text-amber-400">pts</span>
@@ -609,7 +608,7 @@ onMounted(() => {
                     <p class="mt-1 text-xs text-muted-foreground print:text-black">
                         Weighted gradebook with college grading scale (1.0–5.0). Core: Activities {{ gradingWeights.activity }}%, Quizzes
                         {{ gradingWeights.quiz }}%, Major Exams {{ gradingWeights.exam }}%, Project / Reporting {{ gradingWeights.project }}%,
-                        Attendance {{ gradingWeights.attendance }}% · Oral Recitation: Up to +{{ gradingWeights.recitation ?? 5 }} bonus pts added
+                        Attendance {{ gradingWeights.attendance }}% · Oral Recitation: +{{ gradingWeights.recitation ?? 5 }} bonus pts added
                         to Activities.
                     </p>
                 </header>
@@ -654,7 +653,7 @@ onMounted(() => {
                     <!-- Oral Participation Summary Card -->
                     <div class="paper-card border-amber-500/30 bg-amber-500/5 p-4 print:rounded-none print:border print:border-black print:bg-white">
                         <span class="font-mono text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
-                            Oral Bonus · +{{ gradingWeights.recitation ?? 5 }} pts max
+                            Oral Bonus · +{{ gradingWeights.recitation ?? 5 }} pts
                         </span>
                         <p class="mt-2 text-xl font-bold tracking-tight text-amber-700 dark:text-amber-400">Added to Activities</p>
                         <p class="mt-0.5 text-[11px] font-normal text-muted-foreground">Max pts denominator is not increased</p>

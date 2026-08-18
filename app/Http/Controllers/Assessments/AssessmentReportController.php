@@ -56,7 +56,7 @@ class AssessmentReportController extends AssessmentModuleController
             'exam' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:100'],
             'project' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:100'],
             'attendance' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:100'],
-            'recitation' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'recitation' => ['nullable', 'integer', 'min:0'],
         ]);
 
         $merged = [

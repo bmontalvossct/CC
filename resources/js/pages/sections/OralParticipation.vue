@@ -337,16 +337,16 @@ const ratingLabel = (val: number) => {
                                 <span class="badge-primary font-mono font-medium">{{ section.subject_code }}</span>
                                 <span class="badge-muted">{{ section.name }}</span>
                                 <span class="badge-amber font-mono font-medium text-amber-700 dark:text-amber-400">
-                                    Recitation Bonus: +{{ bonusCap || 5 }} pts max
+                                    Recitation Bonus: +{{ bonusCap || 5 }} pts
                                 </span>
                                 <button
                                     type="button"
                                     class="inline-flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-500/20 dark:text-amber-400"
-                                    title="Change max bonus cap"
+                                    title="Configure recitation bonus points"
                                     @click="showBonusCapModal = true"
                                 >
                                     <Settings class="size-3" />
-                                    <span>Edit Cap</span>
+                                    <span>Bonus Points</span>
                                 </button>
                             </div>
                             <h1 class="mt-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Oral Participation & Recitations</h1>
@@ -743,32 +743,31 @@ const ratingLabel = (val: number) => {
                         <p class="mt-2 max-w-2xl text-xs text-muted-foreground">
                             Each recitation can be scored from <strong class="font-medium text-foreground">0 to 10</strong> points. Recitations earn
                             <strong class="font-medium text-amber-600 dark:text-amber-400"
-                                >additional bonus points (up to +{{ bonusCap || 5 }} pts)</strong
+                                >additional bonus points (+{{ bonusCap || 5 }} pts)</strong
                             >
                             added directly to the student's Activities score. Click <strong class="font-medium text-foreground">Logs</strong> on any
                             student to review and adjust their full recitation history.
                         </p>
                     </div>
 
-                    <!-- Bonus Cap Configuration Card -->
+                    <!-- Bonus Points Configuration Card -->
                     <div class="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
                         <div>
                             <span class="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
-                                Oral Recitation Bonus Cap Configuration
+                                Oral Recitation Bonus Points
                             </span>
                             <p class="mt-0.5 text-xs text-muted-foreground">
-                                Adjust the maximum bonus points (0 to 100 pts) awarded to students' Activities scores based on their recitation average.
+                                Additional bonus points awarded to students' Activities scores based on their recitation average.
                             </p>
                         </div>
                         <form class="flex items-center gap-2" @submit.prevent="saveBonusCap">
-                            <span class="text-xs font-medium text-muted-foreground">Max Bonus Cap:</span>
+                            <span class="text-xs font-medium text-muted-foreground">Bonus Points:</span>
                             <div class="flex items-center gap-1">
                                 <span class="text-xs font-bold text-amber-600">+</span>
                                 <input
                                     v-model.number="bonusCapForm.recitation"
                                     type="number"
                                     min="0"
-                                    max="100"
                                     class="w-20 rounded-lg border border-amber-500/40 bg-background px-3 py-1.5 text-center text-sm font-bold text-amber-600 focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-amber-400"
                                 />
                                 <span class="text-xs font-bold text-amber-600 dark:text-amber-400">pts</span>
@@ -779,7 +778,7 @@ const ratingLabel = (val: number) => {
                                 class="ink-button !h-9 !rounded-xl !px-3.5 text-xs"
                             >
                                 <Save class="size-3.5" />
-                                <span>{{ bonusCapForm.processing ? 'Saving…' : 'Save Cap' }}</span>
+                                <span>{{ bonusCapForm.processing ? 'Saving…' : 'Save Points' }}</span>
                             </button>
                         </form>
                     </div>
@@ -1421,7 +1420,7 @@ const ratingLabel = (val: number) => {
                 <div class="flex items-start justify-between border-b border-border/80 pb-4">
                     <div>
                         <span class="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">Oral Recitation</span>
-                        <h3 class="mt-0.5 text-lg font-bold text-foreground">Configure Max Bonus Cap</h3>
+                        <h3 class="mt-0.5 text-lg font-bold text-foreground">Configure Bonus Points</h3>
                     </div>
                     <button
                         type="button"
@@ -1433,14 +1432,14 @@ const ratingLabel = (val: number) => {
                 </div>
 
                 <p class="mt-3 text-xs text-muted-foreground">
-                    Oral recitation scores earn bonus points (0 to 100 pts) directly added to student Activities coursework scores without increasing
+                    Oral recitation scores earn bonus points directly added to student Activities coursework scores without increasing
                     the maximum points denominator.
                 </p>
 
                 <form class="mt-4 space-y-4" @submit.prevent="saveBonusCap">
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-foreground">
-                            Max Bonus Cap (Points)
+                            Bonus Points
                         </label>
                         <div class="mt-1.5 flex items-center gap-2">
                             <span class="font-mono text-base font-bold text-amber-600 dark:text-amber-400">+</span>
@@ -1448,7 +1447,6 @@ const ratingLabel = (val: number) => {
                                 v-model.number="bonusCapForm.recitation"
                                 type="number"
                                 min="0"
-                                max="100"
                                 class="w-full rounded-xl border border-input bg-background px-3.5 py-2 text-center font-mono text-base font-bold text-foreground focus-visible:ring-2 focus-visible:ring-primary"
                                 placeholder="5"
                             />
