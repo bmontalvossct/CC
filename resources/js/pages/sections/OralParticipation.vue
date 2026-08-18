@@ -757,7 +757,7 @@ const ratingLabel = (val: number) => {
                                 Oral Recitation Bonus Cap Configuration
                             </span>
                             <p class="mt-0.5 text-xs text-muted-foreground">
-                                Adjust the maximum bonus points (0 to 50 pts) awarded to students' Activities scores based on their recitation average.
+                                Adjust the maximum bonus points (0 to 100 pts) awarded to students' Activities scores based on their recitation average.
                             </p>
                         </div>
                         <form class="flex items-center gap-2" @submit.prevent="saveBonusCap">
@@ -768,7 +768,7 @@ const ratingLabel = (val: number) => {
                                     v-model.number="bonusCapForm.recitation"
                                     type="number"
                                     min="0"
-                                    max="50"
+                                    max="100"
                                     class="w-20 rounded-lg border border-amber-500/40 bg-background px-3 py-1.5 text-center text-sm font-bold text-amber-600 focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-amber-400"
                                 />
                                 <span class="text-xs font-bold text-amber-600 dark:text-amber-400">pts</span>
@@ -1433,7 +1433,7 @@ const ratingLabel = (val: number) => {
                 </div>
 
                 <p class="mt-3 text-xs text-muted-foreground">
-                    Oral recitation scores earn bonus points (0 to 50 pts) directly added to student Activities coursework scores without increasing
+                    Oral recitation scores earn bonus points (0 to 100 pts) directly added to student Activities coursework scores without increasing
                     the maximum points denominator.
                 </p>
 
@@ -1448,7 +1448,7 @@ const ratingLabel = (val: number) => {
                                 v-model.number="bonusCapForm.recitation"
                                 type="number"
                                 min="0"
-                                max="50"
+                                max="100"
                                 class="w-full rounded-xl border border-input bg-background px-3.5 py-2 text-center font-mono text-base font-bold text-foreground focus-visible:ring-2 focus-visible:ring-primary"
                                 placeholder="5"
                             />

@@ -533,7 +533,7 @@ onMounted(() => {
                                         Oral Participation (Bonus Points Added to Activities)
                                     </span>
                                     <p class="mt-0.5 text-xs text-muted-foreground">
-                                        Awarded as bonus score (0–50 pts max) added directly into student Activities scores. Maximum points
+                                        Awarded as bonus score (0–100 pts max) added directly into student Activities scores. Maximum points
                                         denominator is not increased, so non-called students are never penalized.
                                     </p>
                                 </div>
@@ -545,7 +545,7 @@ onMounted(() => {
                                             v-model.number="weightsForm.recitation"
                                             type="number"
                                             min="0"
-                                            max="50"
+                                            max="100"
                                             class="w-20 rounded-lg border border-amber-500/40 bg-background px-3 py-1.5 text-center text-sm font-bold text-amber-600 focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-amber-400"
                                         />
                                         <span class="text-xs font-bold text-amber-600 dark:text-amber-400">pts</span>
