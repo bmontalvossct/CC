@@ -55,4 +55,14 @@ class User extends Authenticatable
     {
         return $this->hasMany(Section::class);
     }
+
+    public function academicTerms(): HasMany
+    {
+        return $this->hasMany(AcademicTerm::class);
+    }
+
+    public function currentAcademicTerm(): AcademicTerm
+    {
+        return AcademicTerm::currentForUser($this->id);
+    }
 }

@@ -2,6 +2,18 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head } from '@inertiajs/vue3';
 import SectionForm from './SectionForm.vue';
+
+defineProps<{
+    currentTerm?: {
+        id?: number;
+        name: string;
+        school_year: string;
+        starts_on?: string;
+        ends_on?: string;
+        default_starts_at?: string;
+        default_ends_at?: string;
+    };
+}>();
 </script>
 
 <template>
@@ -22,7 +34,7 @@ import SectionForm from './SectionForm.vue';
                     </p>
                 </header>
                 <div class="mt-8">
-                    <SectionForm />
+                    <SectionForm :current-term="currentTerm" />
                 </div>
             </div>
         </main>

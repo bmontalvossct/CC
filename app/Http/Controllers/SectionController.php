@@ -66,14 +66,31 @@ class SectionController extends Controller
     {
         Gate::authorize('create', Section::class);
 
-        return Inertia::render('sections/Create');
+        $currentTerm = request()->user()->currentAcademicTerm();
+
+        return Inertia::render('sections/Create', [
+            'currentTerm' => [
+                'id' => $currentTerm->id,
+                'name' => $currentTerm->name,
+                'school_year' => $currentTerm->school_year,
+                'starts_on' => $currentTerm->starts_on->format('Y-m-d'),
+                'ends_on' => $currentTerm->ends_on->format('Y-m-d'),
+                'default_starts_at' => $currentTerm->default_starts_at ?? '08:00',
+                'default_ends_at' => $currentTerm->default_ends_at ?? '09:30',
+            ],
+        ]);
     }
 
     public function store(StoreSectionRequest $request): RedirectResponse
     {
         $data = $request->validated();
         $userId = $request->user()->id;
-        $term = AcademicTerm::resolveForUser($userId, $data['term']);
+
+        if (! empty($data['term']['name']) && ! empty($data['term']['school_year'])) {
+            $term = AcademicTerm::resolveForUser($userId, $data['term']);
+        } else {
+            $term = $request->user()->currentAcademicTerm();
+        }
 
         $section = DB::transaction(function () use ($data, $term, $userId) {
             $primaryRoom = $data['room'] ?? ($data['schedules'][0]['room'] ?? null);
@@ -129,16 +146,35 @@ class SectionController extends Controller
     public function edit(Section $section): Response
     {
         Gate::authorize('update', $section);
+        $section->load(['academicTerm', 'schedules']);
+        $currentTerm = request()->user()->currentAcademicTerm();
 
-        return Inertia::render('sections/Edit', ['section' => $section->load('academicTerm', 'schedules')]);
+        return Inertia::render('sections/Edit', [
+            'section' => $section,
+            'currentTerm' => [
+                'id' => $currentTerm->id,
+                'name' => $currentTerm->name,
+                'school_year' => $currentTerm->school_year,
+                'starts_on' => $currentTerm->starts_on->format('Y-m-d'),
+                'ends_on' => $currentTerm->ends_on->format('Y-m-d'),
+                'default_starts_at' => $currentTerm->default_starts_at ?? '08:00',
+                'default_ends_at' => $currentTerm->default_ends_at ?? '09:30',
+            ],
+        ]);
     }
 
     public function update(UpdateSectionRequest $request, Section $section): RedirectResponse
     {
         $data = $request->validated();
-        $term = AcademicTerm::resolveForUser($request->user()->id, $data['term']);
+        $userId = $request->user()->id;
 
-        DB::transaction(function () use ($data, $term, $section) {
+        if (! empty($data['term']['name']) && ! empty($data['term']['school_year'])) {
+            $term = AcademicTerm::resolveForUser($userId, $data['term']);
+        } else {
+            $term = $section->academicTerm ?? $request->user()->currentAcademicTerm();
+        }
+
+        DB::transaction(function () use ($section, $data, $term) {
             $primaryRoom = $data['room'] ?? ($data['schedules'][0]['room'] ?? null);
             $section->update([
                 ...collect($data)->only(['subject_code', 'subject_title', 'name'])->all(),
@@ -149,7 +185,7 @@ class SectionController extends Controller
             $section->schedules()->createMany($data['schedules'] ?? []);
         });
 
-        return to_route('sections.show', $section)->with('success', 'Section details updated.');
+        return to_route('sections.show', $section)->with('success', 'Section updated.');
     }
 
     public function destroy(Section $section): RedirectResponse

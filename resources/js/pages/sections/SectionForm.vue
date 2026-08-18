@@ -23,30 +23,35 @@ type Schedule = {
     schedule_type: 'lecture' | 'lab';
 };
 
+type TermSummary = {
+    id?: number;
+    name: string;
+    school_year: string;
+    starts_on?: string;
+    ends_on?: string;
+    default_starts_at?: string;
+    default_ends_at?: string;
+};
+
 type SectionData = {
     id: number;
     subject_code: string;
     subject_title: string;
     name: string;
     room: string | null;
-    academic_term: { name: string; school_year: string; starts_on: string; ends_on: string };
+    academic_term: TermSummary;
     schedules: StoredSchedule[];
 };
 
-const props = defineProps<{ section?: SectionData }>();
+const props = defineProps<{
+    section?: SectionData;
+    currentTerm?: TermSummary;
+}>();
+
 const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const today = new Date();
 const currentSchoolYearStart = today.getMonth() >= 5 ? today.getFullYear() : today.getFullYear() - 1;
-const currentSchoolYear = `${currentSchoolYearStart}-${currentSchoolYearStart + 1}`;
-const schoolYearOptions = Array.from(
-    new Set([
-        props.section?.academic_term.school_year,
-        ...Array.from({ length: 5 }, (_, index) => {
-            const startYear = currentSchoolYearStart - 2 + index;
-            return `${startYear}-${startYear + 1}`;
-        }),
-    ]),
-).filter((schoolYear): schoolYear is string => Boolean(schoolYear));
+const currentSchoolYear = props.currentTerm?.school_year ?? `${currentSchoolYearStart}-${currentSchoolYearStart + 1}`;
 
 const calculateSuggestedEndTime = (startTime: string, type: 'lecture' | 'lab'): string => {
     if (!startTime) return '';
@@ -92,16 +97,18 @@ const groupedSchedules = (schedules: StoredSchedule[]): Schedule[] => {
     return [...groups.values()].map((schedule) => ({ ...schedule, days: schedule.days.sort() }));
 };
 
-const defaultInitialStart = '08:00';
+const defaultInitialStart = props.currentTerm?.default_starts_at || '08:00';
+const defaultInitialEnd = props.currentTerm?.default_ends_at || calculateSuggestedEndTime(defaultInitialStart, 'lecture');
+
 const form = useForm({
     subject_code: props.section?.subject_code ?? '',
     subject_title: props.section?.subject_title ?? '',
     name: props.section?.name ?? '',
     term: {
-        name: props.section?.academic_term.name ?? '1st Semester',
-        school_year: props.section?.academic_term.school_year ?? currentSchoolYear,
-        starts_on: props.section?.academic_term.starts_on?.slice(0, 10) ?? '',
-        ends_on: props.section?.academic_term.ends_on?.slice(0, 10) ?? '',
+        name: props.section?.academic_term?.name ?? props.currentTerm?.name ?? '1st Semester',
+        school_year: props.section?.academic_term?.school_year ?? props.currentTerm?.school_year ?? currentSchoolYear,
+        starts_on: props.section?.academic_term?.starts_on?.slice(0, 10) ?? props.currentTerm?.starts_on?.slice(0, 10) ?? '',
+        ends_on: props.section?.academic_term?.ends_on?.slice(0, 10) ?? props.currentTerm?.ends_on?.slice(0, 10) ?? '',
     },
     schedules: props.section?.schedules?.length
         ? groupedSchedules(props.section.schedules)
@@ -109,24 +116,21 @@ const form = useForm({
               {
                   days: [1],
                   starts_at: defaultInitialStart,
-                  ends_at: calculateSuggestedEndTime(defaultInitialStart, 'lecture'),
+                  ends_at: defaultInitialEnd,
                   room: props.section?.room ?? '',
                   schedule_type: 'lecture',
               },
           ],
 });
 
-const fieldError = (key: string) => (form.errors as Record<string, string | undefined>)[key];
 const scheduleError = ref('');
-const selectClass =
-    'h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary text-foreground font-medium';
 
 const addSchedule = () => {
     const lastSchedule = form.schedules[form.schedules.length - 1];
     const previousRoom = lastSchedule ? lastSchedule.room : '';
     const previousType = lastSchedule ? lastSchedule.schedule_type : 'lecture';
-    const defaultStart = '08:00';
-    const defaultEnd = calculateSuggestedEndTime(defaultStart, previousType);
+    const defaultStart = props.currentTerm?.default_starts_at || '08:00';
+    const defaultEnd = props.currentTerm?.default_ends_at || calculateSuggestedEndTime(defaultStart, previousType);
 
     form.schedules.push({
         days: [],
@@ -199,9 +203,27 @@ const submit = () => {
     <form class="grid gap-8" @submit.prevent="submit">
         <!-- 01 Identity Panel -->
         <section class="paper-card grid gap-5 p-6 md:grid-cols-2 md:p-8">
-            <div class="md:col-span-2">
-                <span class="eyebrow">01 / Course Identity</span>
-                <h2 class="mt-1 text-2xl font-medium tracking-tight">Class & subject details</h2>
+            <div class="md:col-span-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border/60 pb-4">
+                <div>
+                    <span class="eyebrow">01 / Course Identity</span>
+                    <h2 class="mt-1 text-2xl font-medium tracking-tight">Class & subject details</h2>
+                </div>
+
+                <!-- Universal Semester Indicator -->
+                <div class="flex items-center gap-2 rounded-2xl border border-primary/20 bg-primary/5 px-3.5 py-2 text-xs">
+                    <div>
+                        <span class="font-bold text-foreground">{{ form.term.name }} · SY {{ form.term.school_year }}</span>
+                        <span v-if="form.term.starts_on && form.term.ends_on" class="block text-[11px] text-muted-foreground">
+                            {{ form.term.starts_on }} to {{ form.term.ends_on }}
+                        </span>
+                    </div>
+                    <Link
+                        href="/settings/academic-term"
+                        class="ml-2 rounded-lg border border-border/80 bg-background px-2.5 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-secondary"
+                    >
+                        Change
+                    </Link>
+                </div>
             </div>
             <div class="grid gap-2">
                 <Label for="code" class="text-xs font-medium">Subject code</Label>
@@ -225,41 +247,11 @@ const submit = () => {
             </div>
         </section>
 
-        <!-- 02 Academic Term Panel -->
-        <section class="paper-card grid gap-5 p-6 md:grid-cols-2 md:p-8">
-            <div class="md:col-span-2">
-                <span class="eyebrow">02 / Academic Term</span>
-                <h2 class="mt-1 text-2xl font-medium tracking-tight">Term & schedule period</h2>
-            </div>
-            <div class="grid gap-2">
-                <Label class="text-xs font-medium">Term name</Label>
-                <Input v-model="form.term.name" class="h-10 rounded-xl text-sm font-medium" placeholder="1st Semester" />
-                <InputError class="mt-1 text-xs" :message="fieldError('term.name')" />
-            </div>
-            <div class="grid gap-2">
-                <Label for="school-year" class="text-xs font-medium">School year</Label>
-                <select id="school-year" v-model="form.term.school_year" :class="selectClass">
-                    <option v-for="schoolYear in schoolYearOptions" :key="schoolYear" :value="schoolYear">SY {{ schoolYear }}</option>
-                </select>
-                <InputError class="mt-1 text-xs" :message="fieldError('term.school_year')" />
-            </div>
-            <div class="grid gap-2">
-                <Label class="text-xs font-medium">Starts on</Label>
-                <Input v-model="form.term.starts_on" class="h-10 rounded-xl text-sm font-medium" type="date" />
-                <InputError class="mt-1 text-xs" :message="fieldError('term.starts_on')" />
-            </div>
-            <div class="grid gap-2">
-                <Label class="text-xs font-medium">Ends on</Label>
-                <Input v-model="form.term.ends_on" class="h-10 rounded-xl text-sm font-medium" type="date" />
-                <InputError class="mt-1 text-xs" :message="fieldError('term.ends_on')" />
-            </div>
-        </section>
-
-        <!-- 03 Weekly Schedule Panel -->
+        <!-- 02 Weekly Schedule Panel -->
         <section class="paper-card grid gap-5 p-6 md:p-8">
             <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
                 <div>
-                    <span class="eyebrow">03 / Weekly Schedule</span>
+                    <span class="eyebrow">02 / Weekly Schedule</span>
                     <h2 class="mt-1 text-2xl font-medium tracking-tight">Meeting rhythm</h2>
                 </div>
                 <Button type="button" variant="outline" size="sm" class="rounded-xl text-xs font-medium" @click="addSchedule">
