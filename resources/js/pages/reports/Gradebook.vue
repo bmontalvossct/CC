@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import StudentDeficienciesModal from '@/components/reports/StudentDeficienciesModal.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { ArrowLeft, Download, Printer, Save, Settings, Trophy } from 'lucide-vue-next';
@@ -48,6 +49,55 @@ const types = ['activity', 'quiz', 'exam'] as const;
 const showWeightsEditor = ref(false);
 
 const projectsList = computed(() => props.projects || []);
+
+// Student Deficiencies Modal
+const selectedStudent = ref<Row | null>(null);
+const isModalOpen = ref(false);
+
+const openStudentModal = (student: Row) => {
+    selectedStudent.value = student;
+    isModalOpen.value = true;
+};
+
+const closeStudentModal = () => {
+    isModalOpen.value = false;
+    selectedStudent.value = null;
+};
+
+const countDeficiencies = (row: Row): number => {
+    let count = 0;
+    // Missing or failing assessments
+    for (const a of props.assessments) {
+        const val = row.scores[a.id];
+        if (val === null || val === undefined || val === '') {
+            count++;
+        } else {
+            const score = parseFloat(String(val));
+            const max = parseFloat(String(a.max_points));
+            if (max > 0 && score / max < 0.75) {
+                count++;
+            }
+        }
+    }
+    // Missing or failing projects
+    for (const p of projectsList.value) {
+        const val = row.project_scores?.[p.id];
+        if (val === null || val === undefined) {
+            count++;
+        } else {
+            const score = Number(val);
+            const max = typeof p.max_points === 'number' ? p.max_points : parseFloat(String(p.max_points || 100));
+            if (max > 0 && score / max < 0.75) {
+                count++;
+            }
+        }
+    }
+    return count;
+};
+
+const hasDeficiencies = (row: Row): boolean => {
+    return countDeficiencies(row) > 0;
+};
 
 const weightsForm = useForm({
     activity: props.gradingWeights.activity ?? 20,
@@ -457,9 +507,10 @@ onMounted(() => {
                             >
                                 <tr>
                                     <th
-                                        class="backdrop-blur-xs sticky left-0 z-10 min-w-44 border-r border-border/60 bg-card/95 px-4 py-3 print:static print:bg-gray-100"
+                                        class="backdrop-blur-xs sticky left-0 z-10 min-w-48 border-r border-border/60 bg-card/95 px-4 py-3 print:static print:bg-gray-100"
                                     >
                                         Student
+                                        <span class="block text-[9px] font-normal lowercase text-muted-foreground print:hidden">(click to view tasks)</span>
                                     </th>
                                     <!-- Assessment columns -->
                                     <th v-for="item in assessments" :key="item.id" class="min-w-24 border-l border-border/60 px-3 py-3 text-center">
@@ -529,20 +580,32 @@ onMounted(() => {
                                         Final Grade %
                                     </th>
                                     <th class="min-w-24 border-l-2 border-primary/30 bg-primary/10 px-3 text-center font-bold text-foreground">
-                                        Grade (1.0-5.0)
-                                    </th>
-                                    <th class="min-w-20 border-l-2 border-primary/30 bg-primary/10 px-3 text-center font-bold text-foreground">
-                                        Remarks
+                                        Grade
                                     </th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-border/60">
                                 <tr v-for="row in rows" :key="row.id" class="break-inside-avoid transition-colors hover:bg-secondary/30">
                                     <td
-                                        class="backdrop-blur-xs sticky left-0 z-10 border-r border-border/50 bg-card/95 px-4 py-3 print:static print:bg-white"
+                                        class="backdrop-blur-xs group/student sticky left-0 z-10 cursor-pointer border-r border-border/50 bg-card/95 px-4 py-3 transition-colors hover:bg-secondary/80 print:static print:bg-white"
+                                        title="Click to view failing or uncomplied activities and projects"
+                                        @click="openStudentModal(row)"
                                     >
-                                        <span class="block font-medium text-foreground">{{ row.full_name }}</span>
-                                        <span class="font-mono text-[10px] text-muted-foreground">{{ row.student_number }}</span>
+                                        <div class="flex items-center justify-between gap-2">
+                                            <div class="min-w-0">
+                                                <span class="block truncate font-medium text-foreground transition-colors group-hover/student:text-primary group-hover/student:underline">
+                                                    {{ row.full_name }}
+                                                </span>
+                                                <span class="font-mono text-[10px] text-muted-foreground">{{ row.student_number }}</span>
+                                            </div>
+                                            <span
+                                                v-if="hasDeficiencies(row)"
+                                                class="shrink-0 rounded-full border border-rose-500/30 bg-rose-500/10 px-1.5 py-0.5 text-[9px] font-bold text-rose-600 dark:text-rose-400 print:hidden"
+                                                title="Has missing or failing items"
+                                            >
+                                                {{ countDeficiencies(row) }} def
+                                            </span>
+                                        </div>
                                     </td>
                                     <!-- Standard scores -->
                                     <td
@@ -635,26 +698,10 @@ onMounted(() => {
                                             {{ gradeDisplay(percentToGrade(computeOverall(row))) }}
                                         </span>
                                     </td>
-                                    <td
-                                        class="border-l-2 border-primary/30 bg-primary/5 px-3 py-3 text-center font-mono text-xs font-medium"
-                                        :class="
-                                            isFailing(percentToGrade(computeOverall(row)))
-                                                ? 'text-rose-600 dark:text-rose-400'
-                                                : 'text-emerald-600 dark:text-emerald-400'
-                                        "
-                                    >
-                                        {{
-                                            computeOverall(row) !== null
-                                                ? isFailing(percentToGrade(computeOverall(row)))
-                                                    ? 'FAILED'
-                                                    : 'PASSED'
-                                                : '—'
-                                        }}
-                                    </td>
                                 </tr>
                                 <tr v-if="!rows.length">
                                     <td
-                                        :colspan="6 + assessments.length + projectsList.length + types.length"
+                                        :colspan="5 + assessments.length + projectsList.length + types.length"
                                         class="py-12 text-center text-xs text-muted-foreground"
                                     >
                                         No students are enrolled in this section.
@@ -702,6 +749,18 @@ onMounted(() => {
                 </p>
             </div>
         </main>
+
+        <!-- Student Deficiencies Detail Modal -->
+        <StudentDeficienciesModal
+            :student="selectedStudent"
+            :assessments="assessments"
+            :projects="projectsList"
+            :grading-weights="gradingWeights"
+            :section-name="section.name"
+            :subject-code="section.subject_code"
+            :open="isModalOpen"
+            @close="closeStudentModal"
+        />
     </component>
 </template>
 
