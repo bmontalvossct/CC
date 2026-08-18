@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
-import { Link } from '@inertiajs/vue3';
-import { ArrowRight, Calendar, ChevronLeft, ChevronRight, Clock, UserCheck, UserX } from 'lucide-vue-next';
+import { Link, router } from '@inertiajs/vue3';
+import { ArrowRight, Calendar, ChevronLeft, ChevronRight, Clock, LoaderCircle, Trash2, UserCheck, UserX } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
 type Student = {
@@ -94,6 +94,26 @@ const goToToday = () => {
     currentYear.value = today.getFullYear();
     currentMonth.value = today.getMonth();
     selectedDate.value = today.toLocaleDateString('en-CA');
+};
+
+// Session Deletion
+const sessionToDelete = ref<Session | null>(null);
+const isDeletingSession = ref(false);
+
+const confirmDeleteSession = (session: Session) => {
+    sessionToDelete.value = session;
+};
+
+const deleteSession = () => {
+    if (!sessionToDelete.value) return;
+    isDeletingSession.value = true;
+    router.delete(`/attendance/${sessionToDelete.value.id}`, {
+        preserveScroll: true,
+        onFinish: () => {
+            isDeletingSession.value = false;
+            sessionToDelete.value = null;
+        },
+    });
 };
 
 // Generate calendar grid days
@@ -344,7 +364,7 @@ const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
                 <!-- Session summary card -->
                 <div v-if="currentSessionForDate" class="rounded-xl border border-border/80 bg-secondary/30 p-4">
-                    <div class="flex items-center justify-between">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
                         <div class="flex items-center gap-2 text-sm text-muted-foreground">
                             <Clock class="size-4" />
                             <span
@@ -354,14 +374,25 @@ const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
                                 mins)</span
                             >
                         </div>
-                        <Link
-                            :href="`/attendance/${currentSessionForDate.id}`"
-                            prefetch="hover"
-                            class="inline-flex items-center gap-1 text-sm font-medium text-emerald-700 hover:underline dark:text-emerald-400"
-                        >
-                            <span>Open live check</span>
-                            <ArrowRight class="size-3.5" />
-                        </Link>
+                        <div class="flex items-center gap-2">
+                            <button
+                                type="button"
+                                title="Delete roll call on this day"
+                                class="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-rose-700 transition-colors hover:bg-rose-100 hover:text-rose-800 dark:text-rose-400 dark:hover:bg-rose-950/60"
+                                @click="confirmDeleteSession(currentSessionForDate)"
+                            >
+                                <Trash2 class="size-3.5" />
+                                <span>Delete</span>
+                            </button>
+                            <Link
+                                :href="`/attendance/${currentSessionForDate.id}`"
+                                prefetch="hover"
+                                class="inline-flex items-center gap-1 text-sm font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+                            >
+                                <span>Open live check</span>
+                                <ArrowRight class="size-3.5" />
+                            </Link>
+                        </div>
                     </div>
                     <p v-if="currentSessionForDate.notes" class="mt-2 text-sm italic text-muted-foreground">
                         Note: {{ currentSessionForDate.notes }}
@@ -452,5 +483,50 @@ const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
                 <p class="mt-1">Pick a highlighted day from the calendar or start a new roll call on the left.</p>
             </div>
         </section>
+
+        <!-- Delete Session Confirmation Modal -->
+        <div
+            v-if="sessionToDelete"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+            role="dialog"
+            aria-modal="true"
+            @click.self="sessionToDelete = null"
+        >
+            <div class="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in-95">
+                <div class="flex items-center gap-3">
+                    <div class="grid size-10 shrink-0 place-items-center rounded-xl bg-rose-100 dark:bg-rose-950/60">
+                        <Trash2 class="size-5 text-rose-600 dark:text-rose-400" />
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-foreground">Delete Roll Call</h3>
+                        <p class="text-xs text-muted-foreground">{{ sessionToDelete.session_date }} · {{ sessionToDelete.starts_at }} – {{ sessionToDelete.ends_at }}</p>
+                    </div>
+                </div>
+
+                <p class="mt-4 text-sm leading-relaxed text-muted-foreground">
+                    Are you sure you want to delete the attendance roll call for this day? All student attendance records and logs for this session will be permanently removed.
+                </p>
+
+                <div class="mt-6 flex items-center justify-end gap-3">
+                    <button
+                        type="button"
+                        class="rounded-xl border border-border bg-background px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+                        :disabled="isDeletingSession"
+                        @click="sessionToDelete = null"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        class="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-rose-700 disabled:opacity-50"
+                        :disabled="isDeletingSession"
+                        @click="deleteSession"
+                    >
+                        <LoaderCircle v-if="isDeletingSession" class="size-4 animate-spin" />
+                        <span>{{ isDeletingSession ? 'Deleting...' : 'Yes, Delete Roll Call' }}</span>
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </template>

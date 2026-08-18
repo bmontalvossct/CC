@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { ArrowRight, Calendar, CalendarCheck2, CalendarDays, CheckCircle2, Clock3, History, Plus, Search, Users } from 'lucide-vue-next';
+import { ArrowRight, Calendar, CalendarCheck2, CalendarDays, CheckCircle2, Clock3, History, LoaderCircle, Plus, Search, Trash2, Users } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
 type Summary = { sessions: number; present: number; absent: number; rate: number | null; attended_hours: number };
@@ -72,6 +72,26 @@ const openStudentModal = (student: StudentSummary) => {
 const closeStudentModal = () => {
     isModalOpen.value = false;
     selectedStudent.value = null;
+};
+
+// Session Deletion
+const sessionToDelete = ref<Session | null>(null);
+const isDeletingSession = ref(false);
+
+const confirmDeleteSession = (session: Session) => {
+    sessionToDelete.value = session;
+};
+
+const deleteSession = () => {
+    if (!sessionToDelete.value) return;
+    isDeletingSession.value = true;
+    router.delete(`/attendance/${sessionToDelete.value.id}`, {
+        preserveScroll: true,
+        onFinish: () => {
+            isDeletingSession.value = false;
+            sessionToDelete.value = null;
+        },
+    });
 };
 
 // Form for starting a roll-call session
@@ -332,6 +352,14 @@ const filteredStudentSummaries = computed(() => {
                                             {{ session.absent_count }} absent
                                         </span>
                                     </div>
+                                    <button
+                                        type="button"
+                                        title="Delete roll call on this day"
+                                        class="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-rose-100 hover:text-rose-700 dark:hover:bg-rose-950/60 dark:hover:text-rose-400"
+                                        @click.prevent.stop="confirmDeleteSession(session)"
+                                    >
+                                        <Trash2 class="size-4" />
+                                    </button>
                                     <ArrowRight
                                         class="size-4.5 text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-primary"
                                     />
@@ -526,5 +554,50 @@ const filteredStudentSummaries = computed(() => {
             <!-- Student Attendance Modal Drilldown -->
             <StudentAttendanceModal :student="selectedStudent" :open="isModalOpen" @close="closeStudentModal" />
         </main>
+
+        <!-- Delete Session Confirmation Modal -->
+        <div
+            v-if="sessionToDelete"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+            role="dialog"
+            aria-modal="true"
+            @click.self="sessionToDelete = null"
+        >
+            <div class="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in-95">
+                <div class="flex items-center gap-3">
+                    <div class="grid size-10 shrink-0 place-items-center rounded-xl bg-rose-100 dark:bg-rose-950/60">
+                        <Trash2 class="size-5 text-rose-600 dark:text-rose-400" />
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-foreground">Delete Roll Call</h3>
+                        <p class="text-xs text-muted-foreground">{{ readableDate(sessionToDelete.session_date) }} · {{ sessionToDelete.starts_at }} – {{ sessionToDelete.ends_at }}</p>
+                    </div>
+                </div>
+
+                <p class="mt-4 text-sm leading-relaxed text-muted-foreground">
+                    Are you sure you want to delete the attendance roll call for this day? All student attendance records and logs for this session will be permanently removed.
+                </p>
+
+                <div class="mt-6 flex items-center justify-end gap-3">
+                    <button
+                        type="button"
+                        class="rounded-xl border border-border bg-background px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+                        :disabled="isDeletingSession"
+                        @click="sessionToDelete = null"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        class="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-rose-700 disabled:opacity-50"
+                        :disabled="isDeletingSession"
+                        @click="deleteSession"
+                    >
+                        <LoaderCircle v-if="isDeletingSession" class="size-4 animate-spin" />
+                        <span>{{ isDeletingSession ? 'Deleting...' : 'Yes, Delete Roll Call' }}</span>
+                    </button>
+                </div>
+            </div>
+        </div>
     </AppLayout>
 </template>

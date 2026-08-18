@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
-import { Head, Link } from '@inertiajs/vue3';
-import { ArrowLeft, Check, FileCheck, LayoutGrid, LoaderCircle, RotateCcw, Search, UserRound } from 'lucide-vue-next';
+import { Head, Link, router } from '@inertiajs/vue3';
+import { ArrowLeft, Check, FileCheck, LayoutGrid, LoaderCircle, RotateCcw, Search, Trash2, UserRound } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
 type RecordData = { id: number; status: 'present' | 'absent' | 'late'; attended_minutes: number };
@@ -220,6 +220,19 @@ const getBlockDensity = (block: any): 'spacious' | 'compact' | 'condensed' | 'mi
 
 const hasColumnAisle = (block: any, position: number) => (block.aisle_after_columns ?? []).includes(position);
 const hasRowAisle = (block: any, position: number) => (block.aisle_after_rows ?? []).includes(position);
+
+const showDeleteModal = ref(false);
+const isDeleting = ref(false);
+
+function deleteSession() {
+    isDeleting.value = true;
+    router.delete(`/attendance/${props.session.id}`, {
+        onFinish: () => {
+            isDeleting.value = false;
+            showDeleteModal.value = false;
+        },
+    });
+}
 </script>
 
 <template>
@@ -232,13 +245,24 @@ const hasRowAisle = (block: any, position: number) => (block.aisle_after_rows ??
             >
                 <div class="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
                     <div>
-                        <Link
-                            :href="`/sections/${section.id}/attendance`"
-                            prefetch="hover"
-                            class="mb-3 inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground transition-colors hover:text-primary"
-                        >
-                            <ArrowLeft class="size-4" /> Back to attendance register
-                        </Link>
+                        <div class="mb-3 flex items-center justify-between gap-4">
+                            <Link
+                                :href="`/sections/${section.id}/attendance`"
+                                prefetch="hover"
+                                class="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground transition-colors hover:text-primary"
+                            >
+                                <ArrowLeft class="size-4" /> Back to attendance register
+                            </Link>
+
+                            <button
+                                type="button"
+                                class="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 shadow-xs transition-colors hover:bg-rose-100 hover:text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/60 sm:hidden"
+                                @click="showDeleteModal = true"
+                            >
+                                <Trash2 class="size-3.5" />
+                                <span>Delete roll call</span>
+                            </button>
+                        </div>
                         <div class="flex items-center gap-2">
                             <span class="badge-primary font-mono">{{ section.subject_code }}</span>
                             <span class="badge-muted">{{ session.session_date }}</span>
@@ -249,31 +273,42 @@ const hasRowAisle = (block: any, position: number) => (block.aisle_after_rows ??
                         </p>
                     </div>
 
-                    <!-- Live KPI Tally Card -->
-                    <div class="flex flex-wrap items-center gap-3">
-                        <div class="flex items-center gap-4 rounded-2xl border border-border/80 bg-card/90 px-6 py-3.5 shadow-sm">
-                            <div class="text-center">
-                                <span class="block text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400"
-                                    >Present</span
-                                >
-                                <span class="font-mono text-2xl font-semibold text-emerald-700 dark:text-emerald-400">{{ presentCount }}</span>
-                            </div>
-                            <div class="h-8 w-px bg-border/80" />
-                            <div class="text-center">
-                                <span class="block text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400"
-                                    >Late (0.5 pt)</span
-                                >
-                                <span class="font-mono text-2xl font-semibold text-amber-700 dark:text-amber-400">{{ lateCount }}</span>
-                            </div>
-                            <div class="h-8 w-px bg-border/80" />
-                            <div class="text-center">
-                                <span class="block text-xs font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-400">Absent</span>
-                                <span class="font-mono text-2xl font-semibold text-rose-700 dark:text-rose-400">{{ absentCount }}</span>
-                            </div>
-                            <div class="h-8 w-px bg-border/80" />
-                            <div class="text-center">
-                                <span class="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total</span>
-                                <span class="font-mono text-2xl font-semibold text-foreground">{{ session.total_count }}</span>
+                    <!-- Live KPI Tally Card & Desktop Delete Action -->
+                    <div class="flex flex-col items-end gap-3">
+                        <button
+                            type="button"
+                            class="hidden items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-1.5 text-xs font-semibold text-rose-700 shadow-xs transition-colors hover:bg-rose-100 hover:text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/60 sm:inline-flex"
+                            @click="showDeleteModal = true"
+                        >
+                            <Trash2 class="size-3.5" />
+                            <span>Delete roll call on this day</span>
+                        </button>
+
+                        <div class="flex flex-wrap items-center gap-3">
+                            <div class="flex items-center gap-4 rounded-2xl border border-border/80 bg-card/90 px-6 py-3.5 shadow-sm">
+                                <div class="text-center">
+                                    <span class="block text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400"
+                                        >Present</span
+                                    >
+                                    <span class="font-mono text-2xl font-semibold text-emerald-700 dark:text-emerald-400">{{ presentCount }}</span>
+                                </div>
+                                <div class="h-8 w-px bg-border/80" />
+                                <div class="text-center">
+                                    <span class="block text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400"
+                                        >Late (0.5 pt)</span
+                                    >
+                                    <span class="font-mono text-2xl font-semibold text-amber-700 dark:text-amber-400">{{ lateCount }}</span>
+                                </div>
+                                <div class="h-8 w-px bg-border/80" />
+                                <div class="text-center">
+                                    <span class="block text-xs font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-400">Absent</span>
+                                    <span class="font-mono text-2xl font-semibold text-rose-700 dark:text-rose-400">{{ absentCount }}</span>
+                                </div>
+                                <div class="h-8 w-px bg-border/80" />
+                                <div class="text-center">
+                                    <span class="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total</span>
+                                    <span class="font-mono text-2xl font-semibold text-foreground">{{ session.total_count }}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -833,5 +868,50 @@ const hasRowAisle = (block: any, position: number) => (block.aisle_after_rows ??
                 </section>
             </div>
         </main>
+
+        <!-- Delete Confirmation Modal -->
+        <div
+            v-if="showDeleteModal"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+            role="dialog"
+            aria-modal="true"
+            @click.self="showDeleteModal = false"
+        >
+            <div class="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in-95">
+                <div class="flex items-center gap-3">
+                    <div class="grid size-10 shrink-0 place-items-center rounded-xl bg-rose-100 dark:bg-rose-950/60">
+                        <Trash2 class="size-5 text-rose-600 dark:text-rose-400" />
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-foreground">Delete Roll Call</h3>
+                        <p class="text-xs text-muted-foreground">{{ session.session_date }} · {{ session.starts_at }} – {{ session.ends_at }}</p>
+                    </div>
+                </div>
+
+                <p class="mt-4 text-sm leading-relaxed text-muted-foreground">
+                    Are you sure you want to delete this roll call session? All student attendance records and times recorded for this day will be permanently removed.
+                </p>
+
+                <div class="mt-6 flex items-center justify-end gap-3">
+                    <button
+                        type="button"
+                        class="rounded-xl border border-border bg-background px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+                        :disabled="isDeleting"
+                        @click="showDeleteModal = false"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        class="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-rose-700 disabled:opacity-50"
+                        :disabled="isDeleting"
+                        @click="deleteSession"
+                    >
+                        <LoaderCircle v-if="isDeleting" class="size-4 animate-spin" />
+                        <span>{{ isDeleting ? 'Deleting...' : 'Yes, Delete Roll Call' }}</span>
+                    </button>
+                </div>
+            </div>
+        </div>
     </AppLayout>
 </template>

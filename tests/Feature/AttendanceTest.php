@@ -251,4 +251,55 @@ class AttendanceTest extends TestCase
                 ->where('studentSummaries.1.absences_remaining', 0)
                 ->where('studentSummaries.1.absence_status', 'exceeded'));
     }
+
+    public function test_teacher_can_delete_attendance_session_and_its_records(): void
+    {
+        $teacher = User::factory()->create();
+        $section = $this->makeSection($teacher, 2);
+        $session = AttendanceSession::create([
+            'section_id' => $section->id,
+            'session_date' => '2026-08-10',
+            'starts_at' => '08:00',
+            'ends_at' => '09:00',
+            'duration_minutes' => 60,
+        ]);
+
+        foreach ($section->students as $student) {
+            AttendanceRecord::create([
+                'attendance_session_id' => $session->id,
+                'student_id' => $student->id,
+                'status' => 'present',
+                'attended_minutes' => 60,
+            ]);
+        }
+
+        $this->assertDatabaseHas('attendance_sessions', ['id' => $session->id]);
+        $this->assertDatabaseCount('attendance_records', 2);
+
+        $response = $this->actingAs($teacher)->delete(route('attendance.sessions.destroy', $session));
+
+        $response->assertRedirect(route('attendance.sections.index', $section));
+        $response->assertSessionHas('success');
+
+        $this->assertDatabaseMissing('attendance_sessions', ['id' => $session->id]);
+        $this->assertDatabaseCount('attendance_records', 0);
+    }
+
+    public function test_another_teacher_cannot_delete_attendance_session(): void
+    {
+        $owner = User::factory()->create();
+        $outsider = User::factory()->create();
+        $section = $this->makeSection($owner, 2);
+        $session = AttendanceSession::create([
+            'section_id' => $section->id,
+            'session_date' => '2026-08-10',
+            'starts_at' => '08:00',
+            'ends_at' => '09:00',
+            'duration_minutes' => 60,
+        ]);
+
+        $this->actingAs($outsider)->delete(route('attendance.sessions.destroy', $session))->assertForbidden();
+        $this->assertDatabaseHas('attendance_sessions', ['id' => $session->id]);
+    }
 }
+

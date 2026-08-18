@@ -11,6 +11,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('attendance.sections.store');
     Route::get('attendance/{attendanceSession}', [AttendanceController::class, 'show'])
         ->name('attendance.sessions.show');
+    Route::delete('attendance/{attendanceSession}', [AttendanceController::class, 'destroy'])
+        ->name('attendance.sessions.destroy');
     Route::patch('attendance-records/{record}', [AttendanceRecordController::class, 'update'])
         ->name('attendance.records.update');
 });

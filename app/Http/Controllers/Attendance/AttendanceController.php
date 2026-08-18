@@ -258,6 +258,18 @@ class AttendanceController extends Controller
         ]);
     }
 
+    public function destroy(Request $request, AttendanceSession $attendanceSession): RedirectResponse
+    {
+        $section = $attendanceSession->section;
+        $this->authorizeSection($request, $section);
+
+        $dateFormatted = $attendanceSession->session_date->format('M d, Y');
+        $attendanceSession->delete();
+
+        return to_route('attendance.sections.index', $section)
+            ->with('success', "Attendance roll call for {$dateFormatted} has been deleted.");
+    }
+
     private function authorizeSection(Request $request, Section $section): void
     {
         abort_unless((int) $section->user_id === (int) $request->user()?->id, 403);
