@@ -473,7 +473,9 @@ const ratingLabel = (val: number) => {
                     <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
                         <div>
                             <span class="eyebrow">Seating layout</span>
-                            <h2 class="mt-1 text-xl font-medium tracking-tight">Click any present student's chair to grade or view recitation logs</h2>
+                            <h2 class="mt-1 text-xl font-medium tracking-tight">
+                                Click any present student's chair to grade or view recitation logs
+                            </h2>
                         </div>
                         <div class="flex flex-wrap items-center gap-3 text-xs font-medium">
                             <div class="flex items-center gap-1.5 text-muted-foreground">
@@ -484,7 +486,7 @@ const ratingLabel = (val: number) => {
                                 <span class="inline-flex size-3 rounded-full bg-[#164e3f]"></span>
                                 <span>Present</span>
                             </div>
-                            <div class="flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-semibold">
+                            <div class="flex items-center gap-1.5 font-semibold text-rose-600 dark:text-rose-400">
                                 <span class="inline-flex size-3 rounded-full bg-rose-600"></span>
                                 <span>Absent (Ineligible)</span>
                             </div>
@@ -575,7 +577,7 @@ const ratingLabel = (val: number) => {
                                                                 ? 'min-h-[3.75rem] rounded-lg p-1 sm:min-h-[4.25rem]'
                                                                 : 'min-h-[3rem] rounded-md p-0.5 sm:min-h-[3.5rem]',
                                                         studentMap.get(Number(seat.student_id))?.is_absent
-                                                            ? 'border-rose-500/80 bg-rose-950/80 text-white/90 shadow-xs ring-1 ring-rose-500/40 hover:brightness-110'
+                                                            ? 'shadow-xs border-rose-500/80 bg-rose-950/80 text-white/90 ring-1 ring-rose-500/40 hover:brightness-110'
                                                             : studentMap.get(Number(seat.student_id))?.called_today
                                                               ? 'border-emerald-400/80 bg-[#164e3f] text-white shadow-md ring-2 ring-emerald-400 ring-offset-2 hover:brightness-105 dark:bg-[#134e48]'
                                                               : (studentMap.get(Number(seat.student_id))?.absent_count ?? 0) >= 3
@@ -606,7 +608,8 @@ const ratingLabel = (val: number) => {
                                                         <div
                                                             class="shadow-xs flex shrink-0 items-center justify-center overflow-hidden rounded-full ring-1 sm:ring-2"
                                                             :class="[
-                                                                studentMap.get(Number(seat.student_id))?.is_absent || (studentMap.get(Number(seat.student_id))?.absent_count ?? 0) >= 3
+                                                                studentMap.get(Number(seat.student_id))?.is_absent ||
+                                                                (studentMap.get(Number(seat.student_id))?.absent_count ?? 0) >= 3
                                                                     ? 'bg-rose-500/20 ring-rose-400'
                                                                     : 'bg-white/20 ring-white/25',
                                                                 getBlockDensity(block) === 'spacious'
@@ -653,9 +656,17 @@ const ratingLabel = (val: number) => {
                                                                         ? 'mt-0.5 max-w-[3.75rem] text-[8px] sm:text-[8.5px]'
                                                                         : 'mt-0.25 max-w-[2.75rem] text-[7px]'
                                                             "
-                                                            :title="studentMap.get(Number(seat.student_id)) ? `${studentMap.get(Number(seat.student_id))!.last_name}, ${studentMap.get(Number(seat.student_id))!.first_name}` : '—'"
+                                                            :title="
+                                                                studentMap.get(Number(seat.student_id))
+                                                                    ? `${studentMap.get(Number(seat.student_id))!.last_name}, ${studentMap.get(Number(seat.student_id))!.first_name}`
+                                                                    : '—'
+                                                            "
                                                         >
-                                                            {{ studentMap.get(Number(seat.student_id)) ? `${studentMap.get(Number(seat.student_id))!.last_name}, ${studentMap.get(Number(seat.student_id))!.first_name}` : '—' }}
+                                                            {{
+                                                                studentMap.get(Number(seat.student_id))
+                                                                    ? `${studentMap.get(Number(seat.student_id))!.last_name}, ${studentMap.get(Number(seat.student_id))!.first_name}`
+                                                                    : '—'
+                                                            }}
                                                         </span>
 
                                                         <!-- Seat Label & Recitation Status -->
@@ -674,7 +685,7 @@ const ratingLabel = (val: number) => {
                                                             <span>{{ seat.label }}</span>
                                                             <span
                                                                 v-if="(studentMap.get(Number(seat.student_id))?.absent_count ?? 0) >= 3"
-                                                                class="rounded bg-rose-500/40 px-1 py-0.2 text-[6.5px] font-bold text-rose-200 ring-1 ring-rose-400/50 sm:text-[7px]"
+                                                                class="py-0.2 rounded bg-rose-500/40 px-1 text-[6.5px] font-bold text-rose-200 ring-1 ring-rose-400/50 sm:text-[7px]"
                                                             >
                                                                 3+ ABS
                                                             </span>
@@ -787,8 +798,8 @@ const ratingLabel = (val: number) => {
                                             getBlockDensity(block) === 'spacious'
                                                 ? 'my-2 h-7 text-[10px]'
                                                 : getBlockDensity(block) === 'compact'
-                                                  ? 'my-1.5 h-5.5 text-[9px]'
-                                                  : 'my-1 h-4.5 text-[8px]'
+                                                  ? 'h-5.5 my-1.5 text-[9px]'
+                                                  : 'h-4.5 my-1 text-[8px]'
                                         "
                                     >
                                         Aisle
@@ -858,9 +869,7 @@ const ratingLabel = (val: number) => {
                         <h2 class="mt-1 text-xl font-medium tracking-tight">Oral recitation rubrics, scores (0–10) & student logs</h2>
                         <p class="mt-2 max-w-2xl text-xs text-muted-foreground">
                             Each recitation can be scored from <strong class="font-medium text-foreground">0 to 10</strong> points. Recitations earn
-                            <strong class="font-medium text-amber-600 dark:text-amber-400"
-                                >additional bonus points (+{{ bonusCap || 5 }} pts)</strong
-                            >
+                            <strong class="font-medium text-amber-600 dark:text-amber-400">additional bonus points (+{{ bonusCap || 5 }} pts)</strong>
                             added directly to the student's Activities score. Click <strong class="font-medium text-foreground">Logs</strong> on any
                             student to review and adjust their full recitation history.
                         </p>
@@ -888,11 +897,7 @@ const ratingLabel = (val: number) => {
                                 />
                                 <span class="text-xs font-bold text-amber-600 dark:text-amber-400">pts</span>
                             </div>
-                            <button
-                                type="submit"
-                                :disabled="bonusCapForm.processing"
-                                class="ink-button !h-9 !rounded-xl !px-3.5 text-xs"
-                            >
+                            <button type="submit" :disabled="bonusCapForm.processing" class="ink-button !h-9 !rounded-xl !px-3.5 text-xs">
                                 <Save class="size-3.5" />
                                 <span>{{ bonusCapForm.processing ? 'Saving…' : 'Save Points' }}</span>
                             </button>
@@ -1084,13 +1089,17 @@ const ratingLabel = (val: number) => {
                 </p>
 
                 <!-- Absent Ineligible Warning Banner -->
-                <div v-if="scoringStudent.is_absent" class="mt-4 rounded-2xl border border-rose-500/40 bg-rose-500/10 p-4 text-xs text-rose-700 dark:text-rose-400">
+                <div
+                    v-if="scoringStudent.is_absent"
+                    class="mt-4 rounded-2xl border border-rose-500/40 bg-rose-500/10 p-4 text-xs text-rose-700 dark:text-rose-400"
+                >
                     <div class="flex items-center gap-2 font-bold">
                         <AlertTriangle class="size-4 shrink-0 text-rose-600 dark:text-rose-400" />
                         <span>Ineligible: Student marked ABSENT in roll call</span>
                     </div>
                     <p class="mt-1 text-[11px] text-rose-600/90 dark:text-rose-300/90">
-                        Only students who are present can receive points for oral recitation. Please update attendance first if this student was present.
+                        Only students who are present can receive points for oral recitation. Please update attendance first if this student was
+                        present.
                     </p>
                 </div>
 
@@ -1248,9 +1257,17 @@ const ratingLabel = (val: number) => {
                         <button
                             type="submit"
                             :disabled="scoreForm.processing || scoringStudent.is_absent"
-                            class="ink-button !h-10 !rounded-xl !px-5 text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                            class="ink-button !h-10 !rounded-xl !px-5 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                            {{ scoreForm.processing ? 'Saving…' : scoringStudent.is_absent ? 'Ineligible (Absent)' : scoringStudent.called_today ? 'Update Score' : 'Save Score' }}
+                            {{
+                                scoreForm.processing
+                                    ? 'Saving…'
+                                    : scoringStudent.is_absent
+                                      ? 'Ineligible (Absent)'
+                                      : scoringStudent.called_today
+                                        ? 'Update Score'
+                                        : 'Save Score'
+                            }}
                         </button>
                     </div>
                 </form>
@@ -1598,15 +1615,13 @@ const ratingLabel = (val: number) => {
                 </div>
 
                 <p class="mt-3 text-xs text-muted-foreground">
-                    Oral recitation scores earn bonus points directly added to student Activities coursework scores without increasing
-                    the maximum points denominator.
+                    Oral recitation scores earn bonus points directly added to student Activities coursework scores without increasing the maximum
+                    points denominator.
                 </p>
 
                 <form class="mt-4 space-y-4" @submit.prevent="saveBonusCap">
                     <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-foreground">
-                            Bonus Points
-                        </label>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-foreground"> Bonus Points </label>
                         <div class="mt-1.5 flex items-center gap-2">
                             <span class="font-mono text-base font-bold text-amber-600 dark:text-amber-400">+</span>
                             <input
@@ -1631,11 +1646,7 @@ const ratingLabel = (val: number) => {
                         >
                             Cancel
                         </button>
-                        <button
-                            type="submit"
-                            :disabled="bonusCapForm.processing"
-                            class="ink-button !h-9 !rounded-xl !px-4 text-xs font-bold"
-                        >
+                        <button type="submit" :disabled="bonusCapForm.processing" class="ink-button !h-9 !rounded-xl !px-4 text-xs font-bold">
                             <Save class="size-3.5" />
                             <span>{{ bonusCapForm.processing ? 'Saving…' : 'Save Bonus Cap' }}</span>
                         </button>
@@ -1679,7 +1690,7 @@ const ratingLabel = (val: number) => {
                         <div class="size-16 animate-bounce rounded-full bg-primary/20 p-2 ring-4 ring-primary/20">
                             <div class="grid size-full place-items-center rounded-full bg-primary text-xl font-black text-white">?</div>
                         </div>
-                        <p class="font-mono text-lg font-bold text-foreground animate-pulse">{{ rollingCandidateName }}</p>
+                        <p class="animate-pulse font-mono text-lg font-bold text-foreground">{{ rollingCandidateName }}</p>
                         <p class="text-xs text-muted-foreground">Selecting present student…</p>
                     </div>
 
@@ -1701,7 +1712,9 @@ const ratingLabel = (val: number) => {
                                 Chair {{ randomPickedStudent.seat_label || 'Unassigned' }} · {{ randomPickedStudent.student_number }}
                             </p>
                         </div>
-                        <div class="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                        <div
+                            class="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400"
+                        >
                             <UserCheck class="size-3.5" /> Present & Ready to Recite
                         </div>
                     </div>

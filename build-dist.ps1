@@ -163,6 +163,39 @@ foreach ($dir in $RootDirsToCopy) {
     }
 }
 
+# Clean any cached PHP files from bootstrap/cache to ensure clean dynamic runtime paths
+$BootstrapCache = Join-Path $PayloadDir "bootstrap\cache"
+if (Test-Path $BootstrapCache) {
+    Get-ChildItem -Path $BootstrapCache -Filter "*.php" | Remove-Item -Force -ErrorAction SilentlyContinue
+}
+
+# Clean any runtime logs, sessions, or temporary files
+$StorageDir = Join-Path $PayloadDir "storage"
+$TempPatterns = @(
+    "framework\sessions\*",
+    "framework\views\*",
+    "framework\cache\data\*",
+    "logs\*.log",
+    "app\public\photos\*",
+    "app\public\modules\*"
+)
+foreach ($pat in $TempPatterns) {
+    $targetPath = Join-Path $StorageDir $pat
+    Remove-Item -Path $targetPath -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+# Ensure Vite dev server hot-reload file is never packaged in production distribution
+$HotFile = Join-Path $PayloadDir "public\hot"
+if (Test-Path $HotFile) {
+    Remove-Item -Force $HotFile -ErrorAction SilentlyContinue
+}
+
+# Clean database backups folder if copied
+$BackupsDir = Join-Path $PayloadDir "database\backups"
+if (Test-Path $BackupsDir) {
+    Remove-Item -Path (Join-Path $BackupsDir "*") -Recurse -Force -ErrorAction SilentlyContinue
+}
+
 # Resources (views and raw assets)
 $ResourcesDest = Join-Path $PayloadDir "resources"
 New-Item -ItemType Directory -Path $ResourcesDest -Force | Out-Null
@@ -183,11 +216,12 @@ if (Test-Path (Join-Path $WorkspaceRoot "packaging\README.txt")) {
     Copy-Item -Path (Join-Path $WorkspaceRoot "packaging\README.txt") -Destination $DistDir -Force
 }
 
-# Create SQLite database file if not exists
+# Ensure bundled SQLite database starts completely blank (zero accounts / zero data)
 $SqliteDest = Join-Path $PayloadDir "database\database.sqlite"
-if (-not (Test-Path $SqliteDest)) {
-    Set-Content -Path $SqliteDest -Value ""
+if (Test-Path $SqliteDest) {
+    Remove-Item -Force $SqliteDest
 }
+[System.IO.File]::WriteAllBytes($SqliteDest, [byte[]]@())
 
 # Production standalone .env
 $EnvContent = @"
@@ -219,9 +253,16 @@ CACHE_PREFIX=classcheck_cache_
 "@
 Set-Content -Path (Join-Path $PayloadDir ".env") -Value $EnvContent -Encoding UTF8
 
-# Pre-migrate SQLite database so the bundled database has all 31 tables fully initialized
-Write-Host "    Pre-migrating bundled SQLite database tables..." -ForegroundColor DarkGray
+# Pre-migrate SQLite database so the bundled database has all tables fully initialized with zero accounts
+Write-Host "    Pre-migrating bundled SQLite database tables (zero accounts)..." -ForegroundColor DarkGray
 & (Join-Path $PhpDestDir "php.exe") (Join-Path $PayloadDir "artisan") migrate --force
+
+# Verification: Confirm 0 accounts / users in bundled database
+$UserCount = (& (Join-Path $PhpDestDir "php.exe") (Join-Path $PayloadDir "artisan") tinker --execute="echo \App\Models\User::count();").Trim()
+if ($UserCount -ne "0") {
+    throw "Bundled database contains accounts ($UserCount users found)! The offline installer must have zero accounts."
+}
+Write-Host "    Bundled database verified clean: User count = $UserCount (Zero accounts)" -ForegroundColor Green
 
 # 5. Compile ClassCheck.exe (Main Launcher)
 Write-Host "`n[5/7] Compiling native Windows launcher (ClassCheck.exe)..." -ForegroundColor Yellow

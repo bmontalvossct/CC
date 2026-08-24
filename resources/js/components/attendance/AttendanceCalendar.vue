@@ -505,7 +505,7 @@ const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
         <!-- Delete Session Confirmation Modal -->
         <div
             v-if="sessionToDelete"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+            class="backdrop-blur-xs fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
             role="dialog"
             aria-modal="true"
             @click.self="sessionToDelete = null"
@@ -517,12 +517,15 @@ const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
                     </div>
                     <div>
                         <h3 class="text-lg font-bold text-foreground">Delete Roll Call</h3>
-                        <p class="text-xs text-muted-foreground">{{ sessionToDelete.session_date }} · {{ sessionToDelete.starts_at }} – {{ sessionToDelete.ends_at }}</p>
+                        <p class="text-xs text-muted-foreground">
+                            {{ sessionToDelete.session_date }} · {{ sessionToDelete.starts_at }} – {{ sessionToDelete.ends_at }}
+                        </p>
                     </div>
                 </div>
 
                 <p class="mt-4 text-sm leading-relaxed text-muted-foreground">
-                    Are you sure you want to delete the attendance roll call for this day? All student attendance records and logs for this session will be permanently removed.
+                    Are you sure you want to delete the attendance roll call for this day? All student attendance records and logs for this session
+                    will be permanently removed.
                 </p>
 
                 <div class="mt-6 flex items-center justify-end gap-3">

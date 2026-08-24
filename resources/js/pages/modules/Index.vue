@@ -7,19 +7,13 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
-    AlertCircle,
     ArrowLeft,
-    BookOpen,
     Check,
     Copy,
     Download,
     Edit3,
     ExternalLink,
-    Eye,
-    FileSpreadsheet,
-    FileText,
     FileUp,
-    FolderOpen,
     Layers,
     Link2,
     LoaderCircle,
@@ -27,7 +21,6 @@ import {
     Presentation,
     Search,
     Trash2,
-    Upload,
     X,
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
@@ -233,13 +226,13 @@ const copyModuleLink = (module: CourseModule) => {
 };
 
 const getFileTypeBadge = (fileName: string | null, mime: string | null) => {
-    if (!fileName) return 'FILE';
-    const ext = fileName.split('.').pop()?.toUpperCase() || '';
-    if (['PPT', 'PPTX', 'KEY'].includes(ext)) return 'SLIDES';
-    if (['PDF'].includes(ext)) return 'PDF';
-    if (['DOC', 'DOCX'].includes(ext)) return 'DOC';
-    if (['MP4', 'MOV', 'WEBM'].includes(ext)) return 'VIDEO';
-    if (['ZIP', 'RAR', '7Z'].includes(ext)) return 'ARCHIVE';
+    if (!fileName && !mime) return 'FILE';
+    const ext = fileName?.split('.').pop()?.toUpperCase() || '';
+    if (['PPT', 'PPTX', 'KEY'].includes(ext) || mime?.includes('presentation') || mime?.includes('powerpoint')) return 'SLIDES';
+    if (['PDF'].includes(ext) || mime?.includes('pdf')) return 'PDF';
+    if (['DOC', 'DOCX'].includes(ext) || mime?.includes('word')) return 'DOC';
+    if (['MP4', 'MOV', 'WEBM'].includes(ext) || mime?.includes('video')) return 'VIDEO';
+    if (['ZIP', 'RAR', '7Z'].includes(ext) || mime?.includes('zip') || mime?.includes('compressed')) return 'ARCHIVE';
     return ext || 'FILE';
 };
 </script>
@@ -357,7 +350,7 @@ const getFileTypeBadge = (fileName: string | null, mime: string | null) => {
                     <article
                         v-for="item in filteredModules"
                         :key="item.id"
-                        class="group relative flex flex-col justify-between gap-4 rounded-2xl border border-border/80 bg-card p-5 shadow-xs transition-all hover:border-primary/50 hover:shadow-md md:flex-row md:items-center"
+                        class="shadow-xs group relative flex flex-col justify-between gap-4 rounded-2xl border border-border/80 bg-card p-5 transition-all hover:border-primary/50 hover:shadow-md md:flex-row md:items-center"
                     >
                         <!-- Left Info: Module Identifier & Title -->
                         <div class="flex min-w-0 items-start gap-4">
@@ -624,9 +617,7 @@ const getFileTypeBadge = (fileName: string | null, mime: string | null) => {
 
                             <div v-else class="space-y-1">
                                 <FileUp class="mx-auto size-7 text-muted-foreground" />
-                                <p class="text-xs font-semibold text-foreground">
-                                    Click to browse or drag & drop presentation file
-                                </p>
+                                <p class="text-xs font-semibold text-foreground">Click to browse or drag & drop presentation file</p>
                                 <p class="text-[11px] text-muted-foreground">PDF, PPT, PPTX, KEY, ZIP, MP4 (Max 50 MB)</p>
                             </div>
                         </div>
@@ -671,7 +662,7 @@ const getFileTypeBadge = (fileName: string | null, mime: string | null) => {
         <!-- Delete Confirmation Modal -->
         <div
             v-if="moduleToDelete"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+            class="backdrop-blur-xs fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
             role="dialog"
             aria-modal="true"
             @click.self="moduleToDelete = null"
@@ -688,7 +679,8 @@ const getFileTypeBadge = (fileName: string | null, mime: string | null) => {
                 </div>
 
                 <p class="mt-4 text-sm leading-relaxed text-muted-foreground">
-                    Are you sure you want to delete this module? Any uploaded presentation files and links associated with it will be permanently removed.
+                    Are you sure you want to delete this module? Any uploaded presentation files and links associated with it will be permanently
+                    removed.
                 </p>
 
                 <div class="mt-6 flex items-center justify-end gap-3">

@@ -66,17 +66,21 @@ const submit = () => {
 };
 
 const makeTermActive = (term: TermItem) => {
-    router.post(route('academic-term.make-current', { term: term.id }), {}, {
-        preserveScroll: true,
-        onSuccess: () => {
-            form.name = term.name;
-            form.school_year = term.school_year;
-            form.starts_on = term.starts_on;
-            form.ends_on = term.ends_on;
-            form.default_starts_at = term.default_starts_at;
-            form.default_ends_at = term.default_ends_at;
+    router.post(
+        route('academic-term.make-current', { term: term.id }),
+        {},
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                form.name = term.name;
+                form.school_year = term.school_year;
+                form.starts_on = term.starts_on;
+                form.ends_on = term.ends_on;
+                form.default_starts_at = term.default_starts_at;
+                form.default_ends_at = term.default_ends_at;
+            },
         },
-    });
+    );
 };
 
 const selectClass =
@@ -109,23 +113,13 @@ const selectClass =
                     <!-- Term Name & School Year -->
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div class="grid gap-2">
-                            <Label for="term_name" class="text-xs font-semibold uppercase tracking-wider">
-                                Semester / Term Name
-                            </Label>
-                            <Input
-                                id="term_name"
-                                v-model="form.name"
-                                class="h-10 rounded-xl font-medium"
-                                placeholder="e.g. 1st Semester"
-                                required
-                            />
+                            <Label for="term_name" class="text-xs font-semibold uppercase tracking-wider"> Semester / Term Name </Label>
+                            <Input id="term_name" v-model="form.name" class="h-10 rounded-xl font-medium" placeholder="e.g. 1st Semester" required />
                             <InputError :message="form.errors.name" />
                         </div>
 
                         <div class="grid gap-2">
-                            <Label for="school_year" class="text-xs font-semibold uppercase tracking-wider">
-                                School Year
-                            </Label>
+                            <Label for="school_year" class="text-xs font-semibold uppercase tracking-wider"> School Year </Label>
                             <select id="school_year" v-model="form.school_year" :class="selectClass">
                                 <option v-for="sy in schoolYearOptions" :key="sy" :value="sy">SY {{ sy }}</option>
                             </select>
@@ -140,13 +134,7 @@ const selectClass =
                                 <Calendar class="size-3.5 text-primary" />
                                 <span>Semester Start Date</span>
                             </Label>
-                            <Input
-                                id="starts_on"
-                                v-model="form.starts_on"
-                                type="date"
-                                class="h-10 rounded-xl font-medium"
-                                required
-                            />
+                            <Input id="starts_on" v-model="form.starts_on" type="date" class="h-10 rounded-xl font-medium" required />
                             <InputError :message="form.errors.starts_on" />
                         </div>
 
@@ -155,13 +143,7 @@ const selectClass =
                                 <Calendar class="size-3.5 text-primary" />
                                 <span>Semester End Date</span>
                             </Label>
-                            <Input
-                                id="ends_on"
-                                v-model="form.ends_on"
-                                type="date"
-                                class="h-10 rounded-xl font-medium"
-                                required
-                            />
+                            <Input id="ends_on" v-model="form.ends_on" type="date" class="h-10 rounded-xl font-medium" required />
                             <InputError :message="form.errors.ends_on" />
                         </div>
                     </div>
@@ -224,25 +206,19 @@ const selectClass =
                 <div class="border-t border-border/80 pt-6">
                     <div class="mb-4">
                         <h4 class="text-sm font-bold text-foreground">Your Academic Semesters & Terms</h4>
-                        <p class="text-xs text-muted-foreground">
-                            Switch between terms or review past semester durations and enrolled classes.
-                        </p>
+                        <p class="text-xs text-muted-foreground">Switch between terms or review past semester durations and enrolled classes.</p>
                     </div>
 
                     <div class="space-y-3">
                         <div
                             v-for="term in terms"
                             :key="term.id"
-                            class="flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between transition-colors"
-                            :class="
-                                term.is_current
-                                    ? 'border-primary/40 bg-primary/5 shadow-xs'
-                                    : 'border-border/80 bg-card hover:bg-secondary/40'
-                            "
+                            class="flex flex-col gap-3 rounded-2xl border p-4 transition-colors sm:flex-row sm:items-center sm:justify-between"
+                            :class="term.is_current ? 'shadow-xs border-primary/40 bg-primary/5' : 'border-border/80 bg-card hover:bg-secondary/40'"
                         >
                             <div>
                                 <div class="flex items-center gap-2">
-                                    <span class="font-bold text-sm text-foreground">{{ term.name }}</span>
+                                    <span class="text-sm font-bold text-foreground">{{ term.name }}</span>
                                     <span class="font-mono text-xs font-semibold text-muted-foreground">SY {{ term.school_year }}</span>
                                     <span
                                         v-if="term.is_current"
@@ -253,7 +229,8 @@ const selectClass =
                                     </span>
                                 </div>
                                 <p class="mt-1 text-xs text-muted-foreground">
-                                    {{ term.starts_on }} to {{ term.ends_on }} · {{ term.sections_count }} {{ term.sections_count === 1 ? 'class' : 'classes' }}
+                                    {{ term.starts_on }} to {{ term.ends_on }} · {{ term.sections_count }}
+                                    {{ term.sections_count === 1 ? 'class' : 'classes' }}
                                 </p>
                             </div>
 

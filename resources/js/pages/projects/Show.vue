@@ -8,7 +8,6 @@ import {
     BookOpen,
     CalendarDays,
     Check,
-    CheckCircle2,
     Dices,
     Download,
     Edit3,
@@ -185,15 +184,21 @@ const saveAll = async () => {
             id: g.id,
             topic: groupTopics.value[g.id] ?? '',
             description: groupDescriptions.value[g.id] || null,
-            score: groupScores.value[g.id] === '' || groupScores.value[g.id] === null || groupScores.value[g.id] === undefined ? null : Number(groupScores.value[g.id]),
+            score:
+                groupScores.value[g.id] === '' || groupScores.value[g.id] === null || groupScores.value[g.id] === undefined
+                    ? null
+                    : Number(groupScores.value[g.id]),
             notes: groupNotes.value[g.id] || null,
         })),
         members: props.project.groups.flatMap((g) =>
             g.members.map((m) => ({
                 id: m.id,
-                score: memberScores.value[m.id] === '' || memberScores.value[m.id] === null || memberScores.value[m.id] === undefined ? null : Number(memberScores.value[m.id]),
+                score:
+                    memberScores.value[m.id] === '' || memberScores.value[m.id] === null || memberScores.value[m.id] === undefined
+                        ? null
+                        : Number(memberScores.value[m.id]),
                 notes: memberNotes.value[m.id] || null,
-            }))
+            })),
         ),
     };
 
@@ -293,7 +298,8 @@ const filteredPresenters = computed(() => {
         const seatText = student?.seat_label?.toLowerCase() || '';
         const q = presenterSearchQuery.value.toLowerCase().trim();
 
-        const matchesQuery = !q || studentName.includes(q) || studentNum.includes(q) || topicText.includes(q) || descText.includes(q) || seatText.includes(q);
+        const matchesQuery =
+            !q || studentName.includes(q) || studentNum.includes(q) || topicText.includes(q) || descText.includes(q) || seatText.includes(q);
         if (!matchesQuery) return false;
 
         const hasTopic = (groupTopics.value[g.id] || '').trim().length > 0;
@@ -611,9 +617,7 @@ const moveStudent = (studentId: number, targetGroupId: number) => {
 const filteredUnassigned = computed(() => {
     if (!memberSearchQuery.value.trim()) return props.unassignedStudents;
     const q = memberSearchQuery.value.toLowerCase();
-    return props.unassignedStudents.filter(
-        (s) => s.full_name.toLowerCase().includes(q) || s.student_number.toLowerCase().includes(q),
-    );
+    return props.unassignedStudents.filter((s) => s.full_name.toLowerCase().includes(q) || s.student_number.toLowerCase().includes(q));
 });
 </script>
 
@@ -670,7 +674,7 @@ const filteredUnassigned = computed(() => {
 
             <!-- Main Project Header Card -->
             <header
-                class="relative overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card to-primary/5 p-6 shadow-sm sm:p-8 space-y-5"
+                class="relative space-y-5 overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card to-primary/5 p-6 shadow-sm sm:p-8"
             >
                 <div class="flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
                     <div class="space-y-2">
@@ -692,7 +696,7 @@ const filteredUnassigned = computed(() => {
                         <!-- PROMINENT SAVE ALL BUTTON -->
                         <button
                             type="button"
-                            class="ink-button !h-10 !rounded-xl gap-2 shadow-sm transition-all"
+                            class="ink-button !h-10 gap-2 !rounded-xl shadow-sm transition-all"
                             :class="{ '!bg-emerald-600 !text-white': savedAllSuccess }"
                             :disabled="savingAll"
                             title="Save all topics and scores across all presenters (Ctrl+S)"
@@ -701,7 +705,9 @@ const filteredUnassigned = computed(() => {
                             <LoaderCircle v-if="savingAll" class="size-4 animate-spin" />
                             <Check v-else-if="savedAllSuccess" class="size-4" />
                             <Save v-else class="size-4" />
-                            <span class="font-bold">{{ savingAll ? 'Saving All…' : savedAllSuccess ? 'All Saved!' : 'Save All Topics & Scores' }}</span>
+                            <span class="font-bold">{{
+                                savingAll ? 'Saving All…' : savedAllSuccess ? 'All Saved!' : 'Save All Topics & Scores'
+                            }}</span>
                             <span class="hidden rounded bg-black/20 px-1.5 py-0.5 font-mono text-[10px] sm:inline-block">Ctrl+S</span>
                         </button>
 
@@ -767,10 +773,16 @@ const filteredUnassigned = computed(() => {
                         <div class="flex-1">
                             <div class="flex items-center gap-2">
                                 <h2 class="text-sm font-bold text-foreground">Group Activity (Recorded in Activities)</h2>
-                                <span class="rounded bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] font-bold text-emerald-600 dark:text-emerald-400">Activity Category</span>
+                                <span
+                                    class="rounded bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] font-bold text-emerald-600 dark:text-emerald-400"
+                                    >Activity Category</span
+                                >
                             </div>
                             <p class="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
-                                {{ project.description || 'All group and individual scores entered here will be recorded and computed directly under the Activities category in the Gradebook.' }}
+                                {{
+                                    project.description ||
+                                    'All group and individual scores entered here will be recorded and computed directly under the Activities category in the Gradebook.'
+                                }}
                             </p>
                         </div>
                     </div>
@@ -835,23 +847,29 @@ const filteredUnassigned = computed(() => {
                 <div class="mt-6 flex flex-wrap items-center gap-6 border-t border-border/80 pt-4 text-xs">
                     <div class="flex items-center gap-2">
                         <Users class="size-4 text-primary" />
-                        <span class="font-medium text-muted-foreground">{{ project.format === 'individual' ? 'Total Presenters:' : 'Total Groups:' }}</span>
+                        <span class="font-medium text-muted-foreground">{{
+                            project.format === 'individual' ? 'Total Presenters:' : 'Total Groups:'
+                        }}</span>
                         <span class="font-mono font-bold text-foreground">{{ project.groups.length }}</span>
                     </div>
 
                     <div v-if="project.format === 'individual'" class="flex items-center gap-2">
                         <FileCheck class="size-4 text-indigo-600 dark:text-indigo-400" />
                         <span class="font-medium text-muted-foreground">Topics Assigned:</span>
-                        <span class="font-mono font-bold text-foreground">
-                            {{ topicsAssignedCount }} / {{ project.groups.length }}
-                        </span>
+                        <span class="font-mono font-bold text-foreground"> {{ topicsAssignedCount }} / {{ project.groups.length }} </span>
                     </div>
 
                     <div class="flex items-center gap-2">
                         <UserCheck class="size-4 text-emerald-600 dark:text-emerald-400" />
-                        <span class="font-medium text-muted-foreground">{{ project.format === 'individual' ? 'Scored Presenters:' : 'Assigned Students:' }}</span>
+                        <span class="font-medium text-muted-foreground">{{
+                            project.format === 'individual' ? 'Scored Presenters:' : 'Assigned Students:'
+                        }}</span>
                         <span class="font-mono font-bold text-foreground">
-                            {{ project.format === 'individual' ? `${scoredPresentersCount} / ${project.groups.length}` : `${totalStudentsCount - unassignedStudents.length} / ${totalStudentsCount}` }}
+                            {{
+                                project.format === 'individual'
+                                    ? `${scoredPresentersCount} / ${project.groups.length}`
+                                    : `${totalStudentsCount - unassignedStudents.length} / ${totalStudentsCount}`
+                            }}
                         </span>
                     </div>
 
@@ -861,7 +879,10 @@ const filteredUnassigned = computed(() => {
                         <span class="font-mono font-bold text-foreground">{{ averagePresenterScore }} / {{ project.max_points || 100 }}</span>
                     </div>
 
-                    <div v-if="project.format !== 'individual' && unassignedStudents.length > 0" class="flex items-center gap-2 font-semibold text-amber-600 dark:text-amber-400">
+                    <div
+                        v-if="project.format !== 'individual' && unassignedStudents.length > 0"
+                        class="flex items-center gap-2 font-semibold text-amber-600 dark:text-amber-400"
+                    >
                         <span class="inline-block size-2 animate-pulse rounded-full bg-amber-500" />
                         <span>{{ unassignedStudents.length }} unassigned student{{ unassignedStudents.length > 1 ? 's' : '' }}</span>
                     </div>
@@ -916,13 +937,13 @@ const filteredUnassigned = computed(() => {
             <section v-if="project.format === 'individual'" class="space-y-6">
                 <!-- Search and Filter Bar -->
                 <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <div class="relative flex-1 max-w-md">
+                    <div class="relative max-w-md flex-1">
                         <Search class="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                         <input
                             v-model="presenterSearchQuery"
                             type="text"
                             placeholder="Search presenter by student name, ID, chair, or topic..."
-                            class="w-full rounded-xl border border-input bg-card pl-10 pr-4 py-2 text-xs font-medium focus-visible:ring-2 focus-visible:ring-primary"
+                            class="w-full rounded-xl border border-input bg-card py-2 pl-10 pr-4 text-xs font-medium focus-visible:ring-2 focus-visible:ring-primary"
                         />
                         <button
                             v-if="presenterSearchQuery"
@@ -938,7 +959,11 @@ const filteredUnassigned = computed(() => {
                         <button
                             type="button"
                             class="rounded-lg px-3 py-1.5 text-xs font-bold transition-colors"
-                            :class="presenterFilterTab === 'all' ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-muted-foreground hover:bg-secondary'"
+                            :class="
+                                presenterFilterTab === 'all'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'border border-border bg-card text-muted-foreground hover:bg-secondary'
+                            "
                             @click="presenterFilterTab = 'all'"
                         >
                             All ({{ project.groups.length }})
@@ -946,7 +971,11 @@ const filteredUnassigned = computed(() => {
                         <button
                             type="button"
                             class="rounded-lg px-3 py-1.5 text-xs font-bold transition-colors"
-                            :class="presenterFilterTab === 'has_topic' ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-muted-foreground hover:bg-secondary'"
+                            :class="
+                                presenterFilterTab === 'has_topic'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'border border-border bg-card text-muted-foreground hover:bg-secondary'
+                            "
                             @click="presenterFilterTab = 'has_topic'"
                         >
                             With Topic ({{ topicsAssignedCount }})
@@ -954,7 +983,11 @@ const filteredUnassigned = computed(() => {
                         <button
                             type="button"
                             class="rounded-lg px-3 py-1.5 text-xs font-bold transition-colors"
-                            :class="presenterFilterTab === 'needs_topic' ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-muted-foreground hover:bg-secondary'"
+                            :class="
+                                presenterFilterTab === 'needs_topic'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'border border-border bg-card text-muted-foreground hover:bg-secondary'
+                            "
                             @click="presenterFilterTab = 'needs_topic'"
                         >
                             Needs Topic ({{ project.groups.length - topicsAssignedCount }})
@@ -962,7 +995,11 @@ const filteredUnassigned = computed(() => {
                         <button
                             type="button"
                             class="rounded-lg px-3 py-1.5 text-xs font-bold transition-colors"
-                            :class="presenterFilterTab === 'scored' ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-muted-foreground hover:bg-secondary'"
+                            :class="
+                                presenterFilterTab === 'scored'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'border border-border bg-card text-muted-foreground hover:bg-secondary'
+                            "
                             @click="presenterFilterTab = 'scored'"
                         >
                             Scored ({{ scoredPresentersCount }})
@@ -970,7 +1007,11 @@ const filteredUnassigned = computed(() => {
                         <button
                             type="button"
                             class="rounded-lg px-3 py-1.5 text-xs font-bold transition-colors"
-                            :class="presenterFilterTab === 'pending_score' ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-muted-foreground hover:bg-secondary'"
+                            :class="
+                                presenterFilterTab === 'pending_score'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'border border-border bg-card text-muted-foreground hover:bg-secondary'
+                            "
                             @click="presenterFilterTab = 'pending_score'"
                         >
                             Pending Score ({{ project.groups.length - scoredPresentersCount }})
@@ -990,18 +1031,22 @@ const filteredUnassigned = computed(() => {
                 <!-- Presenter Cards List -->
                 <div v-else class="space-y-4">
                     <div
-                        v-for="(group, idx) in filteredPresenters"
+                        v-for="group in filteredPresenters"
                         :key="group.id"
                         class="paper-card overflow-hidden rounded-2xl border border-border/80 p-0 shadow-sm transition-all hover:border-primary/40"
                     >
                         <div class="grid gap-4 p-5 lg:grid-cols-12 lg:items-center">
                             <!-- Presenter Identity -->
                             <div class="flex items-center gap-3 lg:col-span-4">
-                                <span class="flex size-7 shrink-0 items-center justify-center rounded-lg bg-indigo-600/15 font-mono text-xs font-bold text-indigo-700 dark:text-indigo-400">
+                                <span
+                                    class="flex size-7 shrink-0 items-center justify-center rounded-lg bg-indigo-600/15 font-mono text-xs font-bold text-indigo-700 dark:text-indigo-400"
+                                >
                                     #{{ group.group_number }}
                                 </span>
 
-                                <div class="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold uppercase text-primary">
+                                <div
+                                    class="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold uppercase text-primary"
+                                >
                                     {{ group.members[0]?.first_name?.[0] || 'S' }}{{ group.members[0]?.last_name?.[0] || '' }}
                                 </div>
 
@@ -1020,7 +1065,9 @@ const filteredUnassigned = computed(() => {
                                     </div>
                                     <p class="flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
                                         <span>{{ group.members[0]?.student_number || '—' }}</span>
-                                        <span v-if="group.members[0]?.seat_label" class="font-medium text-primary">· Chair {{ group.members[0].seat_label }}</span>
+                                        <span v-if="group.members[0]?.seat_label" class="font-medium text-primary"
+                                            >· Chair {{ group.members[0].seat_label }}</span
+                                        >
                                     </p>
                                 </div>
                             </div>
@@ -1035,9 +1082,12 @@ const filteredUnassigned = computed(() => {
                                         class="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs font-bold transition-all placeholder:font-normal placeholder:text-muted-foreground/60 focus-visible:ring-2 focus-visible:ring-primary"
                                         @blur="saveGroupTopic(group)"
                                     />
-                                    <div class="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[10px]">
+                                    <div class="absolute right-2.5 top-1/2 flex -translate-y-1/2 items-center gap-1 text-[10px]">
                                         <span v-if="topicSaving[group.id]" class="animate-pulse text-muted-foreground">Saving…</span>
-                                        <span v-else-if="topicSaved[group.id]" class="flex items-center gap-0.5 font-bold text-emerald-600 dark:text-emerald-400">
+                                        <span
+                                            v-else-if="topicSaved[group.id]"
+                                            class="flex items-center gap-0.5 font-bold text-emerald-600 dark:text-emerald-400"
+                                        >
                                             <Check class="size-3" /> Saved
                                         </span>
                                     </div>
@@ -1059,7 +1109,11 @@ const filteredUnassigned = computed(() => {
                                 <div class="flex items-center gap-2 rounded-xl border border-border/80 bg-secondary/40 px-3 py-2">
                                     <span class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Score:</span>
                                     <input
-                                        :ref="(el) => { if (el) groupScoreInputs.set(group.id, el as HTMLInputElement); }"
+                                        :ref="
+                                            (el) => {
+                                                if (el) groupScoreInputs.set(group.id, el as HTMLInputElement);
+                                            }
+                                        "
                                         v-model="groupScores[group.id]"
                                         type="number"
                                         step="0.01"
@@ -1376,7 +1430,9 @@ const filteredUnassigned = computed(() => {
                                         </label>
 
                                         <label class="block">
-                                            <span class="text-[11px] font-medium text-muted-foreground">Topic Description / Scope <em class="font-normal text-[10px]">(optional)</em>:</span>
+                                            <span class="text-[11px] font-medium text-muted-foreground"
+                                                >Topic Description / Scope <em class="text-[10px] font-normal">(optional)</em>:</span
+                                            >
                                             <textarea
                                                 v-model="groupDescriptions[group.id]"
                                                 rows="2"
@@ -1752,7 +1808,9 @@ const filteredUnassigned = computed(() => {
                                     ? 'Group Activity Instructions / Objectives'
                                     : editForm.type === 'project'
                                       ? 'Project Description / Scope'
-                                      : (editForm.format === 'individual' ? 'Individual Presentation Guidelines / Instructions' : 'Group Reporting Instructions')
+                                      : editForm.format === 'individual'
+                                        ? 'Individual Presentation Guidelines / Instructions'
+                                        : 'Group Reporting Instructions'
                             }}
                         </span>
                         <textarea
@@ -1862,7 +1920,8 @@ const filteredUnassigned = computed(() => {
                         <span class="eyebrow text-rose-700 dark:text-rose-400">Permanent Deletion</span>
                         <h3 class="mt-1 text-xl font-bold text-foreground">Delete {{ project.title }}?</h3>
                         <p class="mt-1 text-xs text-muted-foreground">
-                            {{ project.type === 'group_activity' ? 'GROUP ACTIVITY' : project.type === 'project' ? 'PROJECT' : 'REPORTING' }} · {{ project.groups.length }} groups
+                            {{ project.type === 'group_activity' ? 'GROUP ACTIVITY' : project.type === 'project' ? 'PROJECT' : 'REPORTING' }} ·
+                            {{ project.groups.length }} groups
                         </p>
                     </div>
                 </div>

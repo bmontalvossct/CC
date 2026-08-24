@@ -420,7 +420,9 @@ const submitProject = () =>
                             class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
                             :placeholder="form.type === 'quiz' ? 'e.g. Quiz 1' : form.type === 'exam' ? 'e.g. Exam 1' : 'e.g. Activity 1'"
                         />
-                        <small v-if="form.errors.assessment_number" class="mt-1 block text-xs text-rose-600">{{ form.errors.assessment_number }}</small>
+                        <small v-if="form.errors.assessment_number" class="mt-1 block text-xs text-rose-600">{{
+                            form.errors.assessment_number
+                        }}</small>
                     </label>
 
                     <label class="lg:col-span-6">
@@ -553,7 +555,8 @@ const submitProject = () =>
                     >
                         <p class="font-bold">Group Activity (Recorded in Activities):</p>
                         <p class="mt-0.5 text-[11px] leading-relaxed">
-                            Organize students into collaborative groups with assigned topics or tasks. All recorded group and member scores will be calculated directly under the <strong>Activities</strong> category in the Gradebook.
+                            Organize students into collaborative groups with assigned topics or tasks. All recorded group and member scores will be
+                            calculated directly under the <strong>Activities</strong> category in the Gradebook.
                         </p>
                     </div>
 
@@ -589,9 +592,17 @@ const submitProject = () =>
                         <input
                             v-model="projectForm.project_number"
                             class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
-                            :placeholder="projectForm.type === 'group_activity' ? 'e.g. Activity 1' : projectForm.type === 'reporting' ? 'e.g. Report 1' : 'e.g. Project 1'"
+                            :placeholder="
+                                projectForm.type === 'group_activity'
+                                    ? 'e.g. Activity 1'
+                                    : projectForm.type === 'reporting'
+                                      ? 'e.g. Report 1'
+                                      : 'e.g. Project 1'
+                            "
                         />
-                        <small v-if="projectForm.errors.project_number" class="mt-1 block text-xs text-rose-600">{{ projectForm.errors.project_number }}</small>
+                        <small v-if="projectForm.errors.project_number" class="mt-1 block text-xs text-rose-600">{{
+                            projectForm.errors.project_number
+                        }}</small>
                     </label>
 
                     <label :class="projectForm.type === 'reporting' ? 'lg:col-span-4' : 'lg:col-span-5'">
@@ -604,7 +615,9 @@ const submitProject = () =>
                                 projectForm.type === 'group_activity'
                                     ? 'e.g. Laboratory Activity 1 - Data Structures'
                                     : projectForm.type === 'reporting'
-                                      ? (projectForm.format === 'individual' ? 'e.g. Individual Research Presentations' : 'e.g. Chapter 5 Group Presentations')
+                                      ? projectForm.format === 'individual'
+                                          ? 'e.g. Individual Research Presentations'
+                                          : 'e.g. Chapter 5 Group Presentations'
                                       : 'e.g. Midterm System Architecture Project'
                             "
                         />
@@ -618,7 +631,9 @@ const submitProject = () =>
                                     ? 'Group Activity Guidelines & Objectives (Applies to all groups)'
                                     : projectForm.type === 'project'
                                       ? 'Project Description & Objectives (Applies to all groups)'
-                                      : (projectForm.format === 'individual' ? 'Individual Presentation Guidelines / Instructions' : 'Group Reporting Guidelines / Instructions')
+                                      : projectForm.format === 'individual'
+                                        ? 'Individual Presentation Guidelines / Instructions'
+                                        : 'Group Reporting Guidelines / Instructions'
                             }}
                         </span>
                         <textarea
@@ -667,7 +682,9 @@ const submitProject = () =>
 
                     <template v-if="projectForm.format !== 'individual'">
                         <label class="lg:col-span-3">
-                            <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Number of Initial Groups</span>
+                            <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground"
+                                >Number of Initial Groups</span
+                            >
                             <input
                                 v-model.number="projectForm.group_count"
                                 type="number"
@@ -694,7 +711,8 @@ const submitProject = () =>
 
                     <label class="lg:col-span-12">
                         <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground"
-                            >{{ projectForm.type === 'group_activity' ? 'Activity Guidelines Attachment' : 'Project Attachment' }} <em class="font-normal normal-case text-muted-foreground">(optional, max 50MB)</em></span
+                            >{{ projectForm.type === 'group_activity' ? 'Activity Guidelines Attachment' : 'Project Attachment' }}
+                            <em class="font-normal normal-case text-muted-foreground">(optional, max 50MB)</em></span
                         >
                         <div class="flex items-center gap-2">
                             <input
@@ -770,7 +788,11 @@ const submitProject = () =>
                             }}
                         </h2>
                     </div>
-                    <Link v-if="filter !== 'activity'" :href="`/sections/${section.id}/projects`" class="text-xs font-semibold text-primary hover:underline">
+                    <Link
+                        v-if="filter !== 'activity'"
+                        :href="`/sections/${section.id}/projects`"
+                        class="text-xs font-semibold text-primary hover:underline"
+                    >
                         View all ({{ projects.length }})
                     </Link>
                 </div>
@@ -802,7 +824,10 @@ const submitProject = () =>
                                               : 'bg-amber-800'
                                     "
                                 >
-                                    {{ item.project_number || (item.type === 'group_activity' ? 'Group Activity' : item.type === 'project' ? 'Project' : 'Reporting') }}
+                                    {{
+                                        item.project_number ||
+                                        (item.type === 'group_activity' ? 'Group Activity' : item.type === 'project' ? 'Project' : 'Reporting')
+                                    }}
                                 </span>
                                 <div class="flex items-center gap-2">
                                     <span v-if="item.max_points" class="font-mono text-xs font-medium text-foreground">
@@ -872,13 +897,7 @@ const submitProject = () =>
                             <div class="flex items-center justify-between">
                                 <span
                                     class="rounded-md px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white"
-                                    :class="
-                                        item.type === 'exam'
-                                            ? 'bg-purple-800'
-                                            : item.type === 'quiz'
-                                              ? 'bg-blue-800'
-                                              : 'bg-emerald-800'
-                                    "
+                                    :class="item.type === 'exam' ? 'bg-purple-800' : item.type === 'quiz' ? 'bg-blue-800' : 'bg-emerald-800'"
                                 >
                                     {{ item.assessment_number || item.type }}
                                 </span>
@@ -1072,7 +1091,7 @@ const submitProject = () =>
             :file-name="previewTarget.fileName"
             :file-url="previewTarget.fileUrl"
             :download-url="previewTarget.downloadUrl"
-            @close="previewTarget.show = false"
+            @close="closePreview"
         />
     </AppLayout>
 </template>

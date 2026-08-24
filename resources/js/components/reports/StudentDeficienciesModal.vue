@@ -16,7 +16,13 @@ import {
 import { computed, ref } from 'vue';
 
 type Assessment = { id: number; type: 'activity' | 'quiz' | 'exam'; title: string; conducted_on: string; max_points: string };
-type ProjectItem = { id: number; type: 'project' | 'reporting' | 'group_activity'; title: string; conducted_on: string | null; max_points: string | number };
+type ProjectItem = {
+    id: number;
+    type: 'project' | 'reporting' | 'group_activity';
+    title: string;
+    conducted_on: string | null;
+    max_points: string | number;
+};
 type Category = { raw_earned?: number; bonus_earned?: number; earned: number; possible: number; percentage: number | null; missing: number };
 type ProjectSummary = { count: number; earned: number; possible: number; percentage: number | null; missing: number };
 type AttendanceSummary = {
@@ -445,7 +451,7 @@ const printSlip = () => {
                     class="rounded-lg px-3 py-1.5 font-medium transition-colors"
                     :class="
                         currentTab === 'deficiencies'
-                            ? 'bg-primary text-white shadow-xs'
+                            ? 'shadow-xs bg-primary text-white'
                             : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
                     "
                     @click="currentTab = 'deficiencies'"
@@ -458,7 +464,7 @@ const printSlip = () => {
                     class="rounded-lg px-3 py-1.5 font-medium transition-colors"
                     :class="
                         currentTab === 'missing'
-                            ? 'bg-amber-600 text-white shadow-xs'
+                            ? 'shadow-xs bg-amber-600 text-white'
                             : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
                     "
                     @click="currentTab = 'missing'"
@@ -471,7 +477,7 @@ const printSlip = () => {
                     class="rounded-lg px-3 py-1.5 font-medium transition-colors"
                     :class="
                         currentTab === 'failing'
-                            ? 'bg-rose-600 text-white shadow-xs'
+                            ? 'shadow-xs bg-rose-600 text-white'
                             : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
                     "
                     @click="currentTab = 'failing'"
@@ -483,9 +489,7 @@ const printSlip = () => {
                     type="button"
                     class="rounded-lg px-3 py-1.5 font-medium transition-colors"
                     :class="
-                        currentTab === 'all'
-                            ? 'bg-primary text-white shadow-xs'
-                            : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                        currentTab === 'all' ? 'shadow-xs bg-primary text-white' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
                     "
                     @click="currentTab = 'all'"
                 >
@@ -516,9 +520,7 @@ const printSlip = () => {
                     <div v-if="uncompliedAssessments.length > 0" class="space-y-3">
                         <div class="flex items-center gap-2">
                             <AlertTriangle class="size-4 text-amber-600 dark:text-amber-400" />
-                            <h3 class="text-sm font-bold text-foreground">
-                                Uncomplied / Missing Coursework ({{ uncompliedAssessments.length }})
-                            </h3>
+                            <h3 class="text-sm font-bold text-foreground">Uncomplied / Missing Coursework ({{ uncompliedAssessments.length }})</h3>
                         </div>
 
                         <div class="divide-y divide-border/60 rounded-xl border border-border/80 bg-secondary/20">
@@ -543,7 +545,9 @@ const printSlip = () => {
                                         </span>
                                         <span class="font-semibold text-foreground">{{ item.title }}</span>
                                     </div>
-                                    <span class="mt-0.5 block text-[11px] text-muted-foreground"> Conducted: {{ readableDate(item.conducted_on) }} </span>
+                                    <span class="mt-0.5 block text-[11px] text-muted-foreground">
+                                        Conducted: {{ readableDate(item.conducted_on) }}
+                                    </span>
                                 </div>
 
                                 <div class="text-right">
@@ -566,11 +570,7 @@ const printSlip = () => {
                         </div>
 
                         <div class="divide-y divide-border/60 rounded-xl border border-border/80 bg-secondary/20">
-                            <div
-                                v-for="item in uncompliedProjects"
-                                :key="item.id"
-                                class="flex items-center justify-between gap-4 px-4 py-3 text-xs"
-                            >
+                            <div v-for="item in uncompliedProjects" :key="item.id" class="flex items-center justify-between gap-4 px-4 py-3 text-xs">
                                 <div>
                                     <div class="flex items-center gap-2">
                                         <span
@@ -626,7 +626,9 @@ const printSlip = () => {
                                         </span>
                                         <span class="font-semibold text-foreground">{{ item.title }}</span>
                                     </div>
-                                    <span class="mt-0.5 block text-[11px] text-muted-foreground"> Conducted: {{ readableDate(item.conducted_on) }} </span>
+                                    <span class="mt-0.5 block text-[11px] text-muted-foreground">
+                                        Conducted: {{ readableDate(item.conducted_on) }}
+                                    </span>
                                 </div>
 
                                 <div class="text-right font-mono">
@@ -692,21 +694,21 @@ const printSlip = () => {
                         </div>
                         <div class="rounded-xl border border-border/80 bg-secondary/20 p-3 text-center">
                             <span class="block text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Present</span>
-                            <span class="mt-0.5 block font-mono text-base font-bold text-emerald-600 dark:text-emerald-400"
-                                >{{ student.attendance.present_count }}</span
-                            >
+                            <span class="mt-0.5 block font-mono text-base font-bold text-emerald-600 dark:text-emerald-400">{{
+                                student.attendance.present_count
+                            }}</span>
                         </div>
                         <div class="rounded-xl border border-border/80 bg-secondary/20 p-3 text-center">
                             <span class="block text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Late</span>
-                            <span class="mt-0.5 block font-mono text-base font-bold text-amber-600 dark:text-amber-400"
-                                >{{ student.attendance.late_count }}</span
-                            >
+                            <span class="mt-0.5 block font-mono text-base font-bold text-amber-600 dark:text-amber-400">{{
+                                student.attendance.late_count
+                            }}</span>
                         </div>
                         <div class="rounded-xl border border-border/80 bg-secondary/20 p-3 text-center">
                             <span class="block text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">Absent</span>
-                            <span class="mt-0.5 block font-mono text-base font-bold text-rose-600 dark:text-rose-400"
-                                >{{ student.attendance.absent_count }}</span
-                            >
+                            <span class="mt-0.5 block font-mono text-base font-bold text-rose-600 dark:text-rose-400">{{
+                                student.attendance.absent_count
+                            }}</span>
                         </div>
                     </div>
                 </div>
@@ -716,29 +718,48 @@ const printSlip = () => {
                     <div class="space-y-3">
                         <div class="flex items-center gap-2">
                             <FileSpreadsheet class="size-4 text-primary" />
-                            <h3 class="text-sm font-bold text-foreground">Passing Coursework ({{ passingAssessments.length + passingProjects.length }})</h3>
+                            <h3 class="text-sm font-bold text-foreground">
+                                Passing Coursework ({{ passingAssessments.length + passingProjects.length }})
+                            </h3>
                         </div>
 
-                        <div v-if="passingAssessments.length > 0 || passingProjects.length > 0" class="divide-y divide-border/60 rounded-xl border border-border/80 bg-secondary/20">
-                            <div v-for="item in passingAssessments" :key="`pass-${item.id}`" class="flex items-center justify-between gap-4 px-4 py-3 text-xs">
+                        <div
+                            v-if="passingAssessments.length > 0 || passingProjects.length > 0"
+                            class="divide-y divide-border/60 rounded-xl border border-border/80 bg-secondary/20"
+                        >
+                            <div
+                                v-for="item in passingAssessments"
+                                :key="`pass-${item.id}`"
+                                class="flex items-center justify-between gap-4 px-4 py-3 text-xs"
+                            >
                                 <div>
                                     <div class="flex items-center gap-2">
-                                        <span class="rounded bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                                        <span
+                                            class="rounded bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400"
+                                        >
                                             {{ item.type }}
                                         </span>
                                         <span class="font-semibold text-foreground">{{ item.title }}</span>
                                     </div>
-                                    <span class="mt-0.5 block text-[11px] text-muted-foreground"> Conducted: {{ readableDate(item.conducted_on) }} </span>
+                                    <span class="mt-0.5 block text-[11px] text-muted-foreground">
+                                        Conducted: {{ readableDate(item.conducted_on) }}
+                                    </span>
                                 </div>
 
                                 <div class="text-right font-mono">
-                                    <span class="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                                    <span
+                                        class="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400"
+                                    >
                                         {{ item.score }}/{{ item.max }} ({{ item.pct }}%)
                                     </span>
                                 </div>
                             </div>
 
-                            <div v-for="item in passingProjects" :key="`pass-proj-${item.id}`" class="flex items-center justify-between gap-4 px-4 py-3 text-xs">
+                            <div
+                                v-for="item in passingProjects"
+                                :key="`pass-proj-${item.id}`"
+                                class="flex items-center justify-between gap-4 px-4 py-3 text-xs"
+                            >
                                 <div>
                                     <div class="flex items-center gap-2">
                                         <span
@@ -749,20 +770,22 @@ const printSlip = () => {
                                         </span>
                                         <span class="font-semibold text-foreground">{{ item.title }}</span>
                                     </div>
-                                    <span class="mt-0.5 block text-[11px] text-muted-foreground"> Conducted: {{ readableDate(item.conducted_on) }} </span>
+                                    <span class="mt-0.5 block text-[11px] text-muted-foreground">
+                                        Conducted: {{ readableDate(item.conducted_on) }}
+                                    </span>
                                 </div>
 
                                 <div class="text-right font-mono">
-                                    <span class="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                                    <span
+                                        class="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400"
+                                    >
                                         {{ item.score }}/{{ item.max }} ({{ item.pct }}%)
                                     </span>
                                 </div>
                             </div>
                         </div>
 
-                        <div v-else class="py-6 text-center text-xs text-muted-foreground">
-                            No passing scores recorded yet.
-                        </div>
+                        <div v-else class="py-6 text-center text-xs text-muted-foreground">No passing scores recorded yet.</div>
                     </div>
                 </template>
             </div>

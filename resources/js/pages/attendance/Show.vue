@@ -290,7 +290,7 @@ function deleteSession() {
 
                             <button
                                 type="button"
-                                class="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 shadow-xs transition-colors hover:bg-rose-100 hover:text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/60 sm:hidden"
+                                class="shadow-xs inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition-colors hover:bg-rose-100 hover:text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/60 sm:hidden"
                                 @click="showDeleteModal = true"
                             >
                                 <Trash2 class="size-3.5" />
@@ -311,7 +311,7 @@ function deleteSession() {
                     <div class="flex flex-col items-end gap-3">
                         <button
                             type="button"
-                            class="hidden items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-1.5 text-xs font-semibold text-rose-700 shadow-xs transition-colors hover:bg-rose-100 hover:text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/60 sm:inline-flex"
+                            class="shadow-xs hidden items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-1.5 text-xs font-semibold text-rose-700 transition-colors hover:bg-rose-100 hover:text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/60 sm:inline-flex"
                             @click="showDeleteModal = true"
                         >
                             <Trash2 class="size-3.5" />
@@ -436,7 +436,9 @@ function deleteSession() {
                                 v-for="block in blocks"
                                 :key="block.id"
                                 class="shadow-xs rounded-2xl border border-border/80 bg-card transition-all"
-                                :class="getBlockDensity(block) === 'spacious' ? 'p-5' : getBlockDensity(block) === 'compact' ? 'p-3.5' : 'p-2.5 sm:p-3'"
+                                :class="
+                                    getBlockDensity(block) === 'spacious' ? 'p-5' : getBlockDensity(block) === 'compact' ? 'p-3.5' : 'p-2.5 sm:p-3'
+                                "
                                 :style="{ gridColumn: block.column, gridRow: block.row }"
                             >
                                 <h2
@@ -475,7 +477,11 @@ function deleteSession() {
                                                 <button
                                                     type="button"
                                                     :disabled="seat.is_disabled || !seat.record"
-                                                    :aria-label="seat.student ? `${formatStudentDisplayName(seat.student)}, ${seat.record?.status}` : `${seat.label}, empty`"
+                                                    :aria-label="
+                                                        seat.student
+                                                            ? `${formatStudentDisplayName(seat.student)}, ${seat.record?.status}`
+                                                            : `${seat.label}, empty`
+                                                    "
                                                     :aria-pressed="seat.record?.status === 'present'"
                                                     class="group relative flex w-full flex-1 flex-col items-center justify-center border text-center transition-all duration-150 focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-default"
                                                     :class="[
@@ -491,11 +497,11 @@ function deleteSession() {
                                                             : !seat.student
                                                               ? 'border-2 border-slate-200/90 bg-card text-muted-foreground hover:border-primary/50 dark:border-border/80'
                                                               : (seat.student.absent_count ?? 0) >= 3
-                                                                ? (seat.record?.status === 'present'
+                                                                ? seat.record?.status === 'present'
                                                                     ? 'shadow-xs border-rose-500 bg-[#164e3f] text-white ring-2 ring-rose-400 hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-[#134e48]'
                                                                     : seat.record?.status === 'late'
                                                                       ? 'shadow-xs border-rose-500 bg-amber-800 text-white ring-2 ring-rose-400 hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-amber-900'
-                                                                      : 'shadow-xs border-rose-400 bg-[#500724] text-white ring-2 ring-rose-500 hover:-translate-y-0.5 hover:shadow-md hover:brightness-110 dark:bg-[#4c0519]')
+                                                                      : 'shadow-xs border-rose-400 bg-[#500724] text-white ring-2 ring-rose-500 hover:-translate-y-0.5 hover:shadow-md hover:brightness-110 dark:bg-[#4c0519]'
                                                                 : seat.record?.status === 'present'
                                                                   ? 'shadow-xs border-[#1b5d4e]/80 bg-[#164e3f] text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-[#134e48]'
                                                                   : seat.record?.status === 'late'
@@ -511,7 +517,9 @@ function deleteSession() {
                                                         <div
                                                             class="shadow-xs flex shrink-0 items-center justify-center overflow-hidden rounded-full ring-1 sm:ring-2"
                                                             :class="[
-                                                                (seat.student.absent_count ?? 0) >= 3 ? 'bg-rose-500/30 ring-rose-400/80' : 'bg-white/20 ring-white/25',
+                                                                (seat.student.absent_count ?? 0) >= 3
+                                                                    ? 'bg-rose-500/30 ring-rose-400/80'
+                                                                    : 'bg-white/20 ring-white/25',
                                                                 getBlockDensity(block) === 'spacious'
                                                                     ? 'size-10 sm:size-11'
                                                                     : getBlockDensity(block) === 'compact'
@@ -577,13 +585,18 @@ function deleteSession() {
                                                             <span>{{ seat.label }}</span>
                                                             <span
                                                                 v-if="(seat.student.absent_count ?? 0) >= 3"
-                                                                class="rounded bg-rose-500/40 px-1 py-0.2 text-[6.5px] font-bold text-rose-200 ring-1 ring-rose-400/50 sm:text-[7px]"
+                                                                class="py-0.2 rounded bg-rose-500/40 px-1 text-[6.5px] font-bold text-rose-200 ring-1 ring-rose-400/50 sm:text-[7px]"
                                                             >
                                                                 3+ ABS
                                                             </span>
                                                             <span v-if="seat.record?.status === 'late'" class="font-bold text-amber-300">· LATE</span>
-                                                            <span v-else-if="seat.record?.status === 'absent'" class="font-bold text-rose-300">· ABS</span>
-                                                            <LoaderCircle v-if="saveState[seat.record!.id] === 'saving'" class="size-3 animate-spin text-white" />
+                                                            <span v-else-if="seat.record?.status === 'absent'" class="font-bold text-rose-300"
+                                                                >· ABS</span
+                                                            >
+                                                            <LoaderCircle
+                                                                v-if="saveState[seat.record!.id] === 'saving'"
+                                                                class="size-3 animate-spin text-white"
+                                                            />
                                                         </div>
                                                     </template>
 
@@ -641,8 +654,8 @@ function deleteSession() {
                                             getBlockDensity(block) === 'spacious'
                                                 ? 'my-2 h-7 text-[10px]'
                                                 : getBlockDensity(block) === 'compact'
-                                                  ? 'my-1.5 h-5.5 text-[9px]'
-                                                  : 'my-1 h-4.5 text-[8px]'
+                                                  ? 'h-5.5 my-1.5 text-[9px]'
+                                                  : 'h-4.5 my-1 text-[8px]'
                                         "
                                     >
                                         Aisle
@@ -687,7 +700,7 @@ function deleteSession() {
                                         <p class="text-sm font-medium text-foreground">{{ formatStudentDisplayName(item.student) }}</p>
                                         <span
                                             v-if="(item.student.absent_count ?? 0) >= 3"
-                                            class="rounded bg-rose-500/20 px-1.5 py-0.2 text-[9px] font-bold text-rose-700 dark:text-rose-400"
+                                            class="py-0.2 rounded bg-rose-500/20 px-1.5 text-[9px] font-bold text-rose-700 dark:text-rose-400"
                                         >
                                             3+ ABS
                                         </span>
@@ -860,7 +873,9 @@ function deleteSession() {
                                                 {{ initials(formatStudentDisplayName(item.student)) }}
                                             </span>
                                             <div class="flex items-center gap-2">
-                                                <span class="text-base font-semibold text-foreground">{{ formatStudentDisplayName(item.student) }}</span>
+                                                <span class="text-base font-semibold text-foreground">{{
+                                                    formatStudentDisplayName(item.student)
+                                                }}</span>
                                                 <span
                                                     v-if="(item.student.absent_count ?? 0) >= 3"
                                                     class="inline-flex items-center gap-1 rounded-md border border-rose-500/30 bg-rose-500/15 px-2 py-0.5 text-xs font-bold text-rose-700 dark:text-rose-400"
@@ -950,7 +965,7 @@ function deleteSession() {
         <!-- Delete Confirmation Modal -->
         <div
             v-if="showDeleteModal"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+            class="backdrop-blur-xs fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
             role="dialog"
             aria-modal="true"
             @click.self="showDeleteModal = false"
@@ -967,7 +982,8 @@ function deleteSession() {
                 </div>
 
                 <p class="mt-4 text-sm leading-relaxed text-muted-foreground">
-                    Are you sure you want to delete this roll call session? All student attendance records and times recorded for this day will be permanently removed.
+                    Are you sure you want to delete this roll call session? All student attendance records and times recorded for this day will be
+                    permanently removed.
                 </p>
 
                 <div class="mt-6 flex items-center justify-end gap-3">

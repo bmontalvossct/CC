@@ -125,7 +125,8 @@ const submit = () => {
                     >
                         <p class="font-bold">Group Activity (Recorded in Activities):</p>
                         <p class="mt-0.5 text-[11px] leading-relaxed">
-                            Organize students into collaborative groups. All recorded scores will be calculated directly under the <strong>Activities</strong> category in the Gradebook.
+                            Organize students into collaborative groups. All recorded scores will be calculated directly under the
+                            <strong>Activities</strong> category in the Gradebook.
                         </p>
                     </div>
 
@@ -162,7 +163,9 @@ const submit = () => {
                                 form.type === 'group_activity'
                                     ? 'e.g. Laboratory Activity 1 - Data Structures'
                                     : form.type === 'reporting'
-                                      ? (form.format === 'individual' ? 'e.g. Individual Research Presentations' : 'e.g. Chapter 4 Group Case Study Presentations')
+                                      ? form.format === 'individual'
+                                          ? 'e.g. Individual Research Presentations'
+                                          : 'e.g. Chapter 4 Group Case Study Presentations'
                                       : 'e.g. Capstone Project Final Deliverable'
                             "
                         />
@@ -176,7 +179,9 @@ const submit = () => {
                                     ? 'Group Activity Guidelines & Objectives (Applies to all groups)'
                                     : form.type === 'project'
                                       ? 'Project Description & Objectives (Applies to all groups)'
-                                      : (form.format === 'individual' ? 'Individual Presentation Guidelines / Instructions' : 'Group Reporting Guidelines / Instructions')
+                                      : form.format === 'individual'
+                                        ? 'Individual Presentation Guidelines / Instructions'
+                                        : 'Group Reporting Guidelines / Instructions'
                             }}
                         </span>
                         <textarea
@@ -217,7 +222,9 @@ const submit = () => {
 
                     <template v-if="form.format !== 'individual'">
                         <label class="lg:col-span-3">
-                            <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Number of Initial Groups</span>
+                            <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground"
+                                >Number of Initial Groups</span
+                            >
                             <input
                                 v-model.number="form.group_count"
                                 type="number"
@@ -229,14 +236,22 @@ const submit = () => {
 
                         <div class="flex items-center pt-6 lg:col-span-3">
                             <label class="flex cursor-pointer items-center gap-2 text-xs font-semibold text-foreground">
-                                <input v-model="form.randomize" type="checkbox" class="size-4 rounded border-border text-primary focus:ring-primary" />
+                                <input
+                                    v-model="form.randomize"
+                                    type="checkbox"
+                                    class="size-4 rounded border-border text-primary focus:ring-primary"
+                                />
                                 <span>Auto-assign active students</span>
                             </label>
                         </div>
                     </template>
 
                     <div class="flex items-center justify-end gap-3 pt-2 lg:col-span-12">
-                        <button type="button" class="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground" @click="creating = false">
+                        <button
+                            type="button"
+                            class="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
+                            @click="creating = false"
+                        >
                             Cancel
                         </button>
                         <button :disabled="form.processing" class="ink-button !rounded-xl text-xs font-bold">

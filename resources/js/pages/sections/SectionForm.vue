@@ -211,7 +211,7 @@ const submit = () => {
     <form class="grid gap-8" @submit.prevent="submit">
         <!-- 01 Identity Panel -->
         <section class="paper-card grid gap-5 p-6 md:grid-cols-2 md:p-8">
-            <div class="md:col-span-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border/60 pb-4">
+            <div class="flex flex-col gap-3 border-b border-border/60 pb-4 sm:flex-row sm:items-center sm:justify-between md:col-span-2">
                 <div>
                     <span class="eyebrow">01 / Course Identity</span>
                     <h2 class="mt-1 text-2xl font-medium tracking-tight">Class & subject details</h2>

@@ -6,7 +6,14 @@ import { AlertCircle, ArrowLeft, Download, Printer, RotateCcw, Save, Settings, T
 import { computed, onMounted, ref, watch } from 'vue';
 
 type Assessment = { id: number; type: 'activity' | 'quiz' | 'exam'; title: string; conducted_on: string; max_points: string };
-type ProjectItem = { id: number; type: 'project' | 'reporting' | 'group_activity'; project_number?: string | null; title: string; conducted_on: string | null; max_points: string | number };
+type ProjectItem = {
+    id: number;
+    type: 'project' | 'reporting' | 'group_activity';
+    project_number?: string | null;
+    title: string;
+    conducted_on: string | null;
+    max_points: string | number;
+};
 type Category = { raw_earned?: number; bonus_earned?: number; earned: number; possible: number; percentage: number | null; missing: number };
 type ProjectSummary = { count: number; earned: number; possible: number; percentage: number | null; missing: number };
 type AttendanceSummary = {
@@ -443,7 +450,7 @@ onMounted(() => {
                         v-if="saveError || weightsForm.errors.weights"
                         class="mb-5 flex items-start gap-2.5 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-700 dark:text-rose-400"
                     >
-                        <AlertCircle class="size-4 shrink-0 mt-0.5" />
+                        <AlertCircle class="mt-0.5 size-4 shrink-0" />
                         <div>
                             <p class="font-semibold">{{ saveError || weightsForm.errors.weights }}</p>
                         </div>
@@ -453,9 +460,7 @@ onMounted(() => {
                         <!-- Core Coursework Row -->
                         <div>
                             <div class="mb-2 flex items-center justify-between">
-                                <span class="text-xs font-bold uppercase tracking-wider text-foreground">
-                                    Core Coursework Components
-                                </span>
+                                <span class="text-xs font-bold uppercase tracking-wider text-foreground"> Core Coursework Components </span>
                                 <span
                                     class="rounded-md px-2 py-0.5 font-mono text-xs font-bold"
                                     :class="
@@ -555,8 +560,8 @@ onMounted(() => {
                                         Oral Participation (Bonus Points Added to Activities)
                                     </span>
                                     <p class="mt-0.5 text-xs text-muted-foreground">
-                                        Awarded as additional bonus points added directly into student Activities scores. Maximum points
-                                        denominator is not increased, so non-called students are never penalized.
+                                        Awarded as additional bonus points added directly into student Activities scores. Maximum points denominator
+                                        is not increased, so non-called students are never penalized.
                                     </p>
                                 </div>
                                 <div class="flex items-center gap-2">
@@ -592,7 +597,11 @@ onMounted(() => {
                                 class="text-xs font-medium"
                                 :class="weightsValid ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'"
                             >
-                                {{ weightsValid ? 'Core weights balanced (100%)' : `Total is ${coreWeightsTotal}% — needs ${100 - coreWeightsTotal > 0 ? `+${100 - coreWeightsTotal}%` : `${100 - coreWeightsTotal}%`}` }}
+                                {{
+                                    weightsValid
+                                        ? 'Core weights balanced (100%)'
+                                        : `Total is ${coreWeightsTotal}% — needs ${100 - coreWeightsTotal > 0 ? `+${100 - coreWeightsTotal}%` : `${100 - coreWeightsTotal}%`}`
+                                }}
                             </span>
                         </div>
 
@@ -630,8 +639,8 @@ onMounted(() => {
                     <p class="mt-1 text-xs text-muted-foreground print:text-black">
                         Weighted gradebook with college grading scale (1.0–5.0). Core: Activities {{ gradingWeights.activity }}%, Quizzes
                         {{ gradingWeights.quiz }}%, Major Exams {{ gradingWeights.exam }}%, Project / Reporting {{ gradingWeights.project }}%,
-                        Attendance {{ gradingWeights.attendance }}% · Oral Recitation: +{{ gradingWeights.recitation ?? 5 }} bonus pts added
-                        to Activities.
+                        Attendance {{ gradingWeights.attendance }}% · Oral Recitation: +{{ gradingWeights.recitation ?? 5 }} bonus pts added to
+                        Activities.
                     </p>
                 </header>
 
@@ -692,7 +701,9 @@ onMounted(() => {
                                         class="backdrop-blur-xs sticky left-0 z-10 min-w-48 border-r border-border/60 bg-card/95 px-4 py-3 print:static print:bg-gray-100"
                                     >
                                         Student
-                                        <span class="block text-[9px] font-normal lowercase text-muted-foreground print:hidden">(click to view tasks)</span>
+                                        <span class="block text-[9px] font-normal lowercase text-muted-foreground print:hidden"
+                                            >(click to view tasks)</span
+                                        >
                                     </th>
                                     <!-- Assessment columns -->
                                     <th v-for="item in assessments" :key="item.id" class="min-w-24 border-l border-border/60 px-3 py-3 text-center">
@@ -789,7 +800,9 @@ onMounted(() => {
                                     >
                                         <div class="flex items-center justify-between gap-2">
                                             <div class="min-w-0">
-                                                <span class="block truncate font-medium text-foreground transition-colors group-hover/student:text-primary group-hover/student:underline">
+                                                <span
+                                                    class="block truncate font-medium text-foreground transition-colors group-hover/student:text-primary group-hover/student:underline"
+                                                >
                                                     {{ row.full_name }}
                                                 </span>
                                                 <span class="font-mono text-[10px] text-muted-foreground">{{ row.student_number }}</span>
@@ -817,7 +830,11 @@ onMounted(() => {
                                         v-for="item in groupActivitiesList"
                                         :key="`score-gact-${item.id}`"
                                         class="border-l border-emerald-500/20 bg-emerald-500/5 px-3 py-3 text-center font-mono text-xs"
-                                        :class="row.group_activity_scores?.[item.id] === null || row.group_activity_scores?.[item.id] === undefined ? 'text-muted-foreground/60' : 'font-medium text-foreground'"
+                                        :class="
+                                            row.group_activity_scores?.[item.id] === null || row.group_activity_scores?.[item.id] === undefined
+                                                ? 'text-muted-foreground/60'
+                                                : 'font-medium text-foreground'
+                                        "
                                     >
                                         {{
                                             row.group_activity_scores?.[item.id] !== null && row.group_activity_scores?.[item.id] !== undefined

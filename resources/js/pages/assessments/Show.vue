@@ -703,7 +703,9 @@ onUnmounted(() => {
                             class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
                             :placeholder="editForm.type === 'quiz' ? 'e.g. Quiz 1' : editForm.type === 'exam' ? 'e.g. Exam 1' : 'e.g. Activity 1'"
                         />
-                        <small v-if="editForm.errors.assessment_number" class="mt-1 block text-xs text-rose-600">{{ editForm.errors.assessment_number }}</small>
+                        <small v-if="editForm.errors.assessment_number" class="mt-1 block text-xs text-rose-600">{{
+                            editForm.errors.assessment_number
+                        }}</small>
                     </label>
 
                     <label class="sm:col-span-2">

@@ -182,8 +182,8 @@ const density = computed<'spacious' | 'compact' | 'condensed' | 'micro'>(() => {
                                                 ? 'cursor-not-allowed border-transparent bg-[repeating-linear-gradient(135deg,hsl(var(--border)),hsl(var(--border))_4px,transparent_4px,transparent_8px)] opacity-30'
                                                 : (seat.student.absent_count ?? 0) >= 3
                                                   ? selectedSeatId === seat.id
-                                                    ? 'scale-[1.03] border-rose-400 bg-[#881337] text-white shadow-lg ring-2 ring-rose-400 ring-offset-2 dark:bg-[#7f1d1d]'
-                                                    : 'shadow-xs border-rose-600/90 bg-[#881337] text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-110 dark:bg-[#4c0519]'
+                                                      ? 'scale-[1.03] border-rose-400 bg-[#881337] text-white shadow-lg ring-2 ring-rose-400 ring-offset-2 dark:bg-[#7f1d1d]'
+                                                      : 'shadow-xs border-rose-600/90 bg-[#881337] text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-110 dark:bg-[#4c0519]'
                                                   : selectedSeatId === seat.id
                                                     ? 'scale-[1.03] border-emerald-400 bg-[#164e3f] text-white shadow-lg ring-2 ring-emerald-400 ring-offset-2 dark:bg-[#134e48]'
                                                     : 'shadow-xs border-[#1b5d4e]/80 bg-[#164e3f] text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-[#134e48]',
@@ -198,7 +198,9 @@ const density = computed<'spacious' | 'compact' | 'condensed' | 'micro'>(() => {
                                             <div
                                                 class="shadow-xs flex shrink-0 items-center justify-center overflow-hidden rounded-full ring-1 sm:ring-2"
                                                 :class="[
-                                                    (seat.student.absent_count ?? 0) >= 3 ? 'bg-rose-500/30 ring-rose-400/80' : 'bg-white/20 ring-white/25',
+                                                    (seat.student.absent_count ?? 0) >= 3
+                                                        ? 'bg-rose-500/30 ring-rose-400/80'
+                                                        : 'bg-white/20 ring-white/25',
                                                     density === 'spacious'
                                                         ? 'size-10 sm:size-11'
                                                         : density === 'compact'
@@ -264,7 +266,7 @@ const density = computed<'spacious' | 'compact' | 'condensed' | 'micro'>(() => {
                                                 <span>{{ seat.label }}</span>
                                                 <span
                                                     v-if="(seat.student.absent_count ?? 0) >= 3"
-                                                    class="rounded bg-rose-500/40 px-1 py-0.2 text-[6.5px] font-bold text-rose-200 ring-1 ring-rose-400/50 sm:text-[7px]"
+                                                    class="py-0.2 rounded bg-rose-500/40 px-1 text-[6.5px] font-bold text-rose-200 ring-1 ring-rose-400/50 sm:text-[7px]"
                                                 >
                                                     3+ ABS
                                                 </span>
@@ -290,7 +292,7 @@ const density = computed<'spacious' | 'compact' | 'condensed' | 'micro'>(() => {
                                         <p class="mt-0.5 text-[10px] uppercase text-muted-foreground">{{ sectionName || 'Student' }}</p>
                                         <div
                                             v-if="(seat.student.absent_count ?? 0) >= 3"
-                                            class="mt-1.5 inline-flex items-center gap-1 rounded-full bg-rose-500/15 px-2.5 py-0.5 text-[11px] font-bold text-rose-600 dark:text-rose-400 ring-1 ring-rose-500/30"
+                                            class="mt-1.5 inline-flex items-center gap-1 rounded-full bg-rose-500/15 px-2.5 py-0.5 text-[11px] font-bold text-rose-600 ring-1 ring-rose-500/30 dark:text-rose-400"
                                         >
                                             <span>⚠️ {{ seat.student.absent_count }}/3 Absences (Limit Reached)</span>
                                         </div>
@@ -454,8 +456,8 @@ const density = computed<'spacious' | 'compact' | 'condensed' | 'micro'>(() => {
                                     ? density === 'spacious'
                                         ? 'my-2 h-7 border-primary/40 bg-primary/5 text-[10px] font-semibold uppercase tracking-wider text-primary hover:border-rose-500 hover:bg-rose-500/15 hover:text-rose-600 dark:hover:text-rose-400'
                                         : density === 'compact'
-                                          ? 'my-1.5 h-5.5 border-primary/40 bg-primary/5 text-[9px] font-semibold uppercase tracking-wider text-primary hover:border-rose-500 hover:bg-rose-500/15 hover:text-rose-600 dark:hover:text-rose-400'
-                                          : 'my-1 h-4.5 border-primary/40 bg-primary/5 text-[8px] font-semibold uppercase tracking-wider text-primary hover:border-rose-500 hover:bg-rose-500/15 hover:text-rose-600 dark:hover:text-rose-400'
+                                          ? 'h-5.5 my-1.5 border-primary/40 bg-primary/5 text-[9px] font-semibold uppercase tracking-wider text-primary hover:border-rose-500 hover:bg-rose-500/15 hover:text-rose-600 dark:hover:text-rose-400'
+                                          : 'h-4.5 my-1 border-primary/40 bg-primary/5 text-[8px] font-semibold uppercase tracking-wider text-primary hover:border-rose-500 hover:bg-rose-500/15 hover:text-rose-600 dark:hover:text-rose-400'
                                     : density === 'spacious'
                                       ? 'h-2 border-transparent hover:h-5 hover:border-primary/50 hover:bg-secondary/60 hover:text-primary'
                                       : 'h-1.5 border-transparent hover:h-4 hover:border-primary/50 hover:bg-secondary/60 hover:text-primary'

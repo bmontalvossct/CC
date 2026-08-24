@@ -3,19 +3,7 @@ import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
-import {
-    ChevronLeft,
-    ChevronRight,
-    Clock,
-    Flame,
-    GraduationCap,
-    Grid,
-    ListFilter,
-    MapPin,
-    UserCheck,
-    Users,
-    X,
-} from 'lucide-vue-next';
+import { ChevronLeft, ChevronRight, Clock, Flame, GraduationCap, Grid, ListFilter, MapPin, UserCheck, Users, X } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
 interface PhilippineHoliday {
@@ -84,9 +72,7 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Schedule & Calendar', href: '/schedule' },
-];
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'Schedule & Calendar', href: '/schedule' }];
 
 const currentView = ref<'month' | 'timetable' | 'agenda'>('month');
 const selectedDay = ref<CalendarDay | null>(null);
@@ -145,9 +131,7 @@ const formatDatePretty = (dateStr: string) => {
 };
 
 const daysWithEvents = computed(() => {
-    return props.calendarDays.filter(
-        (day) => day.is_current_month && (day.classes.length > 0 || day.holiday !== null),
-    );
+    return props.calendarDays.filter((day) => day.is_current_month && (day.classes.length > 0 || day.holiday !== null));
 });
 </script>
 
@@ -155,7 +139,7 @@ const daysWithEvents = computed(() => {
     <Head :title="`Schedule · ${monthLabel}`" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <main class="page-enter min-h-full bg-background text-foreground pb-20">
+        <main class="page-enter min-h-full bg-background pb-20 text-foreground">
             <!-- Top Header & Navigation -->
             <div class="mx-auto w-full max-w-7xl px-4 pt-6 sm:px-6 lg:px-8">
                 <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -166,9 +150,7 @@ const daysWithEvents = computed(() => {
                                 {{ currentTerm.name }} · SY {{ currentTerm.school_year }}
                             </span>
                         </div>
-                        <h1 class="mt-1 font-display text-3xl font-bold tracking-tight sm:text-4xl text-foreground">
-                            Teacher Schedule
-                        </h1>
+                        <h1 class="mt-1 font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Teacher Schedule</h1>
                         <p class="mt-1 text-xs text-muted-foreground">
                             Track your weekly teaching meetings, conducted class attendance, and Philippine official holidays.
                         </p>
@@ -180,24 +162,22 @@ const daysWithEvents = computed(() => {
                         <div class="relative">
                             <select
                                 :value="selectedSectionId || ''"
-                                class="h-10 rounded-xl border border-input bg-card px-3 py-2 text-xs font-semibold text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs"
+                                class="shadow-2xs h-10 rounded-xl border border-input bg-card px-3 py-2 text-xs font-semibold text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                                 @change="filterBySection"
                             >
                                 <option value="">All Sections</option>
-                                <option v-for="sec in sections" :key="sec.id" :value="sec.id">
-                                    {{ sec.subject_code }} · {{ sec.name }}
-                                </option>
+                                <option v-for="sec in sections" :key="sec.id" :value="sec.id">{{ sec.subject_code }} · {{ sec.name }}</option>
                             </select>
                         </div>
 
                         <!-- View Switcher -->
-                        <div class="flex items-center rounded-xl border border-border bg-muted/40 p-1 shadow-2xs">
+                        <div class="shadow-2xs flex items-center rounded-xl border border-border bg-muted/40 p-1">
                             <button
                                 type="button"
                                 class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all"
                                 :class="
                                     currentView === 'month'
-                                        ? 'bg-background text-foreground shadow-xs'
+                                        ? 'shadow-xs bg-background text-foreground'
                                         : 'text-muted-foreground hover:text-foreground'
                                 "
                                 @click="currentView = 'month'"
@@ -210,7 +190,7 @@ const daysWithEvents = computed(() => {
                                 class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all"
                                 :class="
                                     currentView === 'agenda'
-                                        ? 'bg-background text-foreground shadow-xs'
+                                        ? 'shadow-xs bg-background text-foreground'
                                         : 'text-muted-foreground hover:text-foreground'
                                 "
                                 @click="currentView = 'agenda'"
@@ -222,7 +202,7 @@ const daysWithEvents = computed(() => {
 
                         <Link
                             href="/settings/academic-term"
-                            class="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-bold text-foreground transition-colors hover:bg-secondary shadow-2xs"
+                            class="shadow-2xs flex items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-bold text-foreground transition-colors hover:bg-secondary"
                         >
                             <Clock class="size-3.5 text-primary" />
                             <span>Semester Settings</span>
@@ -232,7 +212,7 @@ const daysWithEvents = computed(() => {
 
                 <!-- Stats Overview Bar -->
                 <div class="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    <div class="rounded-2xl border border-border/80 bg-card p-4 shadow-2xs">
+                    <div class="shadow-2xs rounded-2xl border border-border/80 bg-card p-4">
                         <div class="flex items-center justify-between">
                             <span class="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Class Delivery</span>
                             <span class="grid size-6 place-items-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
@@ -250,7 +230,7 @@ const daysWithEvents = computed(() => {
                         </div>
                     </div>
 
-                    <div class="rounded-2xl border border-border/80 bg-card p-4 shadow-2xs">
+                    <div class="shadow-2xs rounded-2xl border border-border/80 bg-card p-4">
                         <div class="flex items-center justify-between">
                             <span class="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Total Attendance</span>
                             <span class="grid size-6 place-items-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
@@ -263,12 +243,10 @@ const daysWithEvents = computed(() => {
                             </span>
                             <span class="text-xs text-muted-foreground">student check-ins</span>
                         </div>
-                        <div class="mt-1 text-[11px] text-muted-foreground">
-                            Present & late roll calls
-                        </div>
+                        <div class="mt-1 text-[11px] text-muted-foreground">Present & late roll calls</div>
                     </div>
 
-                    <div class="rounded-2xl border border-border/80 bg-card p-4 shadow-2xs">
+                    <div class="shadow-2xs rounded-2xl border border-border/80 bg-card p-4">
                         <div class="flex items-center justify-between">
                             <span class="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Today's Routine</span>
                             <span class="grid size-6 place-items-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
@@ -281,29 +259,31 @@ const daysWithEvents = computed(() => {
                             </span>
                             <span class="text-xs text-muted-foreground">classes scheduled</span>
                         </div>
-                        <div class="mt-1 text-[11px] text-amber-600 dark:text-amber-400 font-semibold">
+                        <div class="mt-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
                             {{ stats.today_classes_count > 0 ? 'Active teaching day' : 'No classes scheduled today' }}
                         </div>
                     </div>
 
-                    <div class="rounded-2xl border border-border/80 bg-card p-4 shadow-2xs">
+                    <div class="shadow-2xs rounded-2xl border border-border/80 bg-card p-4">
                         <div class="flex items-center justify-between">
                             <span class="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Active Term</span>
                             <span class="grid size-6 place-items-center rounded-lg bg-primary/10 text-primary">
                                 <GraduationCap class="size-3.5" />
                             </span>
                         </div>
-                        <div class="mt-2 text-sm font-bold text-foreground truncate">
+                        <div class="mt-2 truncate text-sm font-bold text-foreground">
                             {{ currentTerm.name }}
                         </div>
-                        <div class="mt-1 text-[11px] font-mono text-muted-foreground truncate">
+                        <div class="mt-1 truncate font-mono text-[11px] text-muted-foreground">
                             {{ currentTerm.starts_on }} – {{ currentTerm.ends_on }}
                         </div>
                     </div>
                 </div>
 
                 <!-- Calendar Navigation Bar -->
-                <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-border/80 bg-card p-4 shadow-xs">
+                <div
+                    class="shadow-xs mt-6 flex flex-col gap-3 rounded-2xl border border-border/80 bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
+                >
                     <div class="flex items-center gap-3">
                         <h2 class="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
                             {{ monthLabel }}
@@ -344,9 +324,11 @@ const daysWithEvents = computed(() => {
                 </div>
 
                 <!-- Month Grid View -->
-                <div v-if="currentView === 'month'" class="mt-4 overflow-hidden rounded-2xl border border-border/80 bg-card shadow-xs">
+                <div v-if="currentView === 'month'" class="shadow-xs mt-4 overflow-hidden rounded-2xl border border-border/80 bg-card">
                     <!-- Weekday Header Row -->
-                    <div class="grid grid-cols-7 border-b border-border/80 bg-muted/30 text-center text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    <div
+                        class="grid grid-cols-7 border-b border-border/80 bg-muted/30 text-center text-xs font-bold uppercase tracking-wider text-muted-foreground"
+                    >
                         <div v-for="w in weekdayNames" :key="w" class="py-3">
                             {{ w }}
                         </div>
@@ -370,19 +352,16 @@ const daysWithEvents = computed(() => {
                                     class="grid size-6 place-items-center rounded-full font-mono text-xs font-bold transition-all"
                                     :class="
                                         day.is_today
-                                            ? 'bg-primary text-primary-foreground font-black shadow-xs'
+                                            ? 'shadow-xs bg-primary font-black text-primary-foreground'
                                             : day.holiday
-                                            ? 'text-rose-600 dark:text-rose-400 font-black'
-                                            : 'text-foreground/80'
+                                              ? 'font-black text-rose-600 dark:text-rose-400'
+                                              : 'text-foreground/80'
                                     "
                                 >
                                     {{ day.day_number }}
                                 </span>
 
-                                <span
-                                    v-if="day.is_today"
-                                    class="hidden sm:inline-block font-mono text-[9px] font-extrabold uppercase text-primary"
-                                >
+                                <span v-if="day.is_today" class="hidden font-mono text-[9px] font-extrabold uppercase text-primary sm:inline-block">
                                     Today
                                 </span>
                             </div>
@@ -406,33 +385,33 @@ const daysWithEvents = computed(() => {
                                 <div
                                     v-for="(cls, cIdx) in day.classes.slice(0, 3)"
                                     :key="cIdx"
-                                    class="group/item flex flex-col rounded-lg border p-1.5 text-[11px] shadow-2xs transition-all hover:scale-[1.02] hover:shadow-xs cursor-pointer"
+                                    class="group/item shadow-2xs hover:shadow-xs flex cursor-pointer flex-col rounded-lg border p-1.5 text-[11px] transition-all hover:scale-[1.02]"
                                     :title="`${cls.subject_title || cls.subject_code} (${cls.subject_code}) · ${cls.section_name} · ${formatTime12h(cls.starts_at)} - ${formatTime12h(cls.ends_at)}${cls.room ? ' · ' + cls.room : ''}`"
                                     :class="[
                                         cls.is_conducted
                                             ? 'border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-950/20'
                                             : cls.status === 'today_pending'
-                                            ? 'border-blue-500/40 bg-blue-500/10'
-                                            : cls.status === 'no_record'
-                                            ? 'border-amber-500/30 bg-amber-500/5'
-                                            : 'border-border/80 bg-background/80',
+                                              ? 'border-blue-500/40 bg-blue-500/10'
+                                              : cls.status === 'no_record'
+                                                ? 'border-amber-500/30 bg-amber-500/5'
+                                                : 'border-border/80 bg-background/80',
                                     ]"
                                 >
                                     <div class="flex items-center justify-between gap-1">
                                         <!-- Course code by default; Course title/description when hovered -->
-                                        <span class="font-bold text-foreground truncate group-hover/item:hidden">
+                                        <span class="truncate font-bold text-foreground group-hover/item:hidden">
                                             {{ cls.subject_code }}
                                         </span>
-                                        <span class="hidden font-bold text-primary truncate group-hover/item:block text-[10.5px]">
+                                        <span class="hidden truncate text-[10.5px] font-bold text-primary group-hover/item:block">
                                             {{ cls.subject_title || cls.subject_code }}
                                         </span>
-                                        <span class="font-mono text-[9px] text-muted-foreground shrink-0">
+                                        <span class="shrink-0 font-mono text-[9px] text-muted-foreground">
                                             {{ cls.starts_at }}
                                         </span>
                                     </div>
 
                                     <div class="mt-0.5 flex items-center justify-between text-[10px]">
-                                        <span class="text-muted-foreground truncate">
+                                        <span class="truncate text-muted-foreground">
                                             {{ cls.section_name }}
                                         </span>
 
@@ -444,10 +423,7 @@ const daysWithEvents = computed(() => {
                                         >
                                             ✓ {{ cls.present_count + cls.late_count }}/{{ cls.enrolled_count }}
                                         </span>
-                                        <span
-                                            v-else-if="cls.status === 'today_pending'"
-                                            class="font-mono font-bold text-blue-600 dark:text-blue-400"
-                                        >
+                                        <span v-else-if="cls.status === 'today_pending'" class="font-mono font-bold text-blue-600 dark:text-blue-400">
                                             Ready
                                         </span>
                                         <span
@@ -459,10 +435,7 @@ const daysWithEvents = computed(() => {
                                     </div>
                                 </div>
 
-                                <div
-                                    v-if="day.classes.length > 3"
-                                    class="text-center font-mono text-[10px] font-bold text-primary"
-                                >
+                                <div v-if="day.classes.length > 3" class="text-center font-mono text-[10px] font-bold text-primary">
                                     +{{ day.classes.length - 3 }} more
                                 </div>
                             </div>
@@ -472,26 +445,20 @@ const daysWithEvents = computed(() => {
 
                 <!-- Agenda List View -->
                 <div v-else-if="currentView === 'agenda'" class="mt-4 space-y-4">
-                    <div
-                        v-for="day in daysWithEvents"
-                        :key="day.date"
-                        class="rounded-2xl border border-border/80 bg-card p-5 shadow-2xs"
-                    >
-                        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-border/60 pb-3">
+                    <div v-for="day in daysWithEvents" :key="day.date" class="shadow-2xs rounded-2xl border border-border/80 bg-card p-5">
+                        <div class="flex flex-col gap-2 border-b border-border/60 pb-3 sm:flex-row sm:items-center sm:justify-between">
                             <div class="flex items-center gap-3">
                                 <div
-                                    class="grid size-10 place-items-center rounded-xl font-mono text-base font-bold shadow-2xs"
+                                    class="shadow-2xs grid size-10 place-items-center rounded-xl font-mono text-base font-bold"
                                     :class="day.is_today ? 'bg-primary text-primary-foreground' : 'bg-secondary text-foreground'"
                                 >
                                     {{ day.day_number }}
                                 </div>
                                 <div>
-                                    <h3 class="font-bold text-base text-foreground">
+                                    <h3 class="text-base font-bold text-foreground">
                                         {{ formatDatePretty(day.date) }}
                                     </h3>
-                                    <span v-if="day.is_today" class="font-mono text-xs font-bold uppercase text-primary">
-                                        Today
-                                    </span>
+                                    <span v-if="day.is_today" class="font-mono text-xs font-bold uppercase text-primary"> Today </span>
                                 </div>
                             </div>
 
@@ -515,31 +482,33 @@ const daysWithEvents = computed(() => {
                             <div
                                 v-for="(cls, cIdx) in day.classes"
                                 :key="cIdx"
-                                class="flex flex-col justify-between rounded-xl border p-4 shadow-2xs transition-all hover:bg-secondary/40"
+                                class="shadow-2xs flex flex-col justify-between rounded-xl border p-4 transition-all hover:bg-secondary/40"
                                 :class="[
                                     cls.is_conducted
                                         ? 'border-emerald-500/30 bg-emerald-500/5'
                                         : cls.status === 'today_pending'
-                                        ? 'border-blue-500/30 bg-blue-500/5'
-                                        : 'border-border/80 bg-background',
+                                          ? 'border-blue-500/30 bg-blue-500/5'
+                                          : 'border-border/80 bg-background',
                                 ]"
                             >
                                 <div>
                                     <div class="flex items-start justify-between gap-2">
                                         <div>
                                             <span class="font-mono text-xs font-bold text-primary">{{ cls.subject_code }}</span>
-                                            <h4 class="font-bold text-sm text-foreground">{{ cls.section_name }}</h4>
+                                            <h4 class="text-sm font-bold text-foreground">{{ cls.section_name }}</h4>
                                         </div>
 
                                         <span
                                             class="rounded-md px-2 py-0.5 font-mono text-[10px] font-bold uppercase"
-                                            :class="cls.schedule_type === 'lab' ? 'bg-amber-500/10 text-amber-600' : 'bg-secondary text-muted-foreground'"
+                                            :class="
+                                                cls.schedule_type === 'lab' ? 'bg-amber-500/10 text-amber-600' : 'bg-secondary text-muted-foreground'
+                                            "
                                         >
                                             {{ cls.schedule_type }}
                                         </span>
                                     </div>
 
-                                    <p class="mt-1 text-xs text-muted-foreground truncate">{{ cls.subject_title }}</p>
+                                    <p class="mt-1 truncate text-xs text-muted-foreground">{{ cls.subject_title }}</p>
 
                                     <div class="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
                                         <span class="flex items-center gap-1">
@@ -555,7 +524,10 @@ const daysWithEvents = computed(() => {
 
                                 <div class="mt-4 flex items-center justify-between border-t border-border/60 pt-3">
                                     <!-- Conduct Status -->
-                                    <div v-if="cls.is_conducted" class="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                                    <div
+                                        v-if="cls.is_conducted"
+                                        class="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400"
+                                    >
                                         <UserCheck class="size-4" />
                                         <span>Conducted · {{ cls.present_count + cls.late_count }} attended</span>
                                     </div>
@@ -565,21 +537,19 @@ const daysWithEvents = computed(() => {
                                     <div v-else-if="cls.status === 'no_record'" class="text-xs font-semibold text-amber-600 dark:text-amber-400">
                                         ⚠️ No attendance record
                                     </div>
-                                    <div v-else class="text-xs font-semibold text-muted-foreground">
-                                        📅 Upcoming
-                                    </div>
+                                    <div v-else class="text-xs font-semibold text-muted-foreground">📅 Upcoming</div>
 
                                     <!-- Quick Actions -->
                                     <div class="flex items-center gap-1.5">
                                         <Link
                                             :href="`/sections/${cls.section_id}/attendance?date=${day.date}`"
-                                            class="rounded-lg border border-border bg-background px-2.5 py-1 text-[11px] font-bold text-foreground hover:bg-secondary shadow-2xs"
+                                            class="shadow-2xs rounded-lg border border-border bg-background px-2.5 py-1 text-[11px] font-bold text-foreground hover:bg-secondary"
                                         >
                                             {{ cls.is_conducted ? 'Attendance' : 'Roll Call' }}
                                         </Link>
                                         <Link
                                             :href="`/sections/${cls.section_id}`"
-                                            class="rounded-lg border border-border bg-background px-2.5 py-1 text-[11px] font-bold text-foreground hover:bg-secondary shadow-2xs"
+                                            class="shadow-2xs rounded-lg border border-border bg-background px-2.5 py-1 text-[11px] font-bold text-foreground hover:bg-secondary"
                                         >
                                             Floor
                                         </Link>
@@ -594,7 +564,7 @@ const daysWithEvents = computed(() => {
             <!-- Day & Class Details Drawer Modal -->
             <div
                 v-if="selectedDay"
-                class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in"
+                class="backdrop-blur-xs fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-in fade-in"
                 @click.self="selectedDay = null"
             >
                 <div class="w-full max-w-xl rounded-3xl border border-border/80 bg-card p-6 shadow-2xl animate-in zoom-in-95">
@@ -602,7 +572,10 @@ const daysWithEvents = computed(() => {
                         <div>
                             <div class="flex items-center gap-2">
                                 <span class="text-xs font-bold uppercase tracking-wider text-primary">Day Schedule Details</span>
-                                <span v-if="selectedDay.is_today" class="rounded-md bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-bold uppercase text-primary">
+                                <span
+                                    v-if="selectedDay.is_today"
+                                    class="rounded-md bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-bold uppercase text-primary"
+                                >
                                     Today
                                 </span>
                             </div>
@@ -622,14 +595,14 @@ const daysWithEvents = computed(() => {
                     <!-- Philippine Holiday Banner -->
                     <div
                         v-if="selectedDay.holiday"
-                        class="mt-4 rounded-2xl border p-4 shadow-2xs"
+                        class="shadow-2xs mt-4 rounded-2xl border p-4"
                         :class="
                             selectedDay.holiday.type === 'regular'
                                 ? 'border-rose-500/30 bg-rose-500/10 text-rose-900 dark:text-rose-200'
                                 : 'border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-200'
                         "
                     >
-                        <div class="flex items-center gap-2 font-bold text-sm">
+                        <div class="flex items-center gap-2 text-sm font-bold">
                             <span>🇵🇭</span>
                             <span>{{ selectedDay.holiday.name }}</span>
                             <span class="font-mono text-xs opacity-80">({{ selectedDay.holiday.filipino_name }})</span>
@@ -643,28 +616,33 @@ const daysWithEvents = computed(() => {
                             Classes Scheduled ({{ selectedDay.classes.length }})
                         </h4>
 
-                        <div v-if="selectedDay.classes.length === 0" class="rounded-2xl border border-dashed border-border/80 p-6 text-center text-xs text-muted-foreground">
+                        <div
+                            v-if="selectedDay.classes.length === 0"
+                            class="rounded-2xl border border-dashed border-border/80 p-6 text-center text-xs text-muted-foreground"
+                        >
                             No teaching classes scheduled for this day.
                         </div>
 
                         <div
                             v-for="(cls, idx) in selectedDay.classes"
                             :key="idx"
-                            class="rounded-2xl border p-4 shadow-2xs transition-colors"
+                            class="shadow-2xs rounded-2xl border p-4 transition-colors"
                             :class="[
                                 cls.is_conducted
                                     ? 'border-emerald-500/30 bg-emerald-500/5'
                                     : cls.status === 'today_pending'
-                                    ? 'border-blue-500/30 bg-blue-500/5'
-                                    : 'border-border/80 bg-background',
+                                      ? 'border-blue-500/30 bg-blue-500/5'
+                                      : 'border-border/80 bg-background',
                             ]"
                         >
                             <div class="flex items-start justify-between">
                                 <div>
                                     <div class="flex items-center gap-2">
                                         <span class="font-mono text-xs font-bold text-primary">{{ cls.subject_code }}</span>
-                                        <span class="font-bold text-sm text-foreground">{{ cls.section_name }}</span>
-                                        <span class="rounded-md bg-secondary px-2 py-0.5 font-mono text-[10px] font-bold uppercase text-muted-foreground">
+                                        <span class="text-sm font-bold text-foreground">{{ cls.section_name }}</span>
+                                        <span
+                                            class="rounded-md bg-secondary px-2 py-0.5 font-mono text-[10px] font-bold uppercase text-muted-foreground"
+                                        >
                                             {{ cls.schedule_type }}
                                         </span>
                                     </div>
@@ -675,9 +653,7 @@ const daysWithEvents = computed(() => {
                                     <div class="font-mono text-xs font-bold text-foreground">
                                         {{ formatTime12h(cls.starts_at) }} – {{ formatTime12h(cls.ends_at) }}
                                     </div>
-                                    <div v-if="cls.room" class="mt-0.5 text-[11px] text-muted-foreground">
-                                        📍 {{ cls.room }}
-                                    </div>
+                                    <div v-if="cls.room" class="mt-0.5 text-[11px] text-muted-foreground">📍 {{ cls.room }}</div>
                                 </div>
                             </div>
 
@@ -691,10 +667,10 @@ const daysWithEvents = computed(() => {
                                         </span>
                                     </div>
                                     <div class="flex items-center gap-3 text-[11px] text-muted-foreground">
-                                        <span class="text-emerald-600 font-semibold">{{ cls.present_count }} Present</span>
-                                        <span class="text-amber-600 font-semibold">{{ cls.late_count }} Late</span>
-                                        <span class="text-blue-600 font-semibold">{{ cls.excused_count }} Excused</span>
-                                        <span class="text-rose-600 font-semibold">{{ cls.absent_count }} Absent</span>
+                                        <span class="font-semibold text-emerald-600">{{ cls.present_count }} Present</span>
+                                        <span class="font-semibold text-amber-600">{{ cls.late_count }} Late</span>
+                                        <span class="font-semibold text-blue-600">{{ cls.excused_count }} Excused</span>
+                                        <span class="font-semibold text-rose-600">{{ cls.absent_count }} Absent</span>
                                     </div>
                                 </div>
                                 <div v-else-if="cls.status === 'today_pending'" class="text-xs font-semibold text-blue-600 dark:text-blue-400">
@@ -703,34 +679,32 @@ const daysWithEvents = computed(() => {
                                 <div v-else-if="cls.status === 'no_record'" class="text-xs font-semibold text-amber-600 dark:text-amber-400">
                                     ⚠️ No attendance session recorded on this date.
                                 </div>
-                                <div v-else class="text-xs text-muted-foreground">
-                                    📅 Upcoming class schedule within the academic semester.
-                                </div>
+                                <div v-else class="text-xs text-muted-foreground">📅 Upcoming class schedule within the academic semester.</div>
                             </div>
 
                             <!-- 1-Click Action Buttons -->
                             <div class="mt-3 flex flex-wrap items-center gap-2 pt-2">
                                 <Link
                                     :href="`/sections/${cls.section_id}/attendance?date=${selectedDay.date}`"
-                                    class="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground transition-colors hover:bg-secondary shadow-2xs"
+                                    class="shadow-2xs rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground transition-colors hover:bg-secondary"
                                 >
                                     {{ cls.is_conducted ? 'View Attendance' : 'Take Attendance' }}
                                 </Link>
                                 <Link
                                     :href="`/sections/${cls.section_id}`"
-                                    class="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground transition-colors hover:bg-secondary shadow-2xs"
+                                    class="shadow-2xs rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground transition-colors hover:bg-secondary"
                                 >
                                     Seat Plan & Floor
                                 </Link>
                                 <Link
                                     :href="`/sections/${cls.section_id}/recitation`"
-                                    class="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground transition-colors hover:bg-secondary shadow-2xs"
+                                    class="shadow-2xs rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground transition-colors hover:bg-secondary"
                                 >
                                     Oral Recitation
                                 </Link>
                                 <Link
                                     :href="`/sections/${cls.section_id}/reports/gradebook`"
-                                    class="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground transition-colors hover:bg-secondary shadow-2xs"
+                                    class="shadow-2xs rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground transition-colors hover:bg-secondary"
                                 >
                                     Gradebook
                                 </Link>
@@ -739,9 +713,7 @@ const daysWithEvents = computed(() => {
                     </div>
 
                     <div class="mt-6 flex justify-end border-t border-border/80 pt-4">
-                        <Button variant="outline" class="rounded-xl text-xs font-bold" @click="selectedDay = null">
-                            Close
-                        </Button>
+                        <Button variant="outline" class="rounded-xl text-xs font-bold" @click="selectedDay = null"> Close </Button>
                     </div>
                 </div>
             </div>

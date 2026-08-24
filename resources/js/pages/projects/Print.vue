@@ -115,7 +115,11 @@ onMounted(() => {
                     <tr v-for="(group, idx) in project.groups" :key="group.id" class="break-inside-avoid">
                         <td class="px-3 py-2 text-center font-mono text-slate-400">{{ idx + 1 }}</td>
                         <td class="px-3 py-2 font-bold text-slate-900">
-                            {{ group.students[0] ? `${group.students[0].last_name}, ${group.students[0].first_name} ${group.students[0].middle_name || ''}` : group.name }}
+                            {{
+                                group.students[0]
+                                    ? `${group.students[0].last_name}, ${group.students[0].first_name} ${group.students[0].middle_name || ''}`
+                                    : group.name
+                            }}
                         </td>
                         <td class="px-3 py-2 font-mono text-slate-600">
                             {{ group.students[0]?.student_number || '—' }}
@@ -146,10 +150,19 @@ onMounted(() => {
                 <!-- Group Topic -->
                 <div class="mb-3 rounded bg-slate-100 p-2.5 text-xs">
                     <span class="block text-[10px] font-bold uppercase text-slate-500">
-                        {{ project.type === 'group_activity' ? 'Activity Topic / Focus:' : project.type === 'reporting' ? 'Assigned Presentation Topic:' : 'Project Focus:' }}
+                        {{
+                            project.type === 'group_activity'
+                                ? 'Activity Topic / Focus:'
+                                : project.type === 'reporting'
+                                  ? 'Assigned Presentation Topic:'
+                                  : 'Project Focus:'
+                        }}
                     </span>
                     <p class="mt-0.5 font-bold text-slate-900">
-                        {{ group.topic || (project.type === 'project' || project.type === 'group_activity' ? project.title : 'Topic not yet specified') }}
+                        {{
+                            group.topic ||
+                            (project.type === 'project' || project.type === 'group_activity' ? project.title : 'Topic not yet specified')
+                        }}
                     </p>
                     <p v-if="group.description" class="mt-1 border-t border-slate-200/80 pt-1 text-[11px] text-slate-600">
                         {{ group.description }}

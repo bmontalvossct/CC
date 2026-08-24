@@ -596,7 +596,7 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                         </div>
                         <div>
                             <dt class="text-xs font-medium text-muted-foreground">Section</dt>
-                            <dd class="mt-1 text-sm font-medium truncate">{{ section.name }}</dd>
+                            <dd class="mt-1 truncate text-sm font-medium">{{ section.name }}</dd>
                         </div>
                         <div>
                             <dt class="text-xs font-medium text-muted-foreground">Absences</dt>
@@ -605,7 +605,9 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                                 :class="(selectedStudent.absent_count ?? 0) >= 3 ? 'text-rose-600 dark:text-rose-400' : 'text-foreground'"
                             >
                                 {{ selectedStudent.absent_count ?? 0 }} / 3
-                                <span v-if="(selectedStudent.absent_count ?? 0) >= 3" class="block text-[10px] font-bold text-rose-600">Limit reached</span>
+                                <span v-if="(selectedStudent.absent_count ?? 0) >= 3" class="block text-[10px] font-bold text-rose-600"
+                                    >Limit reached</span
+                                >
                             </dd>
                         </div>
                     </dl>
