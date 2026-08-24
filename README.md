@@ -1,3 +1,15 @@
+# CC
+A classroom attendance and activity monitoring system
+
+## Features
+- Track students and mark them present or absent
+- Record timestamped classroom activity events per student
+- Generate attendance and activity reports
+
+## Run tests
+```bash
+python -m unittest discover -s tests -v
+```
 # ClassCheck
 
 ClassCheck is a teacher-first classroom attendance and assessment application. It turns a real seating layout into the working interface for enrollment, roll call, activities, quizzes, exams, and reports.
