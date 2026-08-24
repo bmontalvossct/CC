@@ -159,6 +159,23 @@ const filteredStudentSummaries = computed(() => {
 
     return list.filter((s) => s.name.toLowerCase().includes(q) || s.student_number.toLowerCase().includes(q));
 });
+
+const formatStudentDisplayName = (student: StudentSummary | { name?: string; first_name?: string; last_name?: string } | null | undefined) => {
+    if (!student) return '—';
+    if ('last_name' in student && 'first_name' in student && student.last_name && student.first_name) {
+        return `${student.last_name}, ${student.first_name}`;
+    }
+    if (student.name) {
+        if (student.name.includes(',')) return student.name;
+        const parts = student.name.trim().split(/\s+/);
+        if (parts.length > 1) {
+            const last = parts.pop();
+            return `${last}, ${parts.join(' ')}`;
+        }
+        return student.name;
+    }
+    return '—';
+};
 </script>
 
 <template>
@@ -455,7 +472,7 @@ const filteredStudentSummaries = computed(() => {
                                     @click="openStudentModal(student)"
                                 >
                                     <td class="px-4 py-3.5">
-                                        <p class="text-base font-semibold text-foreground">{{ student.name }}</p>
+                                        <p class="text-base font-semibold text-foreground">{{ formatStudentDisplayName(student) }}</p>
                                         <p class="font-mono text-sm text-muted-foreground">{{ student.student_number }}</p>
                                     </td>
                                     <td class="px-4 py-3.5">

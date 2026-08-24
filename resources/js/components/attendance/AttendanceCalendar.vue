@@ -44,6 +44,24 @@ const studentMap = computed(() => {
     return map;
 });
 
+const formatStudentDisplayName = (student: Student | { name?: string; first_name?: string; last_name?: string } | null | undefined) => {
+    if (!student) return '—';
+    if (student.last_name && student.first_name) {
+        return `${student.last_name}, ${student.first_name}`;
+    }
+    if (student.last_name) return student.last_name;
+    if (student.name) {
+        if (student.name.includes(',')) return student.name;
+        const parts = student.name.trim().split(/\s+/);
+        if (parts.length > 1) {
+            const last = parts.pop();
+            return `${last}, ${parts.join(' ')}`;
+        }
+        return student.name;
+    }
+    return student.first_name || '—';
+};
+
 // Calendar State: Year and Month
 const today = new Date();
 const currentYear = ref(today.getFullYear());
@@ -428,7 +446,7 @@ const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
                             :key="student.id"
                             class="flex items-center justify-between py-2 text-sm"
                         >
-                            <span class="truncate font-medium text-foreground">{{ student.name }}</span>
+                            <span class="truncate font-medium text-foreground">{{ formatStudentDisplayName(student) }}</span>
                             <span class="rounded bg-rose-700 px-2 py-0.5 font-mono text-xs text-white">
                                 {{ student.student_number }}
                             </span>
@@ -446,7 +464,7 @@ const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
                     </div>
                     <ul class="mt-2 max-h-40 divide-y divide-border/60 overflow-y-auto pr-1">
                         <li v-for="student in sessionStudentsBreakdown.late" :key="student.id" class="flex items-center justify-between py-2 text-sm">
-                            <span class="truncate font-medium text-foreground">{{ student.name }}</span>
+                            <span class="truncate font-medium text-foreground">{{ formatStudentDisplayName(student) }}</span>
                             <span class="rounded bg-amber-700 px-2 py-0.5 font-mono text-xs text-white">
                                 {{ student.student_number }}
                             </span>
@@ -467,7 +485,7 @@ const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
                             :key="student.id"
                             class="flex items-center justify-between py-2 text-sm"
                         >
-                            <span class="truncate font-medium text-foreground">{{ student.name }}</span>
+                            <span class="truncate font-medium text-foreground">{{ formatStudentDisplayName(student) }}</span>
                             <span class="rounded bg-emerald-700 px-2 py-0.5 font-mono text-xs text-white">
                                 {{ student.student_number }}
                             </span>

@@ -165,7 +165,7 @@ const density = computed<'spacious' | 'compact' | 'condensed' | 'micro'>(() => {
                                         @dragstart="dragStart($event, seat.student)"
                                         :aria-label="
                                             seat.student
-                                                ? `${seat.student.first_name} ${seat.student.last_name}, ${seat.label}`
+                                                ? `${seat.student.last_name}, ${seat.student.first_name}, ${seat.label}`
                                                 : `${seat.label}, available chair`
                                         "
                                         :aria-pressed="!seat.student && selectedSeatId === seat.id"
@@ -180,9 +180,13 @@ const density = computed<'spacious' | 'compact' | 'condensed' | 'micro'>(() => {
                                                     : 'min-h-[3rem] rounded-md p-0.5 sm:min-h-[3.5rem]',
                                             seat.is_disabled
                                                 ? 'cursor-not-allowed border-transparent bg-[repeating-linear-gradient(135deg,hsl(var(--border)),hsl(var(--border))_4px,transparent_4px,transparent_8px)] opacity-30'
-                                                : selectedSeatId === seat.id
-                                                  ? 'scale-[1.03] border-emerald-400 bg-[#164e3f] text-white shadow-lg ring-2 ring-emerald-400 ring-offset-2 dark:bg-[#134e48]'
-                                                  : 'shadow-xs border-[#1b5d4e]/80 bg-[#164e3f] text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-[#134e48]',
+                                                : (seat.student.absent_count ?? 0) >= 3
+                                                  ? selectedSeatId === seat.id
+                                                    ? 'scale-[1.03] border-rose-400 bg-[#881337] text-white shadow-lg ring-2 ring-rose-400 ring-offset-2 dark:bg-[#7f1d1d]'
+                                                    : 'shadow-xs border-rose-600/90 bg-[#881337] text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-110 dark:bg-[#4c0519]'
+                                                  : selectedSeatId === seat.id
+                                                    ? 'scale-[1.03] border-emerald-400 bg-[#164e3f] text-white shadow-lg ring-2 ring-emerald-400 ring-offset-2 dark:bg-[#134e48]'
+                                                    : 'shadow-xs border-[#1b5d4e]/80 bg-[#164e3f] text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-[#134e48]',
                                             activeDragOverSeatId === seat.id && !seat.is_disabled
                                                 ? 'scale-[1.02] border-dashed border-white bg-[#1a5a49] shadow-md ring-2 ring-white/40'
                                                 : '',
@@ -192,21 +196,22 @@ const density = computed<'spacious' | 'compact' | 'condensed' | 'micro'>(() => {
                                         <div class="flex h-full flex-col items-center justify-center text-center">
                                             <!-- Scaled Photo / Avatar -->
                                             <div
-                                                class="shadow-xs flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/20 ring-1 ring-white/25 sm:ring-2"
-                                                :class="
+                                                class="shadow-xs flex shrink-0 items-center justify-center overflow-hidden rounded-full ring-1 sm:ring-2"
+                                                :class="[
+                                                    (seat.student.absent_count ?? 0) >= 3 ? 'bg-rose-500/30 ring-rose-400/80' : 'bg-white/20 ring-white/25',
                                                     density === 'spacious'
                                                         ? 'size-10 sm:size-11'
                                                         : density === 'compact'
                                                           ? 'size-7 sm:size-8'
                                                           : density === 'condensed'
                                                             ? 'size-5 sm:size-6'
-                                                            : 'size-4 sm:size-5'
-                                                "
+                                                            : 'size-4 sm:size-5',
+                                                ]"
                                             >
                                                 <img
                                                     v-if="seat.student.photo_url"
                                                     :src="seat.student.photo_url"
-                                                    :alt="`${seat.student.first_name} ${seat.student.last_name}`"
+                                                    :alt="`${seat.student.last_name}, ${seat.student.first_name}`"
                                                     class="size-full object-cover"
                                                 />
                                                 <span
@@ -222,11 +227,11 @@ const density = computed<'spacious' | 'compact' | 'condensed' | 'micro'>(() => {
                                                                 : 'text-[7px] font-bold'
                                                     "
                                                 >
-                                                    {{ initials(seat.student.first_name + ' ' + seat.student.last_name) }}
+                                                    {{ initials(seat.student.last_name + ' ' + seat.student.first_name) }}
                                                 </span>
                                             </div>
 
-                                            <!-- Complete Name -->
+                                            <!-- Complete Name (Full Last Name First) -->
                                             <span
                                                 class="block w-full truncate text-center font-bold uppercase leading-tight tracking-tight text-white"
                                                 :class="
@@ -238,14 +243,14 @@ const density = computed<'spacious' | 'compact' | 'condensed' | 'micro'>(() => {
                                                             ? 'mt-0.5 max-w-[3.75rem] text-[8px] sm:text-[8.5px]'
                                                             : 'mt-0.25 max-w-[2.75rem] text-[7px]'
                                                 "
-                                                :title="`${seat.student.first_name} ${seat.student.last_name}`"
+                                                :title="`${seat.student.last_name}, ${seat.student.first_name}`"
                                             >
-                                                {{ seat.student.first_name }} {{ seat.student.last_name }}
+                                                {{ seat.student.last_name }}, {{ seat.student.first_name }}
                                             </span>
 
-                                            <!-- Seat Label -->
-                                            <span
-                                                class="font-mono font-medium uppercase leading-none tracking-wider text-white/70"
+                                            <!-- Seat Label & 3+ Absences Indicator -->
+                                            <div
+                                                class="flex items-center justify-center gap-1 font-mono font-medium uppercase leading-none tracking-wider text-white/70"
                                                 :class="
                                                     density === 'spacious'
                                                         ? 'mt-0.5 text-[9px] sm:text-[10px]'
@@ -256,8 +261,14 @@ const density = computed<'spacious' | 'compact' | 'condensed' | 'micro'>(() => {
                                                             : 'mt-0 text-[6.5px]'
                                                 "
                                             >
-                                                {{ seat.label }}
-                                            </span>
+                                                <span>{{ seat.label }}</span>
+                                                <span
+                                                    v-if="(seat.student.absent_count ?? 0) >= 3"
+                                                    class="rounded bg-rose-500/40 px-1 py-0.2 text-[6.5px] font-bold text-rose-200 ring-1 ring-rose-400/50 sm:text-[7px]"
+                                                >
+                                                    3+ ABS
+                                                </span>
+                                            </div>
                                         </div>
                                     </button>
                                 </TooltipTrigger>
@@ -272,11 +283,17 @@ const density = computed<'spacious' | 'compact' | 'condensed' | 'micro'>(() => {
                                         v-else
                                         class="flex size-16 items-center justify-center rounded-full bg-primary/20 text-xl font-bold text-primary shadow-sm"
                                     >
-                                        {{ initials(seat.student.first_name + ' ' + seat.student.last_name) }}
+                                        {{ initials(seat.student.last_name + ' ' + seat.student.first_name) }}
                                     </div>
                                     <div class="text-center">
-                                        <p class="text-sm font-bold leading-tight">{{ seat.student.first_name }} {{ seat.student.last_name }}</p>
+                                        <p class="text-sm font-bold leading-tight">{{ seat.student.last_name }}, {{ seat.student.first_name }}</p>
                                         <p class="mt-0.5 text-[10px] uppercase text-muted-foreground">{{ sectionName || 'Student' }}</p>
+                                        <div
+                                            v-if="(seat.student.absent_count ?? 0) >= 3"
+                                            class="mt-1.5 inline-flex items-center gap-1 rounded-full bg-rose-500/15 px-2.5 py-0.5 text-[11px] font-bold text-rose-600 dark:text-rose-400 ring-1 ring-rose-500/30"
+                                        >
+                                            <span>⚠️ {{ seat.student.absent_count }}/3 Absences (Limit Reached)</span>
+                                        </div>
                                         <p class="mt-1 text-[10px] font-semibold text-primary">Click to view details or unseat</p>
                                     </div>
                                 </TooltipContent>

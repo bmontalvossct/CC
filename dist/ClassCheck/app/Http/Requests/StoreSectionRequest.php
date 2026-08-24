@@ -1,0 +1,65 @@
+<?php
+
+namespace App\Http\Requests;
+
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
+
+class StoreSectionRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return $this->user() !== null;
+    }
+
+    public function rules(): array
+    {
+        return [
+            'subject_code' => ['required', 'string', 'max:50'],
+            'subject_title' => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
+            'room' => ['nullable', 'string', 'max:255'],
+            'term' => ['sometimes', 'nullable', 'array'],
+            'term.name' => ['sometimes', 'required', 'string', 'max:100'],
+            'term.school_year' => ['sometimes', 'required', 'string', 'max:20'],
+            'term.starts_on' => ['sometimes', 'required', 'date'],
+            'term.ends_on' => ['sometimes', 'required', 'date', 'after_or_equal:term.starts_on'],
+            'schedules' => ['array', 'max:42'],
+            'schedules.*.day_of_week' => ['required', 'integer', 'between:1,7'],
+            'schedules.*.starts_at' => ['required', 'date_format:H:i'],
+            'schedules.*.ends_at' => ['required', 'date_format:H:i', 'after:schedules.*.starts_at'],
+            'schedules.*.room' => ['nullable', 'string', 'max:255'],
+            'schedules.*.schedule_type' => ['nullable', 'string', 'in:lecture,lab'],
+        ];
+    }
+
+    /**
+     * @return array<int, callable(Validator): void>
+     */
+    public function after(): array
+    {
+        return [function (Validator $validator): void {
+            $seen = [];
+
+            foreach ((array) $this->input('schedules', []) as $index => $schedule) {
+                $day = $schedule['day_of_week'] ?? null;
+                $startsAt = $schedule['starts_at'] ?? null;
+
+                if (! $day || ! $startsAt) {
+                    continue;
+                }
+
+                $key = $day.'-'.$startsAt;
+
+                if (isset($seen[$key])) {
+                    $validator->errors()->add(
+                        "schedules.$index.day_of_week",
+                        'This weekday and start time are already included in another schedule entry.',
+                    );
+                }
+
+                $seen[$key] = true;
+            }
+        }];
+    }
+}

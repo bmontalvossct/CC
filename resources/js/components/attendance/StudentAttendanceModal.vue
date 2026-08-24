@@ -59,6 +59,23 @@ const readableDate = (date: string) => {
         year: 'numeric',
     }).format(new Date(`${date}T00:00:00`));
 };
+
+const formatStudentDisplayName = (student: StudentSummary | { name?: string; first_name?: string; last_name?: string } | null | undefined) => {
+    if (!student) return '—';
+    if ('last_name' in student && 'first_name' in student && student.last_name && student.first_name) {
+        return `${student.last_name}, ${student.first_name}`;
+    }
+    if (student.name) {
+        if (student.name.includes(',')) return student.name;
+        const parts = student.name.trim().split(/\s+/);
+        if (parts.length > 1) {
+            const last = parts.pop();
+            return `${last}, ${parts.join(' ')}`;
+        }
+        return student.name;
+    }
+    return '—';
+};
 </script>
 
 <template>
@@ -71,7 +88,7 @@ const readableDate = (date: string) => {
             class="paper-card relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden border border-border/90 p-6 shadow-2xl duration-200 animate-in zoom-in-95"
             role="dialog"
             aria-modal="true"
-            :aria-label="`Attendance summary for ${student.name}`"
+            :aria-label="`Attendance summary for ${formatStudentDisplayName(student)}`"
         >
             <!-- Modal Header -->
             <div class="flex items-start justify-between border-b border-border/80 pb-4">
@@ -82,7 +99,7 @@ const readableDate = (date: string) => {
                         </span>
                         <span class="text-sm text-muted-foreground">Student Attendance File</span>
                     </div>
-                    <h2 class="mt-1 text-2xl font-semibold text-foreground">{{ student.name }}</h2>
+                    <h2 class="mt-1 text-2xl font-semibold text-foreground">{{ formatStudentDisplayName(student) }}</h2>
                 </div>
 
                 <Button type="button" variant="outline" size="icon" class="size-8 rounded-lg" title="Close" @click="emit('close')">

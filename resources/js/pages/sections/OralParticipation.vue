@@ -1,7 +1,28 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { AlertCircle, Armchair, ArrowLeft, Calendar, Edit2, History, Mic, Plus, Save, Settings, Trash2, Trophy, X } from 'lucide-vue-next';
+import {
+    AlertCircle,
+    AlertTriangle,
+    Armchair,
+    ArrowLeft,
+    Calendar,
+    Clock,
+    Dices,
+    Edit2,
+    History,
+    Mic,
+    Plus,
+    RotateCcw,
+    Save,
+    Settings,
+    Sparkles,
+    Trash2,
+    Trophy,
+    UserCheck,
+    UserX,
+    X,
+} from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 
 interface RecitationLog {
@@ -20,7 +41,13 @@ interface StudentRow {
     student_number: string;
     full_name: string;
     first_name?: string;
+    last_name?: string;
+    photo_url?: string | null;
     seat_label: string | null;
+    attendance_status?: 'present' | 'late' | 'absent' | null;
+    is_absent?: boolean;
+    is_present?: boolean;
+    can_recite?: boolean;
     times_called: number;
     avg_accuracy: number | null;
     avg_delivery: number | null;
@@ -66,6 +93,7 @@ const props = defineProps<{
     bonusCap?: number;
     todayDate: string;
     todayFormatted: string;
+    hasTodayAttendance?: boolean;
 }>();
 
 const page = usePage<any>();
@@ -98,6 +126,51 @@ const saveBonusCap = () => {
 const selectedStudentForLogs = ref<StudentRow | null>(null);
 const editingLog = ref<RecitationLog | null>(null);
 const deletingLog = ref<RecitationLog | null>(null);
+
+// Random Call Picker for Present Students
+const showRandomPicker = ref(false);
+const isRolling = ref(false);
+const randomPickedStudent = ref<StudentRow | null>(null);
+const rollingCandidateName = ref('');
+
+const eligiblePresentStudents = computed(() => {
+    return props.students.filter((s) => !s.is_absent && !s.called_today);
+});
+
+const pickRandomPresentStudent = () => {
+    if (!eligiblePresentStudents.value.length) return;
+    showRandomPicker.value = true;
+    isRolling.value = true;
+    randomPickedStudent.value = null;
+
+    let iterations = 0;
+    const maxIterations = 20;
+    const interval = 60;
+
+    const timer = setInterval(() => {
+        const randomIndex = Math.floor(Math.random() * eligiblePresentStudents.value.length);
+        const candidate = eligiblePresentStudents.value[randomIndex];
+        rollingCandidateName.value = candidate.full_name;
+        iterations++;
+
+        if (iterations >= maxIterations) {
+            clearInterval(timer);
+            randomPickedStudent.value = candidate;
+            isRolling.value = false;
+        }
+    }, interval);
+};
+
+const closeRandomPicker = () => {
+    showRandomPicker.value = false;
+    randomPickedStudent.value = null;
+    isRolling.value = false;
+};
+
+const scoreFromRandomPicker = (student: StudentRow) => {
+    closeRandomPicker();
+    openScoring(student);
+};
 
 const currentLogsStudent = computed(() => {
     if (!selectedStudentForLogs.value) return null;
@@ -400,13 +473,31 @@ const ratingLabel = (val: number) => {
                     <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
                         <div>
                             <span class="eyebrow">Seating layout</span>
-                            <h2 class="mt-1 text-xl font-medium tracking-tight">Click any student's chair to grade or view recitation logs</h2>
+                            <h2 class="mt-1 text-xl font-medium tracking-tight">Click any present student's chair to grade or view recitation logs</h2>
                         </div>
-                        <div class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                            <span class="inline-flex size-3 rounded-full bg-emerald-400"></span>
-                            <span>Scored today</span>
-                            <span class="ml-3 inline-flex size-3 rounded-full bg-[#164e3f]"></span>
-                            <span>Not yet scored</span>
+                        <div class="flex flex-wrap items-center gap-3 text-xs font-medium">
+                            <div class="flex items-center gap-1.5 text-muted-foreground">
+                                <span class="inline-flex size-3 rounded-full bg-emerald-400"></span>
+                                <span>Scored today</span>
+                            </div>
+                            <div class="flex items-center gap-1.5 text-muted-foreground">
+                                <span class="inline-flex size-3 rounded-full bg-[#164e3f]"></span>
+                                <span>Present</span>
+                            </div>
+                            <div class="flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-semibold">
+                                <span class="inline-flex size-3 rounded-full bg-rose-600"></span>
+                                <span>Absent (Ineligible)</span>
+                            </div>
+                            <button
+                                type="button"
+                                :disabled="!eligiblePresentStudents.length"
+                                class="inline-flex items-center gap-1.5 rounded-xl border border-primary bg-primary/10 px-3.5 py-1.5 text-xs font-bold text-primary transition-all hover:bg-primary hover:text-white disabled:opacity-50"
+                                title="Randomly pick an eligible present student"
+                                @click="pickRandomPresentStudent"
+                            >
+                                <Dices class="size-3.5" />
+                                <span>Pick Present Student ({{ eligiblePresentStudents.length }})</span>
+                            </button>
                         </div>
                     </div>
 
@@ -483,9 +574,13 @@ const ratingLabel = (val: number) => {
                                                               : getBlockDensity(block) === 'condensed'
                                                                 ? 'min-h-[3.75rem] rounded-lg p-1 sm:min-h-[4.25rem]'
                                                                 : 'min-h-[3rem] rounded-md p-0.5 sm:min-h-[3.5rem]',
-                                                        studentMap.get(Number(seat.student_id))?.called_today
-                                                            ? 'border-emerald-400/80 bg-[#164e3f] text-white shadow-md ring-2 ring-emerald-400 ring-offset-2 hover:brightness-105 dark:bg-[#134e48]'
-                                                            : 'shadow-xs border-[#1b5d4e]/80 bg-[#164e3f] text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-[#134e48]',
+                                                        studentMap.get(Number(seat.student_id))?.is_absent
+                                                            ? 'border-rose-500/80 bg-rose-950/80 text-white/90 shadow-xs ring-1 ring-rose-500/40 hover:brightness-110'
+                                                            : studentMap.get(Number(seat.student_id))?.called_today
+                                                              ? 'border-emerald-400/80 bg-[#164e3f] text-white shadow-md ring-2 ring-emerald-400 ring-offset-2 hover:brightness-105 dark:bg-[#134e48]'
+                                                              : (studentMap.get(Number(seat.student_id))?.absent_count ?? 0) >= 3
+                                                                ? 'shadow-xs border-rose-600/90 bg-[#881337] text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-110 dark:bg-[#4c0519]'
+                                                                : 'shadow-xs border-[#1b5d4e]/80 bg-[#164e3f] text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-[#134e48]',
                                                     ]"
                                                 >
                                                     <!-- Quick Actions on Hover / Top Bar -->
@@ -509,16 +604,19 @@ const ratingLabel = (val: number) => {
                                                     >
                                                         <!-- Scaled Photo / Avatar -->
                                                         <div
-                                                            class="shadow-xs flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/20 ring-1 ring-white/25 sm:ring-2"
-                                                            :class="
+                                                            class="shadow-xs flex shrink-0 items-center justify-center overflow-hidden rounded-full ring-1 sm:ring-2"
+                                                            :class="[
+                                                                studentMap.get(Number(seat.student_id))?.is_absent || (studentMap.get(Number(seat.student_id))?.absent_count ?? 0) >= 3
+                                                                    ? 'bg-rose-500/20 ring-rose-400'
+                                                                    : 'bg-white/20 ring-white/25',
                                                                 getBlockDensity(block) === 'spacious'
                                                                     ? 'size-10 sm:size-11'
                                                                     : getBlockDensity(block) === 'compact'
                                                                       ? 'size-7 sm:size-8'
                                                                       : getBlockDensity(block) === 'condensed'
                                                                         ? 'size-5 sm:size-6'
-                                                                        : 'size-4 sm:size-5'
-                                                            "
+                                                                        : 'size-4 sm:size-5',
+                                                            ]"
                                                         >
                                                             <img
                                                                 v-if="studentMap.get(Number(seat.student_id))?.photo_url"
@@ -555,9 +653,9 @@ const ratingLabel = (val: number) => {
                                                                         ? 'mt-0.5 max-w-[3.75rem] text-[8px] sm:text-[8.5px]'
                                                                         : 'mt-0.25 max-w-[2.75rem] text-[7px]'
                                                             "
-                                                            :title="studentMap.get(Number(seat.student_id))?.full_name || '—'"
+                                                            :title="studentMap.get(Number(seat.student_id)) ? `${studentMap.get(Number(seat.student_id))!.last_name}, ${studentMap.get(Number(seat.student_id))!.first_name}` : '—'"
                                                         >
-                                                            {{ studentMap.get(Number(seat.student_id))?.full_name || '—' }}
+                                                            {{ studentMap.get(Number(seat.student_id)) ? `${studentMap.get(Number(seat.student_id))!.last_name}, ${studentMap.get(Number(seat.student_id))!.first_name}` : '—' }}
                                                         </span>
 
                                                         <!-- Seat Label & Recitation Status -->
@@ -575,7 +673,19 @@ const ratingLabel = (val: number) => {
                                                         >
                                                             <span>{{ seat.label }}</span>
                                                             <span
-                                                                v-if="studentMap.get(Number(seat.student_id))?.today_recitation"
+                                                                v-if="(studentMap.get(Number(seat.student_id))?.absent_count ?? 0) >= 3"
+                                                                class="rounded bg-rose-500/40 px-1 py-0.2 text-[6.5px] font-bold text-rose-200 ring-1 ring-rose-400/50 sm:text-[7px]"
+                                                            >
+                                                                3+ ABS
+                                                            </span>
+                                                            <span
+                                                                v-if="studentMap.get(Number(seat.student_id))?.is_absent"
+                                                                class="font-bold text-rose-300"
+                                                            >
+                                                                · ABSENT
+                                                            </span>
+                                                            <span
+                                                                v-else-if="studentMap.get(Number(seat.student_id))?.today_recitation"
                                                                 class="font-bold text-emerald-300"
                                                             >
                                                                 · {{ studentMap.get(Number(seat.student_id))!.today_recitation!.score }}/10
@@ -585,6 +695,12 @@ const ratingLabel = (val: number) => {
                                                                 class="font-bold text-emerald-300"
                                                             >
                                                                 · Scored
+                                                            </span>
+                                                            <span
+                                                                v-else-if="studentMap.get(Number(seat.student_id))?.attendance_status === 'late'"
+                                                                class="font-bold text-amber-300"
+                                                            >
+                                                                · Late
                                                             </span>
                                                         </div>
                                                     </button>
@@ -791,6 +907,7 @@ const ratingLabel = (val: number) => {
                                 >
                                     <th class="rounded-l-lg px-4 py-3">Chair</th>
                                     <th class="px-4 py-3">Student</th>
+                                    <th class="px-4 py-3 text-center">Attendance Today</th>
                                     <th class="px-4 py-3 text-center">Sessions Logged</th>
                                     <th class="px-4 py-3 text-center">Avg Accuracy</th>
                                     <th class="px-4 py-3 text-center">Avg Delivery</th>
@@ -816,6 +933,32 @@ const ratingLabel = (val: number) => {
                                     <td class="px-4 py-3">
                                         <span class="block font-medium text-foreground">{{ student.full_name }}</span>
                                         <span class="font-mono text-xs text-muted-foreground">{{ student.student_number }}</span>
+                                    </td>
+                                    <td class="px-4 py-3 text-center">
+                                        <span
+                                            v-if="student.is_absent"
+                                            class="inline-flex items-center gap-1 rounded-full border border-rose-500/30 bg-rose-500/10 px-2.5 py-0.5 text-xs font-bold text-rose-700 dark:text-rose-400"
+                                        >
+                                            <UserX class="size-3" /> Absent
+                                        </span>
+                                        <span
+                                            v-else-if="student.attendance_status === 'late'"
+                                            class="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-xs font-bold text-amber-700 dark:text-amber-400"
+                                        >
+                                            <Clock class="size-3" /> Late
+                                        </span>
+                                        <span
+                                            v-else-if="student.is_present"
+                                            class="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-400"
+                                        >
+                                            <UserCheck class="size-3" /> Present
+                                        </span>
+                                        <span
+                                            v-else
+                                            class="inline-flex items-center gap-1 rounded-full border border-border/80 bg-secondary/50 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground"
+                                        >
+                                            No roll call
+                                        </span>
                                     </td>
                                     <td class="px-4 py-3 text-center">
                                         <button
@@ -862,6 +1005,7 @@ const ratingLabel = (val: number) => {
                                                 <span>Logs</span>
                                             </button>
                                             <button
+                                                v-if="!student.is_absent"
                                                 type="button"
                                                 class="inline-flex h-8 items-center gap-1 rounded-lg px-3 text-xs font-bold transition-all hover:scale-105"
                                                 :class="[
@@ -874,6 +1018,13 @@ const ratingLabel = (val: number) => {
                                                 <Mic class="size-3" />
                                                 <span>{{ student.called_today ? 'Update Score' : 'Score Oral' }}</span>
                                             </button>
+                                            <span
+                                                v-else
+                                                class="inline-flex h-8 items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 text-xs font-semibold text-rose-600 dark:text-rose-400"
+                                                title="Marked absent in attendance - ineligible for oral points"
+                                            >
+                                                <UserX class="size-3" /> Ineligible
+                                            </span>
                                         </div>
                                     </td>
                                 </tr>
@@ -931,6 +1082,17 @@ const ratingLabel = (val: number) => {
                 <p class="mt-1 text-xs text-muted-foreground">
                     Chair {{ scoringStudent.seat_label || 'Unassigned' }} · {{ scoringStudent.student_number }}
                 </p>
+
+                <!-- Absent Ineligible Warning Banner -->
+                <div v-if="scoringStudent.is_absent" class="mt-4 rounded-2xl border border-rose-500/40 bg-rose-500/10 p-4 text-xs text-rose-700 dark:text-rose-400">
+                    <div class="flex items-center gap-2 font-bold">
+                        <AlertTriangle class="size-4 shrink-0 text-rose-600 dark:text-rose-400" />
+                        <span>Ineligible: Student marked ABSENT in roll call</span>
+                    </div>
+                    <p class="mt-1 text-[11px] text-rose-600/90 dark:text-rose-300/90">
+                        Only students who are present can receive points for oral recitation. Please update attendance first if this student was present.
+                    </p>
+                </div>
 
                 <!-- Date Picker for Recitation -->
                 <div class="mt-4 flex items-center gap-2">
@@ -1083,8 +1245,12 @@ const ratingLabel = (val: number) => {
                         >
                             Cancel
                         </button>
-                        <button type="submit" :disabled="scoreForm.processing" class="ink-button !h-10 !rounded-xl !px-5 text-xs font-bold">
-                            {{ scoreForm.processing ? 'Saving…' : scoringStudent.called_today ? 'Update Score' : 'Save Score' }}
+                        <button
+                            type="submit"
+                            :disabled="scoreForm.processing || scoringStudent.is_absent"
+                            class="ink-button !h-10 !rounded-xl !px-5 text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {{ scoreForm.processing ? 'Saving…' : scoringStudent.is_absent ? 'Ineligible (Absent)' : scoringStudent.called_today ? 'Update Score' : 'Save Score' }}
                         </button>
                     </div>
                 </form>
@@ -1475,6 +1641,93 @@ const ratingLabel = (val: number) => {
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        <!-- Random Present Student Picker Modal -->
+        <div
+            v-if="showRandomPicker"
+            class="fixed inset-0 z-50 grid place-items-center bg-zinc-950/70 p-4 backdrop-blur-md duration-200 animate-in fade-in"
+            @click.self="closeRandomPicker"
+        >
+            <div
+                class="paper-card relative w-full max-w-md overflow-hidden border-border/90 p-8 text-center shadow-2xl duration-200 animate-in zoom-in-95"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Random present student selector"
+            >
+                <button
+                    type="button"
+                    class="absolute right-4 top-4 grid size-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                    @click="closeRandomPicker"
+                >
+                    <X class="size-4" />
+                </button>
+
+                <div class="inline-flex size-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                    <Sparkles class="size-7 animate-pulse" />
+                </div>
+
+                <h3 class="mt-4 text-xl font-bold tracking-tight text-foreground">Oral Recitation Call</h3>
+                <p class="mt-1 text-xs text-muted-foreground">
+                    Selecting from <span class="font-bold text-foreground">{{ eligiblePresentStudents.length }}</span> eligible present students
+                </p>
+
+                <!-- Rolling Animation / Selected Student Display -->
+                <div class="my-6 rounded-2xl border border-border/80 bg-secondary/30 p-6">
+                    <div v-if="isRolling" class="flex flex-col items-center justify-center space-y-3">
+                        <div class="size-16 animate-bounce rounded-full bg-primary/20 p-2 ring-4 ring-primary/20">
+                            <div class="grid size-full place-items-center rounded-full bg-primary text-xl font-black text-white">?</div>
+                        </div>
+                        <p class="font-mono text-lg font-bold text-foreground animate-pulse">{{ rollingCandidateName }}</p>
+                        <p class="text-xs text-muted-foreground">Selecting present student…</p>
+                    </div>
+
+                    <div v-else-if="randomPickedStudent" class="flex flex-col items-center justify-center space-y-3">
+                        <div class="size-20 overflow-hidden rounded-full bg-emerald-500/20 ring-4 ring-emerald-500/40">
+                            <img
+                                v-if="randomPickedStudent.photo_url"
+                                :src="randomPickedStudent.photo_url"
+                                :alt="randomPickedStudent.full_name"
+                                class="size-full object-cover"
+                            />
+                            <div v-else class="grid size-full place-items-center bg-emerald-600 text-2xl font-black text-white">
+                                {{ initials(randomPickedStudent.full_name) }}
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="text-xl font-black text-foreground">{{ randomPickedStudent.full_name }}</h4>
+                            <p class="font-mono text-xs text-muted-foreground">
+                                Chair {{ randomPickedStudent.seat_label || 'Unassigned' }} · {{ randomPickedStudent.student_number }}
+                            </p>
+                        </div>
+                        <div class="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                            <UserCheck class="size-3.5" /> Present & Ready to Recite
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer Actions -->
+                <div class="flex items-center justify-center gap-3">
+                    <button
+                        type="button"
+                        class="shadow-xs inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-4 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
+                        :disabled="isRolling"
+                        @click="pickRandomPresentStudent"
+                    >
+                        <RotateCcw class="size-3.5" />
+                        <span>Spin Again</span>
+                    </button>
+                    <button
+                        v-if="randomPickedStudent"
+                        type="button"
+                        class="ink-button !h-10 !rounded-xl !px-5 text-xs font-bold"
+                        @click="scoreFromRandomPicker(randomPickedStudent)"
+                    >
+                        <Mic class="size-3.5" />
+                        <span>Grade Recitation</span>
+                    </button>
+                </div>
             </div>
         </div>
     </AppLayout>

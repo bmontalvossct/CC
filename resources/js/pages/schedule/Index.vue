@@ -572,7 +572,7 @@ const daysWithEvents = computed(() => {
                                     <!-- Quick Actions -->
                                     <div class="flex items-center gap-1.5">
                                         <Link
-                                            :href="`/attendance/${cls.section_id}?date=${day.date}`"
+                                            :href="`/sections/${cls.section_id}/attendance?date=${day.date}`"
                                             class="rounded-lg border border-border bg-background px-2.5 py-1 text-[11px] font-bold text-foreground hover:bg-secondary shadow-2xs"
                                         >
                                             {{ cls.is_conducted ? 'Attendance' : 'Roll Call' }}
@@ -711,7 +711,7 @@ const daysWithEvents = computed(() => {
                             <!-- 1-Click Action Buttons -->
                             <div class="mt-3 flex flex-wrap items-center gap-2 pt-2">
                                 <Link
-                                    :href="`/attendance/${cls.section_id}?date=${selectedDay.date}`"
+                                    :href="`/sections/${cls.section_id}/attendance?date=${selectedDay.date}`"
                                     class="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground transition-colors hover:bg-secondary shadow-2xs"
                                 >
                                     {{ cls.is_conducted ? 'View Attendance' : 'Take Attendance' }}
@@ -723,13 +723,13 @@ const daysWithEvents = computed(() => {
                                     Seat Plan & Floor
                                 </Link>
                                 <Link
-                                    :href="`/sections/${cls.section_id}/oral-participation`"
+                                    :href="`/sections/${cls.section_id}/recitation`"
                                     class="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground transition-colors hover:bg-secondary shadow-2xs"
                                 >
                                     Oral Recitation
                                 </Link>
                                 <Link
-                                    :href="`/assessments/sections/${cls.section_id}/gradebook`"
+                                    :href="`/sections/${cls.section_id}/reports/gradebook`"
                                     class="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground transition-colors hover:bg-secondary shadow-2xs"
                                 >
                                     Gradebook

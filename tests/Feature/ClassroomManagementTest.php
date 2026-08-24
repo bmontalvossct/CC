@@ -395,4 +395,13 @@ class ClassroomManagementTest extends TestCase
 
         $this->assertDatabaseHas('sections', ['id' => $section->id]);
     }
+
+    public function test_teacher_can_view_create_section_page(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get(route('sections.create'));
+
+        $response->assertOk();
+    }
 }

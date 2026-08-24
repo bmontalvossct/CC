@@ -333,4 +333,205 @@ class ProjectWorkflowTest extends TestCase
         $this->assertDatabaseMissing('projects', ['id' => $project->id]);
         Storage::disk('local')->assertMissing($project->attachment_path);
     }
+
+    public function test_teacher_can_create_individual_reporting_activity_with_slots_for_all_active_students(): void
+    {
+        $user = User::factory()->create();
+        $section = $this->createSection($user);
+        $this->createStudents($section, 5);
+
+        $res = $this->actingAs($user)->post(route('sections.projects.store', $section), [
+            'type' => 'reporting',
+            'format' => 'individual',
+            'title' => 'Individual Research Presentations',
+            'description' => 'Each student delivers a 5-minute presentation.',
+            'conducted_on' => '2026-08-25',
+            'max_points' => 100,
+        ]);
+
+        $project = Project::where('type', 'reporting')->where('format', 'individual')->firstOrFail();
+        $res->assertRedirect(route('sections.projects.show', [$section, $project]));
+
+        $this->assertSame('individual', $project->format);
+        $this->assertSame(5, $project->groups()->count());
+
+        foreach ($project->groups as $group) {
+            $this->assertSame(1, $group->members()->count());
+        }
+    }
+
+    public function test_teacher_can_save_all_topics_and_scores_in_bulk(): void
+    {
+        $user = User::factory()->create();
+        $section = $this->createSection($user);
+        $students = $this->createStudents($section, 3);
+
+        $project = Project::create([
+            'section_id' => $section->id,
+            'type' => 'reporting',
+            'format' => 'individual',
+            'title' => 'Individual Presentations',
+            'max_points' => 100,
+        ]);
+
+        $g1 = $project->groups()->create(['group_number' => 1, 'name' => 'Presenter 1', 'order_column' => 1]);
+        $m1 = $g1->members()->create(['student_id' => $students[0]->id]);
+
+        $g2 = $project->groups()->create(['group_number' => 2, 'name' => 'Presenter 2', 'order_column' => 2]);
+        $m2 = $g2->members()->create(['student_id' => $students[1]->id]);
+
+        $g3 = $project->groups()->create(['group_number' => 3, 'name' => 'Presenter 3', 'order_column' => 3]);
+        $m3 = $g3->members()->create(['student_id' => $students[2]->id]);
+
+        $payload = [
+            'groups' => [
+                ['id' => $g1->id, 'topic' => 'Quantum Computing Basics', 'score' => 95, 'notes' => 'Excellent delivery'],
+                ['id' => $g2->id, 'topic' => 'Neural Networks in Healthcare', 'score' => 88, 'notes' => 'Good slides'],
+                ['id' => $g3->id, 'topic' => 'Cybersecurity Incident Response', 'score' => 92, 'notes' => 'Great Q&A'],
+            ],
+            'members' => [
+                ['id' => $m1->id, 'score' => 95, 'notes' => 'Self-motivated'],
+                ['id' => $m2->id, 'score' => 88, 'notes' => 'Clear speech'],
+                ['id' => $m3->id, 'score' => 92, 'notes' => 'Thorough analysis'],
+            ],
+        ];
+
+        $response = $this->actingAs($user)->postJson(route('sections.projects.save-all', [$section, $project]), $payload);
+
+        $response->assertOk()->assertJson(['success' => true]);
+
+        $this->assertSame('Quantum Computing Basics', $g1->fresh()->topic);
+        $this->assertEquals(95, $g1->fresh()->score);
+        $this->assertSame('Neural Networks in Healthcare', $g2->fresh()->topic);
+        $this->assertEquals(88, $g2->fresh()->score);
+        $this->assertSame('Cybersecurity Incident Response', $g3->fresh()->topic);
+        $this->assertEquals(92, $g3->fresh()->score);
+
+        $this->assertEquals(95, $m1->fresh()->score);
+        $this->assertEquals(88, $m2->fresh()->score);
+        $this->assertEquals(92, $m3->fresh()->score);
+    }
+
+    public function test_teacher_can_save_optional_description_alongside_topic(): void
+    {
+        $user = User::factory()->create();
+        $section = $this->createSection($user);
+
+        $project = Project::create([
+            'section_id' => $section->id,
+            'type' => 'reporting',
+            'format' => 'group',
+            'title' => 'System Analysis Reporting',
+        ]);
+
+        $group = $project->groups()->create([
+            'group_number' => 1,
+            'name' => 'Group 1',
+            'topic' => 'Database Design',
+            'description' => 'Cover 3NF, ERD diagrams, and PostgreSQL indexing strategies',
+        ]);
+
+        $this->assertSame('Database Design', $group->topic);
+        $this->assertSame('Cover 3NF, ERD diagrams, and PostgreSQL indexing strategies', $group->description);
+
+        // Update via updateGroup endpoint
+        $this->actingAs($user)->patchJson(route('sections.projects.groups.update', [$section, $project, $group]), [
+            'name' => 'Group 1 Revised',
+            'topic' => 'Database Optimization',
+            'description' => 'Cover query plans, indexes, and caching',
+        ])->assertOk();
+
+        $group->refresh();
+        $this->assertSame('Database Optimization', $group->topic);
+        $this->assertSame('Cover query plans, indexes, and caching', $group->description);
+    }
+
+    public function test_teacher_can_export_individual_reporting_to_csv(): void
+    {
+        $user = User::factory()->create();
+        $section = $this->createSection($user);
+        $students = $this->createStudents($section, 2);
+
+        $project = Project::create([
+            'section_id' => $section->id,
+            'type' => 'reporting',
+            'format' => 'individual',
+            'title' => 'Individual Research Presentations',
+            'max_points' => 100,
+        ]);
+
+        $g1 = $project->groups()->create([
+            'group_number' => 1,
+            'name' => 'Presenter 1',
+            'topic' => 'AI in Medicine',
+            'description' => 'Focus on diagnostic algorithms',
+            'score' => 95,
+            'order_column' => 1,
+        ]);
+        $g1->members()->create(['student_id' => $students[0]->id, 'score' => 95]);
+
+        $g2 = $project->groups()->create([
+            'group_number' => 2,
+            'name' => 'Presenter 2',
+            'topic' => 'Quantum Cryptography',
+            'description' => null,
+            'score' => 90,
+            'order_column' => 2,
+        ]);
+        $g2->members()->create(['student_id' => $students[1]->id, 'score' => 90]);
+
+        $response = $this->actingAs($user)->get(route('sections.projects.export', [$section, $project]));
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'text/csv; charset=UTF-8');
+
+        $content = $response->streamedContent();
+        $this->assertStringContainsString('Student Number', $content);
+        $this->assertStringContainsString('Presentation Topic', $content);
+        $this->assertStringContainsString('Topic Description', $content);
+        $this->assertStringContainsString('AI in Medicine', $content);
+        $this->assertStringContainsString('Focus on diagnostic algorithms', $content);
+        $this->assertStringContainsString('Quantum Cryptography', $content);
+        $this->assertStringContainsString('95', $content);
+    }
+
+    public function test_teacher_can_export_group_reporting_to_csv(): void
+    {
+        $user = User::factory()->create();
+        $section = $this->createSection($user);
+        $students = $this->createStudents($section, 2);
+
+        $project = Project::create([
+            'section_id' => $section->id,
+            'type' => 'reporting',
+            'format' => 'group',
+            'title' => 'Group Architecture Reporting',
+            'max_points' => 50,
+        ]);
+
+        $group = $project->groups()->create([
+            'group_number' => 1,
+            'name' => 'Architecture Team',
+            'topic' => 'Microservices with Kubernetes',
+            'description' => 'Explain service meshes and ingress controllers',
+            'score' => 48,
+            'order_column' => 1,
+        ]);
+        $group->members()->create(['student_id' => $students[0]->id, 'role' => 'Lead', 'score' => 50]);
+        $group->members()->create(['student_id' => $students[1]->id, 'role' => 'Presenter', 'score' => 48]);
+
+        $response = $this->actingAs($user)->get(route('sections.projects.export', [$section, $project]));
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'text/csv; charset=UTF-8');
+
+        $content = $response->streamedContent();
+        $this->assertStringContainsString('Group Name', $content);
+        $this->assertStringContainsString('Group Topic', $content);
+        $this->assertStringContainsString('Topic Description', $content);
+        $this->assertStringContainsString('Architecture Team', $content);
+        $this->assertStringContainsString('Microservices with Kubernetes', $content);
+        $this->assertStringContainsString('Explain service meshes and ingress controllers', $content);
+        $this->assertStringContainsString('Lead', $content);
+    }
 }

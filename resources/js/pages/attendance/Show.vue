@@ -6,7 +6,15 @@ import { ArrowLeft, Check, FileCheck, LayoutGrid, LoaderCircle, RotateCcw, Searc
 import { computed, ref } from 'vue';
 
 type RecordData = { id: number; status: 'present' | 'absent' | 'late'; attended_minutes: number };
-type Student = { id: number; student_number: string; name: string; photo_url: string | null };
+type Student = {
+    id: number;
+    student_number: string;
+    first_name?: string;
+    last_name?: string;
+    name: string;
+    photo_url: string | null;
+    absent_count?: number;
+};
 type Seat = {
     id: number;
     label: string;
@@ -95,7 +103,14 @@ const rosterStudents = computed(() => {
         });
     }
 
-    return list.sort((a, b) => a.student.name.localeCompare(b.student.name));
+    return list.sort((a, b) => {
+        if (a.student.last_name && b.student.last_name) {
+            const cmp = a.student.last_name.localeCompare(b.student.last_name);
+            if (cmp !== 0) return cmp;
+            return (a.student.first_name || '').localeCompare(b.student.first_name || '');
+        }
+        return a.student.name.localeCompare(b.student.name);
+    });
 });
 
 // List View Search and Filter
@@ -122,8 +137,27 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: props.session.session_date, href: `/attendance/${props.session.id}` },
 ];
 
+const formatStudentDisplayName = (student: Student | { name?: string; first_name?: string; last_name?: string } | null | undefined) => {
+    if (!student) return '—';
+    if (student.last_name && student.first_name) {
+        return `${student.last_name}, ${student.first_name}`;
+    }
+    if (student.last_name) return student.last_name;
+    if (student.name) {
+        if (student.name.includes(',')) return student.name;
+        const parts = student.name.trim().split(/\s+/);
+        if (parts.length > 1) {
+            const last = parts.pop();
+            return `${last}, ${parts.join(' ')}`;
+        }
+        return student.name;
+    }
+    return student.first_name || '—';
+};
+
 const initials = (name: string) =>
-    name
+    (name || '')
+        .replace(/,/g, ' ')
         .split(/[ ,]+/)
         .filter(Boolean)
         .slice(0, 2)
@@ -441,7 +475,7 @@ function deleteSession() {
                                                 <button
                                                     type="button"
                                                     :disabled="seat.is_disabled || !seat.record"
-                                                    :aria-label="seat.student ? `${seat.student.name}, ${seat.record?.status}` : `${seat.label}, empty`"
+                                                    :aria-label="seat.student ? `${formatStudentDisplayName(seat.student)}, ${seat.record?.status}` : `${seat.label}, empty`"
                                                     :aria-pressed="seat.record?.status === 'present'"
                                                     class="group relative flex w-full flex-1 flex-col items-center justify-center border text-center transition-all duration-150 focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-default"
                                                     :class="[
@@ -456,11 +490,17 @@ function deleteSession() {
                                                             ? 'cursor-not-allowed border-transparent bg-muted/20 opacity-30'
                                                             : !seat.student
                                                               ? 'border-2 border-slate-200/90 bg-card text-muted-foreground hover:border-primary/50 dark:border-border/80'
-                                                              : seat.record?.status === 'present'
-                                                                ? 'shadow-xs border-[#1b5d4e]/80 bg-[#164e3f] text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-[#134e48]'
-                                                                : seat.record?.status === 'late'
-                                                                  ? 'shadow-xs border-amber-600/80 bg-amber-800 text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-amber-900'
-                                                                  : 'shadow-xs border-rose-600/80 bg-rose-900 text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-rose-950',
+                                                              : (seat.student.absent_count ?? 0) >= 3
+                                                                ? (seat.record?.status === 'present'
+                                                                    ? 'shadow-xs border-rose-500 bg-[#164e3f] text-white ring-2 ring-rose-400 hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-[#134e48]'
+                                                                    : seat.record?.status === 'late'
+                                                                      ? 'shadow-xs border-rose-500 bg-amber-800 text-white ring-2 ring-rose-400 hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-amber-900'
+                                                                      : 'shadow-xs border-rose-400 bg-[#500724] text-white ring-2 ring-rose-500 hover:-translate-y-0.5 hover:shadow-md hover:brightness-110 dark:bg-[#4c0519]')
+                                                                : seat.record?.status === 'present'
+                                                                  ? 'shadow-xs border-[#1b5d4e]/80 bg-[#164e3f] text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-[#134e48]'
+                                                                  : seat.record?.status === 'late'
+                                                                    ? 'shadow-xs border-amber-600/80 bg-amber-800 text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-amber-900'
+                                                                    : 'shadow-xs border-rose-600/80 bg-rose-900 text-white hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 dark:bg-rose-950',
                                                     ]"
                                                     @click="toggle(seat.record)"
                                                     @dragover.prevent
@@ -469,21 +509,22 @@ function deleteSession() {
                                                     <template v-if="seat.student">
                                                         <!-- Scaled Photo / Avatar -->
                                                         <div
-                                                            class="shadow-xs flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/20 ring-1 ring-white/25 sm:ring-2"
-                                                            :class="
+                                                            class="shadow-xs flex shrink-0 items-center justify-center overflow-hidden rounded-full ring-1 sm:ring-2"
+                                                            :class="[
+                                                                (seat.student.absent_count ?? 0) >= 3 ? 'bg-rose-500/30 ring-rose-400/80' : 'bg-white/20 ring-white/25',
                                                                 getBlockDensity(block) === 'spacious'
                                                                     ? 'size-10 sm:size-11'
                                                                     : getBlockDensity(block) === 'compact'
                                                                       ? 'size-7 sm:size-8'
                                                                       : getBlockDensity(block) === 'condensed'
                                                                         ? 'size-5 sm:size-6'
-                                                                        : 'size-4 sm:size-5'
-                                                            "
+                                                                        : 'size-4 sm:size-5',
+                                                            ]"
                                                         >
                                                             <img
                                                                 v-if="seat.student.photo_url"
                                                                 :src="seat.student.photo_url"
-                                                                :alt="seat.student.name"
+                                                                :alt="formatStudentDisplayName(seat.student)"
                                                                 class="size-full object-cover"
                                                             />
                                                             <span
@@ -499,11 +540,11 @@ function deleteSession() {
                                                                             : 'text-[7px] font-bold'
                                                                 "
                                                             >
-                                                                {{ initials(seat.student.name) }}
+                                                                {{ initials(formatStudentDisplayName(seat.student)) }}
                                                             </span>
                                                         </div>
 
-                                                        <!-- Complete Name -->
+                                                        <!-- Complete Name (Full Last Name First) -->
                                                         <span
                                                             class="block w-full truncate text-center font-bold uppercase leading-tight tracking-tight text-white"
                                                             :class="
@@ -515,9 +556,9 @@ function deleteSession() {
                                                                         ? 'mt-0.5 max-w-[3.75rem] text-[8px] sm:text-[8.5px]'
                                                                         : 'mt-0.25 max-w-[2.75rem] text-[7px]'
                                                             "
-                                                            :title="seat.student.name"
+                                                            :title="formatStudentDisplayName(seat.student)"
                                                         >
-                                                            {{ seat.student.name }}
+                                                            {{ formatStudentDisplayName(seat.student) }}
                                                         </span>
 
                                                         <!-- Seat Label & Status -->
@@ -534,6 +575,12 @@ function deleteSession() {
                                                             "
                                                         >
                                                             <span>{{ seat.label }}</span>
+                                                            <span
+                                                                v-if="(seat.student.absent_count ?? 0) >= 3"
+                                                                class="rounded bg-rose-500/40 px-1 py-0.2 text-[6.5px] font-bold text-rose-200 ring-1 ring-rose-400/50 sm:text-[7px]"
+                                                            >
+                                                                3+ ABS
+                                                            </span>
                                                             <span v-if="seat.record?.status === 'late'" class="font-bold text-amber-300">· LATE</span>
                                                             <span v-else-if="seat.record?.status === 'absent'" class="font-bold text-rose-300">· ABS</span>
                                                             <LoaderCircle v-if="saveState[seat.record!.id] === 'saving'" class="size-3 animate-spin text-white" />
@@ -617,16 +664,34 @@ function deleteSession() {
                         <div
                             v-for="item in localUnseated"
                             :key="item.student.id"
-                            class="flex items-center justify-between rounded-xl border border-border/80 bg-secondary/30 p-3"
+                            class="flex items-center justify-between rounded-xl border p-3"
+                            :class="
+                                (item.student.absent_count ?? 0) >= 3
+                                    ? 'border-rose-500/40 bg-rose-500/5 dark:border-rose-500/30 dark:bg-rose-950/20'
+                                    : 'border-border/80 bg-secondary/30'
+                            "
                         >
                             <div class="flex items-center gap-2.5">
                                 <span
-                                    class="flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-card text-xs font-medium"
+                                    class="flex size-8 shrink-0 items-center justify-center rounded-full border text-xs font-medium"
+                                    :class="
+                                        (item.student.absent_count ?? 0) >= 3
+                                            ? 'border-rose-500/50 bg-rose-500/20 text-rose-700 dark:text-rose-400'
+                                            : 'border-border bg-card'
+                                    "
                                 >
-                                    {{ initials(item.student.name) }}
+                                    {{ initials(formatStudentDisplayName(item.student)) }}
                                 </span>
                                 <div>
-                                    <p class="text-sm font-medium text-foreground">{{ item.student.name }}</p>
+                                    <div class="flex items-center gap-1.5">
+                                        <p class="text-sm font-medium text-foreground">{{ formatStudentDisplayName(item.student) }}</p>
+                                        <span
+                                            v-if="(item.student.absent_count ?? 0) >= 3"
+                                            class="rounded bg-rose-500/20 px-1.5 py-0.2 text-[9px] font-bold text-rose-700 dark:text-rose-400"
+                                        >
+                                            3+ ABS
+                                        </span>
+                                    </div>
                                     <p class="font-mono text-xs text-muted-foreground">{{ item.student.student_number }}</p>
                                 </div>
                             </div>
@@ -785,11 +850,24 @@ function deleteSession() {
                                             />
                                             <span
                                                 v-else
-                                                class="flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-card text-xs font-medium"
+                                                class="flex size-8 shrink-0 items-center justify-center rounded-full border text-xs font-medium"
+                                                :class="
+                                                    (item.student.absent_count ?? 0) >= 3
+                                                        ? 'border-rose-500/50 bg-rose-500/20 text-rose-700 dark:text-rose-400'
+                                                        : 'border-border bg-card'
+                                                "
                                             >
-                                                {{ initials(item.student.name) }}
+                                                {{ initials(formatStudentDisplayName(item.student)) }}
                                             </span>
-                                            <span class="text-base font-semibold text-foreground">{{ item.student.name }}</span>
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-base font-semibold text-foreground">{{ formatStudentDisplayName(item.student) }}</span>
+                                                <span
+                                                    v-if="(item.student.absent_count ?? 0) >= 3"
+                                                    class="inline-flex items-center gap-1 rounded-md border border-rose-500/30 bg-rose-500/15 px-2 py-0.5 text-xs font-bold text-rose-700 dark:text-rose-400"
+                                                >
+                                                    ⚠️ {{ item.student.absent_count }} Absences
+                                                </span>
+                                            </div>
                                         </div>
                                     </td>
                                     <td class="px-4 py-3 font-mono text-sm text-muted-foreground">

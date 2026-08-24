@@ -23,6 +23,7 @@ import {
     FileDown,
     FileSpreadsheet,
     FolderKanban,
+    Layers,
     MapPin,
     MessageSquare,
     Printer,
@@ -299,6 +300,14 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                             >
                                 <FolderKanban class="size-4 text-primary transition-colors group-hover:text-white" />
                                 <span>Projects & Groups</span>
+                            </Link>
+                            <Link
+                                :href="`/sections/${section.id}/modules`"
+                                prefetch="hover"
+                                class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            >
+                                <Layers class="size-4 text-primary transition-colors group-hover:text-white" />
+                                <span>Modules</span>
                             </Link>
                             <Link
                                 :href="`/sections/${section.id}/recitation`"
@@ -580,14 +589,24 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                         </div>
                     </div>
 
-                    <dl class="mt-8 grid grid-cols-2 gap-4 border-y border-dashed border-border py-5">
+                    <dl class="mt-8 grid grid-cols-3 gap-3 border-y border-dashed border-border py-5">
                         <div>
                             <dt class="text-xs font-medium text-muted-foreground">Current chair</dt>
                             <dd class="mt-1 font-mono text-sm font-medium text-primary">{{ selectedStudent.seat?.label || 'Unseated' }}</dd>
                         </div>
                         <div>
                             <dt class="text-xs font-medium text-muted-foreground">Section</dt>
-                            <dd class="mt-1 text-sm font-medium">{{ section.name }}</dd>
+                            <dd class="mt-1 text-sm font-medium truncate">{{ section.name }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs font-medium text-muted-foreground">Absences</dt>
+                            <dd
+                                class="mt-1 text-sm font-bold"
+                                :class="(selectedStudent.absent_count ?? 0) >= 3 ? 'text-rose-600 dark:text-rose-400' : 'text-foreground'"
+                            >
+                                {{ selectedStudent.absent_count ?? 0 }} / 3
+                                <span v-if="(selectedStudent.absent_count ?? 0) >= 3" class="block text-[10px] font-bold text-rose-600">Limit reached</span>
+                            </dd>
                         </div>
                     </dl>
 

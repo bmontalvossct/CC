@@ -301,5 +301,80 @@ class AttendanceTest extends TestCase
         $this->actingAs($outsider)->delete(route('attendance.sessions.destroy', $session))->assertForbidden();
         $this->assertDatabaseHas('attendance_sessions', ['id' => $session->id]);
     }
+
+    public function test_attendance_lists_and_sorts_students_by_last_name_first(): void
+    {
+        $teacher = User::factory()->create();
+        $term = AcademicTerm::create(['user_id' => $teacher->id, 'name' => 'First Semester', 'school_year' => '2026-2027', 'starts_on' => '2026-08-03', 'ends_on' => '2026-12-18']);
+        $section = Section::create(['user_id' => $teacher->id, 'academic_term_id' => $term->id, 'subject_code' => 'CS101', 'subject_title' => 'CompSci', 'name' => 'Sec 1', 'enrollment_open' => true]);
+
+        // Create students out of order
+        $studentZ = Student::create(['section_id' => $section->id, 'student_number' => '001', 'first_name' => 'Zoe', 'last_name' => 'Zack']);
+        $studentA = Student::create(['section_id' => $section->id, 'student_number' => '002', 'first_name' => 'Alice', 'last_name' => 'Adams']);
+        $studentM = Student::create(['section_id' => $section->id, 'student_number' => '003', 'first_name' => 'Michael', 'middle_name' => 'B.', 'last_name' => 'Miller']);
+
+        $session = AttendanceSession::create(['section_id' => $section->id, 'session_date' => '2026-08-10', 'starts_at' => '08:00', 'ends_at' => '09:00', 'duration_minutes' => 60]);
+        AttendanceRecord::create(['attendance_session_id' => $session->id, 'student_id' => $studentZ->id, 'status' => 'present', 'attended_minutes' => 60]);
+        AttendanceRecord::create(['attendance_session_id' => $session->id, 'student_id' => $studentA->id, 'status' => 'present', 'attended_minutes' => 60]);
+        AttendanceRecord::create(['attendance_session_id' => $session->id, 'student_id' => $studentM->id, 'status' => 'present', 'attended_minutes' => 60]);
+
+        // Check index page
+        $response = $this->actingAs($teacher)->get(route('attendance.sections.index', $section));
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('attendance/Index')
+            ->where('students.0.name', 'Adams, Alice')
+            ->where('students.1.name', 'Miller, Michael B.')
+            ->where('students.2.name', 'Zack, Zoe')
+            ->where('studentSummaries.0.name', 'Adams, Alice')
+            ->where('studentSummaries.1.name', 'Miller, Michael B.')
+            ->where('studentSummaries.2.name', 'Zack, Zoe')
+        );
+
+        // Check show page unseated sorting and format
+        $showResponse = $this->actingAs($teacher)->get(route('attendance.sessions.show', $session));
+        $showResponse->assertOk();
+        $showResponse->assertInertia(fn (Assert $page) => $page
+            ->component('attendance/Show')
+            ->where('unseated.0.student.name', 'Adams, Alice')
+            ->where('unseated.1.student.name', 'Miller, Michael B.')
+            ->where('unseated.2.student.name', 'Zack, Zoe')
+        );
+    }
+
+    public function test_attendance_and_section_show_include_absent_counts_for_students(): void
+    {
+        $teacher = User::factory()->create();
+        $term = AcademicTerm::create(['user_id' => $teacher->id, 'name' => 'First Semester', 'school_year' => '2026-2027', 'starts_on' => '2026-08-03', 'ends_on' => '2026-12-18']);
+        $section = Section::create(['user_id' => $teacher->id, 'academic_term_id' => $term->id, 'subject_code' => 'CS101', 'subject_title' => 'CompSci', 'name' => 'Sec 1', 'enrollment_open' => true]);
+
+        $student = Student::create(['section_id' => $section->id, 'student_number' => '2026-001', 'first_name' => 'John', 'last_name' => 'Doe']);
+
+        // Create 3 sessions with absent records for this student
+        foreach (['2026-08-10', '2026-08-11', '2026-08-12'] as $date) {
+            $sess = AttendanceSession::create(['section_id' => $section->id, 'session_date' => $date, 'starts_at' => '08:00', 'ends_at' => '09:00', 'duration_minutes' => 60]);
+            AttendanceRecord::create(['attendance_session_id' => $sess->id, 'student_id' => $student->id, 'status' => 'absent', 'attended_minutes' => 0]);
+        }
+
+        // 4th session live check
+        $liveSession = AttendanceSession::create(['section_id' => $section->id, 'session_date' => '2026-08-13', 'starts_at' => '08:00', 'ends_at' => '09:00', 'duration_minutes' => 60]);
+        AttendanceRecord::create(['attendance_session_id' => $liveSession->id, 'student_id' => $student->id, 'status' => 'present', 'attended_minutes' => 60]);
+
+        // Section show
+        $sectionResponse = $this->actingAs($teacher)->get(route('sections.show', $section));
+        $sectionResponse->assertOk();
+        $sectionResponse->assertInertia(fn (Assert $page) => $page
+            ->component('sections/Show')
+            ->where('section.students.0.absent_count', 3)
+        );
+
+        // Attendance show
+        $attendanceResponse = $this->actingAs($teacher)->get(route('attendance.sessions.show', $liveSession));
+        $attendanceResponse->assertOk();
+        $attendanceResponse->assertInertia(fn (Assert $page) => $page
+            ->component('attendance/Show')
+            ->where('unseated.0.student.absent_count', 3)
+        );
+    }
 }
 

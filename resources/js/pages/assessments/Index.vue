@@ -16,11 +16,12 @@ import {
     Users,
     X,
 } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 type Assessment = {
     id: number;
     type: 'activity' | 'quiz' | 'exam';
+    assessment_number?: string | null;
     title: string;
     conducted_on: string;
     max_points: string;
@@ -32,7 +33,9 @@ type Assessment = {
 
 type Project = {
     id: number;
-    type: 'project' | 'reporting';
+    type: 'project' | 'reporting' | 'group_activity';
+    project_number?: string | null;
+    format?: 'group' | 'individual';
     title: string;
     description: string | null;
     conducted_on: string | null;
@@ -61,7 +64,7 @@ const props = withDefaults(
 );
 
 const creating = ref(false);
-const creationMode = ref<'assessment' | 'project'>('assessment');
+const creationMode = ref<'assessment' | 'group_activity' | 'project'>('assessment');
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const projectFileInputRef = ref<HTMLInputElement | null>(null);
 
@@ -129,10 +132,14 @@ const openProjectPreview = (project: Project, e?: Event) => {
     previewTarget.value = {
         show: true,
         title: project.title,
-        fileName: project.attachment_name || 'Project Guidelines',
+        fileName: project.attachment_name || 'Attached Reference',
         fileUrl: `/sections/${props.section.id}/projects/${project.id}/attachment`,
         downloadUrl: `/sections/${props.section.id}/projects/${project.id}/attachment?download=1`,
     };
+};
+
+const closePreview = () => {
+    previewTarget.value.show = false;
 };
 
 const removeAttachment = () => {
@@ -150,9 +157,22 @@ const formatDate = (value: string | null) => {
     return new Intl.DateTimeFormat('en-PH', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'Asia/Manila' }).format(new Date(value));
 };
 
-// Form for standard assessments (Activity, Quiz, Exam)
+const getNextAssessmentNumber = (type: string) => {
+    const list = props.assessments.filter((a) => a.type === type);
+    const prefix = type.charAt(0).toUpperCase() + type.slice(1);
+    return `${prefix} ${list.length + 1}`;
+};
+
+const getNextProjectNumber = (type: string) => {
+    const list = (props.projects || []).filter((p) => p.type === type);
+    const prefix = type === 'group_activity' ? 'Activity' : type === 'reporting' ? 'Report' : 'Project';
+    return `${prefix} ${list.length + 1}`;
+};
+
+// Form for standard individual assessments (Activity, Quiz, Exam)
 const form = useForm({
     type: 'activity',
+    assessment_number: getNextAssessmentNumber('activity'),
     title: '',
     description: '',
     conducted_on: new Date().toISOString().slice(0, 10),
@@ -161,9 +181,18 @@ const form = useForm({
     attachment: null as File | null,
 });
 
-// Form for project / reporting
+watch(
+    () => form.type,
+    (newType) => {
+        form.assessment_number = getNextAssessmentNumber(newType);
+    },
+);
+
+// Form for project / reporting / group activity
 const projectForm = useForm({
-    type: 'reporting',
+    type: 'group_activity' as 'group_activity' | 'reporting' | 'project',
+    format: 'group' as 'group' | 'individual',
+    project_number: getNextProjectNumber('group_activity'),
     title: '',
     description: '',
     conducted_on: new Date().toISOString().slice(0, 10),
@@ -173,16 +202,42 @@ const projectForm = useForm({
     attachment: null as File | null,
 });
 
+watch(
+    () => projectForm.type,
+    (newType) => {
+        projectForm.project_number = getNextProjectNumber(newType);
+    },
+);
+
+const setCreationMode = (mode: 'assessment' | 'group_activity' | 'project') => {
+    creationMode.value = mode;
+    if (mode === 'group_activity') {
+        projectForm.type = 'group_activity';
+        projectForm.format = 'group';
+        projectForm.project_number = getNextProjectNumber('group_activity');
+    } else if (mode === 'project') {
+        projectForm.type = 'reporting';
+        projectForm.project_number = getNextProjectNumber('reporting');
+    }
+};
+
 const tabs = ['all', 'activity', 'quiz', 'exam', 'project'] as const;
 
 const filteredAssessments = computed(() => {
     if (props.filter === 'project') return [];
-    return props.assessments;
+    if (props.filter === 'all') return props.assessments;
+    return props.assessments.filter((a) => a.type === props.filter);
 });
 
 const filteredProjects = computed(() => {
     if (props.filter === 'quiz' || props.filter === 'exam') return [];
-    return props.projects;
+    if (props.filter === 'activity') {
+        return (props.projects || []).filter((p) => p.type === 'group_activity');
+    }
+    if (props.filter === 'project') {
+        return (props.projects || []).filter((p) => p.type === 'project' || p.type === 'reporting');
+    }
+    return props.projects || [];
 });
 
 const submitAssessment = () =>
@@ -192,6 +247,7 @@ const submitAssessment = () =>
         onSuccess: () => {
             creating.value = false;
             form.reset();
+            form.assessment_number = getNextAssessmentNumber(form.type);
             if (fileInputRef.value) fileInputRef.value.value = '';
         },
     });
@@ -203,6 +259,7 @@ const submitProject = () =>
         onSuccess: () => {
             creating.value = false;
             projectForm.reset();
+            projectForm.project_number = getNextProjectNumber(projectForm.type);
             if (projectFileInputRef.value) projectFileInputRef.value.value = '';
         },
     });
@@ -252,7 +309,17 @@ const submitProject = () =>
                             class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             @click="
                                 creating = true;
-                                creationMode = 'project';
+                                setCreationMode('group_activity');
+                            "
+                        >
+                            <Users class="size-4 text-primary transition-colors group-hover:text-white" />
+                            <span>New Group Activity</span>
+                        </button>
+                        <button
+                            class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            @click="
+                                creating = true;
+                                setCreationMode('project');
                             "
                         >
                             <FolderKanban class="size-4 text-primary transition-colors group-hover:text-white" />
@@ -262,7 +329,7 @@ const submitProject = () =>
                             class="ink-button !h-10 !rounded-xl"
                             @click="
                                 creating = true;
-                                creationMode = 'assessment';
+                                setCreationMode('assessment');
                             "
                         >
                             <Plus class="size-4" />
@@ -276,7 +343,7 @@ const submitProject = () =>
             <section v-if="creating" class="paper-card p-6 duration-200 animate-in fade-in zoom-in-95 md:p-8">
                 <div class="mb-5 flex flex-wrap items-center justify-between gap-4 border-b border-border/80 pb-4">
                     <div class="flex items-center gap-3">
-                        <div class="flex rounded-xl bg-secondary p-1">
+                        <div class="flex flex-wrap rounded-xl bg-secondary p-1">
                             <button
                                 type="button"
                                 class="rounded-lg px-3 py-1.5 text-xs font-bold transition-all"
@@ -285,9 +352,21 @@ const submitProject = () =>
                                         ? 'shadow-xs bg-card text-foreground'
                                         : 'text-muted-foreground hover:text-foreground'
                                 "
-                                @click="creationMode = 'assessment'"
+                                @click="setCreationMode('assessment')"
                             >
-                                Standard (Quiz / Activity / Exam)
+                                Standard (Quiz / Individual Activity / Exam)
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-lg px-3 py-1.5 text-xs font-bold transition-all"
+                                :class="
+                                    creationMode === 'group_activity'
+                                        ? 'shadow-xs bg-card text-foreground'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                "
+                                @click="setCreationMode('group_activity')"
+                            >
+                                Group Activity (Recorded in Activities)
                             </button>
                             <button
                                 type="button"
@@ -295,7 +374,7 @@ const submitProject = () =>
                                 :class="
                                     creationMode === 'project' ? 'shadow-xs bg-card text-foreground' : 'text-muted-foreground hover:text-foreground'
                                 "
-                                @click="creationMode = 'project'"
+                                @click="setCreationMode('project')"
                             >
                                 Group Project & Reporting
                             </button>
@@ -304,7 +383,7 @@ const submitProject = () =>
                     <button class="text-xs font-semibold text-muted-foreground hover:text-foreground" @click="creating = false">Cancel</button>
                 </div>
 
-                <!-- STANDARD ASSESSMENT FORM -->
+                <!-- STANDARD INDIVIDUAL ASSESSMENT FORM -->
                 <form v-if="creationMode === 'assessment'" class="grid gap-5 lg:grid-cols-12" @submit.prevent="submitAssessment">
                     <div
                         v-if="form.hasErrors"
@@ -325,15 +404,27 @@ const submitProject = () =>
                             v-model="form.type"
                             class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
                         >
-                            <option value="activity">Activity</option>
+                            <option value="activity">Individual Activity</option>
                             <option value="quiz">Quiz</option>
                             <option value="exam">Exam</option>
                         </select>
                         <small v-if="form.errors.type" class="mt-1 block text-xs text-rose-600">{{ form.errors.type }}</small>
                     </label>
 
+                    <label class="lg:col-span-3">
+                        <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                            {{ form.type === 'quiz' ? 'Quiz #' : form.type === 'exam' ? 'Exam #' : 'Activity #' }}
+                        </span>
+                        <input
+                            v-model="form.assessment_number"
+                            class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
+                            :placeholder="form.type === 'quiz' ? 'e.g. Quiz 1' : form.type === 'exam' ? 'e.g. Exam 1' : 'e.g. Activity 1'"
+                        />
+                        <small v-if="form.errors.assessment_number" class="mt-1 block text-xs text-rose-600">{{ form.errors.assessment_number }}</small>
+                    </label>
+
                     <label class="lg:col-span-6">
-                        <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Title</span>
+                        <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Title / Topic</span>
                         <input
                             v-model="form.title"
                             required
@@ -440,7 +531,7 @@ const submitProject = () =>
                     </div>
                 </form>
 
-                <!-- GROUP PROJECT & REPORTING FORM -->
+                <!-- GROUP ACTIVITY, PROJECT & REPORTING FORM -->
                 <form v-else class="grid gap-5 lg:grid-cols-12" @submit.prevent="submitProject">
                     <div
                         v-if="projectForm.hasErrors"
@@ -448,35 +539,73 @@ const submitProject = () =>
                     >
                         <div class="flex items-center gap-2 font-bold">
                             <AlertCircle class="size-4 shrink-0 text-rose-600 dark:text-rose-400" />
-                            <span>Unable to create group project. Please check the fields below:</span>
+                            <span>Unable to create group activity. Please check the fields below:</span>
                         </div>
                         <ul class="mt-1.5 list-inside list-disc space-y-0.5 pl-1 text-[11px]">
                             <li v-for="(err, key) in projectForm.errors" :key="key">{{ err }}</li>
                         </ul>
                     </div>
 
-                    <label class="lg:col-span-4">
-                        <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Activity Mode</span>
+                    <!-- Informational Banner for Group Activities -->
+                    <div
+                        v-if="projectForm.type === 'group_activity'"
+                        class="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-xs text-emerald-800 dark:text-emerald-300 lg:col-span-12"
+                    >
+                        <p class="font-bold">Group Activity (Recorded in Activities):</p>
+                        <p class="mt-0.5 text-[11px] leading-relaxed">
+                            Organize students into collaborative groups with assigned topics or tasks. All recorded group and member scores will be calculated directly under the <strong>Activities</strong> category in the Gradebook.
+                        </p>
+                    </div>
+
+                    <label :class="projectForm.type === 'reporting' ? 'lg:col-span-3' : 'lg:col-span-4'">
+                        <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Activity Type</span>
                         <select
                             v-model="projectForm.type"
                             class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
                         >
-                            <option value="reporting">Group Reporting (Manual topic per group)</option>
-                            <option value="project">Group Project (Unified topic & scope for all groups)</option>
+                            <option value="group_activity">Group Activity (Recorded in Activities)</option>
+                            <option value="reporting">Reporting (Presentations & Topics)</option>
+                            <option value="project">Project (Unified Scope & Deliverables)</option>
                         </select>
                         <small v-if="projectForm.errors.type" class="mt-1 block text-xs text-rose-600">{{ projectForm.errors.type }}</small>
                     </label>
 
-                    <label class="lg:col-span-8">
+                    <label v-if="projectForm.type === 'reporting'" class="lg:col-span-3">
+                        <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Reporting Format</span>
+                        <select
+                            v-model="projectForm.format"
+                            class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
+                        >
+                            <option value="group">Group (Students in groups)</option>
+                            <option value="individual">Individual (1 topic per student)</option>
+                        </select>
+                        <small v-if="projectForm.errors.format" class="mt-1 block text-xs text-rose-600">{{ projectForm.errors.format }}</small>
+                    </label>
+
+                    <label :class="projectForm.type === 'reporting' ? 'lg:col-span-2' : 'lg:col-span-3'">
+                        <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                            {{ projectForm.type === 'group_activity' ? 'Activity #' : projectForm.type === 'reporting' ? 'Report #' : 'Project #' }}
+                        </span>
+                        <input
+                            v-model="projectForm.project_number"
+                            class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
+                            :placeholder="projectForm.type === 'group_activity' ? 'e.g. Activity 1' : projectForm.type === 'reporting' ? 'e.g. Report 1' : 'e.g. Project 1'"
+                        />
+                        <small v-if="projectForm.errors.project_number" class="mt-1 block text-xs text-rose-600">{{ projectForm.errors.project_number }}</small>
+                    </label>
+
+                    <label :class="projectForm.type === 'reporting' ? 'lg:col-span-4' : 'lg:col-span-5'">
                         <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Title</span>
                         <input
                             v-model="projectForm.title"
                             required
                             class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
                             :placeholder="
-                                projectForm.type === 'reporting'
-                                    ? 'e.g. Chapter 5 Group Presentation Topics'
-                                    : 'e.g. Midterm System Architecture Project'
+                                projectForm.type === 'group_activity'
+                                    ? 'e.g. Laboratory Activity 1 - Data Structures'
+                                    : projectForm.type === 'reporting'
+                                      ? (projectForm.format === 'individual' ? 'e.g. Individual Research Presentations' : 'e.g. Chapter 5 Group Presentations')
+                                      : 'e.g. Midterm System Architecture Project'
                             "
                         />
                         <small v-if="projectForm.errors.title" class="mt-1 block text-xs text-rose-600">{{ projectForm.errors.title }}</small>
@@ -485,15 +614,23 @@ const submitProject = () =>
                     <label class="lg:col-span-12">
                         <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
                             {{
-                                projectForm.type === 'project'
-                                    ? 'Project Description & Objectives (Applies to all groups)'
-                                    : 'Reporting Guidelines / Instructions'
+                                projectForm.type === 'group_activity'
+                                    ? 'Group Activity Guidelines & Objectives (Applies to all groups)'
+                                    : projectForm.type === 'project'
+                                      ? 'Project Description & Objectives (Applies to all groups)'
+                                      : (projectForm.format === 'individual' ? 'Individual Presentation Guidelines / Instructions' : 'Group Reporting Guidelines / Instructions')
                             }}
                         </span>
                         <textarea
                             v-model="projectForm.description"
                             rows="2"
-                            placeholder="Instructions, guidelines, or scope details..."
+                            :placeholder="
+                                projectForm.type === 'group_activity'
+                                    ? 'Instructions, objectives, or rubrics for the student activity groups...'
+                                    : projectForm.format === 'individual'
+                                      ? 'Instructions, rubric, or time limits for individual student presenters...'
+                                      : 'Instructions or rubrics for the presentation groups...'
+                            "
                             class="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs focus-visible:ring-2 focus-visible:ring-primary"
                         />
                         <small v-if="projectForm.errors.description" class="mt-1 block text-xs text-rose-600">{{
@@ -501,8 +638,8 @@ const submitProject = () =>
                         }}</small>
                     </label>
 
-                    <label class="lg:col-span-3">
-                        <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Conducted / Due Date</span>
+                    <label :class="projectForm.format === 'individual' ? 'lg:col-span-6' : 'lg:col-span-3'">
+                        <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Date Conducted / Due</span>
                         <input
                             v-model="projectForm.conducted_on"
                             type="date"
@@ -513,29 +650,14 @@ const submitProject = () =>
                         }}</small>
                     </label>
 
-                    <label class="lg:col-span-3">
-                        <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Initial Groups Count</span>
-                        <input
-                            v-model.number="projectForm.group_count"
-                            type="number"
-                            min="1"
-                            max="50"
-                            class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
-                        />
-                        <small v-if="projectForm.errors.group_count" class="mt-1 block text-xs text-rose-600">{{
-                            projectForm.errors.group_count
-                        }}</small>
-                    </label>
-
-                    <label class="lg:col-span-3">
-                        <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground"
-                            >Max Points <em class="font-normal normal-case text-muted-foreground">(optional)</em></span
-                        >
+                    <label :class="projectForm.format === 'individual' ? 'lg:col-span-6' : 'lg:col-span-3'">
+                        <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Max Points (Optional)</span>
                         <input
                             v-model="projectForm.max_points"
                             type="number"
-                            step="0.01"
-                            placeholder="e.g. 50"
+                            min="1"
+                            max="1000"
+                            placeholder="e.g. 100"
                             class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
                         />
                         <small v-if="projectForm.errors.max_points" class="mt-1 block text-xs text-rose-600">{{
@@ -543,9 +665,36 @@ const submitProject = () =>
                         }}</small>
                     </label>
 
-                    <label class="lg:col-span-5">
+                    <template v-if="projectForm.format !== 'individual'">
+                        <label class="lg:col-span-3">
+                            <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Number of Initial Groups</span>
+                            <input
+                                v-model.number="projectForm.group_count"
+                                type="number"
+                                min="1"
+                                max="50"
+                                class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
+                            />
+                            <small v-if="projectForm.errors.group_count" class="mt-1 block text-xs text-rose-600">{{
+                                projectForm.errors.group_count
+                            }}</small>
+                        </label>
+
+                        <div class="flex items-center gap-3 pt-6 lg:col-span-3">
+                            <label class="flex cursor-pointer items-center gap-2">
+                                <input
+                                    v-model="projectForm.randomize"
+                                    type="checkbox"
+                                    class="size-4 rounded border-input text-primary focus:ring-primary"
+                                />
+                                <span class="text-xs font-medium text-foreground">Auto-assign active students</span>
+                            </label>
+                        </div>
+                    </template>
+
+                    <label class="lg:col-span-12">
                         <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground"
-                            >Attachment / Guidelines <em class="font-normal normal-case text-muted-foreground">(optional, max 50MB)</em></span
+                            >{{ projectForm.type === 'group_activity' ? 'Activity Guidelines Attachment' : 'Project Attachment' }} <em class="font-normal normal-case text-muted-foreground">(optional, max 50MB)</em></span
                         >
                         <div class="flex items-center gap-2">
                             <input
@@ -573,18 +722,7 @@ const submitProject = () =>
                         }}</small>
                     </label>
 
-                    <div class="flex items-center pt-6 lg:col-span-4">
-                        <label class="flex cursor-pointer items-center gap-2 text-xs font-semibold text-foreground">
-                            <input
-                                v-model="projectForm.randomize"
-                                type="checkbox"
-                                class="size-4 rounded border-border text-primary focus:ring-primary"
-                            />
-                            <span>Randomize members now</span>
-                        </label>
-                    </div>
-
-                    <div class="flex items-end justify-end gap-3 border-t border-border/80 pt-4 lg:col-span-12">
+                    <div class="flex items-center justify-end gap-3 pt-2 lg:col-span-12">
                         <button
                             type="button"
                             class="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
@@ -593,14 +731,14 @@ const submitProject = () =>
                             Cancel
                         </button>
                         <button :disabled="projectForm.processing" class="ink-button !rounded-xl text-xs font-semibold">
-                            {{ projectForm.processing ? 'Creating…' : 'Create & Open Project' }}
+                            {{ projectForm.processing ? 'Creating Groups…' : 'Create & View Groups' }}
                         </button>
                     </div>
                 </form>
             </section>
 
             <!-- Filter Tabs -->
-            <div class="flex items-center gap-2 border-b border-border/80 pb-3">
+            <div class="flex flex-wrap items-center gap-2 border-b border-border/80 pb-4">
                 <Link
                     v-for="tab in tabs"
                     :key="tab"
@@ -617,14 +755,22 @@ const submitProject = () =>
                 </Link>
             </div>
 
-            <!-- PROJECTS SECTION (when in all, activity, or project tab) -->
+            <!-- PROJECTS & GROUP ACTIVITIES SECTION (when in all, activity, or project tab) -->
             <div v-if="filteredProjects.length > 0 && (filter === 'all' || filter === 'activity' || filter === 'project')" class="space-y-4">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
-                        <FolderKanban class="size-4 text-primary" />
-                        <h2 class="text-lg font-bold text-foreground">Group Projects & Reporting</h2>
+                        <FolderKanban class="size-4" :class="filter === 'activity' ? 'text-emerald-600 dark:text-emerald-400' : 'text-primary'" />
+                        <h2 class="text-lg font-bold text-foreground">
+                            {{
+                                filter === 'activity'
+                                    ? 'Group Activities (Recorded in Activities)'
+                                    : filter === 'project'
+                                      ? 'Group Projects & Reporting'
+                                      : 'Group Activities, Projects & Reporting'
+                            }}
+                        </h2>
                     </div>
-                    <Link :href="`/sections/${section.id}/projects`" class="text-xs font-semibold text-primary hover:underline">
+                    <Link v-if="filter !== 'activity'" :href="`/sections/${section.id}/projects`" class="text-xs font-semibold text-primary hover:underline">
                         View all ({{ projects.length }})
                     </Link>
                 </div>
@@ -636,15 +782,27 @@ const submitProject = () =>
                         :href="`/sections/${section.id}/projects/${item.id}`"
                         prefetch="hover"
                         class="paper-card group flex flex-col justify-between border-l-4 transition-all hover:border-primary/50 hover:shadow-lg"
-                        :class="item.type === 'project' ? 'border-l-primary' : 'border-l-amber-500'"
+                        :class="
+                            item.type === 'group_activity'
+                                ? 'border-l-emerald-600'
+                                : item.type === 'project'
+                                  ? 'border-l-primary'
+                                  : 'border-l-amber-500'
+                        "
                     >
                         <div>
                             <div class="flex items-center justify-between">
                                 <span
-                                    class="rounded-md px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider"
-                                    :class="item.type === 'project' ? 'bg-emerald-800 text-white' : 'bg-amber-800 text-white'"
+                                    class="rounded-md px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white"
+                                    :class="
+                                        item.type === 'group_activity'
+                                            ? 'bg-emerald-800'
+                                            : item.type === 'project'
+                                              ? 'bg-emerald-800'
+                                              : 'bg-amber-800'
+                                    "
                                 >
-                                    {{ item.type === 'project' ? 'Project' : 'Reporting' }}
+                                    {{ item.project_number || (item.type === 'group_activity' ? 'Group Activity' : item.type === 'project' ? 'Project' : 'Reporting') }}
                                 </span>
                                 <div class="flex items-center gap-2">
                                     <span v-if="item.max_points" class="font-mono text-xs font-medium text-foreground">
@@ -653,7 +811,7 @@ const submitProject = () =>
                                     <button
                                         type="button"
                                         class="grid size-7 place-items-center rounded-lg text-muted-foreground/60 transition-colors hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400"
-                                        title="Delete project/report misentry"
+                                        title="Delete project/activity misentry"
                                         @click.stop.prevent="deleteProjectTarget = item"
                                     >
                                         <Trash2 class="size-3.5" />
@@ -713,16 +871,16 @@ const submitProject = () =>
                         <div>
                             <div class="flex items-center justify-between">
                                 <span
-                                    class="rounded-md px-2.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wider"
+                                    class="rounded-md px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white"
                                     :class="
                                         item.type === 'exam'
-                                            ? 'bg-purple-800 text-white'
+                                            ? 'bg-purple-800'
                                             : item.type === 'quiz'
-                                              ? 'bg-blue-800 text-white'
-                                              : 'bg-emerald-800 text-white'
+                                              ? 'bg-blue-800'
+                                              : 'bg-emerald-800'
                                     "
                                 >
-                                    {{ item.type }}
+                                    {{ item.assessment_number || item.type }}
                                 </span>
                                 <div class="flex items-center gap-2">
                                     <span class="font-mono text-xs font-medium text-foreground">{{ item.max_points }} pts</span>

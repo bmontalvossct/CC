@@ -52,7 +52,7 @@ const pickRandom = () => {
     const timer = setInterval(() => {
         const randomIndex = Math.floor(Math.random() * eligibleStudents.value.length);
         const candidate = eligibleStudents.value[randomIndex];
-        currentDisplayName.value = candidate.full_name || `${candidate.first_name} ${candidate.last_name}`;
+        currentDisplayName.value = candidate.full_name || `${candidate.last_name}, ${candidate.first_name}`;
         iterations++;
 
         if (iterations >= maxIterations) {
@@ -99,23 +99,22 @@ const close = () => {
                     class="absolute right-4 top-4 grid size-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                     @click="close"
                 >
-                    <X class="size-4.5" />
+                    <X class="size-4" />
                 </button>
 
-                <div
-                    class="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1 font-mono text-[11px] font-medium uppercase tracking-wider text-white shadow-sm"
-                >
-                    <Sparkles class="size-3.5" /> Random recitation
+                <div class="inline-flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                    <Sparkles class="size-7" />
                 </div>
 
-                <h3 class="mt-3 text-2xl font-medium tracking-tight">Who's Next?</h3>
+                <h3 class="mt-4 text-xl font-medium tracking-tight text-foreground">Random student caller</h3>
+                <p class="mt-1 text-xs font-normal text-muted-foreground">
+                    Selecting from <span class="font-bold text-foreground">{{ eligibleStudents.length }}</span> eligible present students
+                </p>
 
                 <!-- Rolling State -->
-                <div v-if="isRolling" class="my-8 py-6">
-                    <div
-                        class="mx-auto flex size-24 animate-pulse items-center justify-center rounded-full border-2 border-primary bg-primary/15 shadow-lg"
-                    >
-                        <Dices class="size-10 animate-spin text-primary" />
+                <div v-if="isRolling" class="my-8">
+                    <div class="mx-auto size-28 animate-bounce rounded-3xl bg-secondary/80 p-3">
+                        <div class="grid size-full place-items-center rounded-2xl bg-primary text-3xl font-medium text-white shadow-inner">?</div>
                     </div>
                     <p class="mt-6 truncate text-xl font-medium tracking-tight text-foreground">
                         {{ currentDisplayName }}
@@ -136,12 +135,12 @@ const close = () => {
                             v-else
                             class="grid size-28 place-items-center rounded-3xl border-4 border-white/20 bg-primary text-3xl font-medium text-white shadow-xl shadow-primary/25"
                         >
-                            {{ initials(selectedStudent.full_name || `${selectedStudent.first_name} ${selectedStudent.last_name}`) }}
+                            {{ initials(selectedStudent.full_name || `${selectedStudent.last_name}, ${selectedStudent.first_name}`) }}
                         </div>
                     </div>
 
                     <h4 class="mt-5 text-2xl font-medium tracking-tight text-foreground">
-                        {{ selectedStudent.full_name || `${selectedStudent.first_name} ${selectedStudent.last_name}` }}
+                        {{ selectedStudent.full_name || `${selectedStudent.last_name}, ${selectedStudent.first_name}` }}
                     </h4>
                     <p class="mt-0.5 font-mono text-xs text-muted-foreground">{{ selectedStudent.student_number }}</p>
 

@@ -1,0 +1,1 @@
+import{d as e,o as a,c as o,G as r}from"./app-CKmaE5DQ.js";const p=e({inheritAttrs:!1,__name:"AppLogoIcon",props:{className:{}},setup(n){return(s,t)=>(a(),o("img",r({src:"/images/logo.png",alt:"ClassCheck Logo",class:["aspect-square shrink-0 object-contain",s.className]},s.$attrs),null,16))}});export{p as _};

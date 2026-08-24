@@ -16,7 +16,7 @@ import {
 import { computed, ref } from 'vue';
 
 type Assessment = { id: number; type: 'activity' | 'quiz' | 'exam'; title: string; conducted_on: string; max_points: string };
-type ProjectItem = { id: number; type: 'project' | 'reporting'; title: string; conducted_on: string | null; max_points: string | number };
+type ProjectItem = { id: number; type: 'project' | 'reporting' | 'group_activity'; title: string; conducted_on: string | null; max_points: string | number };
 type Category = { raw_earned?: number; bonus_earned?: number; earned: number; possible: number; percentage: number | null; missing: number };
 type ProjectSummary = { count: number; earned: number; possible: number; percentage: number | null; missing: number };
 type AttendanceSummary = {
@@ -36,21 +36,28 @@ export type StudentRow = {
     full_name: string;
     scores: Record<number, string | null>;
     categories: Record<'activity' | 'quiz' | 'exam', Category>;
+    group_activity_scores?: Record<number, number | null>;
     project_scores: Record<number, number | null>;
     projectSummary: ProjectSummary;
     attendance: AttendanceSummary;
     recitation: Recitation;
 };
 
-const props = defineProps<{
-    student: StudentRow | null;
-    assessments: Assessment[];
-    projects: ProjectItem[];
-    gradingWeights: Record<string, number>;
-    sectionName?: string;
-    subjectCode?: string;
-    open: boolean;
-}>();
+const props = withDefaults(
+    defineProps<{
+        student: StudentRow | null;
+        assessments: Assessment[];
+        groupActivities?: ProjectItem[];
+        projects: ProjectItem[];
+        gradingWeights: Record<string, number>;
+        sectionName?: string;
+        subjectCode?: string;
+        open: boolean;
+    }>(),
+    {
+        groupActivities: () => [],
+    },
+);
 
 const emit = defineEmits<{
     (e: 'close'): void;
@@ -180,28 +187,40 @@ const passingAssessments = computed(() => {
         });
 });
 
-// Uncomplied Projects
+const allProjectItems = computed(() => [...props.groupActivities, ...props.projects]);
+
+const getStudentProjectScore = (item: ProjectItem): number | null | undefined => {
+    if (!props.student) return undefined;
+    if (item.type === 'group_activity') {
+        return props.student.group_activity_scores?.[item.id] !== undefined
+            ? props.student.group_activity_scores[item.id]
+            : props.student.project_scores?.[item.id];
+    }
+    return props.student.project_scores?.[item.id];
+};
+
+// Uncomplied Projects & Group Activities
 const uncompliedProjects = computed(() => {
     if (!props.student) return [];
-    return props.projects.filter((p) => {
-        const val = props.student?.project_scores?.[p.id];
+    return allProjectItems.value.filter((p) => {
+        const val = getStudentProjectScore(p);
         return val === null || val === undefined;
     });
 });
 
-// Failing Projects
+// Failing Projects & Group Activities
 const failingProjects = computed(() => {
     if (!props.student) return [];
-    return props.projects
+    return allProjectItems.value
         .filter((p) => {
-            const val = props.student?.project_scores?.[p.id];
+            const val = getStudentProjectScore(p);
             if (val === null || val === undefined) return false;
             const score = Number(val);
             const max = typeof p.max_points === 'number' ? p.max_points : parseFloat(String(p.max_points || 100));
             return max > 0 && score / max < 0.75;
         })
         .map((p) => {
-            const score = Number(props.student!.project_scores![p.id]);
+            const score = Number(getStudentProjectScore(p));
             const max = typeof p.max_points === 'number' ? p.max_points : parseFloat(String(p.max_points || 100));
             const pct = Math.round((score / max) * 1000) / 10;
             return {
@@ -213,19 +232,19 @@ const failingProjects = computed(() => {
         });
 });
 
-// Passing Projects
+// Passing Projects & Group Activities
 const passingProjects = computed(() => {
     if (!props.student) return [];
-    return props.projects
+    return allProjectItems.value
         .filter((p) => {
-            const val = props.student?.project_scores?.[p.id];
+            const val = getStudentProjectScore(p);
             if (val === null || val === undefined) return false;
             const score = Number(val);
             const max = typeof p.max_points === 'number' ? p.max_points : parseFloat(String(p.max_points || 100));
             return max > 0 && score / max >= 0.75;
         })
         .map((p) => {
-            const score = Number(props.student!.project_scores![p.id]);
+            const score = Number(getStudentProjectScore(p));
             const max = typeof p.max_points === 'number' ? p.max_points : parseFloat(String(p.max_points || 100));
             const pct = Math.round((score / max) * 1000) / 10;
             return {
@@ -240,6 +259,18 @@ const passingProjects = computed(() => {
 const totalMissingCount = computed(() => uncompliedAssessments.value.length + uncompliedProjects.value.length);
 const totalFailingCount = computed(() => failingAssessments.value.length + failingProjects.value.length);
 const totalDeficiencies = computed(() => totalMissingCount.value + totalFailingCount.value);
+
+const typeBadgeClass = (type: string) => {
+    if (type === 'group_activity') return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400';
+    if (type === 'project') return 'bg-teal-500/10 text-teal-600 dark:text-teal-400';
+    return 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400';
+};
+
+const typeLabel = (type: string) => {
+    if (type === 'group_activity') return 'Group Activity';
+    if (type === 'project') return 'Project';
+    return 'Reporting';
+};
 
 // Copy text summary for student intervention
 const copySummary = () => {
@@ -543,9 +574,10 @@ const printSlip = () => {
                                 <div>
                                     <div class="flex items-center gap-2">
                                         <span
-                                            class="rounded bg-teal-500/10 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400"
+                                            class="rounded px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider"
+                                            :class="typeBadgeClass(item.type)"
                                         >
-                                            {{ item.type === 'project' ? 'Project' : 'Reporting' }}
+                                            {{ typeLabel(item.type) }}
                                         </span>
                                         <span class="font-semibold text-foreground">{{ item.title }}</span>
                                     </div>
@@ -621,9 +653,10 @@ const printSlip = () => {
                                 <div>
                                     <div class="flex items-center gap-2">
                                         <span
-                                            class="rounded bg-teal-500/10 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400"
+                                            class="rounded px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider"
+                                            :class="typeBadgeClass(item.type)"
                                         >
-                                            {{ item.type === 'project' ? 'Project' : 'Reporting' }}
+                                            {{ typeLabel(item.type) }}
                                         </span>
                                         <span class="font-semibold text-foreground">{{ item.title }}</span>
                                     </div>
@@ -708,8 +741,11 @@ const printSlip = () => {
                             <div v-for="item in passingProjects" :key="`pass-proj-${item.id}`" class="flex items-center justify-between gap-4 px-4 py-3 text-xs">
                                 <div>
                                     <div class="flex items-center gap-2">
-                                        <span class="rounded bg-teal-500/10 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">
-                                            {{ item.type === 'project' ? 'Project' : 'Reporting' }}
+                                        <span
+                                            class="rounded px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider"
+                                            :class="typeBadgeClass(item.type)"
+                                        >
+                                            {{ typeLabel(item.type) }}
                                         </span>
                                         <span class="font-semibold text-foreground">{{ item.title }}</span>
                                     </div>

@@ -273,4 +273,161 @@ class RecitationTest extends TestCase
             'id' => $rec2->id,
         ]);
     }
+
+    public function test_absent_student_cannot_receive_recitation_score_for_that_date(): void
+    {
+        $user = User::factory()->create();
+        $section = $this->createSection($user);
+        $student = Student::create([
+            'section_id' => $section->id,
+            'student_number' => 'STU-ABS-01',
+            'first_name' => 'Jose',
+            'last_name' => 'Rizal',
+            'is_active' => true,
+        ]);
+
+        $sessionDate = now()->toDateString();
+        $session = \App\Models\AttendanceSession::create([
+            'section_id' => $section->id,
+            'session_date' => $sessionDate,
+            'starts_at' => '08:00:00',
+            'ends_at' => '09:30:00',
+            'duration_minutes' => 90,
+        ]);
+
+        \App\Models\AttendanceRecord::create([
+            'attendance_session_id' => $session->id,
+            'student_id' => $student->id,
+            'status' => \App\Models\AttendanceRecord::STATUS_ABSENT,
+        ]);
+
+        // Attempt to score absent student
+        $response = $this->actingAs($user)->post(
+            route('sections.recitation.score', [$section, $student]),
+            [
+                'score' => 9,
+                'accuracy' => 5,
+                'delivery' => 4,
+                'conducted_on' => $sessionDate,
+            ]
+        );
+
+        $response->assertSessionHasErrors(['score']);
+        $this->assertDatabaseMissing('recitations', [
+            'section_id' => $section->id,
+            'student_id' => $student->id,
+        ]);
+    }
+
+    public function test_present_and_late_students_can_receive_recitation_scores(): void
+    {
+        $user = User::factory()->create();
+        $section = $this->createSection($user);
+        $presentStudent = Student::create([
+            'section_id' => $section->id,
+            'student_number' => 'STU-PRES-01',
+            'first_name' => 'Emilio',
+            'last_name' => 'Aguinaldo',
+            'is_active' => true,
+        ]);
+        $lateStudent = Student::create([
+            'section_id' => $section->id,
+            'student_number' => 'STU-LATE-01',
+            'first_name' => 'Melchora',
+            'last_name' => 'Aquino',
+            'is_active' => true,
+        ]);
+
+        $sessionDate = now()->toDateString();
+        $session = \App\Models\AttendanceSession::create([
+            'section_id' => $section->id,
+            'session_date' => $sessionDate,
+            'starts_at' => '08:00:00',
+            'ends_at' => '09:30:00',
+            'duration_minutes' => 90,
+        ]);
+
+        \App\Models\AttendanceRecord::create([
+            'attendance_session_id' => $session->id,
+            'student_id' => $presentStudent->id,
+            'status' => \App\Models\AttendanceRecord::STATUS_PRESENT,
+        ]);
+
+        \App\Models\AttendanceRecord::create([
+            'attendance_session_id' => $session->id,
+            'student_id' => $lateStudent->id,
+            'status' => \App\Models\AttendanceRecord::STATUS_LATE,
+        ]);
+
+        // Score present student
+        $presResponse = $this->actingAs($user)->post(
+            route('sections.recitation.score', [$section, $presentStudent]),
+            [
+                'score' => 8,
+                'accuracy' => 4,
+                'delivery' => 4,
+                'conducted_on' => $sessionDate,
+            ]
+        );
+        $presResponse->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('recitations', [
+            'student_id' => $presentStudent->id,
+            'score' => 8.00,
+        ]);
+
+        // Score late student
+        $lateResponse = $this->actingAs($user)->post(
+            route('sections.recitation.score', [$section, $lateStudent]),
+            [
+                'score' => 7,
+                'accuracy' => 4,
+                'delivery' => 3,
+                'conducted_on' => $sessionDate,
+            ]
+        );
+        $lateResponse->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('recitations', [
+            'student_id' => $lateStudent->id,
+            'score' => 7.00,
+        ]);
+    }
+
+    public function test_oral_participation_page_includes_attendance_status_for_today(): void
+    {
+        $user = User::factory()->create();
+        $section = $this->createSection($user);
+        $student = Student::create([
+            'section_id' => $section->id,
+            'student_number' => 'STU-STAT-01',
+            'first_name' => 'Gabriela',
+            'last_name' => 'Silang',
+            'is_active' => true,
+        ]);
+
+        $sessionDate = now()->toDateString();
+        $session = \App\Models\AttendanceSession::create([
+            'section_id' => $section->id,
+            'session_date' => $sessionDate,
+            'starts_at' => '08:00:00',
+            'ends_at' => '09:30:00',
+            'duration_minutes' => 90,
+        ]);
+
+        \App\Models\AttendanceRecord::create([
+            'attendance_session_id' => $session->id,
+            'student_id' => $student->id,
+            'status' => \App\Models\AttendanceRecord::STATUS_ABSENT,
+        ]);
+
+        $response = $this->actingAs($user)->get(route('sections.recitation.index', $section));
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('sections/OralParticipation')
+            ->has('students', 1)
+            ->where('students.0.attendance_status', 'absent')
+            ->where('students.0.is_absent', true)
+            ->where('students.0.can_recite', false)
+            ->where('hasTodayAttendance', true)
+        );
+    }
 }

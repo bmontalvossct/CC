@@ -6,7 +6,8 @@ import { ref } from 'vue';
 
 type Project = {
     id: number;
-    type: 'project' | 'reporting';
+    type: 'project' | 'reporting' | 'group_activity';
+    format?: 'group' | 'individual';
     title: string;
     description: string | null;
     conducted_on: string | null;
@@ -37,7 +38,8 @@ const confirmDeleteProject = () => {
 };
 
 const form = useForm({
-    type: 'reporting',
+    type: 'group_activity' as 'group_activity' | 'reporting' | 'project',
+    format: 'group' as 'group' | 'individual',
     title: '',
     description: '',
     conducted_on: new Date().toISOString().slice(0, 10),
@@ -116,27 +118,52 @@ const submit = () => {
                 </div>
 
                 <form class="grid gap-5 lg:grid-cols-12" @submit.prevent="submit">
-                    <label class="lg:col-span-4">
-                        <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Activity Mode</span>
+                    <!-- Informational Banner for Group Activities -->
+                    <div
+                        v-if="form.type === 'group_activity'"
+                        class="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-xs text-emerald-800 dark:text-emerald-300 lg:col-span-12"
+                    >
+                        <p class="font-bold">Group Activity (Recorded in Activities):</p>
+                        <p class="mt-0.5 text-[11px] leading-relaxed">
+                            Organize students into collaborative groups. All recorded scores will be calculated directly under the <strong>Activities</strong> category in the Gradebook.
+                        </p>
+                    </div>
+
+                    <label :class="form.type === 'reporting' ? 'lg:col-span-3' : 'lg:col-span-4'">
+                        <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Activity Type</span>
                         <select
                             v-model="form.type"
                             class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
                         >
-                            <option value="reporting">Group Reporting (Individual topic per group)</option>
-                            <option value="project">Group Project (Unified topic & scope for all)</option>
+                            <option value="group_activity">Group Activity (Recorded in Activities)</option>
+                            <option value="reporting">Reporting (Presentations & Topics)</option>
+                            <option value="project">Project (Unified Scope & Deliverables)</option>
                         </select>
                     </label>
 
-                    <label class="lg:col-span-8">
+                    <label v-if="form.type === 'reporting'" class="lg:col-span-3">
+                        <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Reporting Format</span>
+                        <select
+                            v-model="form.format"
+                            class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
+                        >
+                            <option value="group">Group (Students in groups)</option>
+                            <option value="individual">Individual (1 topic per student)</option>
+                        </select>
+                    </label>
+
+                    <label :class="form.type === 'reporting' ? 'lg:col-span-6' : 'lg:col-span-8'">
                         <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Title</span>
                         <input
                             v-model="form.title"
                             required
                             class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
                             :placeholder="
-                                form.type === 'reporting'
-                                    ? 'e.g. Chapter 4 Group Case Study Presentations'
-                                    : 'e.g. Capstone Project Final Deliverable'
+                                form.type === 'group_activity'
+                                    ? 'e.g. Laboratory Activity 1 - Data Structures'
+                                    : form.type === 'reporting'
+                                      ? (form.format === 'individual' ? 'e.g. Individual Research Presentations' : 'e.g. Chapter 4 Group Case Study Presentations')
+                                      : 'e.g. Capstone Project Final Deliverable'
                             "
                         />
                         <small v-if="form.errors.title" class="mt-1 block text-xs text-rose-600">{{ form.errors.title }}</small>
@@ -145,20 +172,28 @@ const submit = () => {
                     <label class="lg:col-span-12">
                         <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
                             {{
-                                form.type === 'project'
-                                    ? 'Project Description & Objectives (Applies to all groups)'
-                                    : 'Reporting Guidelines / Instructions'
+                                form.type === 'group_activity'
+                                    ? 'Group Activity Guidelines & Objectives (Applies to all groups)'
+                                    : form.type === 'project'
+                                      ? 'Project Description & Objectives (Applies to all groups)'
+                                      : (form.format === 'individual' ? 'Individual Presentation Guidelines / Instructions' : 'Group Reporting Guidelines / Instructions')
                             }}
                         </span>
                         <textarea
                             v-model="form.description"
                             rows="2"
-                            placeholder="Instructions or rubrics for the groups..."
+                            :placeholder="
+                                form.type === 'group_activity'
+                                    ? 'Instructions, objectives, or rubrics for the student activity groups...'
+                                    : form.format === 'individual'
+                                      ? 'Instructions or rubrics for individual presenters...'
+                                      : 'Instructions or rubrics for presentation groups...'
+                            "
                             class="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs focus-visible:ring-2 focus-visible:ring-primary"
                         />
                     </label>
 
-                    <label class="lg:col-span-3">
+                    <label :class="form.format === 'individual' ? 'lg:col-span-6' : 'lg:col-span-3'">
                         <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Date Conducted / Due</span>
                         <input
                             v-model="form.conducted_on"
@@ -167,18 +202,7 @@ const submit = () => {
                         />
                     </label>
 
-                    <label class="lg:col-span-3">
-                        <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Number of Initial Groups</span>
-                        <input
-                            v-model.number="form.group_count"
-                            type="number"
-                            min="1"
-                            max="50"
-                            class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
-                        />
-                    </label>
-
-                    <label class="lg:col-span-3">
+                    <label :class="form.format === 'individual' ? 'lg:col-span-6' : 'lg:col-span-3'">
                         <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground"
                             >Max Points <em class="font-normal normal-case text-muted-foreground">(optional)</em></span
                         >
@@ -191,44 +215,68 @@ const submit = () => {
                         />
                     </label>
 
-                    <div class="flex items-center pt-6 lg:col-span-3">
-                        <label class="flex cursor-pointer items-center gap-2 text-xs font-semibold text-foreground">
-                            <input v-model="form.randomize" type="checkbox" class="size-4 rounded border-border text-primary focus:ring-primary" />
-                            <span>Randomize members now</span>
+                    <template v-if="form.format !== 'individual'">
+                        <label class="lg:col-span-3">
+                            <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Number of Initial Groups</span>
+                            <input
+                                v-model.number="form.group_count"
+                                type="number"
+                                min="1"
+                                max="50"
+                                class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
+                            />
                         </label>
-                    </div>
 
-                    <div class="flex items-end justify-end gap-3 border-t border-border/80 pt-4 lg:col-span-12">
-                        <button
-                            type="button"
-                            class="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
-                            @click="creating = false"
-                        >
+                        <div class="flex items-center pt-6 lg:col-span-3">
+                            <label class="flex cursor-pointer items-center gap-2 text-xs font-semibold text-foreground">
+                                <input v-model="form.randomize" type="checkbox" class="size-4 rounded border-border text-primary focus:ring-primary" />
+                                <span>Auto-assign active students</span>
+                            </label>
+                        </div>
+                    </template>
+
+                    <div class="flex items-center justify-end gap-3 pt-2 lg:col-span-12">
+                        <button type="button" class="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground" @click="creating = false">
                             Cancel
                         </button>
-                        <button :disabled="form.processing" class="ink-button !rounded-xl text-xs font-semibold">
-                            {{ form.processing ? 'Creating…' : 'Create & Open Groups' }}
+                        <button :disabled="form.processing" class="ink-button !rounded-xl text-xs font-bold">
+                            {{ form.processing ? 'Creating…' : 'Create Activity' }}
                         </button>
                     </div>
                 </form>
             </section>
 
-            <!-- Projects Grid -->
-            <section class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            <!-- Projects Grid List -->
+            <section class="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
                 <Link
                     v-for="item in projects"
                     :key="item.id"
                     :href="`/sections/${section.id}/projects/${item.id}`"
-                    prefetch="hover"
-                    class="paper-card group flex flex-col justify-between transition-all hover:border-primary/50 hover:shadow-lg"
+                    class="paper-card group relative flex flex-col justify-between overflow-hidden p-6 transition-all hover:border-primary/50 hover:shadow-md"
                 >
                     <div>
                         <div class="flex items-center justify-between">
                             <span
-                                class="rounded-md px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider"
-                                :class="item.type === 'project' ? 'bg-emerald-800 text-white' : 'bg-amber-800 text-white'"
+                                class="rounded-full px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white"
+                                :class="
+                                    item.type === 'group_activity'
+                                        ? 'bg-emerald-800'
+                                        : item.type === 'project'
+                                          ? 'bg-emerald-800'
+                                          : item.format === 'individual'
+                                            ? 'bg-indigo-800'
+                                            : 'bg-amber-800'
+                                "
                             >
-                                {{ item.type === 'project' ? 'Project' : 'Reporting' }}
+                                {{
+                                    item.type === 'group_activity'
+                                        ? 'Group Activity'
+                                        : item.type === 'project'
+                                          ? 'Project'
+                                          : item.format === 'individual'
+                                            ? 'Individual Reporting'
+                                            : 'Group Reporting'
+                                }}
                             </span>
                             <div class="flex items-center gap-2">
                                 <span v-if="item.max_points" class="font-mono text-xs font-medium text-foreground"> {{ item.max_points }} pts </span>

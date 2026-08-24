@@ -125,6 +125,14 @@ const form = useForm({
 
 const scheduleError = ref('');
 
+const fieldError = (field: string): string | undefined => {
+    if (form.errors[field as keyof typeof form.errors]) {
+        return form.errors[field as keyof typeof form.errors] as string;
+    }
+    const matchingKey = Object.keys(form.errors).find((key) => key === field || key.startsWith(`${field}.`));
+    return matchingKey ? (form.errors as Record<string, string>)[matchingKey] : undefined;
+};
+
 const addSchedule = () => {
     const lastSchedule = form.schedules[form.schedules.length - 1];
     const previousRoom = lastSchedule ? lastSchedule.room : '';

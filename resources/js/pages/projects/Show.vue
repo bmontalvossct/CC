@@ -3,12 +3,16 @@ import FilePreviewModal from '@/components/FilePreviewModal.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
+    AlertCircle,
     ArrowLeft,
     BookOpen,
     CalendarDays,
     Check,
+    CheckCircle2,
     Dices,
+    Download,
     Edit3,
+    FileCheck,
     FileText,
     FolderKanban,
     LoaderCircle,
@@ -16,15 +20,17 @@ import {
     Plus,
     Printer,
     Save,
+    Search,
     Sparkles,
     Trash2,
+    User,
     UserCheck,
     UserMinus,
     UserPlus,
     Users,
     X,
 } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 type Member = {
     id: number;
@@ -39,6 +45,7 @@ type Member = {
     full_name: string;
     photo_path?: string;
     seat_label?: string;
+    absent_count?: number;
 };
 
 type Group = {
@@ -47,6 +54,7 @@ type Group = {
     group_number: number;
     name: string;
     topic: string | null;
+    description: string | null;
     score: number | null;
     notes: string | null;
     order_column: number;
@@ -56,7 +64,8 @@ type Group = {
 type Project = {
     id: number;
     section_id: number;
-    type: 'project' | 'reporting';
+    type: 'project' | 'reporting' | 'group_activity';
+    format?: 'group' | 'individual';
     title: string;
     description: string | null;
     conducted_on: string | null;
@@ -75,6 +84,7 @@ type Student = {
     full_name: string;
     photo_path?: string;
     seat_label?: string;
+    absent_count?: number;
 };
 
 const props = defineProps<{
@@ -93,6 +103,10 @@ const showDeleteModal = ref(false);
 const isDeleting = ref(false);
 const activeGroupForMember = ref<Group | null>(null);
 const memberSearchQuery = ref('');
+
+// Filter & Search for individual reporting
+const presenterSearchQuery = ref('');
+const presenterFilterTab = ref<'all' | 'has_topic' | 'needs_topic' | 'scored' | 'pending_score'>('all');
 
 const confirmDeleteProject = () => {
     isDeleting.value = true;
@@ -114,6 +128,7 @@ const randomizing = ref(false);
 // Edit project form
 const editForm = useForm({
     type: props.project.type,
+    format: props.project.format || 'group',
     title: props.project.title,
     description: props.project.description || '',
     conducted_on: props.project.conducted_on || '',
@@ -126,26 +141,115 @@ const editForm = useForm({
 const addGroupForm = useForm({
     name: '',
     topic: '',
+    description: '',
 });
 
-// Group topics & scores local state with auto-save / feedback
+// Group topics, descriptions, scores & notes local state
 const topicSaving = ref<Record<number, boolean>>({});
 const topicSaved = ref<Record<number, boolean>>({});
 const groupTopics = ref<Record<number, string>>({});
+const groupDescriptions = ref<Record<number, string>>({});
+const groupNotes = ref<Record<number, string>>({});
 
 const groupScores = ref<Record<number, string | number>>({});
 const memberScores = ref<Record<number, string | number>>({});
+const memberNotes = ref<Record<number, string>>({});
 const scoreSaving = ref<Record<number, boolean>>({});
 const scoreSaved = ref<Record<number, boolean>>({});
 const memberSaving = ref<Record<number, boolean>>({});
 const memberSaved = ref<Record<number, boolean>>({});
 
+// Bulk Save All state
+const savingAll = ref(false);
+const savedAllSuccess = ref(false);
+
 props.project.groups.forEach((g) => {
     groupTopics.value[g.id] = g.topic || '';
+    groupDescriptions.value[g.id] = g.description || '';
+    groupNotes.value[g.id] = g.notes || '';
     groupScores.value[g.id] = g.score !== null && g.score !== undefined ? g.score : '';
     g.members.forEach((m) => {
         memberScores.value[m.id] = m.score !== null && m.score !== undefined ? m.score : '';
+        memberNotes.value[m.id] = m.notes || '';
     });
+});
+
+// Save All Topics & Scores in one unified request
+const saveAll = async () => {
+    if (savingAll.value) return;
+    savingAll.value = true;
+    savedAllSuccess.value = false;
+
+    const payload = {
+        groups: props.project.groups.map((g) => ({
+            id: g.id,
+            topic: groupTopics.value[g.id] ?? '',
+            description: groupDescriptions.value[g.id] || null,
+            score: groupScores.value[g.id] === '' || groupScores.value[g.id] === null || groupScores.value[g.id] === undefined ? null : Number(groupScores.value[g.id]),
+            notes: groupNotes.value[g.id] || null,
+        })),
+        members: props.project.groups.flatMap((g) =>
+            g.members.map((m) => ({
+                id: m.id,
+                score: memberScores.value[m.id] === '' || memberScores.value[m.id] === null || memberScores.value[m.id] === undefined ? null : Number(memberScores.value[m.id]),
+                notes: memberNotes.value[m.id] || null,
+            }))
+        ),
+    };
+
+    try {
+        const res = await fetch(`/sections/${props.section.id}/projects/${props.project.id}/save-all`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '',
+            },
+            body: JSON.stringify(payload),
+        });
+
+        if (res.ok) {
+            savedAllSuccess.value = true;
+            props.project.groups.forEach((g) => {
+                topicSaved.value[g.id] = true;
+                scoreSaved.value[g.id] = true;
+                g.members.forEach((m) => {
+                    memberSaved.value[m.id] = true;
+                });
+            });
+
+            setTimeout(() => {
+                savedAllSuccess.value = false;
+                props.project.groups.forEach((g) => {
+                    topicSaved.value[g.id] = false;
+                    scoreSaved.value[g.id] = false;
+                    g.members.forEach((m) => {
+                        memberSaved.value[m.id] = false;
+                    });
+                });
+            }, 3000);
+        }
+    } catch (e) {
+        console.error('Error saving all topics and scores:', e);
+    } finally {
+        savingAll.value = false;
+    }
+};
+
+// Keyboard shortcut (Ctrl+S / Cmd+S)
+const handleGlobalKeydown = (e: KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        void saveAll();
+    }
+};
+
+onMounted(() => {
+    window.addEventListener('keydown', handleGlobalKeydown);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('keydown', handleGlobalKeydown);
 });
 
 // Date formatting
@@ -153,6 +257,57 @@ const formatDate = (val: string | null) => {
     if (!val) return 'No date set';
     return new Intl.DateTimeFormat('en-PH', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'Asia/Manila' }).format(new Date(val));
 };
+
+// Computed stats for individual reporting
+const topicsAssignedCount = computed(() => {
+    return props.project.groups.filter((g) => (groupTopics.value[g.id] || '').trim().length > 0).length;
+});
+
+const scoredPresentersCount = computed(() => {
+    return props.project.groups.filter((g) => {
+        const val = groupScores.value[g.id];
+        return val !== '' && val !== null && val !== undefined;
+    }).length;
+});
+
+const averagePresenterScore = computed(() => {
+    const scored = props.project.groups
+        .map((g) => groupScores.value[g.id])
+        .filter((val) => val !== '' && val !== null && val !== undefined)
+        .map((val) => Number(val));
+    if (!scored.length) return null;
+    const sum = scored.reduce((a, b) => a + b, 0);
+    return (sum / scored.length).toFixed(1);
+});
+
+// Filtered presenters for individual mode
+const filteredPresenters = computed(() => {
+    if (props.project.format !== 'individual') return props.project.groups;
+
+    return props.project.groups.filter((g) => {
+        const student = g.members[0];
+        const studentName = student?.full_name?.toLowerCase() || g.name.toLowerCase();
+        const studentNum = student?.student_number?.toLowerCase() || '';
+        const topicText = (groupTopics.value[g.id] || '').toLowerCase();
+        const descText = (groupDescriptions.value[g.id] || '').toLowerCase();
+        const seatText = student?.seat_label?.toLowerCase() || '';
+        const q = presenterSearchQuery.value.toLowerCase().trim();
+
+        const matchesQuery = !q || studentName.includes(q) || studentNum.includes(q) || topicText.includes(q) || descText.includes(q) || seatText.includes(q);
+        if (!matchesQuery) return false;
+
+        const hasTopic = (groupTopics.value[g.id] || '').trim().length > 0;
+        const scoreVal = groupScores.value[g.id];
+        const isScored = scoreVal !== '' && scoreVal !== null && scoreVal !== undefined;
+
+        if (presenterFilterTab.value === 'has_topic') return hasTopic;
+        if (presenterFilterTab.value === 'needs_topic') return !hasTopic;
+        if (presenterFilterTab.value === 'scored') return isScored;
+        if (presenterFilterTab.value === 'pending_score') return !isScored;
+
+        return true;
+    });
+});
 
 // Compute distribution preview for randomization
 const distributionPreview = computed(() => {
@@ -189,9 +344,10 @@ const distributionPreview = computed(() => {
     };
 });
 
-// Save group topic
+// Save group topic and description
 const saveGroupTopic = async (group: Group) => {
     const newTopic = groupTopics.value[group.id];
+    const newDesc = groupDescriptions.value[group.id];
     topicSaving.value[group.id] = true;
 
     try {
@@ -204,6 +360,8 @@ const saveGroupTopic = async (group: Group) => {
             },
             body: JSON.stringify({
                 topic: newTopic,
+                description: newDesc || null,
+                notes: groupNotes.value[group.id] || null,
             }),
         });
 
@@ -214,7 +372,7 @@ const saveGroupTopic = async (group: Group) => {
             }, 2500);
         }
     } catch (e) {
-        console.error('Error saving group topic:', e);
+        console.error('Error saving group topic & description:', e);
     } finally {
         topicSaving.value[group.id] = false;
     }
@@ -223,7 +381,7 @@ const saveGroupTopic = async (group: Group) => {
 // Save group score
 const saveGroupScore = async (group: Group) => {
     const rawVal = groupScores.value[group.id];
-    const scoreVal = rawVal === '' || rawVal === null ? null : Number(rawVal);
+    const scoreVal = rawVal === '' || rawVal === null || rawVal === undefined ? null : Number(rawVal);
     scoreSaving.value[group.id] = true;
 
     try {
@@ -236,6 +394,7 @@ const saveGroupScore = async (group: Group) => {
             },
             body: JSON.stringify({
                 score: scoreVal,
+                notes: groupNotes.value[group.id] || null,
             }),
         });
 
@@ -255,7 +414,7 @@ const saveGroupScore = async (group: Group) => {
 // Save individual member score override
 const saveMemberScore = async (group: Group, member: Member) => {
     const rawVal = memberScores.value[member.id];
-    const scoreVal = rawVal === '' || rawVal === null ? null : Number(rawVal);
+    const scoreVal = rawVal === '' || rawVal === null || rawVal === undefined ? null : Number(rawVal);
     memberSaving.value[member.id] = true;
 
     try {
@@ -268,6 +427,7 @@ const saveMemberScore = async (group: Group, member: Member) => {
             },
             body: JSON.stringify({
                 score: scoreVal,
+                notes: memberNotes.value[member.id] || null,
             }),
         });
 
@@ -290,7 +450,7 @@ const memberScoreInputs = new Map<number, HTMLInputElement>();
 // Move to next/prev group score input
 const moveGroupScore = (currentGroup: Group, direction: number) => {
     void saveGroupScore(currentGroup);
-    const groups = props.project.groups;
+    const groups = filteredPresenters.value;
     const idx = groups.findIndex((g) => g.id === currentGroup.id);
     if (idx === -1) return;
     const target = groups[idx + direction];
@@ -397,14 +557,14 @@ const submitEditProject = () => {
 
 // Delete project
 const deleteProject = () => {
-    if (confirm(`Are you sure you want to delete "${props.project.title}" and all its groups?`)) {
+    if (confirm(`Are you sure you want to delete "${props.project.title}" and all its records?`)) {
         router.delete(`/sections/${props.section.id}/projects/${props.project.id}`);
     }
 };
 
 // Delete group
 const deleteGroup = (group: Group) => {
-    if (confirm(`Remove ${group.name}? Students in this group will become unassigned.`)) {
+    if (confirm(`Remove ${group.name}?`)) {
         router.delete(`/sections/${props.section.id}/projects/${props.project.id}/groups/${group.id}`);
     }
 };
@@ -449,9 +609,11 @@ const moveStudent = (studentId: number, targetGroupId: number) => {
 
 // Filter unassigned students by search query
 const filteredUnassigned = computed(() => {
-    const q = memberSearchQuery.value.toLowerCase().trim();
-    if (!q) return props.unassignedStudents;
-    return props.unassignedStudents.filter((s) => s.full_name.toLowerCase().includes(q) || s.student_number.toLowerCase().includes(q));
+    if (!memberSearchQuery.value.trim()) return props.unassignedStudents;
+    const q = memberSearchQuery.value.toLowerCase();
+    return props.unassignedStudents.filter(
+        (s) => s.full_name.toLowerCase().includes(q) || s.student_number.toLowerCase().includes(q),
+    );
 });
 </script>
 
@@ -462,6 +624,7 @@ const filteredUnassigned = computed(() => {
             { title: 'Sections', href: '/sections' },
             { title: section.name, href: `/sections/${section.id}` },
             { title: 'Assessments', href: `/sections/${section.id}/assessments` },
+            { title: 'Projects & Reporting', href: `/sections/${section.id}/projects` },
             { title: project.title, href: `/sections/${section.id}/projects/${project.id}` },
         ]"
     >
@@ -478,10 +641,26 @@ const filteredUnassigned = computed(() => {
 
                 <div class="flex items-center gap-2">
                     <span
-                        class="rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider"
-                        :class="project.type === 'project' ? 'bg-emerald-800 text-white' : 'bg-amber-800 text-white'"
+                        class="rounded-full px-3 py-1 font-mono text-xs font-bold uppercase tracking-wider text-white"
+                        :class="
+                            project.type === 'group_activity'
+                                ? 'bg-emerald-800'
+                                : project.type === 'project'
+                                  ? 'bg-emerald-800'
+                                  : project.format === 'individual'
+                                    ? 'bg-indigo-800'
+                                    : 'bg-amber-800'
+                        "
                     >
-                        {{ project.type === 'project' ? 'Project' : 'Reporting' }}
+                        {{
+                            project.type === 'group_activity'
+                                ? 'Group Activity'
+                                : project.type === 'project'
+                                  ? 'Project'
+                                  : project.format === 'individual'
+                                    ? 'Individual Reporting'
+                                    : 'Group Reporting'
+                        }}
                     </span>
                     <span v-if="project.max_points" class="rounded-full bg-secondary px-3 py-1 font-mono text-xs font-semibold text-foreground">
                         {{ project.max_points }} pts max
@@ -491,10 +670,10 @@ const filteredUnassigned = computed(() => {
 
             <!-- Main Project Header Card -->
             <header
-                class="relative overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card to-primary/5 p-6 shadow-sm sm:p-8"
+                class="relative overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card to-primary/5 p-6 shadow-sm sm:p-8 space-y-5"
             >
-                <div class="flex flex-col justify-between gap-6 lg:flex-row lg:items-start">
-                    <div class="space-y-3">
+                <div class="flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
+                    <div class="space-y-2">
                         <div class="flex flex-wrap items-center gap-2">
                             <span class="badge-primary font-mono font-bold">{{ section.subject_code || 'Activity' }}</span>
                             <span class="badge-muted">{{ section.name }}</span>
@@ -506,52 +685,28 @@ const filteredUnassigned = computed(() => {
                         <h1 class="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
                             {{ project.title }}
                         </h1>
-
-                        <!-- Mode Description / Overview -->
-                        <div v-if="project.type === 'project'" class="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm">
-                            <div class="flex items-start gap-2.5">
-                                <FolderKanban class="mt-0.5 size-5 shrink-0 text-primary" />
-                                <div>
-                                    <h2 class="text-sm font-bold text-foreground">Project Title & Description (Unified Scope)</h2>
-                                    <p class="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
-                                        {{ project.description || 'All groups share this project title and assignment description.' }}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div v-else class="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 text-sm">
-                            <div class="flex items-start gap-2.5">
-                                <BookOpen class="mt-0.5 size-5 shrink-0 text-amber-600 dark:text-amber-400" />
-                                <div>
-                                    <h2 class="text-sm font-bold text-foreground">Group Reporting Activity</h2>
-                                    <p class="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
-                                        {{
-                                            project.description ||
-                                            'Each group presents their assigned topic. Enter topics individually on the right side of each group card below.'
-                                        }}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Attachment button with preview modal -->
-                        <div v-if="project.attachment_path" class="pt-1">
-                            <button
-                                type="button"
-                                class="inline-flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-3.5 py-2 text-xs font-bold text-primary transition-all hover:bg-primary hover:text-white"
-                                title="Preview attached file with download option"
-                                @click="showPreviewModal = true"
-                            >
-                                <Paperclip class="size-4" />
-                                <span>Preview: {{ project.attachment_name || 'Guidelines / Assignment File' }}</span>
-                            </button>
-                        </div>
                     </div>
 
                     <!-- Action Buttons Toolbar -->
                     <div class="flex shrink-0 flex-wrap items-center gap-2.5">
+                        <!-- PROMINENT SAVE ALL BUTTON -->
                         <button
+                            type="button"
+                            class="ink-button !h-10 !rounded-xl gap-2 shadow-sm transition-all"
+                            :class="{ '!bg-emerald-600 !text-white': savedAllSuccess }"
+                            :disabled="savingAll"
+                            title="Save all topics and scores across all presenters (Ctrl+S)"
+                            @click="saveAll"
+                        >
+                            <LoaderCircle v-if="savingAll" class="size-4 animate-spin" />
+                            <Check v-else-if="savedAllSuccess" class="size-4" />
+                            <Save v-else class="size-4" />
+                            <span class="font-bold">{{ savingAll ? 'Saving All…' : savedAllSuccess ? 'All Saved!' : 'Save All Topics & Scores' }}</span>
+                            <span class="hidden rounded bg-black/20 px-1.5 py-0.5 font-mono text-[10px] sm:inline-block">Ctrl+S</span>
+                        </button>
+
+                        <button
+                            v-if="project.format !== 'individual'"
                             class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             @click="showRandomizeModal = true"
                         >
@@ -560,6 +715,7 @@ const filteredUnassigned = computed(() => {
                         </button>
 
                         <button
+                            v-if="project.format !== 'individual'"
                             class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-3.5 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             @click="showAddGroupModal = true"
                         >
@@ -568,10 +724,19 @@ const filteredUnassigned = computed(() => {
                         </button>
 
                         <a
+                            :href="`/sections/${section.id}/projects/${project.id}/export`"
+                            class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-3.5 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            title="Export topics, members, and scores to CSV"
+                        >
+                            <Download class="size-4 text-primary transition-colors group-hover:text-white" />
+                            <span>Export CSV</span>
+                        </a>
+
+                        <a
                             :href="`/sections/${section.id}/projects/${project.id}/print`"
                             target="_blank"
                             class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-3.5 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
-                            title="Print group sheets and presentation roster"
+                            title="Print presentation roster and grading sheet"
                         >
                             <Printer class="size-4 text-primary transition-colors group-hover:text-white" />
                             <span>Print</span>
@@ -595,32 +760,117 @@ const filteredUnassigned = computed(() => {
                     </div>
                 </div>
 
+                <!-- Full-width Mode Description / Instructions -->
+                <div v-if="project.type === 'group_activity'" class="w-full rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-sm">
+                    <div class="flex items-start gap-2.5">
+                        <Users class="mt-0.5 size-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2">
+                                <h2 class="text-sm font-bold text-foreground">Group Activity (Recorded in Activities)</h2>
+                                <span class="rounded bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] font-bold text-emerald-600 dark:text-emerald-400">Activity Category</span>
+                            </div>
+                            <p class="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                                {{ project.description || 'All group and individual scores entered here will be recorded and computed directly under the Activities category in the Gradebook.' }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-else-if="project.type === 'project'" class="w-full rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm">
+                    <div class="flex items-start gap-2.5">
+                        <FolderKanban class="mt-0.5 size-5 shrink-0 text-primary" />
+                        <div class="flex-1">
+                            <h2 class="text-sm font-bold text-foreground">Project Title & Description (Unified Scope)</h2>
+                            <p class="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                                {{ project.description || 'All groups share this project title and assignment description.' }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-else-if="project.format === 'individual'" class="w-full rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-4 text-sm">
+                    <div class="flex items-start gap-2.5">
+                        <BookOpen class="mt-0.5 size-5 shrink-0 text-indigo-600 dark:text-indigo-400" />
+                        <div class="flex-1">
+                            <h2 class="text-sm font-bold text-foreground">Individual Student Reporting</h2>
+                            <p class="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                                {{
+                                    project.description ||
+                                    'Each student presents their own topic and receives an individual score. Enter all topics and scores below, then click "Save All Topics & Scores".'
+                                }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-else class="w-full rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 text-sm">
+                    <div class="flex items-start gap-2.5">
+                        <BookOpen class="mt-0.5 size-5 shrink-0 text-amber-600 dark:text-amber-400" />
+                        <div class="flex-1">
+                            <h2 class="text-sm font-bold text-foreground">Group Reporting Activity</h2>
+                            <p class="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                                {{
+                                    project.description ||
+                                    'Each group presents their assigned topic. Enter topics and scores below, then click "Save All Topics & Scores" to save all at once.'
+                                }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Attachment button with preview modal -->
+                <div v-if="project.attachment_path" class="pt-0.5">
+                    <button
+                        type="button"
+                        class="inline-flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-3.5 py-2 text-xs font-bold text-primary transition-all hover:bg-primary hover:text-white"
+                        title="Preview attached file with download option"
+                        @click="showPreviewModal = true"
+                    >
+                        <Paperclip class="size-4" />
+                        <span>Preview: {{ project.attachment_name || 'Guidelines / Assignment File' }}</span>
+                    </button>
+                </div>
+
                 <!-- Stats summary bar -->
                 <div class="mt-6 flex flex-wrap items-center gap-6 border-t border-border/80 pt-4 text-xs">
                     <div class="flex items-center gap-2">
                         <Users class="size-4 text-primary" />
-                        <span class="font-medium text-muted-foreground">Total Groups:</span>
+                        <span class="font-medium text-muted-foreground">{{ project.format === 'individual' ? 'Total Presenters:' : 'Total Groups:' }}</span>
                         <span class="font-mono font-bold text-foreground">{{ project.groups.length }}</span>
+                    </div>
+
+                    <div v-if="project.format === 'individual'" class="flex items-center gap-2">
+                        <FileCheck class="size-4 text-indigo-600 dark:text-indigo-400" />
+                        <span class="font-medium text-muted-foreground">Topics Assigned:</span>
+                        <span class="font-mono font-bold text-foreground">
+                            {{ topicsAssignedCount }} / {{ project.groups.length }}
+                        </span>
                     </div>
 
                     <div class="flex items-center gap-2">
                         <UserCheck class="size-4 text-emerald-600 dark:text-emerald-400" />
-                        <span class="font-medium text-muted-foreground">Assigned Students:</span>
+                        <span class="font-medium text-muted-foreground">{{ project.format === 'individual' ? 'Scored Presenters:' : 'Assigned Students:' }}</span>
                         <span class="font-mono font-bold text-foreground">
-                            {{ totalStudentsCount - unassignedStudents.length }} / {{ totalStudentsCount }}
+                            {{ project.format === 'individual' ? `${scoredPresentersCount} / ${project.groups.length}` : `${totalStudentsCount - unassignedStudents.length} / ${totalStudentsCount}` }}
                         </span>
                     </div>
 
-                    <div v-if="unassignedStudents.length > 0" class="flex items-center gap-2 font-semibold text-amber-600 dark:text-amber-400">
+                    <div v-if="project.format === 'individual' && averagePresenterScore !== null" class="flex items-center gap-2">
+                        <Sparkles class="size-4 text-amber-500" />
+                        <span class="font-medium text-muted-foreground">Average Score:</span>
+                        <span class="font-mono font-bold text-foreground">{{ averagePresenterScore }} / {{ project.max_points || 100 }}</span>
+                    </div>
+
+                    <div v-if="project.format !== 'individual' && unassignedStudents.length > 0" class="flex items-center gap-2 font-semibold text-amber-600 dark:text-amber-400">
                         <span class="inline-block size-2 animate-pulse rounded-full bg-amber-500" />
                         <span>{{ unassignedStudents.length }} unassigned student{{ unassignedStudents.length > 1 ? 's' : '' }}</span>
                     </div>
                 </div>
             </header>
 
-            <!-- Unassigned Students Alert / Quick Drawer -->
+            <!-- Unassigned Students Alert (For Group Mode) -->
             <div
-                v-if="unassignedStudents.length > 0"
+                v-if="project.format !== 'individual' && unassignedStudents.length > 0"
                 class="paper-card border-amber-500/30 bg-amber-500/5 p-4 duration-200 animate-in fade-in sm:p-5"
             >
                 <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -660,15 +910,208 @@ const filteredUnassigned = computed(() => {
                 </div>
             </div>
 
-            <!-- Groups List Section -->
-            <section class="space-y-6">
+            <!-- ========================================== -->
+            <!-- INDIVIDUAL REPORTING PRESENTATION ROSTER -->
+            <!-- ========================================== -->
+            <section v-if="project.format === 'individual'" class="space-y-6">
+                <!-- Search and Filter Bar -->
+                <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div class="relative flex-1 max-w-md">
+                        <Search class="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                        <input
+                            v-model="presenterSearchQuery"
+                            type="text"
+                            placeholder="Search presenter by student name, ID, chair, or topic..."
+                            class="w-full rounded-xl border border-input bg-card pl-10 pr-4 py-2 text-xs font-medium focus-visible:ring-2 focus-visible:ring-primary"
+                        />
+                        <button
+                            v-if="presenterSearchQuery"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            @click="presenterSearchQuery = ''"
+                        >
+                            <X class="size-3.5" />
+                        </button>
+                    </div>
+
+                    <!-- Filter Tabs -->
+                    <div class="flex flex-wrap items-center gap-1.5">
+                        <button
+                            type="button"
+                            class="rounded-lg px-3 py-1.5 text-xs font-bold transition-colors"
+                            :class="presenterFilterTab === 'all' ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-muted-foreground hover:bg-secondary'"
+                            @click="presenterFilterTab = 'all'"
+                        >
+                            All ({{ project.groups.length }})
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-lg px-3 py-1.5 text-xs font-bold transition-colors"
+                            :class="presenterFilterTab === 'has_topic' ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-muted-foreground hover:bg-secondary'"
+                            @click="presenterFilterTab = 'has_topic'"
+                        >
+                            With Topic ({{ topicsAssignedCount }})
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-lg px-3 py-1.5 text-xs font-bold transition-colors"
+                            :class="presenterFilterTab === 'needs_topic' ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-muted-foreground hover:bg-secondary'"
+                            @click="presenterFilterTab = 'needs_topic'"
+                        >
+                            Needs Topic ({{ project.groups.length - topicsAssignedCount }})
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-lg px-3 py-1.5 text-xs font-bold transition-colors"
+                            :class="presenterFilterTab === 'scored' ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-muted-foreground hover:bg-secondary'"
+                            @click="presenterFilterTab = 'scored'"
+                        >
+                            Scored ({{ scoredPresentersCount }})
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-lg px-3 py-1.5 text-xs font-bold transition-colors"
+                            :class="presenterFilterTab === 'pending_score' ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-muted-foreground hover:bg-secondary'"
+                            @click="presenterFilterTab = 'pending_score'"
+                        >
+                            Pending Score ({{ project.groups.length - scoredPresentersCount }})
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Empty State -->
+                <div v-if="!project.groups.length" class="paper-card rounded-2xl border-2 border-dashed p-14 text-center">
+                    <User class="mx-auto size-12 text-muted-foreground/60" />
+                    <h3 class="mt-4 text-xl font-bold text-foreground">No students in this section</h3>
+                    <p class="mx-auto mt-1.5 max-w-md text-sm text-muted-foreground">
+                        Enroll active students in this section to start assigning individual presentation topics.
+                    </p>
+                </div>
+
+                <!-- Presenter Cards List -->
+                <div v-else class="space-y-4">
+                    <div
+                        v-for="(group, idx) in filteredPresenters"
+                        :key="group.id"
+                        class="paper-card overflow-hidden rounded-2xl border border-border/80 p-0 shadow-sm transition-all hover:border-primary/40"
+                    >
+                        <div class="grid gap-4 p-5 lg:grid-cols-12 lg:items-center">
+                            <!-- Presenter Identity -->
+                            <div class="flex items-center gap-3 lg:col-span-4">
+                                <span class="flex size-7 shrink-0 items-center justify-center rounded-lg bg-indigo-600/15 font-mono text-xs font-bold text-indigo-700 dark:text-indigo-400">
+                                    #{{ group.group_number }}
+                                </span>
+
+                                <div class="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold uppercase text-primary">
+                                    {{ group.members[0]?.first_name?.[0] || 'S' }}{{ group.members[0]?.last_name?.[0] || '' }}
+                                </div>
+
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <h3 class="truncate font-bold text-foreground">
+                                            {{ group.members[0]?.full_name || group.name }}
+                                        </h3>
+                                        <span
+                                            v-if="group.members[0]?.absent_count && group.members[0].absent_count >= 3"
+                                            class="inline-flex items-center gap-1 rounded bg-rose-600/15 px-1.5 py-0.5 font-mono text-[10px] font-bold text-rose-700 dark:text-rose-400"
+                                            title="Student has accumulated 3 or more absences"
+                                        >
+                                            <AlertCircle class="size-3" /> 3+ ABS
+                                        </span>
+                                    </div>
+                                    <p class="flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
+                                        <span>{{ group.members[0]?.student_number || '—' }}</span>
+                                        <span v-if="group.members[0]?.seat_label" class="font-medium text-primary">· Chair {{ group.members[0].seat_label }}</span>
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Presentation Topic & Optional Description -->
+                            <div class="space-y-1.5 lg:col-span-5">
+                                <div class="relative">
+                                    <input
+                                        v-model="groupTopics[group.id]"
+                                        type="text"
+                                        placeholder="Assigned presentation topic..."
+                                        class="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs font-bold transition-all placeholder:font-normal placeholder:text-muted-foreground/60 focus-visible:ring-2 focus-visible:ring-primary"
+                                        @blur="saveGroupTopic(group)"
+                                    />
+                                    <div class="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[10px]">
+                                        <span v-if="topicSaving[group.id]" class="animate-pulse text-muted-foreground">Saving…</span>
+                                        <span v-else-if="topicSaved[group.id]" class="flex items-center gap-0.5 font-bold text-emerald-600 dark:text-emerald-400">
+                                            <Check class="size-3" /> Saved
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <input
+                                        v-model="groupDescriptions[group.id]"
+                                        type="text"
+                                        placeholder="Topic description / scope / guidelines (optional)..."
+                                        class="w-full rounded-lg border border-border/80 bg-secondary/30 px-3 py-1.5 text-[11px] font-medium text-foreground transition-all placeholder:text-muted-foreground/50 focus-visible:ring-2 focus-visible:ring-primary"
+                                        @blur="saveGroupTopic(group)"
+                                    />
+                                </div>
+                            </div>
+
+                            <!-- Presentation Score & Quick Actions -->
+                            <div class="flex items-center justify-end gap-3 lg:col-span-3">
+                                <div class="flex items-center gap-2 rounded-xl border border-border/80 bg-secondary/40 px-3 py-2">
+                                    <span class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Score:</span>
+                                    <input
+                                        :ref="(el) => { if (el) groupScoreInputs.set(group.id, el as HTMLInputElement); }"
+                                        v-model="groupScores[group.id]"
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        :max="project.max_points || 1000"
+                                        placeholder="—"
+                                        class="w-16 rounded-lg border px-2 py-1 text-center font-mono text-xs font-bold transition-all focus:outline-none"
+                                        :class="[
+                                            groupScores[group.id] !== '' &&
+                                            groupScores[group.id] !== null &&
+                                            groupScores[group.id] !== undefined &&
+                                            (Number(groupScores[group.id]) < 0 || Number(groupScores[group.id]) > Number(project.max_points || 100))
+                                                ? '!border-rose-500 !bg-rose-500/10 !text-rose-600 !ring-2 !ring-rose-500 dark:!text-rose-400'
+                                                : 'border-input bg-background text-foreground focus:ring-1 focus:ring-primary',
+                                        ]"
+                                        @focus="($event.target as HTMLInputElement)?.select()"
+                                        @blur="saveGroupScore(group)"
+                                        @keydown="handleGroupScoreKey($event, group)"
+                                    />
+                                    <span class="font-mono text-[11px] text-muted-foreground">/ {{ project.max_points || '100' }}</span>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    :disabled="topicSaving[group.id] || scoreSaving[group.id]"
+                                    class="inline-flex size-9 items-center justify-center rounded-xl border border-primary/40 bg-primary/10 text-primary transition-all hover:bg-primary hover:text-white"
+                                    title="Save this presenter's topic & score"
+                                    @click="
+                                        saveGroupTopic(group);
+                                        saveGroupScore(group);
+                                    "
+                                >
+                                    <Check v-if="scoreSaved[group.id] || topicSaved[group.id]" class="size-4" />
+                                    <Save v-else class="size-4" />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========================================== -->
+            <!-- GROUP REPORTING & PROJECT GROUPS VIEW     -->
+            <!-- ========================================== -->
+            <section v-else class="space-y-6">
                 <div class="flex items-center justify-between">
                     <div>
                         <h2 class="text-xl font-bold tracking-tight text-foreground">Groups & Topic Assignments</h2>
                         <p class="text-xs text-muted-foreground">
                             {{
                                 project.type === 'reporting'
-                                    ? 'Members listed on left, manual topic entered on right.'
+                                    ? 'Members listed on left, presentation topics entered on right.'
                                     : 'Members listed on left, unified project details applied to all groups.'
                             }}
                         </p>
@@ -920,27 +1363,38 @@ const filteredUnassigned = computed(() => {
                                     </div>
 
                                     <!-- If REPORTING: Teacher manually enters topic on right side -->
-                                    <div v-if="project.type === 'reporting'" class="space-y-2.5">
+                                    <div v-if="project.type === 'reporting'" class="space-y-3">
                                         <label class="block">
                                             <span class="text-[11px] font-semibold text-muted-foreground">Assigned Presentation Topic:</span>
                                             <textarea
                                                 v-model="groupTopics[group.id]"
-                                                rows="3"
-                                                class="mt-1 w-full rounded-xl border border-input bg-background p-3 text-xs font-medium leading-relaxed transition-all placeholder:text-muted-foreground/60 focus-visible:ring-2 focus-visible:ring-primary"
+                                                rows="2"
+                                                class="mt-1 w-full rounded-xl border border-input bg-background p-3 text-xs font-semibold leading-relaxed transition-all placeholder:font-normal placeholder:text-muted-foreground/60 focus-visible:ring-2 focus-visible:ring-primary"
                                                 :placeholder="`e.g. Chapter ${group.group_number}: Architecture & Implementation...`"
                                                 @blur="saveGroupTopic(group)"
                                             />
                                         </label>
 
+                                        <label class="block">
+                                            <span class="text-[11px] font-medium text-muted-foreground">Topic Description / Scope <em class="font-normal text-[10px]">(optional)</em>:</span>
+                                            <textarea
+                                                v-model="groupDescriptions[group.id]"
+                                                rows="2"
+                                                class="mt-1 w-full rounded-xl border border-border/80 bg-secondary/30 p-2.5 text-xs font-normal leading-relaxed transition-all placeholder:text-muted-foreground/50 focus-visible:ring-2 focus-visible:ring-primary"
+                                                placeholder="e.g. Key subtopics, deliverables, or presentation instructions (optional)..."
+                                                @blur="saveGroupTopic(group)"
+                                            />
+                                        </label>
+
                                         <div class="flex items-center justify-between">
-                                            <span class="text-[10px] text-muted-foreground">Auto-saves on blur or click save</span>
+                                            <span class="text-[10px] text-muted-foreground">Auto-saves on blur or click Save All</span>
                                             <button
                                                 type="button"
                                                 :disabled="topicSaving[group.id]"
                                                 class="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-3 py-1 text-xs font-bold text-primary transition-colors hover:bg-primary/20"
                                                 @click="saveGroupTopic(group)"
                                             >
-                                                <Save class="size-3" /> Save Topic
+                                                <Save class="size-3" /> Save Topic & Description
                                             </button>
                                         </div>
                                     </div>
@@ -963,7 +1417,7 @@ const filteredUnassigned = computed(() => {
                                             </p>
                                         </div>
 
-                                        <div class="border-t border-border/60 pt-2.5">
+                                        <div class="space-y-2 border-t border-border/60 pt-2.5">
                                             <label class="block">
                                                 <span class="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                                                     Group-Specific Focus / Notes <em class="font-normal normal-case">(optional)</em>:
@@ -973,6 +1427,19 @@ const filteredUnassigned = computed(() => {
                                                     type="text"
                                                     placeholder="e.g. Frontend Module focus..."
                                                     class="mt-1 w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs font-medium"
+                                                    @blur="saveGroupTopic(group)"
+                                                />
+                                            </label>
+
+                                            <label class="block">
+                                                <span class="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                                    Description / Deliverables <em class="font-normal normal-case">(optional)</em>:
+                                                </span>
+                                                <input
+                                                    v-model="groupDescriptions[group.id]"
+                                                    type="text"
+                                                    placeholder="e.g. Specific requirements for this group (optional)..."
+                                                    class="mt-1 w-full rounded-lg border border-border/80 bg-secondary/30 px-3 py-1.5 text-xs font-medium"
                                                     @blur="saveGroupTopic(group)"
                                                 />
                                             </label>
@@ -1138,6 +1605,18 @@ const filteredUnassigned = computed(() => {
                         />
                     </label>
 
+                    <label v-if="project.type === 'reporting'" class="block">
+                        <span class="text-xs font-bold uppercase tracking-wider text-muted-foreground"
+                            >Topic Description / Scope <em class="font-normal normal-case">(optional)</em></span
+                        >
+                        <textarea
+                            v-model="addGroupForm.description"
+                            rows="2"
+                            placeholder="Enter topic details, requirements, or instructions (optional)..."
+                            class="mt-1 w-full rounded-xl border border-input bg-background px-3 py-2 text-xs font-medium focus-visible:ring-2 focus-visible:ring-primary"
+                        />
+                    </label>
+
                     <div class="flex items-center justify-end gap-3 pt-2">
                         <button
                             type="button"
@@ -1198,17 +1677,27 @@ const filteredUnassigned = computed(() => {
                                 <p class="font-bold text-foreground">{{ student.full_name }}</p>
                                 <p class="font-mono text-[10px] text-muted-foreground">
                                     {{ student.student_number }}
-                                    <span v-if="student.seat_label" class="font-semibold text-primary">· {{ student.seat_label }}</span>
+                                    <span v-if="student.seat_label">· Chair {{ student.seat_label }}</span>
                                 </p>
                             </div>
-                            <span class="rounded-lg bg-primary/10 px-2.5 py-1 text-[10px] font-bold text-primary"> + Assign </span>
+                            <Plus class="size-4 text-primary" />
                         </button>
                     </div>
+                </div>
+
+                <div class="flex items-center justify-end border-t border-border/80 pt-3">
+                    <button
+                        type="button"
+                        class="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
+                        @click="activeGroupForMember = null"
+                    >
+                        Close
+                    </button>
                 </div>
             </div>
         </div>
 
-        <!-- EDIT PROJECT DETAILS MODAL -->
+        <!-- EDIT PROJECT MODAL -->
         <div
             v-if="showEditModal"
             class="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm duration-150 animate-in fade-in"
@@ -1222,16 +1711,30 @@ const filteredUnassigned = computed(() => {
                 </div>
 
                 <form class="space-y-4" @submit.prevent="submitEditProject">
-                    <label class="block">
-                        <span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Activity Mode</span>
-                        <select
-                            v-model="editForm.type"
-                            class="mt-1 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
-                        >
-                            <option value="project">Project (Unified Title & Scope across groups)</option>
-                            <option value="reporting">Reporting (Individual topic per group)</option>
-                        </select>
-                    </label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="block">
+                            <span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Activity Type</span>
+                            <select
+                                v-model="editForm.type"
+                                class="mt-1 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
+                            >
+                                <option value="group_activity">Group Activity</option>
+                                <option value="reporting">Reporting</option>
+                                <option value="project">Project</option>
+                            </select>
+                        </label>
+
+                        <label v-if="editForm.type === 'reporting'" class="block">
+                            <span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Reporting Format</span>
+                            <select
+                                v-model="editForm.format"
+                                class="mt-1 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
+                            >
+                                <option value="group">Group Reporting</option>
+                                <option value="individual">Individual Reporting</option>
+                            </select>
+                        </label>
+                    </div>
 
                     <label class="block">
                         <span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Title</span>
@@ -1244,7 +1747,13 @@ const filteredUnassigned = computed(() => {
 
                     <label class="block">
                         <span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                            {{ editForm.type === 'project' ? 'Project Description / Scope' : 'Reporting Instructions' }}
+                            {{
+                                editForm.type === 'group_activity'
+                                    ? 'Group Activity Instructions / Objectives'
+                                    : editForm.type === 'project'
+                                      ? 'Project Description / Scope'
+                                      : (editForm.format === 'individual' ? 'Individual Presentation Guidelines / Instructions' : 'Group Reporting Instructions')
+                            }}
                         </span>
                         <textarea
                             v-model="editForm.description"
@@ -1353,7 +1862,7 @@ const filteredUnassigned = computed(() => {
                         <span class="eyebrow text-rose-700 dark:text-rose-400">Permanent Deletion</span>
                         <h3 class="mt-1 text-xl font-bold text-foreground">Delete {{ project.title }}?</h3>
                         <p class="mt-1 text-xs text-muted-foreground">
-                            {{ project.type === 'project' ? 'PROJECT' : 'REPORTING' }} · {{ project.groups.length }} groups
+                            {{ project.type === 'group_activity' ? 'GROUP ACTIVITY' : project.type === 'project' ? 'PROJECT' : 'REPORTING' }} · {{ project.groups.length }} groups
                         </p>
                     </div>
                 </div>
@@ -1363,7 +1872,7 @@ const filteredUnassigned = computed(() => {
                         Warning: This action will permanently remove this {{ project.type }} activity:
                     </p>
                     <ul class="mt-2 list-disc space-y-1 pl-4 text-muted-foreground">
-                        <li>All {{ project.groups.length }} groups, student group assignments, and roles</li>
+                        <li>All {{ project.groups.length }} groups/presenters, student assignments, and roles</li>
                         <li>Assigned presentation topics, notes, and individual/group scores</li>
                         <li v-if="project.attachment_name">Attached guidelines file: {{ project.attachment_name }}</li>
                     </ul>

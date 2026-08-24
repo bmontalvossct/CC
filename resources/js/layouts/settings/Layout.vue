@@ -3,7 +3,10 @@ import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { type NavItem } from '@/types';
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
+
+const page = usePage();
 
 const sidebarNavItems: NavItem[] = [
     {
@@ -22,9 +25,15 @@ const sidebarNavItems: NavItem[] = [
         title: 'Appearance',
         href: '/settings/appearance',
     },
+    {
+        title: 'Backup & Export',
+        href: '/settings/backup',
+    },
 ];
 
-const currentPath = window.location.pathname;
+const isItemActive = (href: string) => {
+    return page.url === href || page.url.startsWith(href + '/');
+};
 </script>
 
 <template>
@@ -38,7 +47,7 @@ const currentPath = window.location.pathname;
                         v-for="item in sidebarNavItems"
                         :key="item.href"
                         variant="ghost"
-                        :class="['w-full justify-start', { 'bg-muted': currentPath === item.href }]"
+                        :class="['w-full justify-start', { 'bg-muted font-semibold text-primary': isItemActive(item.href) }]"
                         as-child
                     >
                         <Link :href="item.href">

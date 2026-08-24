@@ -107,7 +107,7 @@ class ProductionReliabilityTest extends TestCase
             'status' => 'present',
             'attended_minutes' => 60,
         ]);
-        Section::whereKey($section->id)->update(['updated_at' => '2026-08-21 00:00:00']);
+        Section::whereKey($section->id)->update(['updated_at' => now()->addMinute()]);
 
         $queries = [];
         DB::listen(function ($query) use (&$queries): void {

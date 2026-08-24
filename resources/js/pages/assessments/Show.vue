@@ -32,6 +32,7 @@ type Student = {
 type Assessment = {
     id: number;
     type: string;
+    assessment_number?: string | null;
     title: string;
     description?: string;
     conducted_on: string;
@@ -68,6 +69,7 @@ const confirmDelete = () => {
 
 const editForm = useForm({
     type: props.assessment.type,
+    assessment_number: props.assessment.assessment_number ?? '',
     title: props.assessment.title,
     description: props.assessment.description ?? '',
     conducted_on: props.assessment.conducted_on.slice(0, 10),
@@ -276,13 +278,13 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <Head :title="`${assessment.title} · Scores - ClassCheck`" />
+    <Head :title="`${assessment.assessment_number ? `${assessment.assessment_number}: ` : ''}${assessment.title} · Scores - ClassCheck`" />
     <AppLayout
         :breadcrumbs="[
             { title: 'Sections', href: '/sections' },
             { title: section.name, href: `/sections/${section.id}` },
             { title: 'Assessments', href: `/sections/${section.id}/assessments` },
-            { title: assessment.title, href: '#' },
+            { title: assessment.assessment_number ? `${assessment.assessment_number}: ${assessment.title}` : assessment.title, href: '#' },
         ]"
     >
         <main class="page-enter mx-auto flex w-full max-w-[1360px] flex-1 flex-col gap-6 px-5 pb-24 pt-8 md:px-10 md:pt-10">
@@ -299,7 +301,7 @@ onUnmounted(() => {
                 <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                         <div class="flex flex-wrap items-center gap-2">
-                            <span class="badge-primary font-mono font-bold uppercase">{{ assessment.type }}</span>
+                            <span class="badge-primary font-mono font-bold uppercase">{{ assessment.assessment_number || assessment.type }}</span>
                             <span class="badge-muted">{{ formatDate(assessment.conducted_on) }}</span>
                             <span class="badge-muted font-mono font-medium">{{ assessment.max_points }} max points</span>
                         </div>
@@ -680,16 +682,6 @@ onUnmounted(() => {
                 <p class="mt-1 text-xs text-muted-foreground">Modify settings or upload a reference document below.</p>
 
                 <form class="mt-6 grid gap-4 sm:grid-cols-2" @submit.prevent="submitEdit">
-                    <label class="sm:col-span-2">
-                        <span class="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Title</span>
-                        <input
-                            v-model="editForm.title"
-                            required
-                            class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
-                        />
-                        <small v-if="editForm.errors.title" class="mt-1 block text-xs text-rose-600">{{ editForm.errors.title }}</small>
-                    </label>
-
                     <label class="sm:col-span-1">
                         <span class="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Type</span>
                         <select
@@ -700,6 +692,28 @@ onUnmounted(() => {
                             <option value="quiz">Quiz</option>
                             <option value="exam">Exam</option>
                         </select>
+                    </label>
+
+                    <label class="sm:col-span-1">
+                        <span class="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                            {{ editForm.type === 'quiz' ? 'Quiz #' : editForm.type === 'exam' ? 'Exam #' : 'Activity #' }}
+                        </span>
+                        <input
+                            v-model="editForm.assessment_number"
+                            class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
+                            :placeholder="editForm.type === 'quiz' ? 'e.g. Quiz 1' : editForm.type === 'exam' ? 'e.g. Exam 1' : 'e.g. Activity 1'"
+                        />
+                        <small v-if="editForm.errors.assessment_number" class="mt-1 block text-xs text-rose-600">{{ editForm.errors.assessment_number }}</small>
+                    </label>
+
+                    <label class="sm:col-span-2">
+                        <span class="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Title</span>
+                        <input
+                            v-model="editForm.title"
+                            required
+                            class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
+                        />
+                        <small v-if="editForm.errors.title" class="mt-1 block text-xs text-rose-600">{{ editForm.errors.title }}</small>
                     </label>
 
                     <label class="sm:col-span-1">

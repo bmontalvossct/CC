@@ -10,6 +10,7 @@ import {
     ClipboardList,
     FolderKanban,
     GraduationCap,
+    Layers,
     MessageSquare,
     Settings,
 } from 'lucide-vue-next';
@@ -142,6 +143,12 @@ const sectionNavItems = computed(() => {
             title: 'Attendance Register',
             href: `/sections/${id}/attendance`,
             icon: CalendarCheck2,
+            exact: false,
+        },
+        {
+            title: 'Course Modules',
+            href: `/sections/${id}/modules`,
+            icon: Layers,
             exact: false,
         },
         {

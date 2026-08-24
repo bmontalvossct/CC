@@ -6,7 +6,7 @@ import { AlertCircle, ArrowLeft, Download, Printer, RotateCcw, Save, Settings, T
 import { computed, onMounted, ref, watch } from 'vue';
 
 type Assessment = { id: number; type: 'activity' | 'quiz' | 'exam'; title: string; conducted_on: string; max_points: string };
-type ProjectItem = { id: number; type: 'project' | 'reporting'; title: string; conducted_on: string | null; max_points: string | number };
+type ProjectItem = { id: number; type: 'project' | 'reporting' | 'group_activity'; project_number?: string | null; title: string; conducted_on: string | null; max_points: string | number };
 type Category = { raw_earned?: number; bonus_earned?: number; earned: number; possible: number; percentage: number | null; missing: number };
 type ProjectSummary = { count: number; earned: number; possible: number; percentage: number | null; missing: number };
 type AttendanceSummary = {
@@ -26,28 +26,37 @@ type Row = {
     full_name: string;
     scores: Record<number, string | null>;
     categories: Record<'activity' | 'quiz' | 'exam', Category>;
+    group_activity_scores?: Record<number, number | null>;
     project_scores: Record<number, number | null>;
     projectSummary: ProjectSummary;
     attendance: AttendanceSummary;
     recitation: Recitation;
 };
 
-const props = defineProps<{
-    section: { id: number; name: string; subject_code?: string; subject_title: string };
-    assessments: Assessment[];
-    projects?: ProjectItem[];
-    rows: Row[];
-    categorySummary: Record<string, { count: number; possible: number }>;
-    projectSummary?: { count: number; possible: number };
-    attendanceSummary?: { total_sessions: number };
-    gradingWeights: Record<string, number>;
-    printMode: boolean;
-}>();
+const props = withDefaults(
+    defineProps<{
+        section: { id: number; name: string; subject_code?: string; subject_title: string };
+        assessments: Assessment[];
+        groupActivities?: ProjectItem[];
+        projects?: ProjectItem[];
+        rows: Row[];
+        categorySummary: Record<string, { count: number; possible: number }>;
+        projectSummary?: { count: number; possible: number };
+        attendanceSummary?: { total_sessions: number };
+        gradingWeights: Record<string, number>;
+        printMode: boolean;
+    }>(),
+    {
+        groupActivities: () => [],
+        projects: () => [],
+    },
+);
 
 const page = usePage<any>();
 const types = ['activity', 'quiz', 'exam'] as const;
 const showWeightsEditor = ref(false);
 
+const groupActivitiesList = computed(() => props.groupActivities || []);
 const projectsList = computed(() => props.projects || []);
 
 // Student Deficiencies Modal
@@ -66,7 +75,7 @@ const closeStudentModal = () => {
 
 const countDeficiencies = (row: Row): number => {
     let count = 0;
-    // Missing or failing assessments
+    // Missing or failing individual assessments
     for (const a of props.assessments) {
         const val = row.scores[a.id];
         if (val === null || val === undefined || val === '') {
@@ -74,6 +83,19 @@ const countDeficiencies = (row: Row): number => {
         } else {
             const score = parseFloat(String(val));
             const max = parseFloat(String(a.max_points));
+            if (max > 0 && score / max < 0.75) {
+                count++;
+            }
+        }
+    }
+    // Missing or failing group activities (which count under Activity)
+    for (const g of groupActivitiesList.value) {
+        const val = row.group_activity_scores?.[g.id];
+        if (val === null || val === undefined) {
+            count++;
+        } else {
+            const score = Number(val);
+            const max = typeof g.max_points === 'number' ? g.max_points : parseFloat(String(g.max_points || 100));
             if (max > 0 && score / max < 0.75) {
                 count++;
             }
@@ -629,7 +651,6 @@ onMounted(() => {
                             {{ type }} · {{ gradingWeights[type] }}%
                         </span>
                         <p class="mt-2 text-xl font-medium tracking-tight">{{ categorySummary[type].count }} items</p>
-                        <p class="mt-0.5 text-[11px] font-normal text-muted-foreground">{{ categorySummary[type].possible }} possible pts</p>
                     </div>
 
                     <!-- Project / Reporting Summary Card -->
@@ -638,7 +659,6 @@ onMounted(() => {
                             Project / Report · {{ gradingWeights.project }}%
                         </span>
                         <p class="mt-2 text-xl font-medium tracking-tight">{{ projectSummary?.count ?? projectsList.length }} projects</p>
-                        <p class="mt-0.5 text-[11px] font-normal text-muted-foreground">{{ projectSummary?.possible ?? 0 }} possible pts</p>
                     </div>
 
                     <!-- Attendance Summary Card -->
@@ -689,6 +709,20 @@ onMounted(() => {
                                             {{ item.type }}
                                         </span>
                                         <span class="mx-auto mt-0.5 block max-w-24 truncate font-medium text-foreground">{{ item.title }}</span>
+                                        <span class="font-mono text-[10px] text-muted-foreground">/ {{ item.max_points }}</span>
+                                    </th>
+                                    <!-- Group Activity columns (Calculated in Activities) -->
+                                    <th
+                                        v-for="item in groupActivitiesList"
+                                        :key="`group-act-${item.id}`"
+                                        class="min-w-28 border-l border-emerald-500/30 bg-emerald-500/5 px-3 py-3 text-center"
+                                    >
+                                        <span
+                                            class="block font-mono text-[9px] font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-400"
+                                        >
+                                            Group Act
+                                        </span>
+                                        <span class="mx-auto mt-0.5 block max-w-28 truncate font-medium text-foreground">{{ item.title }}</span>
                                         <span class="font-mono text-[10px] text-muted-foreground">/ {{ item.max_points }}</span>
                                     </th>
                                     <!-- Project columns -->
@@ -778,6 +812,19 @@ onMounted(() => {
                                     >
                                         {{ row.scores[item.id] ?? '—' }}
                                     </td>
+                                    <!-- Group Activity scores -->
+                                    <td
+                                        v-for="item in groupActivitiesList"
+                                        :key="`score-gact-${item.id}`"
+                                        class="border-l border-emerald-500/20 bg-emerald-500/5 px-3 py-3 text-center font-mono text-xs"
+                                        :class="row.group_activity_scores?.[item.id] === null || row.group_activity_scores?.[item.id] === undefined ? 'text-muted-foreground/60' : 'font-medium text-foreground'"
+                                    >
+                                        {{
+                                            row.group_activity_scores?.[item.id] !== null && row.group_activity_scores?.[item.id] !== undefined
+                                                ? row.group_activity_scores[item.id]
+                                                : '—'
+                                        }}
+                                    </td>
                                     <!-- Project scores -->
                                     <td
                                         v-for="item in projectsList"
@@ -863,7 +910,7 @@ onMounted(() => {
                                 </tr>
                                 <tr v-if="!rows.length">
                                     <td
-                                        :colspan="5 + assessments.length + projectsList.length + types.length"
+                                        :colspan="5 + assessments.length + groupActivitiesList.length + projectsList.length + types.length"
                                         class="py-12 text-center text-xs text-muted-foreground"
                                     >
                                         No students are enrolled in this section.
@@ -916,6 +963,7 @@ onMounted(() => {
         <StudentDeficienciesModal
             :student="selectedStudent"
             :assessments="assessments"
+            :group-activities="groupActivitiesList"
             :projects="projectsList"
             :grading-weights="gradingWeights"
             :section-name="section.name"
