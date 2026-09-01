@@ -30,7 +30,7 @@ class StoreAssessmentRequest extends FormRequest
             'conducted_on' => ['required', 'date'],
             'max_points' => ['required', 'numeric', 'gt:0', 'max:99999999.99'],
             'attendance_session_id' => ['nullable', 'integer', 'exists:attendance_sessions,id'],
-            'attachment' => ['nullable', 'file', 'max:51200', 'extensions:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx,ppt,pptx,txt,csv,zip,rar,7z,rtf,odt,ods,odp,svg,gif,bmp,heic,pages,numbers,key'],
+            'attachment' => ['nullable', 'file', 'max:51200', 'extensions:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx,ppt,pptx,txt,csv,zip,rar,7z,rtf,odt,ods,odp,svg,gif,bmp,heic,pages,numbers,key,json,sql,db,sqlite,sqlite3'],
         ];
     }
 
@@ -38,7 +38,7 @@ class StoreAssessmentRequest extends FormRequest
     {
         return [
             'attachment.max' => 'The attachment must not be larger than 50MB.',
-            'attachment.extensions' => 'The attachment must be a valid file type (PDF, Word, Excel, PowerPoint, Text, Image, Zip).',
+            'attachment.extensions' => 'The attachment must be a valid file type (PDF, Word, Excel, PowerPoint, Text, Image, Zip, JSON, Database).',
             'attachment.file' => 'The uploaded file is invalid or could not be processed.',
         ];
     }

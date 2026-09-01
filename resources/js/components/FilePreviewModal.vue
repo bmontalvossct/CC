@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Download, ExternalLink, FileSpreadsheet, FileText, FileType2, FolderArchive, Image as ImageIcon, Presentation, X } from 'lucide-vue-next';
-import { computed, onMounted, onUnmounted } from 'vue';
+import { Check, Database, Download, FileJson, FileSpreadsheet, FileText, FileType2, FolderArchive, FolderOpen, Image as ImageIcon, Presentation, X } from 'lucide-vue-next';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 const props = defineProps<{
     show: boolean;
@@ -14,6 +14,39 @@ const emit = defineEmits<{
     (e: 'close'): void;
 }>();
 
+const isOpeningFolder = ref(false);
+const folderOpened = ref(false);
+
+const openFolderLocation = async () => {
+    isOpeningFolder.value = true;
+    try {
+        const response = await fetch('/system/open-file-location', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '',
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({
+                file_url: props.fileUrl,
+                file_name: props.fileName,
+            }),
+        });
+        const data = await response.json();
+        folderOpened.value = true;
+        setTimeout(() => {
+            folderOpened.value = false;
+        }, 3000);
+    } catch {
+        // Fallback: If not reachable, open download
+        if (effectiveDownloadUrl.value) {
+            window.location.href = effectiveDownloadUrl.value;
+        }
+    } finally {
+        isOpeningFolder.value = false;
+    }
+};
+
 const effectiveDownloadUrl = computed(() => {
     if (props.downloadUrl) return props.downloadUrl;
     if (!props.fileUrl) return '';
@@ -26,26 +59,28 @@ const extension = computed(() => {
     return parts.length > 1 ? parts.pop()!.toLowerCase() : '';
 });
 
-const fileCategory = computed<'pdf' | 'image' | 'text' | 'word' | 'excel' | 'powerpoint' | 'archive' | 'other'>(() => {
+const fileCategory = computed<'pdf' | 'image' | 'text' | 'word' | 'excel' | 'powerpoint' | 'archive' | 'database' | 'other'>(() => {
     const ext = extension.value;
     if (ext === 'pdf') return 'pdf';
     if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'bmp', 'heic'].includes(ext)) return 'image';
-    if (['txt', 'csv', 'md', 'json', 'log'].includes(ext)) return 'text';
+    if (['txt', 'csv', 'md', 'json', 'log', 'sql', 'xml', 'yaml', 'yml'].includes(ext)) return 'text';
     if (['doc', 'docx', 'rtf', 'odt', 'pages'].includes(ext)) return 'word';
     if (['xls', 'xlsx', 'ods', 'numbers'].includes(ext)) return 'excel';
     if (['ppt', 'pptx', 'odp', 'key'].includes(ext)) return 'powerpoint';
     if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return 'archive';
+    if (['sqlite', 'db', 'sqlite3', 'bak'].includes(ext)) return 'database';
     return 'other';
 });
 
 const categoryLabel = computed(() => {
+    const ext = extension.value;
     switch (fileCategory.value) {
         case 'pdf':
             return 'PDF Document';
         case 'image':
             return 'Image File';
         case 'text':
-            return 'Text Document';
+            return ext === 'json' ? 'JSON Data File' : ext === 'sql' ? 'SQL Script File' : 'Text / Data Document';
         case 'word':
             return 'Word Document';
         case 'excel':
@@ -54,6 +89,8 @@ const categoryLabel = computed(() => {
             return 'Presentation Slide';
         case 'archive':
             return 'Compressed Archive';
+        case 'database':
+            return 'Database File (.sqlite / .db)';
         default:
             return `${extension.value.toUpperCase() || 'Attached'} File`;
     }
@@ -78,8 +115,8 @@ onUnmounted(() => {
 <template>
     <div
         v-if="show"
+        v-modal-focus
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 backdrop-blur-md duration-200 animate-in fade-in sm:p-6 md:p-8"
-        @click.self="emit('close')"
     >
         <div
             class="relative flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-border/90 bg-card text-card-foreground shadow-2xl duration-200 animate-in zoom-in-95"
@@ -91,6 +128,8 @@ onUnmounted(() => {
                 <div class="flex min-w-0 items-center gap-3">
                     <div class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                         <ImageIcon v-if="fileCategory === 'image'" class="size-4" />
+                        <FileJson v-else-if="extension === 'json'" class="size-4 text-emerald-600 dark:text-emerald-400" />
+                        <Database v-else-if="fileCategory === 'database'" class="size-4 text-blue-600 dark:text-blue-400" />
                         <FileText v-else-if="fileCategory === 'pdf' || fileCategory === 'text' || fileCategory === 'word'" class="size-4" />
                         <FileSpreadsheet v-else-if="fileCategory === 'excel'" class="size-4" />
                         <Presentation v-else-if="fileCategory === 'powerpoint'" class="size-4" />
@@ -117,24 +156,25 @@ onUnmounted(() => {
 
                 <!-- Action Controls -->
                 <div class="flex shrink-0 items-center gap-2">
+                    <button
+                        type="button"
+                        class="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3.5 text-xs font-semibold text-foreground transition-all hover:bg-secondary"
+                        :title="folderOpened ? 'Folder Opened in Explorer' : 'Open in Windows File Explorer'"
+                        :disabled="isOpeningFolder"
+                        @click="openFolderLocation"
+                    >
+                        <Check v-if="folderOpened" class="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                        <FolderOpen v-else class="size-3.5 text-amber-600 dark:text-amber-400" />
+                        <span class="hidden sm:inline">{{ folderOpened ? 'Opened in Explorer' : isOpeningFolder ? 'Opening...' : 'Open Folder' }}</span>
+                    </button>
+
                     <a
                         :href="effectiveDownloadUrl"
-                        download
                         class="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-primary px-3.5 text-xs font-bold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 hover:shadow"
                         title="Download file to your device"
                     >
                         <Download class="size-3.5" />
                         <span class="hidden sm:inline">Download</span>
-                    </a>
-
-                    <a
-                        :href="fileUrl"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="inline-flex size-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-                        title="Open in new tab"
-                    >
-                        <ExternalLink class="size-4" />
                     </a>
 
                     <button
@@ -182,6 +222,7 @@ onUnmounted(() => {
                         <FileSpreadsheet v-else-if="fileCategory === 'excel'" class="size-10 text-emerald-600 dark:text-emerald-400" />
                         <Presentation v-else-if="fileCategory === 'powerpoint'" class="size-10 text-amber-600 dark:text-amber-400" />
                         <FolderArchive v-else-if="fileCategory === 'archive'" class="size-10 text-purple-600 dark:text-purple-400" />
+                        <Database v-else-if="fileCategory === 'database'" class="size-10 text-blue-600 dark:text-blue-400" />
                         <FileType2 v-else class="size-10 text-primary" />
                     </div>
 
@@ -193,20 +234,21 @@ onUnmounted(() => {
                     </p>
 
                     <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
-                        <a :href="effectiveDownloadUrl" download class="ink-button !h-10 !rounded-xl !px-6 text-xs font-bold">
+                        <a :href="effectiveDownloadUrl" class="ink-button !h-10 !rounded-xl !px-6 text-xs font-bold">
                             <Download class="size-4" />
                             <span>Download {{ fileName }}</span>
                         </a>
 
-                        <a
-                            :href="fileUrl"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 text-xs font-semibold text-foreground transition-colors hover:bg-secondary"
+                        <button
+                            type="button"
+                            class="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-card px-5 text-xs font-semibold text-foreground transition-colors hover:bg-secondary"
+                            :disabled="isOpeningFolder"
+                            @click="openFolderLocation"
                         >
-                            <ExternalLink class="size-3.5" />
-                            <span>Open In Browser</span>
-                        </a>
+                            <Check v-if="folderOpened" class="size-4 text-emerald-600 dark:text-emerald-400" />
+                            <FolderOpen v-else class="size-4 text-amber-600 dark:text-amber-400" />
+                            <span>{{ folderOpened ? 'Folder Opened in Explorer' : isOpeningFolder ? 'Opening Explorer...' : 'Open File Location' }}</span>
+                        </button>
                     </div>
                 </div>
             </div>

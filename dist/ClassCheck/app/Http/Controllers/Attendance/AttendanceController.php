@@ -53,7 +53,7 @@ class AttendanceController extends Controller
 
         foreach ($sessions as $session) {
             $dateStr = $session->session_date->toDateString();
-            $timeStr = substr($session->starts_at, 0, 5).' – '.substr($session->ends_at, 0, 5);
+            $timeStr = \Carbon\Carbon::parse($session->starts_at)->format('g:i A').' – '.\Carbon\Carbon::parse($session->ends_at)->format('g:i A');
             $sessionInfo = [
                 'session_id' => $session->id,
                 'date' => $dateStr,
@@ -144,6 +144,42 @@ class AttendanceController extends Controller
                     'absence_status' => $absenceStatus,
                 ];
             })->values(),
+            'day_of_week_trends' => (function () use ($sessions) {
+                $daysMap = [
+                    1 => ['day' => 'Mon', 'name' => 'Monday', 'sessions' => 0, 'present' => 0, 'absent' => 0, 'late' => 0],
+                    2 => ['day' => 'Tue', 'name' => 'Tuesday', 'sessions' => 0, 'present' => 0, 'absent' => 0, 'late' => 0],
+                    3 => ['day' => 'Wed', 'name' => 'Wednesday', 'sessions' => 0, 'present' => 0, 'absent' => 0, 'late' => 0],
+                    4 => ['day' => 'Thu', 'name' => 'Thursday', 'sessions' => 0, 'present' => 0, 'absent' => 0, 'late' => 0],
+                    5 => ['day' => 'Fri', 'name' => 'Friday', 'sessions' => 0, 'present' => 0, 'absent' => 0, 'late' => 0],
+                    6 => ['day' => 'Sat', 'name' => 'Saturday', 'sessions' => 0, 'present' => 0, 'absent' => 0, 'late' => 0],
+                    7 => ['day' => 'Sun', 'name' => 'Sunday', 'sessions' => 0, 'present' => 0, 'absent' => 0, 'late' => 0],
+                ];
+
+                foreach ($sessions as $session) {
+                    $dow = $session->session_date->dayOfWeekIso;
+                    if (isset($daysMap[$dow])) {
+                        $daysMap[$dow]['sessions']++;
+                        foreach ($session->records as $rec) {
+                            if ($rec->status === AttendanceRecord::STATUS_PRESENT) {
+                                $daysMap[$dow]['present']++;
+                            } elseif ($rec->status === AttendanceRecord::STATUS_ABSENT) {
+                                $daysMap[$dow]['absent']++;
+                            } elseif ($rec->status === AttendanceRecord::STATUS_LATE) {
+                                $daysMap[$dow]['late']++;
+                            }
+                        }
+                    }
+                }
+
+                return collect($daysMap)->values()->map(function ($item) {
+                    $totalMarks = $item['present'] + $item['absent'] + $item['late'];
+                    $rate = $totalMarks > 0 ? round((($item['present'] + ($item['late'] * 0.5)) / $totalMarks) * 100, 1) : null;
+                    return array_merge($item, [
+                        'total_marks' => $totalMarks,
+                        'attendance_rate' => $rate,
+                    ]);
+                })->all();
+            })(),
             'sessions' => $sessions->map(fn ($session) => [
                 'id' => $session->id,
                 'session_date' => $session->session_date->toDateString(),
@@ -369,6 +405,16 @@ class AttendanceController extends Controller
             'default_schedule' => $section->relationLoaded('schedules')
                 ? optional($section->schedules->firstWhere('day_of_week', now()->dayOfWeekIso))?->only(['starts_at', 'ends_at'])
                 : null,
+            'schedules' => $section->relationLoaded('schedules')
+                ? $section->schedules->map(fn ($s) => [
+                    'id' => $s->id,
+                    'day_of_week' => (int) $s->day_of_week,
+                    'starts_at' => substr($s->starts_at, 0, 5),
+                    'ends_at' => substr($s->ends_at, 0, 5),
+                    'room' => $s->room,
+                    'schedule_type' => $s->schedule_type,
+                ])->values()->all()
+                : [],
         ];
     }
 

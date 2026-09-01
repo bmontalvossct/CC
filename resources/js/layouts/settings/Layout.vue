@@ -2,33 +2,44 @@
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { type NavItem } from '@/types';
+import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
-const page = usePage();
+const page = usePage<SharedData>();
 
-const sidebarNavItems: NavItem[] = [
-    {
-        title: 'Profile',
-        href: '/settings/profile',
-    },
-    {
-        title: 'Academic Term',
-        href: '/settings/academic-term',
-    },
-    {
-        title: 'Password',
-        href: '/settings/password',
-    },
-    {
-        title: 'Appearance',
-        href: '/settings/appearance',
-    },
-    {
-        title: 'Backup & Export',
-        href: '/settings/backup',
-    },
-];
+const sidebarNavItems = computed<NavItem[]>(() => {
+    const items: NavItem[] = [
+        {
+            title: 'Profile',
+            href: '/settings/profile',
+        },
+        {
+            title: 'Academic Term',
+            href: '/settings/academic-term',
+        },
+    ];
+
+    if (!page.props.is_offline) {
+        items.push({
+            title: 'Password',
+            href: '/settings/password',
+        });
+    }
+
+    items.push(
+        {
+            title: 'Appearance',
+            href: '/settings/appearance',
+        },
+        {
+            title: 'Backup & Export',
+            href: '/settings/backup',
+        },
+    );
+
+    return items;
+});
 
 const isItemActive = (href: string) => {
     return page.url === href || page.url.startsWith(href + '/');

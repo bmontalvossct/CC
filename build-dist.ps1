@@ -23,8 +23,31 @@ if ($LASTEXITCODE -ne 0) {
 
 # 2. Clean and Prepare Output Directory
 Write-Host "`n[2/7] Preparing clean distribution directories..." -ForegroundColor Yellow
+Get-Process -Name "ClassCheck", "php", "php-win", "php-cgi" -ErrorAction SilentlyContinue | Where-Object {
+    try { $_.Path -like "*$DistDir*" } catch { $false }
+} | ForEach-Object {
+    try { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue } catch { }
+}
+Start-Sleep -Milliseconds 1000
+
+# Safety backup: If dist\ClassCheck had active database data, preserve a copy to database/backups
+$ExistingDistDb = Join-Path $DistDir "ClassCheck\database\database.sqlite"
+if ((Test-Path $ExistingDistDb) -and ((Get-Item $ExistingDistDb).Length -gt 0)) {
+    $BackupFolder = Join-Path $WorkspaceRoot "database\backups"
+    if (-not (Test-Path $BackupFolder)) { New-Item -ItemType Directory -Path $BackupFolder -Force | Out-Null }
+    $Timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+    $BackupFile = Join-Path $BackupFolder "dist_backup_$Timestamp.sqlite"
+    Copy-Item -Path $ExistingDistDb -Destination $BackupFile -Force
+    Write-Host "    [Safety] Saved backup of previous dist database to: database\backups\dist_backup_$Timestamp.sqlite" -ForegroundColor Magenta
+}
+
 if (Test-Path $DistDir) {
-    Remove-Item -Recurse -Force $DistDir
+    try {
+        Remove-Item -Recurse -Force $DistDir -ErrorAction Stop
+    } catch {
+        Start-Sleep -Seconds 1
+        Remove-Item -Recurse -Force $DistDir -ErrorAction SilentlyContinue
+    }
 }
 New-Item -ItemType Directory -Path $PayloadDir -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $PayloadDir "bin\php\ext") -Force | Out-Null
@@ -227,6 +250,7 @@ if (Test-Path $SqliteDest) {
 $EnvContent = @"
 APP_NAME=ClassCheck
 APP_ENV=production
+APP_OFFLINE=true
 APP_KEY=base64:7K0bE2q5Qv7X6g9r8+t1uF2w3x4y5z6a7b8c9d0e1f2=
 APP_DEBUG=false
 APP_URL=http://127.0.0.1:8000
@@ -250,6 +274,12 @@ QUEUE_CONNECTION=sync
 
 CACHE_STORE=file
 CACHE_PREFIX=classcheck_cache_
+
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+OLLAMA_CHAT_MODEL=hermes3:8b
+OLLAMA_CODE_MODEL=qwen2.5-coder:7b
+OLLAMA_GENERAL_MODEL=hermes3:8b
+AUTOCHECKER_DEFAULT_MODEL=hermes3:8b
 "@
 Set-Content -Path (Join-Path $PayloadDir ".env") -Value $EnvContent -Encoding UTF8
 

@@ -483,8 +483,8 @@ const getFileTypeBadge = (fileName: string | null, mime: string | null) => {
         <!-- Add / Edit Module Modal -->
         <div
             v-if="showModal"
+            v-modal-focus
             class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-zinc-950/70 p-4 backdrop-blur-md"
-            @click.self="closeModal"
         >
             <div class="paper-card my-8 w-full max-w-lg p-7 shadow-2xl duration-200 animate-in fade-in zoom-in-95">
                 <div class="flex items-center justify-between border-b border-border/60 pb-3">
@@ -596,7 +596,7 @@ const getFileTypeBadge = (fileName: string | null, mime: string | null) => {
                                 ref="fileInputRef"
                                 type="file"
                                 class="hidden"
-                                accept=".pdf,.ppt,.pptx,.key,.odp,.zip,.rar,.mp4,.doc,.docx"
+                                accept=".pdf,.ppt,.pptx,.key,.odp,.zip,.rar,.mp4,.doc,.docx,.xls,.xlsx,.txt,.csv,.json,.sql,.db,.sqlite,.sqlite3"
                                 @change="handleFileSelect"
                             />
 
@@ -662,10 +662,10 @@ const getFileTypeBadge = (fileName: string | null, mime: string | null) => {
         <!-- Delete Confirmation Modal -->
         <div
             v-if="moduleToDelete"
+            v-modal-focus
             class="backdrop-blur-xs fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
             role="dialog"
             aria-modal="true"
-            @click.self="moduleToDelete = null"
         >
             <div class="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in-95">
                 <div class="flex items-center gap-3">

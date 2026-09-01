@@ -179,12 +179,13 @@ class BackupExportService
             foreach ($section->courseModules as $module) {
                 $modulesData[] = [
                     'id' => $module->id,
+                    'module_number' => $module->module_number ?? ('M'.$module->sort_order),
                     'title' => $module->title,
                     'description' => $module->description,
-                    'type' => $module->type,
-                    'url' => $module->url,
+                    'link_url' => $module->link_url ?? $module->url ?? null,
                     'sort_order' => $module->sort_order,
                     'file_name' => $module->file_name,
+                    'file_path' => $module->file_path,
                 ];
             }
 
@@ -468,19 +469,261 @@ class BackupExportService
                 }
 
                 // Course Modules
-                foreach ($secData['course_modules'] ?? [] as $modData) {
+                foreach ($secData['course_modules'] ?? [] as $modIdx => $modData) {
                     $section->courseModules()->create([
-                        'title' => $modData['title'],
+                        'module_number' => !empty($modData['module_number']) ? $modData['module_number'] : ('M'.($modIdx + 1)),
+                        'title' => $modData['title'] ?? ('Module '.($modIdx + 1)),
                         'description' => $modData['description'] ?? null,
-                        'type' => $modData['type'],
-                        'url' => $modData['url'] ?? null,
-                        'sort_order' => $modData['sort_order'] ?? 0,
+                        'link_url' => $modData['link_url'] ?? $modData['url'] ?? null,
+                        'file_path' => $modData['file_path'] ?? null,
+                        'file_name' => $modData['file_name'] ?? null,
+                        'sort_order' => $modData['sort_order'] ?? ($modIdx + 1),
                     ]);
                 }
             }
         });
 
         return $stats;
+    }
+
+    /**
+     * Extract structured backup data from an uploaded SQLite database file.
+     */
+    public function extractSqliteData(string $filePath): array
+    {
+        $pdo = new \PDO('sqlite:'.$filePath);
+        $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+        $pdo->setAttribute(\PDO::ATTR_DEFAULT_FETCH_MODE, \PDO::FETCH_ASSOC);
+
+        // Check if this is a valid ClassCheck database
+        $tablesStmt = $pdo->query("SELECT name FROM sqlite_master WHERE type='table'");
+        $tables = $tablesStmt->fetchAll(\PDO::FETCH_COLUMN);
+
+        $hasRequired = in_array('sections', $tables) || in_array('students', $tables) || in_array('academic_terms', $tables);
+        if (!$hasRequired) {
+            throw new \InvalidArgumentException('The uploaded SQLite file is not a valid ClassCheck database.');
+        }
+
+        $terms = in_array('academic_terms', $tables)
+            ? $pdo->query('SELECT * FROM academic_terms')->fetchAll()
+            : [];
+
+        $sections = in_array('sections', $tables)
+            ? $pdo->query('SELECT * FROM sections')->fetchAll()
+            : [];
+
+        $sectionsData = [];
+        foreach ($sections as $sec) {
+            $secId = (int) $sec['id'];
+
+            // Students
+            $students = in_array('students', $tables)
+                ? $pdo->query("SELECT * FROM students WHERE section_id = {$secId}")->fetchAll()
+                : [];
+
+            // Layout Blocks & Seats
+            $blocks = in_array('layout_blocks', $tables)
+                ? $pdo->query("SELECT * FROM layout_blocks WHERE section_id = {$secId}")->fetchAll()
+                : [];
+
+            $blocksData = [];
+            foreach ($blocks as $block) {
+                $blockId = (int) $block['id'];
+                $seats = in_array('seats', $tables)
+                    ? $pdo->query("SELECT * FROM seats WHERE layout_block_id = {$blockId}")->fetchAll()
+                    : [];
+
+                $blocksData[] = [
+                    'id' => $block['id'],
+                    'label' => $block['label'],
+                    'block_row' => (int) $block['block_row'],
+                    'block_column' => (int) $block['block_column'],
+                    'internal_rows' => (int) $block['internal_rows'],
+                    'internal_columns' => (int) $block['internal_columns'],
+                    'aisles' => ! empty($block['aisles']) ? (is_array(json_decode($block['aisles'], true)) ? json_decode($block['aisles'], true) : $block['aisles']) : null,
+                    'seats' => array_map(fn ($s) => [
+                        'id' => $s['id'],
+                        'student_id' => $s['student_id'] ? (int) $s['student_id'] : null,
+                        'row_number' => (int) $s['row_number'],
+                        'column_number' => (int) $s['column_number'],
+                        'label' => $s['label'],
+                        'is_disabled' => (bool) ($s['is_disabled'] ?? false),
+                    ], $seats),
+                ];
+            }
+
+            // Attendance Sessions & Records
+            $sessions = in_array('attendance_sessions', $tables)
+                ? $pdo->query("SELECT * FROM attendance_sessions WHERE section_id = {$secId}")->fetchAll()
+                : [];
+
+            $attendanceData = [];
+            foreach ($sessions as $sess) {
+                $sessId = (int) $sess['id'];
+                $records = in_array('attendance_records', $tables)
+                    ? $pdo->query("SELECT * FROM attendance_records WHERE attendance_session_id = {$sessId}")->fetchAll()
+                    : [];
+
+                $attendanceData[] = [
+                    'id' => $sess['id'],
+                    'session_date' => (string) $sess['session_date'],
+                    'starts_at' => (string) $sess['starts_at'],
+                    'ends_at' => (string) $sess['ends_at'],
+                    'duration_minutes' => (int) ($sess['duration_minutes'] ?? 60),
+                    'records' => array_map(fn ($r) => [
+                        'student_id' => (int) $r['student_id'],
+                        'status' => $r['status'],
+                        'attended_minutes' => (int) ($r['attended_minutes'] ?? 0),
+                        'remarks' => $r['remarks'] ?? null,
+                    ], $records),
+                ];
+            }
+
+            // Recitations
+            $recitations = in_array('recitations', $tables)
+                ? $pdo->query("SELECT * FROM recitations WHERE section_id = {$secId}")->fetchAll()
+                : [];
+
+            // Assessments & Scores
+            $assessments = in_array('assessments', $tables)
+                ? $pdo->query("SELECT * FROM assessments WHERE section_id = {$secId}")->fetchAll()
+                : [];
+
+            $assessmentsData = [];
+            foreach ($assessments as $ass) {
+                $assId = (int) $ass['id'];
+                $scores = in_array('assessment_scores', $tables)
+                    ? $pdo->query("SELECT * FROM assessment_scores WHERE assessment_id = {$assId}")->fetchAll()
+                    : [];
+
+                $assessmentsData[] = [
+                    'id' => $ass['id'],
+                    'type' => $ass['type'],
+                    'assessment_number' => $ass['assessment_number'] ?? 1,
+                    'title' => $ass['title'],
+                    'description' => $ass['description'] ?? null,
+                    'conducted_on' => (string) $ass['conducted_on'],
+                    'max_points' => (float) ($ass['max_points'] ?? 100),
+                    'scores' => array_map(fn ($sc) => [
+                        'student_id' => (int) $sc['student_id'],
+                        'score' => (float) ($sc['score'] ?? 0),
+                        'remarks' => $sc['remarks'] ?? null,
+                    ], $scores),
+                ];
+            }
+
+            // Projects & Groups
+            $projects = in_array('projects', $tables)
+                ? $pdo->query("SELECT * FROM projects WHERE section_id = {$secId}")->fetchAll()
+                : [];
+
+            $projectsData = [];
+            foreach ($projects as $prj) {
+                $prjId = (int) $prj['id'];
+                $groups = in_array('project_groups', $tables)
+                    ? $pdo->query("SELECT * FROM project_groups WHERE project_id = {$prjId}")->fetchAll()
+                    : [];
+
+                $projectsData[] = [
+                    'id' => $prj['id'],
+                    'title' => $prj['title'],
+                    'project_number' => $prj['project_number'] ?? 1,
+                    'format' => $prj['format'] ?? 'group',
+                    'max_score' => (float) ($prj['max_score'] ?? ($prj['max_points'] ?? 100)),
+                    'due_at' => (string) ($prj['due_at'] ?? ($prj['conducted_on'] ?? '')),
+                    'groups' => array_map(fn ($g) => [
+                        'group_number' => $g['group_number'] ?? 1,
+                        'name' => $g['name'],
+                        'description' => $g['description'] ?? null,
+                        'leader_student_id' => $g['leader_student_id'] ? (int) $g['leader_student_id'] : null,
+                        'student_ids' => ! empty($g['student_ids']) ? (is_array(json_decode($g['student_ids'], true)) ? json_decode($g['student_ids'], true) : []) : [],
+                        'score' => $g['score'] !== null ? (float) $g['score'] : null,
+                    ], $groups),
+                ];
+            }
+
+            // Schedules
+            $schedules = in_array('section_schedules', $tables)
+                ? $pdo->query("SELECT * FROM section_schedules WHERE section_id = {$secId}")->fetchAll()
+                : [];
+
+            // Course Modules
+            $modules = in_array('course_modules', $tables)
+                ? $pdo->query("SELECT * FROM course_modules WHERE section_id = {$secId}")->fetchAll()
+                : [];
+
+            $sectionsData[] = [
+                'id' => $sec['id'],
+                'academic_term_id' => $sec['academic_term_id'] ? (int) $sec['academic_term_id'] : null,
+                'subject_code' => $sec['subject_code'],
+                'subject_title' => $sec['subject_title'] ?? $sec['subject_code'],
+                'name' => $sec['name'],
+                'enrollment_token' => $sec['enrollment_token'] ?? null,
+                'is_enrollment_open' => (bool) ($sec['is_enrollment_open'] ?? true),
+                'grading_weights' => ! empty($sec['grading_weights']) ? (is_array(json_decode($sec['grading_weights'], true)) ? json_decode($sec['grading_weights'], true) : $sec['grading_weights']) : null,
+                'archived_at' => ! empty($sec['archived_at']) ? (string) $sec['archived_at'] : null,
+                'schedules' => array_map(fn ($s) => [
+                    'day_of_week' => (int) $s['day_of_week'],
+                    'starts_at' => (string) $s['starts_at'],
+                    'ends_at' => (string) $s['ends_at'],
+                    'room' => $s['room'] ?? null,
+                    'schedule_type' => $s['schedule_type'] ?? 'lecture',
+                ], $schedules),
+                'students' => array_map(fn ($st) => [
+                    'id' => $st['id'],
+                    'student_number' => $st['student_number'] ?? null,
+                    'first_name' => $st['first_name'],
+                    'middle_name' => $st['middle_name'] ?? null,
+                    'last_name' => $st['last_name'],
+                    'is_active' => (bool) ($st['is_active'] ?? true),
+                    'photo_path' => $st['photo_path'] ?? null,
+                ], $students),
+                'layout_blocks' => $blocksData,
+                'attendance_sessions' => $attendanceData,
+                'recitations' => array_map(fn ($r) => [
+                    'student_id' => (int) $r['student_id'],
+                    'score' => (float) $r['score'],
+                    'conducted_on' => (string) $r['conducted_on'],
+                    'accuracy' => $r['accuracy'] ?? null,
+                    'delivery' => $r['delivery'] ?? null,
+                    'comments' => $r['comments'] ?? ($r['notes'] ?? null),
+                ], $recitations),
+                'assessments' => $assessmentsData,
+                'projects' => $projectsData,
+                'course_modules' => array_map(fn ($m, $idx) => [
+                    'id' => $m['id'],
+                    'module_number' => $m['module_number'] ?? ('M'.($idx + 1)),
+                    'title' => $m['title'],
+                    'description' => $m['description'] ?? null,
+                    'link_url' => $m['link_url'] ?? ($m['url'] ?? null),
+                    'file_path' => $m['file_path'] ?? null,
+                    'file_name' => $m['file_name'] ?? null,
+                    'sort_order' => (int) ($m['sort_order'] ?? ($idx + 1)),
+                ], $modules, array_keys($modules)),
+            ];
+        }
+
+        return [
+            'meta' => [
+                'app' => 'ClassCheck',
+                'version' => '1.0.0',
+                'exported_at' => now()->toIso8601String(),
+                'source' => 'sqlite_upload',
+                'counts' => [
+                    'terms' => count($terms),
+                    'sections' => count($sectionsData),
+                ],
+            ],
+            'academic_terms' => array_map(fn ($t) => [
+                'id' => $t['id'],
+                'name' => $t['name'],
+                'school_year' => $t['school_year'],
+                'starts_on' => (string) $t['starts_on'],
+                'ends_on' => (string) $t['ends_on'],
+                'is_current' => (bool) ($t['is_current'] ?? false),
+            ], $terms),
+            'sections' => $sectionsData,
+        ];
     }
 
     /**

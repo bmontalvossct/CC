@@ -287,4 +287,121 @@ class BackupExportTest extends TestCase
             'title' => 'Lab Exercise 1',
         ]);
     }
+
+    public function test_user_can_restore_json_with_bom(): void
+    {
+        $user = User::factory()->create();
+        $payload = [
+            'meta' => [
+                'app' => 'ClassCheck',
+                'version' => '1.0.0',
+            ],
+            'academic_terms' => [
+                [
+                    'id' => 1,
+                    'name' => 'BOM Semester',
+                    'school_year' => '2026-2027',
+                    'starts_on' => '2026-08-01',
+                    'ends_on' => '2026-12-20',
+                    'is_current' => true,
+                ],
+            ],
+            'sections' => [
+                [
+                    'id' => 1,
+                    'academic_term_id' => 1,
+                    'subject_code' => 'BOM101',
+                    'subject_title' => 'BOM Encoded Test',
+                    'name' => 'Section BOM',
+                    'students' => [],
+                    'layout_blocks' => [],
+                    'attendance_sessions' => [],
+                    'assessments' => [],
+                ],
+            ],
+        ];
+
+        $contentWithBom = "\xEF\xBB\xBF".json_encode($payload);
+        $file = UploadedFile::fake()->createWithContent('backup_with_bom.json', $contentWithBom);
+
+        $response = $this->actingAs($user)->post(route('backup.restore'), [
+            'backup_file' => $file,
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        $this->assertDatabaseHas('sections', [
+            'user_id' => $user->id,
+            'subject_code' => 'BOM101',
+        ]);
+    }
+
+    public function test_user_can_restore_sqlite_database_file(): void
+    {
+        $user = User::factory()->create();
+        $tempDb = tempnam(sys_get_temp_dir(), 'test_sqlite_');
+        $pdo = new \PDO('sqlite:'.$tempDb);
+        $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+
+        $pdo->exec("
+            CREATE TABLE academic_terms (
+                id INTEGER PRIMARY KEY,
+                name TEXT,
+                school_year TEXT,
+                starts_on TEXT,
+                ends_on TEXT,
+                is_current INTEGER
+            );
+            CREATE TABLE sections (
+                id INTEGER PRIMARY KEY,
+                academic_term_id INTEGER,
+                subject_code TEXT,
+                subject_title TEXT,
+                name TEXT,
+                enrollment_token TEXT,
+                is_enrollment_open INTEGER,
+                grading_weights TEXT,
+                archived_at TEXT
+            );
+            CREATE TABLE students (
+                id INTEGER PRIMARY KEY,
+                section_id INTEGER,
+                student_number TEXT,
+                first_name TEXT,
+                middle_name TEXT,
+                last_name TEXT,
+                is_active INTEGER,
+                photo_path TEXT
+            );
+        ");
+
+        $pdo->exec("
+            INSERT INTO academic_terms VALUES (1, 'SQLite Term', '2026-2027', '2026-08-01', '2026-12-20', 1);
+            INSERT INTO sections VALUES (10, 1, 'SQLITE101', 'Database Architecture', 'Section DB', 'token123', 1, NULL, NULL);
+            INSERT INTO students VALUES (100, 10, '2026-SQL-01', 'Grace', 'M', 'Hopper', 1, NULL);
+        ");
+
+        $sqliteContent = file_get_contents($tempDb);
+        @unlink($tempDb);
+
+        $file = UploadedFile::fake()->createWithContent('classcheck_db_2026-08-27.sqlite', $sqliteContent);
+
+        $response = $this->actingAs($user)->post(route('backup.restore'), [
+            'backup_file' => $file,
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        $this->assertDatabaseHas('sections', [
+            'user_id' => $user->id,
+            'subject_code' => 'SQLITE101',
+        ]);
+
+        $this->assertDatabaseHas('students', [
+            'first_name' => 'Grace',
+            'last_name' => 'Hopper',
+        ]);
+    }
 }

@@ -15,6 +15,7 @@ import {
     Plus,
     RotateCcw,
     Save,
+    Search,
     Settings,
     Sparkles,
     Trash2,
@@ -177,10 +178,39 @@ const currentLogsStudent = computed(() => {
     return props.students.find((s) => s.id === selectedStudentForLogs.value?.id) || selectedStudentForLogs.value;
 });
 
+const formatStudentDisplayName = (student: any) => {
+    if (!student) return '—';
+    if (student.last_name && student.first_name) {
+        const firstMiddle = [student.first_name, student.middle_name].filter(Boolean).join(' ');
+        return `${student.last_name}, ${firstMiddle || student.first_name}`;
+    }
+    if (student.last_name) return student.last_name;
+    if (student.full_name) {
+        if (student.full_name.includes(',')) return student.full_name;
+        const parts = student.full_name.trim().split(/\s+/);
+        if (parts.length > 1) {
+            const last = parts.pop();
+            return `${last}, ${parts.join(' ')}`;
+        }
+        return student.full_name;
+    }
+    if (student.name) {
+        if (student.name.includes(',')) return student.name;
+        const parts = student.name.trim().split(/\s+/);
+        if (parts.length > 1) {
+            const last = parts.pop();
+            return `${last}, ${parts.join(' ')}`;
+        }
+        return student.name;
+    }
+    return student.first_name || '—';
+};
+
 const initials = (name?: string) => {
     if (!name) return '';
     return name
-        .split(' ')
+        .replace(/,/g, ' ')
+        .split(/[ ,]+/)
         .filter(Boolean)
         .slice(0, 2)
         .map((p) => p[0])
@@ -330,15 +360,65 @@ const studentMap = computed(() => {
     return map;
 });
 
+// Sorted students
+const sortedStudents = computed(() => {
+    return [...props.students].sort((a, b) => {
+        const nameA = formatStudentDisplayName(a).toLowerCase();
+        const nameB = formatStudentDisplayName(b).toLowerCase();
+        return nameA.localeCompare(nameB);
+    });
+});
+
+// Search student query
+const studentSearchQuery = ref('');
+const studentSearchInputRef = ref<HTMLInputElement | null>(null);
+
+const isStudentSearchMatch = (student: StudentRow | null | undefined): boolean => {
+    if (!student) return false;
+    const q = studentSearchQuery.value.toLowerCase().trim();
+    if (!q) return false;
+    const name = formatStudentDisplayName(student).toLowerCase();
+    const num = (student.student_number || '').toLowerCase();
+    const chair = (student.seat_label || '').toLowerCase();
+    return name.includes(q) || num.includes(q) || chair.includes(q) || `chair ${chair}`.includes(q);
+};
+
+const filteredSortedStudents = computed(() => {
+    const list = sortedStudents.value;
+    const q = studentSearchQuery.value.toLowerCase().trim();
+    if (!q) return list;
+    return list.filter((s) => isStudentSearchMatch(s));
+});
+
+const focusOrScoreFirstSearchMatch = () => {
+    const q = studentSearchQuery.value.toLowerCase().trim();
+    if (!q) return;
+    const match = props.students.find((s) => isStudentSearchMatch(s));
+    if (match) {
+        openScoring(match);
+    }
+};
+
+const clearStudentSearch = () => {
+    studentSearchQuery.value = '';
+    studentSearchInputRef.value?.focus();
+};
+
 // Unseated students in the section
 const unseatedStudents = computed(() => {
     const seatedIds = new Set<number>();
     props.section.layoutBlocks.forEach((block) => {
-        block.seats.forEach((seat) => {
+        (block.seats || []).forEach((seat) => {
             if (seat.student_id) seatedIds.add(Number(seat.student_id));
         });
     });
-    return props.students.filter((s) => !seatedIds.has(Number(s.id)));
+    return [...props.students]
+        .filter((s) => !seatedIds.has(Number(s.id)))
+        .sort((a, b) => {
+            const nameA = formatStudentDisplayName(a).toLowerCase();
+            const nameB = formatStudentDisplayName(b).toLowerCase();
+            return nameA.localeCompare(nameB);
+        });
 });
 
 // Classroom layout helpers
@@ -440,32 +520,57 @@ const ratingLabel = (val: number) => {
                     </div>
                 </header>
 
-                <!-- Tab Switcher -->
-                <div class="mt-6 flex items-center gap-1 rounded-xl border border-border/60 bg-secondary/50 p-1">
-                    <button
-                        type="button"
-                        class="flex-1 rounded-lg px-4 py-2.5 text-xs font-medium transition-colors"
-                        :class="
-                            activeTab === 'floor'
-                                ? 'border border-border/80 bg-card text-foreground shadow-sm'
-                                : 'text-muted-foreground hover:text-foreground'
-                        "
-                        @click="activeTab === 'floor'"
-                    >
-                        <Mic class="mr-1.5 inline size-3.5" /> Floor View — Click to Score & Logs
-                    </button>
-                    <button
-                        type="button"
-                        class="flex-1 rounded-lg px-4 py-2.5 text-xs font-medium transition-colors"
-                        :class="
-                            activeTab === 'rubrics'
-                                ? 'border border-border/80 bg-card text-foreground shadow-sm'
-                                : 'text-muted-foreground hover:text-foreground'
-                        "
-                        @click="activeTab === 'rubrics'"
-                    >
-                        <Trophy class="mr-1.5 inline size-3.5" /> Rubrics & Student Recitation Logs
-                    </button>
+                <!-- Tab Switcher & Quick Student Search -->
+                <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="flex flex-1 items-center gap-1 rounded-xl border border-border/60 bg-secondary/50 p-1">
+                        <button
+                            type="button"
+                            class="flex-1 rounded-lg px-4 py-2.5 text-xs font-medium transition-colors"
+                            :class="
+                                activeTab === 'floor'
+                                    ? 'border border-border/80 bg-card text-foreground shadow-sm'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            "
+                            @click="activeTab === 'floor'"
+                        >
+                            <Mic class="mr-1.5 inline size-3.5" /> Floor View — Click to Score & Logs
+                        </button>
+                        <button
+                            type="button"
+                            class="flex-1 rounded-lg px-4 py-2.5 text-xs font-medium transition-colors"
+                            :class="
+                                activeTab === 'rubrics'
+                                    ? 'border border-border/80 bg-card text-foreground shadow-sm'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            "
+                            @click="activeTab === 'rubrics'"
+                        >
+                            <Trophy class="mr-1.5 inline size-3.5" /> Rubrics & Student Recitation Logs
+                        </button>
+                    </div>
+
+                    <!-- Search Input -->
+                    <div class="relative w-full sm:w-80">
+                        <Search class="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                        <input
+                            ref="studentSearchInputRef"
+                            v-model="studentSearchQuery"
+                            type="text"
+                            placeholder="Find student to score (name, ID, chair)..."
+                            class="w-full rounded-xl border border-input bg-card py-2 pl-9 pr-8 text-xs font-medium text-foreground focus-visible:ring-2 focus-visible:ring-primary"
+                            @keydown.enter.prevent="focusOrScoreFirstSearchMatch"
+                            @keydown.esc="clearStudentSearch"
+                        />
+                        <button
+                            v-if="studentSearchQuery"
+                            type="button"
+                            class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+                            title="Clear search (Esc)"
+                            @click="clearStudentSearch"
+                        >
+                            <X class="size-3" />
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Floor View Tab -->
@@ -576,6 +681,11 @@ const ratingLabel = (val: number) => {
                                                               : getBlockDensity(block) === 'condensed'
                                                                 ? 'min-h-[3.75rem] rounded-lg p-1 sm:min-h-[4.25rem]'
                                                                 : 'min-h-[3rem] rounded-md p-0.5 sm:min-h-[3.5rem]',
+                                                        studentSearchQuery && isStudentSearchMatch(studentMap.get(Number(seat.student_id)))
+                                                            ? '!ring-4 !ring-amber-400 !ring-offset-2 z-30 scale-105 shadow-xl animate-pulse'
+                                                            : studentSearchQuery
+                                                              ? 'opacity-35'
+                                                              : '',
                                                         studentMap.get(Number(seat.student_id))?.is_absent
                                                             ? 'shadow-xs border-rose-500/80 bg-rose-950/80 text-white/90 ring-1 ring-rose-500/40 hover:brightness-110'
                                                             : studentMap.get(Number(seat.student_id))?.called_today
@@ -624,7 +734,7 @@ const ratingLabel = (val: number) => {
                                                             <img
                                                                 v-if="studentMap.get(Number(seat.student_id))?.photo_url"
                                                                 :src="studentMap.get(Number(seat.student_id))!.photo_url!"
-                                                                :alt="studentMap.get(Number(seat.student_id))!.full_name"
+                                                                :alt="formatStudentDisplayName(studentMap.get(Number(seat.student_id)))"
                                                                 class="size-full object-cover"
                                                             />
                                                             <span
@@ -640,7 +750,7 @@ const ratingLabel = (val: number) => {
                                                                             : 'text-[7px] font-bold'
                                                                 "
                                                             >
-                                                                {{ initials(studentMap.get(Number(seat.student_id))?.full_name) }}
+                                                                {{ initials(formatStudentDisplayName(studentMap.get(Number(seat.student_id)))) }}
                                                             </span>
                                                         </div>
 
@@ -658,13 +768,13 @@ const ratingLabel = (val: number) => {
                                                             "
                                                             :title="
                                                                 studentMap.get(Number(seat.student_id))
-                                                                    ? `${studentMap.get(Number(seat.student_id))!.last_name}, ${studentMap.get(Number(seat.student_id))!.first_name}`
+                                                                    ? formatStudentDisplayName(studentMap.get(Number(seat.student_id)))
                                                                     : '—'
                                                             "
                                                         >
                                                             {{
                                                                 studentMap.get(Number(seat.student_id))
-                                                                    ? `${studentMap.get(Number(seat.student_id))!.last_name}, ${studentMap.get(Number(seat.student_id))!.first_name}`
+                                                                    ? formatStudentDisplayName(studentMap.get(Number(seat.student_id)))
                                                                     : '—'
                                                             }}
                                                         </span>
@@ -828,6 +938,11 @@ const ratingLabel = (val: number) => {
                                 :key="student.id"
                                 class="group relative flex flex-col items-center justify-center rounded-2xl border p-3 text-center transition-all hover:scale-[1.02]"
                                 :class="[
+                                    studentSearchQuery && isStudentSearchMatch(student)
+                                        ? '!ring-4 !ring-amber-400 !ring-offset-2 z-30 scale-105 shadow-xl animate-pulse'
+                                        : studentSearchQuery
+                                          ? 'opacity-35'
+                                          : '',
                                     student.called_today
                                         ? 'border-emerald-400/80 bg-[#164e3f] text-white shadow-md'
                                         : 'border-border bg-card text-foreground hover:bg-secondary',
@@ -922,8 +1037,24 @@ const ratingLabel = (val: number) => {
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-border/60">
+                                <tr v-if="filteredSortedStudents.length === 0">
+                                    <td colspan="9" class="px-4 py-12 text-center text-muted-foreground">
+                                        <div class="flex flex-col items-center justify-center gap-2">
+                                            <Search class="size-7 text-muted-foreground/50" />
+                                            <p class="font-bold text-foreground">No students match "{{ studentSearchQuery }}"</p>
+                                            <p class="text-xs text-muted-foreground">Try searching by student full name, student ID, or chair.</p>
+                                            <button
+                                                type="button"
+                                                class="mt-2 text-xs font-semibold text-primary hover:underline"
+                                                @click="clearStudentSearch"
+                                            >
+                                                Clear search
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
                                 <tr
-                                    v-for="student in students"
+                                    v-for="student in filteredSortedStudents"
                                     :key="student.id"
                                     class="cursor-pointer transition-colors hover:bg-secondary/30"
                                     @click="openStudentLogs(student)"
@@ -936,7 +1067,7 @@ const ratingLabel = (val: number) => {
                                         </span>
                                     </td>
                                     <td class="px-4 py-3">
-                                        <span class="block font-medium text-foreground">{{ student.full_name }}</span>
+                                        <span class="block font-medium text-foreground">{{ formatStudentDisplayName(student) }}</span>
                                         <span class="font-mono text-xs text-muted-foreground">{{ student.student_number }}</span>
                                     </td>
                                     <td class="px-4 py-3 text-center">
@@ -1047,8 +1178,8 @@ const ratingLabel = (val: number) => {
         <!-- Scoring Modal (0 to 10 Points Adjustment) -->
         <div
             v-if="scoringStudent"
+            v-modal-focus
             class="fixed inset-0 z-50 grid place-items-center bg-zinc-950/70 p-4 backdrop-blur-md duration-200 animate-in fade-in"
-            @click.self="closeScoring"
         >
             <div
                 class="paper-card relative max-h-[90vh] w-full max-w-lg overflow-hidden overflow-y-auto border-border/90 p-8 shadow-2xl duration-200 animate-in zoom-in-95"
@@ -1277,8 +1408,8 @@ const ratingLabel = (val: number) => {
         <!-- Student Recitation Logs History Modal -->
         <div
             v-if="currentLogsStudent"
+            v-modal-focus
             class="fixed inset-0 z-50 grid place-items-center bg-zinc-950/70 p-4 backdrop-blur-md duration-200 animate-in fade-in"
-            @click.self="closeStudentLogs"
         >
             <div
                 class="paper-card relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden border-border/90 p-6 shadow-2xl duration-200 animate-in zoom-in-95 md:p-8"
@@ -1546,8 +1677,8 @@ const ratingLabel = (val: number) => {
         <!-- Delete Log Confirmation Modal -->
         <div
             v-if="deletingLog"
+            v-modal-focus
             class="fixed inset-0 z-50 grid place-items-center bg-zinc-950/70 p-4 backdrop-blur-md duration-200 animate-in fade-in"
-            @click.self="deletingLog = null"
         >
             <div
                 class="paper-card relative w-full max-w-sm overflow-hidden border-border/90 p-6 shadow-2xl duration-200 animate-in zoom-in-95"
@@ -1591,8 +1722,8 @@ const ratingLabel = (val: number) => {
         <!-- Bonus Cap Editor Modal -->
         <div
             v-if="showBonusCapModal"
+            v-modal-focus
             class="fixed inset-0 z-50 grid place-items-center bg-zinc-950/70 p-4 backdrop-blur-md duration-200 animate-in fade-in"
-            @click.self="showBonusCapModal = false"
         >
             <div
                 class="paper-card relative w-full max-w-md overflow-hidden border-border/90 p-6 shadow-2xl duration-200 animate-in zoom-in-95"
@@ -1658,8 +1789,8 @@ const ratingLabel = (val: number) => {
         <!-- Random Present Student Picker Modal -->
         <div
             v-if="showRandomPicker"
+            v-modal-focus
             class="fixed inset-0 z-50 grid place-items-center bg-zinc-950/70 p-4 backdrop-blur-md duration-200 animate-in fade-in"
-            @click.self="closeRandomPicker"
         >
             <div
                 class="paper-card relative w-full max-w-md overflow-hidden border-border/90 p-8 text-center shadow-2xl duration-200 animate-in zoom-in-95"

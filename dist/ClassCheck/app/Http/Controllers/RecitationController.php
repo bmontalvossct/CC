@@ -33,6 +33,7 @@ class RecitationController extends Controller
             ->orderBy('seats.row_number')
             ->orderBy('seats.column_number')
             ->orderBy('students.last_name')
+            ->orderBy('students.first_name')
             ->get([
                 'students.id', 'students.student_number', 'students.first_name', 'students.middle_name',
                 'students.last_name', 'students.photo_path', 'seats.label as seat_label',

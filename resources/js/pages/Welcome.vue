@@ -24,9 +24,7 @@ const seats = [
         <nav class="sticky top-0 z-30 border-b border-border/80 bg-background/80 backdrop-blur-xl">
             <div class="mx-auto flex h-14 max-w-6xl items-center justify-between px-5 lg:px-8">
                 <Link href="/" class="flex items-center gap-2.5" aria-label="ClassCheck home">
-                    <span class="flex size-9 items-center justify-center rounded-xl border border-border/80 bg-card p-0.5 shadow-sm">
-                        <AppLogoIcon class-name="size-7" />
-                    </span>
+                    <AppLogoIcon class-name="size-8 shrink-0 rounded-xl" />
                     <span class="text-base font-medium tracking-tight">ClassCheck</span>
                 </Link>
                 <div class="hidden items-center gap-8 text-xs font-semibold text-muted-foreground md:flex">
@@ -35,7 +33,7 @@ const seats = [
                     <a href="#features" class="transition-colors hover:text-primary">Features</a>
                 </div>
                 <div class="flex items-center gap-2">
-                    <Link v-if="page.props.auth.user" href="/dashboard" prefetch="hover" class="ink-button !h-9 !rounded-xl !px-4 !text-xs">
+                    <Link v-if="page.props.auth?.user || page.props.is_offline" href="/dashboard" prefetch="hover" class="ink-button !h-9 !rounded-xl !px-4 !text-xs">
                         Open dashboard
                     </Link>
                     <template v-else>
@@ -72,7 +70,11 @@ const seats = [
             </p>
 
             <div class="mt-8 flex flex-wrap justify-center gap-3">
-                <Link href="/register" prefetch="hover" class="ink-button !h-11 !rounded-xl !px-6 !text-sm">
+                <Link v-if="page.props.auth?.user || page.props.is_offline" href="/dashboard" prefetch="hover" class="ink-button !h-11 !rounded-xl !px-6 !text-sm">
+                    <span>Open dashboard</span>
+                    <ArrowRight class="size-4" />
+                </Link>
+                <Link v-else href="/register" prefetch="hover" class="ink-button !h-11 !rounded-xl !px-6 !text-sm">
                     <span>Start your first class</span>
                     <ArrowRight class="size-4" />
                 </Link>

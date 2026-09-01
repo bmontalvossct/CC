@@ -14,6 +14,55 @@ interface FloorPlan {
     aisle_after_columns: number[];
 }
 
+interface LayoutPreset {
+    id: string;
+    name: string;
+    rows: number;
+    columns: number;
+    aisle_after_rows: number[];
+    aisle_after_columns: number[];
+    description: string;
+}
+
+const presets: LayoutPreset[] = [
+    {
+        id: 'trad-444',
+        name: '4-4-4 Triple Wing',
+        rows: 4,
+        columns: 12,
+        aisle_after_rows: [],
+        aisle_after_columns: [4, 8],
+        description: '48 chairs with 2 side aisles',
+    },
+    {
+        id: 'trad-555',
+        name: '5-5-5 Lecture',
+        rows: 5,
+        columns: 15,
+        aisle_after_rows: [],
+        aisle_after_columns: [5, 10],
+        description: '75 chairs with 2 wide corridors',
+    },
+    {
+        id: 'pairs',
+        name: 'Pairs / Pods',
+        rows: 4,
+        columns: 8,
+        aisle_after_rows: [],
+        aisle_after_columns: [2, 4, 6],
+        description: '32 chairs in 2-seat pods',
+    },
+    {
+        id: 'compact-44',
+        name: 'Center Aisle 4x4',
+        rows: 4,
+        columns: 4,
+        aisle_after_rows: [],
+        aisle_after_columns: [2],
+        description: '16 chairs with center aisle',
+    },
+];
+
 const props = defineProps<{
     sectionId: number;
     initialPlan: FloorPlan;
@@ -28,6 +77,15 @@ const form = useForm({
 
 const inputRows = ref(props.initialPlan.rows);
 const inputColumns = ref(props.initialPlan.columns);
+
+const applyPreset = (preset: LayoutPreset) => {
+    inputRows.value = preset.rows;
+    inputColumns.value = preset.columns;
+    form.rows = preset.rows;
+    form.columns = preset.columns;
+    form.aisle_after_rows = [...preset.aisle_after_rows];
+    form.aisle_after_columns = [...preset.aisle_after_columns];
+};
 
 const validDimensions = computed(
     () =>
@@ -139,7 +197,27 @@ watch(
             </p>
         </div>
 
-        <div class="mt-5 grid grid-cols-2 gap-3">
+        <!-- Room Presets Strip -->
+        <div class="mt-4">
+            <div class="mb-1.5 flex items-center justify-between text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                <span>Layout Presets</span>
+                <span class="text-[10px] font-normal text-muted-foreground">Click to apply</span>
+            </div>
+            <div class="grid grid-cols-2 gap-1.5">
+                <button
+                    v-for="preset in presets"
+                    :key="preset.id"
+                    type="button"
+                    class="group rounded-lg border border-border/80 bg-secondary/30 p-2 text-left transition-all hover:border-primary/60 hover:bg-secondary/60"
+                    @click="applyPreset(preset)"
+                >
+                    <div class="text-xs font-semibold text-foreground group-hover:text-primary">{{ preset.name }}</div>
+                    <div class="text-[10px] text-muted-foreground">{{ preset.description }}</div>
+                </button>
+            </div>
+        </div>
+
+        <div class="mt-4 grid grid-cols-2 gap-3">
             <div class="grid gap-1.5">
                 <Label for="floor-rows" class="flex items-center gap-1.5 text-xs font-medium text-foreground">
                     <Rows3 class="size-3.5 text-primary" /> Chair rows

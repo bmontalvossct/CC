@@ -40,14 +40,21 @@ class AssessmentScoreController extends AssessmentModuleController
             throw ValidationException::withMessages(['score' => 'This student is absent. Enable the absent override to enter a score.']);
         }
 
+        $remarks = $request->validated('remarks');
+
         $record = $assessment->scores()->updateOrCreate(
             ['student_id' => $student->id],
-            ['score' => $score, 'absence_override' => $absent && $override],
+            [
+                'score' => $score,
+                'remarks' => $remarks !== null && trim($remarks) !== '' ? trim($remarks) : null,
+                'absence_override' => $absent && $override,
+            ],
         );
 
         return response()->json([
             'student_id' => $student->id,
             'score' => $record->score,
+            'remarks' => $record->remarks,
             'absence_override' => $record->absence_override,
             'saved_at' => $record->updated_at->toIso8601String(),
         ]);
@@ -63,11 +70,14 @@ class AssessmentScoreController extends AssessmentModuleController
         $validated = $request->validate([
             'scores' => ['required', 'array'],
             'scores.*' => ['nullable'],
+            'remarks' => ['nullable', 'array'],
+            'remarks.*' => ['nullable', 'string', 'max:500'],
             'include_absent' => ['nullable', 'boolean'],
         ]);
 
         $includeAbsent = (bool) ($validated['include_absent'] ?? false);
         $rawScores = $validated['scores'];
+        $rawRemarks = $validated['remarks'] ?? [];
 
         // Ensure students belong to this section
         $studentIds = array_map('intval', array_keys($rawScores));
@@ -90,7 +100,7 @@ class AssessmentScoreController extends AssessmentModuleController
             );
         }
 
-        DB::transaction(function () use ($assessment, $rawScores, $validMap, $absentMap, $includeAbsent) {
+        DB::transaction(function () use ($assessment, $rawScores, $rawRemarks, $validMap, $absentMap, $includeAbsent) {
             foreach ($rawScores as $studentId => $rawVal) {
                 $sId = (int) $studentId;
                 if (! isset($validMap[$sId])) {
@@ -113,10 +123,16 @@ class AssessmentScoreController extends AssessmentModuleController
                     }
                 }
 
+                $remarkVal = isset($rawRemarks[$sId]) ? trim((string) $rawRemarks[$sId]) : null;
+                if ($remarkVal === '') {
+                    $remarkVal = null;
+                }
+
                 $assessment->scores()->updateOrCreate(
                     ['student_id' => $sId],
                     [
                         'score' => $numericScore,
+                        'remarks' => $remarkVal,
                         'absence_override' => $isAbsent && $includeAbsent,
                     ]
                 );
@@ -125,11 +141,13 @@ class AssessmentScoreController extends AssessmentModuleController
 
         if ($request->wantsJson()) {
             $saved = $assessment->scores()->pluck('score', 'student_id');
+            $savedRemarks = $assessment->scores()->pluck('remarks', 'student_id');
 
             return response()->json([
                 'success' => true,
                 'message' => 'All scores have been saved successfully.',
                 'scores' => $saved,
+                'remarks' => $savedRemarks,
             ]);
         }
 

@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import AutocheckerModal from '@/components/assessments/AutocheckerModal.vue';
 import FilePreviewModal from '@/components/FilePreviewModal.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
     ArrowLeft,
+    Bot,
+    CalendarDays,
     CheckCircle2,
     Download,
     Keyboard,
@@ -11,6 +14,7 @@ import {
     Paperclip,
     RotateCcw,
     Save,
+    Search,
     Settings,
     Sparkles,
     Trash2,
@@ -18,7 +22,7 @@ import {
     UserX,
     X,
 } from 'lucide-vue-next';
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue';
 
 type Student = {
     id: number;
@@ -27,6 +31,7 @@ type Student = {
     seat_label: string | null;
     is_absent: boolean;
     score: string | null;
+    remarks?: string | null;
     absence_override: boolean;
 };
 type Assessment = {
@@ -53,9 +58,15 @@ const props = defineProps<{
 }>();
 
 const showPreview = ref(false);
+const showAutochecker = ref(false);
 const editing = ref(false);
 const showDeleteModal = ref(false);
 const isDeleting = ref(false);
+
+const handleAutocheckerApplied = () => {
+    saveSuccessMessage.value = 'Autochecker scores successfully applied and saved!';
+    router.reload({ only: ['students', 'summary'] });
+};
 
 const confirmDelete = () => {
     isDeleting.value = true;
@@ -110,6 +121,10 @@ const initialMap = Object.fromEntries(props.students.map((student) => [student.i
 const scores = reactive<Record<number, string | number>>({ ...initialMap });
 const lastSavedScores = reactive<Record<number, string | number>>({ ...initialMap });
 
+const initialRemarksMap = Object.fromEntries(props.students.map((student) => [student.id, student.remarks ?? '']));
+const remarks = reactive<Record<number, string>>({ ...initialRemarksMap });
+const lastSavedRemarks = reactive<Record<number, string>>({ ...initialRemarksMap });
+
 const inputs = new Map<number, HTMLInputElement>();
 
 const isSaving = ref(false);
@@ -131,7 +146,10 @@ const hasInvalidScore = (studentId: number): boolean => {
 };
 
 const isUnsaved = (studentId: number): boolean => {
-    return normalize(scores[studentId]) !== normalize(lastSavedScores[studentId]);
+    return (
+        normalize(scores[studentId]) !== normalize(lastSavedScores[studentId]) ||
+        toCleanString(remarks[studentId]) !== toCleanString(lastSavedRemarks[studentId])
+    );
 };
 
 const hasUnsavedChanges = computed(() => {
@@ -143,6 +161,73 @@ const unsavedCount = computed(() => {
 });
 
 const eligible = computed(() => props.students.filter((student) => !student.is_absent || includeAbsent.value));
+
+// Search and Status Filters
+const searchQuery = ref('');
+const statusFilter = ref<'all' | 'unrecorded' | 'recorded' | 'absent'>('all');
+const searchInputRef = ref<HTMLInputElement | null>(null);
+
+const filteredStudents = computed(() => {
+    let list = props.students;
+
+    // 1. Filter by status tab
+    if (statusFilter.value === 'unrecorded') {
+        list = list.filter((s) => toCleanString(scores[s.id]) === '' && (!s.is_absent || includeAbsent.value));
+    } else if (statusFilter.value === 'recorded') {
+        list = list.filter((s) => toCleanString(scores[s.id]) !== '');
+    } else if (statusFilter.value === 'absent') {
+        list = list.filter((s) => s.is_absent);
+    }
+
+    // 2. Filter by search query
+    const q = searchQuery.value.trim().toLowerCase();
+    if (!q) return list;
+
+    return list.filter((s) => {
+        const fullName = (s.full_name || '').toLowerCase();
+        const studentNum = (s.student_number || '').toLowerCase();
+        const seatLabel = (s.seat_label || '').toLowerCase();
+        return fullName.includes(q) || studentNum.includes(q) || seatLabel.includes(q) || `chair ${seatLabel}`.includes(q);
+    });
+});
+
+const visibleEligible = computed(() =>
+    filteredStudents.value.filter((student) => !student.is_absent || includeAbsent.value),
+);
+
+const counts = computed(() => {
+    const total = props.students.length;
+    const recorded = props.students.filter((s) => toCleanString(scores[s.id]) !== '').length;
+    const unrecorded = props.students.filter(
+        (s) => toCleanString(scores[s.id]) === '' && (!s.is_absent || includeAbsent.value),
+    ).length;
+    const absent = props.students.filter((s) => s.is_absent).length;
+    return { total, recorded, unrecorded, absent };
+});
+
+const clearSearch = () => {
+    searchQuery.value = '';
+    searchInputRef.value?.focus();
+};
+
+const clearAllFilters = () => {
+    searchQuery.value = '';
+    statusFilter.value = 'all';
+    searchInputRef.value?.focus();
+};
+
+const focusFirstMatch = () => {
+    if (visibleEligible.value.length > 0) {
+        const first = visibleEligible.value[0];
+        nextTick(() => {
+            const el = inputs.get(first.id);
+            if (el) {
+                el.focus();
+                el.select();
+            }
+        });
+    }
+};
 
 const liveSummary = computed(() => {
     const validScores: number[] = [];
@@ -166,7 +251,7 @@ const liveSummary = computed(() => {
 });
 
 const move = (student: Student, direction: number) => {
-    const list = eligible.value;
+    const list = visibleEligible.value;
     const index = list.findIndex((item) => item.id === student.id);
     if (index === -1) return;
     const nextIndex = index + direction;
@@ -190,6 +275,10 @@ const handleKey = (event: KeyboardEvent, student: Student) => {
     } else if (event.key === 'ArrowUp') {
         event.preventDefault();
         move(student, -1);
+    } else if (event.key === 'Escape' || ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k')) {
+        event.preventDefault();
+        searchInputRef.value?.focus();
+        searchInputRef.value?.select();
     }
 };
 
@@ -202,6 +291,7 @@ const saveAll = () => {
     const maxPoints = Number(props.assessment.max_points);
     let firstInvalidStudentId: number | null = null;
     const payloadScores: Record<number, number | null> = {};
+    const payloadRemarks: Record<number, string | null> = {};
 
     for (const student of props.students) {
         const err = getScoreError(student.id);
@@ -212,6 +302,9 @@ const saveAll = () => {
         }
         const raw = toCleanString(scores[student.id]);
         payloadScores[student.id] = raw === '' ? null : Number(raw);
+
+        const rawRemark = toCleanString(remarks[student.id]);
+        payloadRemarks[student.id] = rawRemark === '' ? null : rawRemark;
     }
 
     if (firstInvalidStudentId !== null) {
@@ -227,6 +320,7 @@ const saveAll = () => {
         `/sections/${props.section.id}/assessments/${props.assessment.id}/scores/batch`,
         {
             scores: payloadScores,
+            remarks: payloadRemarks,
             include_absent: includeAbsent.value,
         },
         {
@@ -236,8 +330,9 @@ const saveAll = () => {
                 isSaving.value = false;
                 props.students.forEach((student) => {
                     lastSavedScores[student.id] = normalize(scores[student.id]);
+                    lastSavedRemarks[student.id] = toCleanString(remarks[student.id]);
                 });
-                saveSuccessMessage.value = 'All scores have been saved successfully!';
+                saveSuccessMessage.value = 'All scores and remarks have been saved successfully!';
                 setTimeout(() => {
                     saveSuccessMessage.value = '';
                 }, 4000);
@@ -257,6 +352,7 @@ const saveAll = () => {
 const resetScores = () => {
     props.students.forEach((student) => {
         scores[student.id] = lastSavedScores[student.id] ?? '';
+        remarks[student.id] = lastSavedRemarks[student.id] ?? '';
     });
     saveErrorMessage.value = '';
 };
@@ -265,6 +361,13 @@ const handleGlobalKeydown = (e: KeyboardEvent) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
         void saveAll();
+    } else if (
+        (e.key === '/' || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k')) &&
+        !['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)
+    ) {
+        e.preventDefault();
+        searchInputRef.value?.focus();
+        searchInputRef.value?.select();
     }
 };
 
@@ -300,28 +403,36 @@ onUnmounted(() => {
             <header class="paper-card p-6 shadow-sm">
                 <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                     <div>
-                        <div class="flex flex-wrap items-center gap-2">
-                            <span class="badge-primary font-mono font-bold uppercase">{{ assessment.assessment_number || assessment.type }}</span>
-                            <span class="badge-muted">{{ formatDate(assessment.conducted_on) }}</span>
-                            <span class="badge-muted font-mono font-medium">{{ assessment.max_points }} max points</span>
+                        <div class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            <span class="font-mono font-semibold uppercase text-primary">
+                                {{ assessment.assessment_number || (assessment.type === 'laboratory' ? 'Laboratory' : assessment.type) }}
+                            </span>
+                            <span>·</span>
+                            <span class="flex items-center gap-1">
+                                <CalendarDays class="size-3.5" />
+                                {{ formatDate(assessment.conducted_on) }}
+                            </span>
+                            <span>·</span>
+                            <span class="font-mono font-medium text-foreground">{{ assessment.max_points }} max points</span>
                         </div>
-                        <h1 class="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">{{ assessment.title }}</h1>
-                        <p v-if="assessment.description" class="mt-2 max-w-2xl text-sm text-muted-foreground">
+                        <h1 class="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">{{ assessment.title }}</h1>
+                        <p v-if="assessment.description" class="mt-1.5 max-w-2xl text-sm text-muted-foreground">
                             {{ assessment.description }}
                         </p>
                     </div>
 
-                    <div class="flex flex-wrap items-center gap-2.5">
+                    <div class="flex flex-wrap items-center gap-2">
                         <button
                             type="button"
                             :disabled="isSaving"
-                            class="ink-button !h-10 !rounded-xl !px-5 text-xs font-bold shadow-md transition-all hover:scale-[1.02]"
+                            :title="hasUnsavedChanges ? `Save All Scores (${unsavedCount} unsaved)` : 'Save All Scores'"
+                            class="ink-button group !h-9 !rounded-xl !px-3 text-xs font-bold shadow-sm transition-all duration-300 hover:scale-[1.02]"
                             :class="hasUnsavedChanges ? 'ring-2 ring-primary ring-offset-2' : ''"
                             @click="saveAll"
                         >
-                            <LoaderCircle v-if="isSaving" class="size-4 animate-spin" />
-                            <Save v-else class="size-4" />
-                            <span>{{
+                            <LoaderCircle v-if="isSaving" class="size-4 shrink-0 animate-spin" />
+                            <Save v-else class="size-4 shrink-0" />
+                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">{{
                                 isSaving ? 'Saving all scores…' : hasUnsavedChanges ? `Save All Scores (${unsavedCount})` : 'Save All Scores'
                             }}</span>
                         </button>
@@ -329,37 +440,48 @@ onUnmounted(() => {
                         <button
                             v-if="assessment.attachment_path"
                             type="button"
-                            class="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-4 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
-                            title="Preview attached file with download option"
+                            class="shadow-xs group inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-primary/40 bg-primary/10 px-3 text-xs font-semibold text-primary transition-all duration-300 hover:bg-primary hover:text-white"
+                            :title="`Preview: ${assessment.attachment_name || 'Attachment'}`"
                             @click="showPreview = true"
                         >
-                            <Paperclip class="size-3.5" />
-                            <span>Preview: {{ assessment.attachment_name || 'Attachment' }}</span>
+                            <Paperclip class="size-4 shrink-0" />
+                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-64 group-hover:opacity-100 group-hover:ml-1.5">Preview: {{ assessment.attachment_name || 'Attachment' }}</span>
+                        </button>
+                        <button
+                            type="button"
+                            title="Bulk AI Autochecker"
+                            @click="showAutochecker = true"
+                            class="shadow-xs group inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-primary/40 bg-primary/10 px-3 text-xs font-bold text-primary transition-all duration-300 hover:bg-primary hover:text-primary-foreground"
+                        >
+                            <Sparkles class="size-4 shrink-0" />
+                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">Autochecker</span>
                         </button>
                         <a
                             :href="`/sections/${section.id}/assessments/${assessment.id}/export`"
-                            class="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
+                            title="Export scores to CSV"
+                            class="shadow-xs group inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-border bg-card px-3 text-xs font-medium text-foreground transition-all duration-300 hover:bg-secondary"
                         >
-                            <Download class="size-3.5 text-muted-foreground" />
-                            <span>Export scores</span>
+                            <Download class="size-4 shrink-0 text-muted-foreground group-hover:text-foreground" />
+                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">Export scores</span>
                         </a>
                         <button
                             type="button"
+                            title="Edit assessment details"
                             @click="editing = true"
-                            class="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
+                            class="shadow-xs group inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-border bg-card px-3 text-xs font-medium text-foreground transition-all duration-300 hover:bg-secondary"
                         >
-                            <Settings class="size-3.5 text-primary" />
-                            <span>Edit assessment</span>
+                            <Settings class="size-4 shrink-0 text-primary" />
+                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">Edit assessment</span>
                         </button>
 
                         <button
                             type="button"
-                            class="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 text-xs font-bold text-rose-600 transition-all hover:bg-rose-600 hover:text-white dark:text-rose-400 dark:hover:text-white"
-                            title="Delete this activity misentry"
+                            class="shadow-xs group inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 text-xs font-bold text-rose-600 transition-all duration-300 hover:bg-rose-600 hover:text-white dark:text-rose-400 dark:hover:text-white"
+                            :title="`Delete this ${assessment.type}`"
                             @click="showDeleteModal = true"
                         >
-                            <Trash2 class="size-3.5" />
-                            <span class="capitalize">Delete {{ assessment.type }}</span>
+                            <Trash2 class="size-4 shrink-0" />
+                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 capitalize">Delete {{ assessment.type }}</span>
                         </button>
                     </div>
                 </div>
@@ -471,25 +593,162 @@ onUnmounted(() => {
                     </div>
                 </div>
 
+                <!-- Search & Filters Toolbar -->
+                <div class="mt-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <!-- Search Input Box -->
+                    <div class="relative w-full lg:max-w-md">
+                        <Search class="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                        <input
+                            ref="searchInputRef"
+                            v-model="searchQuery"
+                            type="text"
+                            placeholder="Search student by name, ID, or chair... (Press '/' to focus)"
+                            class="w-full rounded-xl border border-input bg-card py-2 pl-10 pr-9 text-xs font-medium text-foreground shadow-2xs transition-all placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            @keydown.enter.prevent="focusFirstMatch"
+                            @keydown.down.prevent="focusFirstMatch"
+                            @keydown.esc="clearSearch"
+                        />
+                        <button
+                            v-if="searchQuery"
+                            type="button"
+                            class="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                            title="Clear search (Esc)"
+                            @click="clearSearch"
+                        >
+                            <X class="size-3.5" />
+                        </button>
+                    </div>
+
+                    <!-- Quick Filter Tabs -->
+                    <div class="flex flex-wrap items-center gap-1.5">
+                        <button
+                            type="button"
+                            class="rounded-lg px-2.5 py-1 text-xs font-medium transition-all"
+                            :class="
+                                statusFilter === 'all'
+                                    ? 'bg-primary text-primary-foreground font-bold shadow-xs'
+                                    : 'border border-border/80 bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground'
+                            "
+                            @click="statusFilter = 'all'"
+                        >
+                            All ({{ counts.total }})
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-lg px-2.5 py-1 text-xs font-medium transition-all"
+                            :class="
+                                statusFilter === 'unrecorded'
+                                    ? 'bg-amber-600 text-white font-bold shadow-xs dark:bg-amber-500'
+                                    : 'border border-border/80 bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground'
+                            "
+                            @click="statusFilter = 'unrecorded'"
+                        >
+                            Needs Score ({{ counts.unrecorded }})
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-lg px-2.5 py-1 text-xs font-medium transition-all"
+                            :class="
+                                statusFilter === 'recorded'
+                                    ? 'bg-emerald-600 text-white font-bold shadow-xs dark:bg-emerald-500'
+                                    : 'border border-border/80 bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground'
+                            "
+                            @click="statusFilter = 'recorded'"
+                        >
+                            Scored ({{ counts.recorded }})
+                        </button>
+                        <button
+                            v-if="counts.absent > 0"
+                            type="button"
+                            class="rounded-lg px-2.5 py-1 text-xs font-medium transition-all"
+                            :class="
+                                statusFilter === 'absent'
+                                    ? 'bg-rose-600 text-white font-bold shadow-xs dark:bg-rose-500'
+                                    : 'border border-border/80 bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground'
+                            "
+                            @click="statusFilter = 'absent'"
+                        >
+                            Absent ({{ counts.absent }})
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Match Count & Active Filter Indicator Strip -->
+                <div
+                    v-if="searchQuery || statusFilter !== 'all'"
+                    class="mt-3 flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 px-3.5 py-2 text-xs text-muted-foreground"
+                >
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="font-medium text-foreground">
+                            Showing {{ filteredStudents.length }} of {{ students.length }} students
+                        </span>
+                        <span v-if="searchQuery" class="text-muted-foreground">
+                            matching "<strong class="text-primary">{{ searchQuery }}</strong>"
+                        </span>
+                        <span v-if="statusFilter !== 'all'" class="text-muted-foreground">
+                            with status <strong class="capitalize text-foreground">{{ statusFilter }}</strong>
+                        </span>
+                        <span class="text-[11px] text-muted-foreground/80 italic">
+                            (Press Enter or Down arrow from search box to start scoring)
+                        </span>
+                    </div>
+
+                    <button
+                        type="button"
+                        class="shrink-0 font-semibold text-primary hover:underline hover:text-primary/80"
+                        @click="clearAllFilters"
+                    >
+                        Clear filters & show all
+                    </button>
+                </div>
+
                 <div class="mt-4 overflow-x-auto">
-                    <table class="w-full min-w-[700px] border-collapse text-sm">
+                    <table class="w-full min-w-[800px] border-collapse text-sm">
                         <thead>
                             <tr
                                 class="border-b border-border/80 bg-secondary/40 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground"
                             >
-                                <th class="w-24 rounded-l-lg px-4 py-3">Chair</th>
-                                <th class="px-4 py-3">Student Name & ID</th>
-                                <th class="w-64 px-4 py-3">Score / {{ assessment.max_points }} pts</th>
-                                <th class="w-40 rounded-r-lg px-4 py-3">Status / Grade</th>
+                                <th class="w-20 rounded-l-lg px-4 py-3">Chair</th>
+                                <th class="min-w-44 px-4 py-3">Student Name & ID</th>
+                                <th class="w-48 px-4 py-3">Score / {{ assessment.max_points }} pts</th>
+                                <th class="min-w-56 px-4 py-3">Remarks / Feedback</th>
+                                <th class="w-36 rounded-r-lg px-4 py-3">Status / Grade</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-border/60">
+                            <!-- Empty Search Results Row -->
+                            <tr v-if="filteredStudents.length === 0">
+                                <td colspan="5" class="px-4 py-12 text-center">
+                                    <div class="flex flex-col items-center justify-center gap-2">
+                                        <Search class="size-8 text-muted-foreground/40" />
+                                        <p class="font-bold text-foreground">No students found</p>
+                                        <p class="text-xs text-muted-foreground">
+                                            <span v-if="searchQuery">
+                                                No students match "<strong class="text-foreground">{{ searchQuery }}</strong>". Try searching by name, student number, or chair.
+                                            </span>
+                                            <span v-else>
+                                                No students found for status "{{ statusFilter }}".
+                                            </span>
+                                        </p>
+                                        <button
+                                            type="button"
+                                            class="mt-2 inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-secondary"
+                                            @click="clearAllFilters"
+                                        >
+                                            <RotateCcw class="size-3.5" />
+                                            <span>Reset search & filters</span>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+
                             <tr
-                                v-for="student in students"
+                                v-for="student in filteredStudents"
                                 :key="student.id"
                                 class="transition-colors hover:bg-secondary/30"
                                 :class="[
                                     student.is_absent && !includeAbsent ? 'bg-muted/20 opacity-60' : '',
+                                    searchQuery ? 'border-l-4 border-l-primary/60' : '',
                                     hasInvalidScore(student.id) ? 'bg-rose-500/5' : isUnsaved(student.id) ? 'bg-primary/5' : '',
                                 ]"
                             >
@@ -557,6 +816,17 @@ onUnmounted(() => {
                                         <TriangleAlert class="size-3.5 shrink-0" />
                                         <span>{{ getScoreError(student.id) }}</span>
                                     </p>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <input
+                                        v-model="remarks[student.id]"
+                                        type="text"
+                                        maxlength="500"
+                                        placeholder="Add remarks, notes, or feedback..."
+                                        class="w-full rounded-xl border border-input bg-background px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/60 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-muted/40"
+                                        :disabled="student.is_absent && !includeAbsent"
+                                        :aria-label="`Remarks for ${student.full_name}`"
+                                    />
                                 </td>
                                 <td class="px-4 py-3 text-xs font-medium">
                                     <div
@@ -655,8 +925,8 @@ onUnmounted(() => {
         <!-- Edit Assessment Modal -->
         <div
             v-if="editing"
+            v-modal-focus
             class="fixed inset-0 z-50 grid place-items-center bg-zinc-950/70 p-4 backdrop-blur-md duration-200 animate-in fade-in"
-            @click.self="editing = false"
         >
             <div
                 class="paper-card relative w-full max-w-lg overflow-hidden border-border/90 p-8 shadow-2xl duration-200 animate-in zoom-in-95"
@@ -689,6 +959,7 @@ onUnmounted(() => {
                             class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
                         >
                             <option value="activity">Activity</option>
+                            <option value="laboratory">Laboratory Activity</option>
                             <option value="quiz">Quiz</option>
                             <option value="exam">Exam</option>
                         </select>
@@ -696,12 +967,12 @@ onUnmounted(() => {
 
                     <label class="sm:col-span-1">
                         <span class="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                            {{ editForm.type === 'quiz' ? 'Quiz #' : editForm.type === 'exam' ? 'Exam #' : 'Activity #' }}
+                            {{ editForm.type === 'quiz' ? 'Quiz #' : editForm.type === 'exam' ? 'Exam #' : editForm.type === 'laboratory' ? 'Lab #' : 'Activity #' }}
                         </span>
                         <input
                             v-model="editForm.assessment_number"
                             class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
-                            :placeholder="editForm.type === 'quiz' ? 'e.g. Quiz 1' : editForm.type === 'exam' ? 'e.g. Exam 1' : 'e.g. Activity 1'"
+                            :placeholder="editForm.type === 'quiz' ? 'e.g. Quiz 1' : editForm.type === 'exam' ? 'e.g. Exam 1' : editForm.type === 'laboratory' ? 'e.g. Lab 1' : 'e.g. Activity 1'"
                         />
                         <small v-if="editForm.errors.assessment_number" class="mt-1 block text-xs text-rose-600">{{
                             editForm.errors.assessment_number
@@ -763,7 +1034,7 @@ onUnmounted(() => {
                         >
                         <input
                             type="file"
-                            accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z,.rtf,.odt,.ods,.odp,.svg"
+                            accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z,.rtf,.odt,.ods,.odp,.svg,.json,.sql,.db,.sqlite,.sqlite3"
                             class="block w-full text-xs text-muted-foreground file:mr-2 file:rounded-lg file:border file:border-border file:bg-secondary file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-foreground hover:file:bg-secondary/80"
                             @change="editForm.attachment = ($event.target as HTMLInputElement).files?.[0] || null"
                         />
@@ -818,8 +1089,8 @@ onUnmounted(() => {
         <!-- Delete Confirmation Modal -->
         <div
             v-if="showDeleteModal"
+            v-modal-focus
             class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-zinc-950/70 p-4 backdrop-blur-md duration-200 animate-in fade-in"
-            @click.self="showDeleteModal = false"
         >
             <div
                 class="paper-card relative w-full max-w-lg border-border/90 p-6 shadow-2xl duration-200 animate-in zoom-in-95"
@@ -886,6 +1157,16 @@ onUnmounted(() => {
             :file-url="`/sections/${section.id}/assessments/${assessment.id}/attachment`"
             :download-url="`/sections/${section.id}/assessments/${assessment.id}/attachment?download=1`"
             @close="showPreview = false"
+        />
+
+        <!-- Autochecker Modal -->
+        <AutocheckerModal
+            :show="showAutochecker"
+            :section-id="section.id"
+            :assessment="assessment"
+            :students="students"
+            @close="showAutochecker = false"
+            @scores-applied="handleAutocheckerApplied"
         />
     </AppLayout>
 </template>

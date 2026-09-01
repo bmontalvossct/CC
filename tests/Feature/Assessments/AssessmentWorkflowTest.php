@@ -194,19 +194,20 @@ class AssessmentWorkflowTest extends TestCase
             ->has('rows.0.scores', 120)
             ->where('rows.0.scores.'.$firstAssessmentId, null)
             ->where('rows.0.scores.'.$secondAssessmentId, '10.00')
-            ->where('rows.0.categories.activity.earned', 320)
-            ->where('rows.0.categories.activity.possible', 800)
-            ->where('rows.0.categories.activity.missing', 8));
+            ->where('rows.0.categories.activity.earned', 240)
+            ->where('rows.0.categories.activity.possible', 600)
+            ->where('rows.0.categories.activity.missing', 6));
         $this->assertLessThanOrEqual(10, $queryCount, 'Gradebook queries must not grow with the matrix size.');
     }
 
-    public function test_teacher_can_update_all_six_grading_rubric_weights(): void
+    public function test_teacher_can_update_all_grading_rubric_weights(): void
     {
         $user = User::factory()->create();
         $section = $this->section($user);
 
         $payload = [
             'activity' => 15,
+            'laboratory' => 10,
             'quiz' => 20,
             'exam' => 30,
             'project' => 15,
@@ -222,6 +223,7 @@ class AssessmentWorkflowTest extends TestCase
         // Fails if core coursework does not equal 100%
         $invalidPayload = [
             'activity' => 10,
+            'laboratory' => 0,
             'quiz' => 10,
             'exam' => 10,
             'project' => 10,
@@ -453,6 +455,10 @@ class AssessmentWorkflowTest extends TestCase
 
         $this->actingAs($user)->get(route('sections.assessments.attachment', [$section, $quiz]))
             ->assertOk();
+
+        $this->actingAs($user)->get(route('sections.assessments.attachment', [$section, $quiz]).'?download=1')
+            ->assertOk()
+            ->assertHeader('content-disposition', 'attachment; filename=quiz_1_questions.docx');
     }
 
     public function test_teacher_can_create_exam_with_file_attachment(): void
@@ -480,6 +486,51 @@ class AssessmentWorkflowTest extends TestCase
 
         $this->actingAs($user)->get(route('sections.assessments.attachment', [$section, $exam]))
             ->assertOk();
+
+        $this->actingAs($user)->get(route('sections.assessments.attachment', [$section, $exam]).'?download=1')
+            ->assertOk()
+            ->assertHeader('content-disposition', 'attachment; filename=midterm_exam_packet.pdf');
+    }
+
+    public function test_teacher_can_create_activity_with_json_and_database_attachments(): void
+    {
+        Storage::fake('local');
+        $user = User::factory()->create();
+        $section = $this->section($user);
+
+        $jsonFile = UploadedFile::fake()->createWithContent('dataset.json', '{"students": [1, 2, 3]}');
+
+        $response = $this->actingAs($user)->post(route('sections.assessments.store', $section), [
+            'type' => 'laboratory',
+            'title' => 'Lab 3 - JSON Data Processing',
+            'conducted_on' => '2026-08-19',
+            'max_points' => 50,
+            'description' => 'Load and query the attached JSON dataset.',
+            'attachment' => $jsonFile,
+        ]);
+
+        $response->assertRedirect();
+        $lab = Assessment::where('title', 'Lab 3 - JSON Data Processing')->firstOrFail();
+        $this->assertSame('dataset.json', $lab->attachment_name);
+        Storage::disk('local')->assertExists($lab->attachment_path);
+
+        $this->actingAs($user)->get(route('sections.assessments.attachment', [$section, $lab]).'?download=1')
+            ->assertOk()
+            ->assertHeader('content-disposition', 'attachment; filename=dataset.json');
+
+        // Test SQLite DB file attachment on update
+        $sqliteFile = UploadedFile::fake()->create('sample_database.sqlite', 512);
+        $this->actingAs($user)->put(route('sections.assessments.update', [$section, $lab]), [
+            'type' => 'laboratory',
+            'title' => 'Lab 3 - SQL Database Queries',
+            'conducted_on' => '2026-08-19',
+            'max_points' => 50,
+            'attachment' => $sqliteFile,
+        ])->assertRedirect();
+
+        $lab->refresh();
+        $this->assertSame('sample_database.sqlite', $lab->attachment_name);
+        Storage::disk('local')->assertExists($lab->attachment_path);
     }
 
     public function test_teacher_can_batch_save_scores_for_entire_class(): void
@@ -502,6 +553,10 @@ class AssessmentWorkflowTest extends TestCase
                 $student1->id => 48.5,
                 $student2->id => 45,
             ],
+            'remarks' => [
+                $student1->id => 'Excellent work on problem 4',
+                $student2->id => 'Late submission penalty applied',
+            ],
             'include_absent' => false,
         ]);
 
@@ -515,13 +570,19 @@ class AssessmentWorkflowTest extends TestCase
             'assessment_id' => $assessment->id,
             'student_id' => $student1->id,
             'score' => 48.5,
+            'remarks' => 'Excellent work on problem 4',
         ]);
 
         $this->assertDatabaseHas('assessment_scores', [
             'assessment_id' => $assessment->id,
             'student_id' => $student2->id,
             'score' => 45,
+            'remarks' => 'Late submission penalty applied',
         ]);
+
+        // Export assessment CSV with remarks
+        $exportResponse = $this->actingAs($user)->get(route('sections.exports.assessment', [$section, $assessment]));
+        $exportResponse->assertOk();
     }
 
     public function test_teacher_cannot_batch_save_scores_exceeding_max_points(): void
@@ -578,6 +639,78 @@ class AssessmentWorkflowTest extends TestCase
 
         $this->assertDatabaseMissing('assessments', ['id' => $assessment->id]);
         $this->assertDatabaseMissing('assessment_scores', ['assessment_id' => $assessment->id]);
+    }
+
+    public function test_teacher_can_create_laboratory_activity_and_auto_generate_lab_number(): void
+    {
+        $user = User::factory()->create();
+        $section = $this->section($user);
+
+        $response = $this->actingAs($user)->post(route('sections.assessments.store', $section), [
+            'type' => 'laboratory',
+            'title' => 'SQL Queries & Indexing Lab',
+            'conducted_on' => '2026-08-20',
+            'max_points' => 50,
+        ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('assessments', [
+            'section_id' => $section->id,
+            'type' => 'laboratory',
+            'assessment_number' => 'Lab 1',
+            'title' => 'SQL Queries & Indexing Lab',
+            'max_points' => 50,
+        ]);
+    }
+
+    public function test_teacher_can_save_laboratory_grading_weights_and_view_gradebook(): void
+    {
+        $user = User::factory()->create();
+        $section = $this->section($user);
+        $student = Student::create(['section_id' => $section->id, 'student_number' => 'S1', 'first_name' => 'Ada', 'last_name' => 'Lovelace']);
+
+        $lab = Assessment::create([
+            'section_id' => $section->id,
+            'type' => 'laboratory',
+            'assessment_number' => 'Lab 1',
+            'title' => 'Circuits Lab',
+            'conducted_on' => '2026-08-20',
+            'max_points' => 100,
+        ]);
+
+        AssessmentScore::create([
+            'assessment_id' => $lab->id,
+            'student_id' => $student->id,
+            'score' => 95,
+        ]);
+
+        // Save weights with laboratory: 20%
+        $response = $this->actingAs($user)->put(route('sections.grading-weights.update', $section), [
+            'activity' => 15,
+            'laboratory' => 20,
+            'quiz' => 15,
+            'exam' => 20,
+            'project' => 15,
+            'attendance' => 15,
+            'recitation' => 5,
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $this->assertSame(20, $section->fresh()->grading_weights['laboratory']);
+
+        // View gradebook
+        $gradebookResponse = $this->actingAs($user)->get(route('sections.reports.gradebook', $section));
+        $gradebookResponse->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('reports/Gradebook')
+                ->where('gradingWeights.laboratory', 20)
+                ->has('categorySummary.laboratory')
+                ->where('categorySummary.laboratory.count', 1)
+            );
+
+        // Export gradebook CSV
+        $exportResponse = $this->actingAs($user)->get(route('sections.exports.gradebook', $section));
+        $exportResponse->assertOk();
     }
 
     private function scoreFixture(): array

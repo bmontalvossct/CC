@@ -5,6 +5,7 @@ use App\Http\Controllers\Attendance\AttendanceRecordController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::redirect('attendance', 'schedule');
     Route::get('sections/{section}/attendance', [AttendanceController::class, 'index'])
         ->name('attendance.sections.index');
     Route::post('sections/{section}/attendance', [AttendanceController::class, 'store'])

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
-import type { NavItem, SharedData, UserSectionItem } from '@/types';
+import { useActiveSection } from '@/composables/useActiveSection';
+import type { NavItem, SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
 import {
     Armchair,
@@ -14,118 +15,13 @@ import {
     MessageSquare,
     Settings,
 } from 'lucide-vue-next';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 
 defineProps<{ items: NavItem[] }>();
 const page = usePage<SharedData>();
 
-// Stored active section state
-const activeSection = ref<{ id: number; name: string; subject_code: string } | null>(null);
+const { activeSection, userSectionsList, selectSection } = useActiveSection();
 const showAllSections = ref(false);
-
-// Extract section ID from current URL (e.g., /sections/123/...)
-const currentSectionIdFromUrl = computed<number | null>(() => {
-    const match = page.url.match(/^\/sections\/(\d+)/);
-    if (match && match[1]) {
-        return parseInt(match[1], 10);
-    }
-    return null;
-});
-
-const userSectionsList = computed<UserSectionItem[]>(() => {
-    if (Array.isArray(page.props.sections)) {
-        const list = (page.props.sections as Array<{ id: number; name: string; subject_code?: string }>).map((s) => ({
-            id: s.id,
-            name: s.name,
-            subject_code: s.subject_code || '',
-        }));
-        try {
-            localStorage.setItem('classcheck_known_sections', JSON.stringify(list));
-        } catch {
-            // ignore
-        }
-        return list;
-    }
-
-    try {
-        const saved = localStorage.getItem('classcheck_known_sections');
-        if (saved) {
-            return JSON.parse(saved);
-        }
-    } catch {
-        // ignore
-    }
-    return [];
-});
-
-// Determine active section from page props, URL, userSections, or local storage
-const resolveActiveSection = () => {
-    // 1. If current page has direct section prop
-    const pageSection = page.props.section as { id: number; name: string; subject_code?: string } | undefined;
-    if (pageSection && pageSection.id) {
-        const item = {
-            id: pageSection.id,
-            name: pageSection.name,
-            subject_code: pageSection.subject_code || '',
-        };
-        activeSection.value = item;
-        try {
-            localStorage.setItem('classcheck_active_section', JSON.stringify(item));
-        } catch {
-            // ignore storage errors
-        }
-        return;
-    }
-
-    // 2. If URL contains /sections/{id}, match with userSectionsList
-    const idFromUrl = currentSectionIdFromUrl.value;
-    if (idFromUrl) {
-        const matched = userSectionsList.value.find((s) => s.id === idFromUrl);
-        if (matched) {
-            activeSection.value = matched;
-            try {
-                localStorage.setItem('classcheck_active_section', JSON.stringify(matched));
-            } catch {
-                // ignore storage errors
-            }
-            return;
-        } else if (!activeSection.value || activeSection.value.id !== idFromUrl) {
-            activeSection.value = {
-                id: idFromUrl,
-                name: `Section #${idFromUrl}`,
-                subject_code: '',
-            };
-        }
-        return;
-    }
-
-    // 3. Fallback: retrieve last active section from localStorage
-    if (!activeSection.value) {
-        try {
-            const saved = localStorage.getItem('classcheck_active_section');
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                if (parsed && parsed.id) {
-                    activeSection.value = parsed;
-                }
-            }
-        } catch {
-            // ignore storage errors
-        }
-    }
-};
-
-onMounted(() => {
-    resolveActiveSection();
-});
-
-watch(
-    () => [page.url, page.props.section, page.props.userSections],
-    () => {
-        resolveActiveSection();
-    },
-    { deep: true },
-);
 
 // Active section sub-pages navigation list
 const sectionNavItems = computed(() => {
@@ -192,17 +88,8 @@ const isSubNavActive = (itemHref: string, exact: boolean) => {
     return page.url === itemHref || page.url.startsWith(itemHref + '/') || page.url.startsWith(itemHref + '?');
 };
 
-const selectSection = (sec: UserSectionItem) => {
-    activeSection.value = {
-        id: sec.id,
-        name: sec.name,
-        subject_code: sec.subject_code || '',
-    };
-    try {
-        localStorage.setItem('classcheck_active_section', JSON.stringify(activeSection.value));
-    } catch {
-        // ignore storage errors
-    }
+const handleSelectSection = (sec: any) => {
+    selectSection(sec);
     showAllSections.value = false;
 };
 </script>
@@ -233,13 +120,16 @@ const selectSection = (sec: UserSectionItem) => {
         <!-- Active Section Context Navigation -->
         <SidebarGroup v-if="activeSection" class="border-t border-border/70 px-3 pt-4">
             <div class="mb-2 flex items-center justify-between px-2">
-                <div class="flex flex-col">
+                <div class="flex flex-col min-w-0 flex-1">
                     <span class="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Active Section</span>
-                    <span class="truncate text-xs font-medium text-foreground" :title="activeSection.name">
-                        <span v-if="activeSection.subject_code" class="py-0.2 mr-1 inline-block rounded bg-primary px-1.5 text-[10px] text-white">
+                    <div class="flex items-center gap-1.5 truncate text-xs font-semibold text-foreground" :title="activeSection.name">
+                        <span class="truncate">{{ activeSection.name }}</span>
+                        <span v-if="activeSection.subject_code" class="shrink-0 rounded bg-primary/15 px-1.5 py-0.2 text-[10px] font-bold text-primary dark:bg-primary/25">
                             {{ activeSection.subject_code }}
                         </span>
-                        {{ activeSection.name }}
+                    </div>
+                    <span v-if="activeSection.subject_title" class="truncate text-[11px] text-muted-foreground" :title="activeSection.subject_title">
+                        {{ activeSection.subject_title }}
                     </span>
                 </div>
 
@@ -268,7 +158,7 @@ const selectSection = (sec: UserSectionItem) => {
                             ? 'bg-primary text-white'
                             : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground'
                     "
-                    @click="selectSection(sec)"
+                    @click="handleSelectSection(sec)"
                 >
                     <span class="truncate">{{ sec.name }}</span>
                     <span v-if="sec.subject_code" class="font-mono text-[10px] opacity-80">{{ sec.subject_code }}</span>
@@ -303,7 +193,7 @@ const selectSection = (sec: UserSectionItem) => {
                         as-child
                         class="h-9 rounded-xl px-3 text-xs font-medium text-sidebar-foreground/80 transition-all duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                     >
-                        <Link :href="`/sections/${sec.id}`" prefetch="hover" class="flex items-center justify-between" @click="selectSection(sec)">
+                        <Link :href="`/sections/${sec.id}`" prefetch="hover" class="flex items-center justify-between" @click="handleSelectSection(sec)">
                             <div class="flex items-center gap-2 truncate">
                                 <GraduationCap class="size-3.5 shrink-0 text-primary" />
                                 <span class="truncate">{{ sec.name }}</span>

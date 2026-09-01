@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import OralPointsOverrideModal from '@/components/reports/OralPointsOverrideModal.vue';
 import StudentDeficienciesModal from '@/components/reports/StudentDeficienciesModal.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { AlertCircle, ArrowLeft, Download, Printer, RotateCcw, Save, Settings, Trophy, Wand2, X } from 'lucide-vue-next';
+import { AlertCircle, ArrowLeft, Download, Mic, Printer, RotateCcw, Save, Settings, Trophy, Wand2, X } from 'lucide-vue-next';
 import { computed, onMounted, ref, watch } from 'vue';
 
 type Assessment = { id: number; type: 'activity' | 'quiz' | 'exam'; title: string; conducted_on: string; max_points: string };
@@ -21,11 +22,13 @@ type AttendanceSummary = {
     present_count: number;
     late_count: number;
     absent_count: number;
+    present_dates?: string[];
+    late_dates?: string[];
     earned_points: number;
     possible_points: number;
     percentage: number | null;
 };
-type Recitation = { count: number; avg_score: number | null; percentage: number | null; bonus_points?: number };
+type Recitation = { count: number; total_score?: number; avg_score: number | null; percentage: number | null; bonus_points?: number };
 
 type Row = {
     id: number;
@@ -60,7 +63,7 @@ const props = withDefaults(
 );
 
 const page = usePage<any>();
-const types = ['activity', 'quiz', 'exam'] as const;
+const types = ['activity', 'laboratory', 'quiz', 'exam'] as const;
 const showWeightsEditor = ref(false);
 
 const groupActivitiesList = computed(() => props.groupActivities || []);
@@ -78,6 +81,15 @@ const openStudentModal = (student: Row) => {
 const closeStudentModal = () => {
     isModalOpen.value = false;
     selectedStudent.value = null;
+};
+
+// Oral Points Override Modal
+const showOralOverrideModal = ref(false);
+const selectedStudentForOral = ref<Row | null>(null);
+
+const openOralOverrideModal = (student: Row | null = null) => {
+    selectedStudentForOral.value = student;
+    showOralOverrideModal.value = true;
 };
 
 const countDeficiencies = (row: Row): number => {
@@ -133,6 +145,7 @@ const saveError = ref<string | null>(null);
 
 const weightsForm = useForm({
     activity: props.gradingWeights.activity ?? 20,
+    laboratory: props.gradingWeights.laboratory ?? 0,
     quiz: props.gradingWeights.quiz ?? 20,
     exam: props.gradingWeights.exam ?? 25,
     project: props.gradingWeights.project ?? 20,
@@ -145,6 +158,7 @@ watch(
     (newWeights) => {
         if (!newWeights || showWeightsEditor.value) return;
         weightsForm.activity = newWeights.activity ?? 20;
+        weightsForm.laboratory = newWeights.laboratory ?? 0;
         weightsForm.quiz = newWeights.quiz ?? 20;
         weightsForm.exam = newWeights.exam ?? 25;
         weightsForm.project = newWeights.project ?? 20;
@@ -157,6 +171,7 @@ watch(
 const coreWeightsTotal = computed(
     () =>
         Number(weightsForm.activity || 0) +
+        Number(weightsForm.laboratory || 0) +
         Number(weightsForm.quiz || 0) +
         Number(weightsForm.exam || 0) +
         Number(weightsForm.project || 0) +
@@ -165,8 +180,9 @@ const coreWeightsTotal = computed(
 
 const weightsValid = computed(() => coreWeightsTotal.value === 100 || coreWeightsTotal.value + Number(weightsForm.recitation || 0) === 100);
 
-const applyPreset = (preset: { activity: number; quiz: number; exam: number; project: number; attendance: number }) => {
+const applyPreset = (preset: { activity: number; laboratory?: number; quiz: number; exam: number; project: number; attendance: number }) => {
     weightsForm.activity = preset.activity;
+    weightsForm.laboratory = preset.laboratory ?? 0;
     weightsForm.quiz = preset.quiz;
     weightsForm.exam = preset.exam;
     weightsForm.project = preset.project;
@@ -177,24 +193,27 @@ const applyPreset = (preset: { activity: number; quiz: number; exam: number; pro
 
 const autoBalanceTo100 = () => {
     const act = Number(weightsForm.activity) || 0;
+    const lab = Number(weightsForm.laboratory) || 0;
     const quiz = Number(weightsForm.quiz) || 0;
     const exam = Number(weightsForm.exam) || 0;
     const proj = Number(weightsForm.project) || 0;
     const att = Number(weightsForm.attendance) || 0;
 
-    const sum = act + quiz + exam + proj + att;
+    const sum = act + lab + quiz + exam + proj + att;
     if (sum === 0) {
-        applyPreset({ activity: 20, quiz: 20, exam: 25, project: 20, attendance: 15 });
+        applyPreset({ activity: 20, laboratory: 0, quiz: 20, exam: 25, project: 20, attendance: 15 });
         return;
     }
 
     const rawAct = Math.round((act / sum) * 100);
+    const rawLab = Math.round((lab / sum) * 100);
     const rawQuiz = Math.round((quiz / sum) * 100);
     const rawExam = Math.round((exam / sum) * 100);
     const rawProj = Math.round((proj / sum) * 100);
-    const rawAtt = Math.max(0, 100 - (rawAct + rawQuiz + rawExam + rawProj));
+    const rawAtt = Math.max(0, 100 - (rawAct + rawLab + rawQuiz + rawExam + rawProj));
 
     weightsForm.activity = rawAct;
+    weightsForm.laboratory = rawLab;
     weightsForm.quiz = rawQuiz;
     weightsForm.exam = rawExam;
     weightsForm.project = rawProj;
@@ -205,6 +224,7 @@ const autoBalanceTo100 = () => {
 
 const resetToCurrent = () => {
     weightsForm.activity = props.gradingWeights.activity ?? 20;
+    weightsForm.laboratory = props.gradingWeights.laboratory ?? 0;
     weightsForm.quiz = props.gradingWeights.quiz ?? 20;
     weightsForm.exam = props.gradingWeights.exam ?? 25;
     weightsForm.project = props.gradingWeights.project ?? 20;
@@ -269,6 +289,11 @@ const computeBase = (row: Row): number | null => {
     if (row.categories.activity?.percentage !== null && (w.activity ?? 0) > 0) {
         weighted += row.categories.activity.percentage * (w.activity / 100);
         totalWeight += w.activity;
+    }
+    // Laboratory Activities
+    if (row.categories.laboratory?.percentage !== null && (w.laboratory ?? 0) > 0) {
+        weighted += row.categories.laboratory.percentage * (w.laboratory / 100);
+        totalWeight += w.laboratory;
     }
     // Quizzes
     if (row.categories.quiz?.percentage !== null && (w.quiz ?? 0) > 0) {
@@ -364,6 +389,14 @@ onMounted(() => {
                         <button
                             type="button"
                             class="shadow-xs inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
+                            @click="openOralOverrideModal()"
+                        >
+                            <Mic class="size-3.5 text-muted-foreground" />
+                            <span>Override Oral Points</span>
+                        </button>
+                        <button
+                            type="button"
+                            class="shadow-xs inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
                             @click="showWeightsEditor = !showWeightsEditor"
                         >
                             <Settings class="size-3.5 text-primary" />
@@ -418,28 +451,35 @@ onMounted(() => {
                         <button
                             type="button"
                             class="rounded-lg border border-border/80 bg-secondary/50 px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
-                            @click="applyPreset({ activity: 20, quiz: 20, exam: 25, project: 20, attendance: 15 })"
+                            @click="applyPreset({ activity: 15, laboratory: 20, quiz: 15, exam: 20, project: 15, attendance: 15 })"
+                        >
+                            Lecture + Lab (15-20-15-20-15-15)
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-lg border border-border/80 bg-secondary/50 px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
+                            @click="applyPreset({ activity: 20, laboratory: 0, quiz: 20, exam: 25, project: 20, attendance: 15 })"
                         >
                             Standard (20-20-25-20-15)
                         </button>
                         <button
                             type="button"
                             class="rounded-lg border border-border/80 bg-secondary/50 px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
-                            @click="applyPreset({ activity: 15, quiz: 15, exam: 40, project: 15, attendance: 15 })"
+                            @click="applyPreset({ activity: 15, laboratory: 0, quiz: 15, exam: 40, project: 15, attendance: 15 })"
                         >
                             Exam Focus (15-15-40-15-15)
                         </button>
                         <button
                             type="button"
                             class="rounded-lg border border-border/80 bg-secondary/50 px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
-                            @click="applyPreset({ activity: 15, quiz: 15, exam: 20, project: 35, attendance: 15 })"
+                            @click="applyPreset({ activity: 15, laboratory: 0, quiz: 15, exam: 20, project: 35, attendance: 15 })"
                         >
                             Project Focus (15-15-20-35-15)
                         </button>
                         <button
                             type="button"
                             class="rounded-lg border border-border/80 bg-secondary/50 px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
-                            @click="applyPreset({ activity: 35, quiz: 20, exam: 20, project: 15, attendance: 10 })"
+                            @click="applyPreset({ activity: 35, laboratory: 0, quiz: 20, exam: 20, project: 15, attendance: 10 })"
                         >
                             Activity Focus (35-20-20-15-10)
                         </button>
@@ -473,7 +513,7 @@ onMounted(() => {
                                 </span>
                             </div>
 
-                            <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+                            <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
                                 <label class="rounded-xl border border-border/80 bg-secondary/30 p-3">
                                     <span class="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
                                         Activities
@@ -481,6 +521,21 @@ onMounted(() => {
                                     <div class="flex items-center gap-1">
                                         <input
                                             v-model.number="weightsForm.activity"
+                                            type="number"
+                                            min="0"
+                                            max="100"
+                                            class="w-full rounded-lg border border-input bg-background px-3 py-1.5 text-center text-sm font-bold focus-visible:ring-2 focus-visible:ring-primary"
+                                        />
+                                        <span class="text-xs text-muted-foreground">%</span>
+                                    </div>
+                                </label>
+                                <label class="rounded-xl border border-border/80 bg-secondary/30 p-3">
+                                    <span class="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
+                                        Laboratory
+                                    </span>
+                                    <div class="flex items-center gap-1">
+                                        <input
+                                            v-model.number="weightsForm.laboratory"
                                             type="number"
                                             min="0"
                                             max="100"
@@ -645,7 +700,7 @@ onMounted(() => {
                 </header>
 
                 <!-- Category Summary Cards -->
-                <section class="my-6 grid gap-4 sm:grid-cols-3 lg:grid-cols-6 print:grid-cols-6">
+                <section class="my-6 grid gap-4 sm:grid-cols-3 lg:grid-cols-7 print:grid-cols-7">
                     <div v-for="type in types" :key="type" class="paper-card p-4 print:rounded-none print:border print:border-black print:bg-white">
                         <span
                             class="font-mono text-[10px] font-medium uppercase tracking-wider"
@@ -654,12 +709,14 @@ onMounted(() => {
                                     ? 'text-purple-600 dark:text-purple-400'
                                     : type === 'quiz'
                                       ? 'text-blue-600 dark:text-blue-400'
-                                      : 'text-emerald-600 dark:text-emerald-400'
+                                      : type === 'laboratory'
+                                        ? 'text-cyan-600 dark:text-cyan-400'
+                                        : 'text-emerald-600 dark:text-emerald-400'
                             "
                         >
-                            {{ type }} · {{ gradingWeights[type] }}%
+                            {{ type === 'laboratory' ? 'Lab' : type }} · {{ gradingWeights[type] ?? 0 }}%
                         </span>
-                        <p class="mt-2 text-xl font-medium tracking-tight">{{ categorySummary[type].count }} items</p>
+                        <p class="mt-2 text-xl font-medium tracking-tight">{{ categorySummary[type]?.count ?? 0 }} items</p>
                     </div>
 
                     <!-- Project / Reporting Summary Card -->
@@ -714,10 +771,12 @@ onMounted(() => {
                                                     ? 'text-purple-600 dark:text-purple-400'
                                                     : item.type === 'quiz'
                                                       ? 'text-blue-600 dark:text-blue-400'
-                                                      : 'text-emerald-600 dark:text-emerald-400'
+                                                      : item.type === 'laboratory'
+                                                        ? 'text-cyan-600 dark:text-cyan-400'
+                                                        : 'text-emerald-600 dark:text-emerald-400'
                                             "
                                         >
-                                            {{ item.type }}
+                                            {{ item.type === 'laboratory' ? 'Lab' : item.type }}
                                         </span>
                                         <span class="mx-auto mt-0.5 block max-w-24 truncate font-medium text-foreground">{{ item.title }}</span>
                                         <span class="font-mono text-[10px] text-muted-foreground">/ {{ item.max_points }}</span>
@@ -889,7 +948,7 @@ onMounted(() => {
                                         {{ row.attendance?.percentage !== null ? `${row.attendance.percentage}%` : '—' }}
                                     </td>
                                     <!-- Recitation Bonus Points Cell -->
-                                    <td class="border-l-2 border-amber-500/30 bg-amber-500/5 px-2.5 py-3 text-center font-mono">
+                                    <td class="group/oral relative border-l-2 border-amber-500/30 bg-amber-500/5 px-2.5 py-3 text-center font-mono">
                                         <template v-if="row.recitation && row.recitation.count > 0 && row.recitation.avg_score !== null">
                                             <span
                                                 class="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-bold text-emerald-600 dark:text-emerald-400"
@@ -901,6 +960,17 @@ onMounted(() => {
                                             </span>
                                         </template>
                                         <span v-else class="text-xs text-muted-foreground">—</span>
+
+                                        <button
+                                            v-if="!printMode"
+                                            type="button"
+                                            class="mt-1 inline-flex items-center gap-1 rounded border border-border bg-card px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground opacity-0 transition-opacity hover:text-foreground hover:bg-secondary group-hover/oral:opacity-100 print:hidden"
+                                            title="Override oral points for this student"
+                                            @click.stop="openOralOverrideModal(row)"
+                                        >
+                                            <Mic class="size-2.5" />
+                                            <span>Override</span>
+                                        </button>
                                     </td>
                                     <!-- Overall Final % -->
                                     <td
@@ -987,6 +1057,16 @@ onMounted(() => {
             :subject-code="section.subject_code"
             :open="isModalOpen"
             @close="closeStudentModal"
+        />
+
+        <!-- Manual Oral Points Override Modal -->
+        <OralPointsOverrideModal
+            :open="showOralOverrideModal"
+            :section="section"
+            :students="rows"
+            :preselected-student="selectedStudentForOral"
+            :grading-weights="gradingWeights"
+            @close="showOralOverrideModal = false"
         />
     </component>
 </template>

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AssessmentScore extends Model
 {
-    protected $fillable = ['assessment_id', 'student_id', 'score', 'absence_override'];
+    protected $fillable = ['assessment_id', 'student_id', 'score', 'remarks', 'absence_override'];
 
     protected function casts(): array
     {

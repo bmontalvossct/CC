@@ -5,36 +5,43 @@ namespace App\Http\Controllers\Assessments;
 use App\Models\Assessment;
 use App\Models\Section;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AssessmentAttachmentController extends AssessmentModuleController
 {
-    public function __invoke(Request $request, Section $section, Assessment $assessment): StreamedResponse|BinaryFileResponse|Response
+    public function __invoke(Request $request, Section $section, Assessment $assessment): BinaryFileResponse|Response
     {
         $this->authorizeAssessment($section, $assessment);
-        abort_unless($assessment->attachment_path && Storage::disk('local')->exists($assessment->attachment_path), 404);
 
-        $name = $assessment->attachment_name ?? basename($assessment->attachment_path);
-        $mime = $assessment->attachment_mime ?? Storage::disk('local')->mimeType($assessment->attachment_path) ?? 'application/octet-stream';
+        $path = $assessment->attachment_path;
+        abort_unless($path, 404);
 
-        if ($request->boolean('download')) {
-            return Storage::disk('local')->download(
-                $assessment->attachment_path,
-                $name,
-                ['Content-Type' => $mime]
-            );
+        $fullPath = null;
+        if (Storage::disk('local')->exists($path)) {
+            $fullPath = Storage::disk('local')->path($path);
+        } elseif (Storage::disk('public')->exists($path)) {
+            $fullPath = Storage::disk('public')->path($path);
+        } elseif (file_exists(storage_path('app/'.$path))) {
+            $fullPath = storage_path('app/'.$path);
         }
 
-        return Storage::disk('local')->response(
-            $assessment->attachment_path,
-            $name,
-            [
+        abort_unless($fullPath && file_exists($fullPath), 404, 'Attachment file not found on disk.');
+
+        $name = $assessment->attachment_name ?: basename($path);
+        $mime = $assessment->attachment_mime ?: (File::mimeType($fullPath) ?: 'application/octet-stream');
+
+        if ($request->boolean('download') || $request->has('download')) {
+            return response()->download($fullPath, $name, [
                 'Content-Type' => $mime,
-                'Content-Disposition' => 'inline; filename="'.addslashes($name).'"',
-            ]
-        );
+            ]);
+        }
+
+        return response()->file($fullPath, [
+            'Content-Type' => $mime,
+            'Content-Disposition' => 'inline; filename="'.addslashes($name).'"',
+        ]);
     }
 }

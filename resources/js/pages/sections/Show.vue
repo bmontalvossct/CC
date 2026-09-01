@@ -12,6 +12,7 @@ import {
     AlertCircle,
     Armchair,
     CalendarCheck2,
+    Camera,
     Check,
     CheckCircle2,
     ClipboardList,
@@ -24,11 +25,15 @@ import {
     FileSpreadsheet,
     FolderKanban,
     Layers,
+    LayoutDashboard,
+    LoaderCircle,
     MapPin,
     MessageSquare,
+    Pencil,
     Printer,
     QrCode,
     RefreshCw,
+    Save,
     Shuffle,
     SortAsc,
     Trash2,
@@ -37,11 +42,30 @@ import {
     Users,
     X,
 } from 'lucide-vue-next';
+import BulkPhotoImportModal from '@/components/students/BulkPhotoImportModal.vue';
+import RandomGroupGeneratorModal from '@/components/tools/RandomGroupGeneratorModal.vue';
 import QRCode from 'qrcode';
 import { computed, onMounted, ref, watch } from 'vue';
 
-const props = defineProps<{ section: any; join_url: string; called_today_ids?: number[] }>();
+const props = defineProps<{
+    section: any;
+    stats?: {
+        enrolled_count: number;
+        seated_count: number;
+        available_seats_count: number;
+        attendance_rate: number | null;
+        meetings_count: number;
+        assessments_count: number;
+        projects_count: number;
+        modules_count: number;
+        recitations_count: number;
+        called_today_count?: number;
+    };
+    join_url?: string | null;
+    called_today_ids?: number[];
+}>();
 const page = usePage<any>();
+const isOffline = computed(() => Boolean(page.props.is_offline));
 const selectedStudent = ref<any>(null);
 const selectedSeatId = ref<number | null>(null);
 const showQr = ref(false);
@@ -50,6 +74,8 @@ const showImportModal = ref(false);
 const showImportResults = ref(false);
 const importActiveTab = ref<'success' | 'failed'>('success');
 const showRosterModal = ref(false);
+const showGroupGenerator = ref(false);
+const showBulkPhotosModal = ref(false);
 const rosterSearchQuery = ref('');
 const qrDataUrl = ref('');
 const copied = ref(false);
@@ -66,11 +92,62 @@ watch(
     { immediate: true },
 );
 
+const formatStudentDisplayName = (student: any) => {
+    if (!student) return '—';
+    if (student.last_name && student.first_name) {
+        const firstMiddle = [student.first_name, student.middle_name].filter(Boolean).join(' ');
+        return `${student.last_name}, ${firstMiddle || student.first_name}`;
+    }
+    if (student.last_name) return student.last_name;
+    if (student.full_name) {
+        if (student.full_name.includes(',')) return student.full_name;
+        const parts = student.full_name.trim().split(/\s+/);
+        if (parts.length > 1) {
+            const last = parts.pop();
+            return `${last}, ${parts.join(' ')}`;
+        }
+        return student.full_name;
+    }
+    if (student.name) {
+        if (student.name.includes(',')) return student.name;
+        const parts = student.name.trim().split(/\s+/);
+        if (parts.length > 1) {
+            const last = parts.pop();
+            return `${last}, ${parts.join(' ')}`;
+        }
+        return student.name;
+    }
+    return student.first_name || '—';
+};
+
+const sortStudentsByLastName = (list: any[]) => {
+    return [...list].sort((a, b) => {
+        const nameA = formatStudentDisplayName(a).toLowerCase();
+        const nameB = formatStudentDisplayName(b).toLowerCase();
+        return nameA.localeCompare(nameB);
+    });
+};
+
+const initials = (name?: string) => {
+    if (!name) return '';
+    return name
+        .replace(/,/g, ' ')
+        .split(/[ ,]+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((p) => p[0])
+        .join('')
+        .toUpperCase();
+};
+
 const filteredRoster = computed(() => {
     const q = rosterSearchQuery.value.toLowerCase().trim();
-    if (!q) return props.section.students;
-    return props.section.students.filter(
-        (student: any) => student.full_name.toLowerCase().includes(q) || student.student_number.toLowerCase().includes(q),
+    const sorted = sortStudentsByLastName(props.section.students || []);
+    if (!q) return sorted;
+    return sorted.filter(
+        (student: any) =>
+            formatStudentDisplayName(student).toLowerCase().includes(q) ||
+            (student.student_number || '').toLowerCase().includes(q),
     );
 });
 
@@ -81,11 +158,17 @@ watch(selectedSeatId, (newVal) => {
 });
 
 onMounted(async () => {
-    qrDataUrl.value = await QRCode.toDataURL(props.join_url, {
-        width: 640,
-        margin: 2,
-        color: { dark: '#0f172a', light: '#ffffff' },
-    });
+    if (!isOffline.value && props.join_url) {
+        try {
+            qrDataUrl.value = await QRCode.toDataURL(props.join_url, {
+                width: 640,
+                margin: 2,
+                color: { dark: '#0f172a', light: '#ffffff' },
+            });
+        } catch {
+            // ignore
+        }
+    }
 });
 
 const printQr = () => {
@@ -103,8 +186,8 @@ const availableSeats = computed(() =>
 );
 const totalUsableSeats = computed(() => props.section.layout_blocks.flatMap((block: any) => block.seats).filter((seat: any) => !seat.is_disabled));
 const selectedSeat = computed(() => availableSeats.value.find((seat: any) => seat.id === selectedSeatId.value) ?? null);
-const seatedStudents = computed(() => props.section.students.filter((student: any) => student.seat));
-const unseatedStudents = computed(() => props.section.students.filter((student: any) => !student.seat));
+const seatedStudents = computed(() => sortStudentsByLastName((props.section.students || []).filter((student: any) => student.seat)));
+const unseatedStudents = computed(() => sortStudentsByLastName((props.section.students || []).filter((student: any) => !student.seat)));
 
 const initialFloorPlan = computed(() => {
     const blocks = [...props.section.layout_blocks].sort((a: any, b: any) => a.block_row - b.block_row || a.block_column - b.block_column);
@@ -194,6 +277,92 @@ const moveStudent = (student: any, seatId: string) =>
         { preserveScroll: true, onSuccess: () => (selectedStudent.value = null) },
     );
 
+const showEditStudentModal = ref(false);
+const editingStudent = ref<any>(null);
+const editPhotoPreview = ref<string | null>(null);
+const editPhotoInputRef = ref<HTMLInputElement | null>(null);
+
+const editStudentForm = useForm<{
+    student_number: string;
+    first_name: string;
+    middle_name: string;
+    last_name: string;
+    seat_id: number | null;
+    photo: File | null;
+    remove_photo: boolean;
+    _method: string;
+}>({
+    student_number: '',
+    first_name: '',
+    middle_name: '',
+    last_name: '',
+    seat_id: null,
+    photo: null,
+    remove_photo: false,
+    _method: 'PATCH',
+});
+
+const editAvailableSeats = computed(() => {
+    const currentSeatId = editingStudent.value?.seat?.id;
+    return props.section.layout_blocks
+        .flatMap((block: any) => block.seats)
+        .filter((seat: any) => {
+            if (seat.is_disabled) return false;
+            if (!seat.student_id) return true;
+            if (currentSeatId && seat.id === currentSeatId) return true;
+            return false;
+        });
+});
+
+const openEditStudent = (student: any) => {
+    editingStudent.value = student;
+    editStudentForm.clearErrors();
+    editStudentForm.student_number = student.student_number || '';
+    editStudentForm.first_name = student.first_name || '';
+    editStudentForm.middle_name = student.middle_name || '';
+    editStudentForm.last_name = student.last_name || '';
+    editStudentForm.seat_id = student.seat?.id ?? null;
+    editStudentForm.photo = null;
+    editStudentForm.remove_photo = false;
+    editPhotoPreview.value = student.photo_url || null;
+    showEditStudentModal.value = true;
+};
+
+const handleEditPhotoChange = (event: Event) => {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files[0]) {
+        editStudentForm.photo = input.files[0];
+        editStudentForm.remove_photo = false;
+        editPhotoPreview.value = URL.createObjectURL(input.files[0]);
+    }
+};
+
+const removeEditPhoto = () => {
+    editStudentForm.photo = null;
+    editStudentForm.remove_photo = true;
+    editPhotoPreview.value = null;
+    if (editPhotoInputRef.value) {
+        editPhotoInputRef.value.value = '';
+    }
+};
+
+const updateStudent = () => {
+    if (!editingStudent.value) return;
+
+    editStudentForm.post(`/sections/${props.section.id}/students/${editingStudent.value.id}`, {
+        forceFormData: true,
+        preserveScroll: true,
+        onSuccess: () => {
+            showEditStudentModal.value = false;
+            if (selectedStudent.value?.id === editingStudent.value.id) {
+                const updated = props.section.students?.find((s: any) => s.id === editingStudent.value.id);
+                if (updated) selectedStudent.value = updated;
+            }
+            editingStudent.value = null;
+        },
+    });
+};
+
 const autoAssign = (mode: 'alphabetical' | 'random') => {
     const modeName = mode === 'alphabetical' ? 'last name' : 'random';
     if (confirm(`Automatically assign chairs for students by ${modeName}?`)) {
@@ -265,75 +434,181 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                 >
                     <div class="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
                         <div>
-                            <div class="flex flex-wrap items-center gap-2">
-                                <span class="badge-primary font-mono font-medium">{{ section.subject_code }}</span>
-                                <span class="badge-muted">{{ section.academic_term.name }}</span>
-                                <span v-if="section.room" class="badge-muted flex items-center gap-1">
-                                    <MapPin class="size-3" /> {{ section.room }}
-                                </span>
+                            <div class="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                <span class="font-bold text-foreground">{{ section.subject_code }}</span>
+                                <span class="text-muted-foreground/60">&bull;</span>
+                                <span>{{ section.academic_term?.name }}</span>
+                                <template v-if="section.room">
+                                    <span class="text-muted-foreground/60">&bull;</span>
+                                    <span class="inline-flex items-center gap-1">
+                                        <MapPin class="size-3.5 text-primary" />
+                                        <span>Room {{ section.room }}</span>
+                                    </span>
+                                </template>
                             </div>
                             <h1 class="mt-3 text-3xl font-medium tracking-tight sm:text-4xl md:text-5xl">{{ section.name }}</h1>
                             <p class="mt-2 text-sm text-muted-foreground sm:text-base">{{ section.subject_title }}</p>
                         </div>
-                        <div class="flex flex-wrap items-center gap-2.5">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <Link
+                                href="/dashboard"
+                                prefetch="hover"
+                                class="shadow-xs group inline-flex h-10 items-center justify-center rounded-xl border border-primary bg-white px-3 text-sm font-medium text-primary transition-all duration-200 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                title="Dashboard"
+                            >
+                                <LayoutDashboard class="size-4 text-primary transition-colors group-hover:text-white" />
+                                <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 font-medium">Dashboard</span>
+                            </Link>
                             <RandomStudentPicker :section-id="section.id" :students="section.students" :called-today-ids="called_today_ids" />
                             <Link
                                 :href="`/sections/${section.id}/attendance`"
                                 prefetch="hover"
-                                class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                class="shadow-xs group inline-flex h-10 items-center justify-center rounded-xl border border-primary bg-white px-3 text-sm font-medium text-primary transition-all duration-200 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                title="Attendance"
                             >
                                 <CalendarCheck2 class="size-4 text-primary transition-colors group-hover:text-white" />
-                                <span>Attendance</span>
+                                <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 font-medium">Attendance</span>
                             </Link>
                             <Link
                                 :href="`/sections/${section.id}/assessments`"
                                 prefetch="hover"
-                                class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                class="shadow-xs group inline-flex h-10 items-center justify-center rounded-xl border border-primary bg-white px-3 text-sm font-medium text-primary transition-all duration-200 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                title="Scores & Assessments"
                             >
                                 <ClipboardList class="size-4 text-primary transition-colors group-hover:text-white" />
-                                <span>Scores</span>
+                                <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 font-medium">Scores</span>
                             </Link>
                             <Link
                                 :href="`/sections/${section.id}/projects`"
                                 prefetch="hover"
-                                class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                class="shadow-xs group inline-flex h-10 items-center justify-center rounded-xl border border-primary bg-white px-3 text-sm font-medium text-primary transition-all duration-200 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                title="Projects & Groups"
                             >
                                 <FolderKanban class="size-4 text-primary transition-colors group-hover:text-white" />
-                                <span>Projects & Groups</span>
+                                <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 font-medium">Projects & Groups</span>
                             </Link>
                             <Link
                                 :href="`/sections/${section.id}/modules`"
                                 prefetch="hover"
-                                class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                class="shadow-xs group inline-flex h-10 items-center justify-center rounded-xl border border-primary bg-white px-3 text-sm font-medium text-primary transition-all duration-200 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                title="Course Modules"
                             >
                                 <Layers class="size-4 text-primary transition-colors group-hover:text-white" />
-                                <span>Modules</span>
+                                <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 font-medium">Modules</span>
                             </Link>
                             <Link
                                 :href="`/sections/${section.id}/recitation`"
                                 prefetch="hover"
-                                class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                class="shadow-xs group inline-flex h-10 items-center justify-center rounded-xl border border-primary bg-white px-3 text-sm font-medium text-primary transition-all duration-200 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                title="Oral Participation"
                             >
                                 <MessageSquare class="size-4 text-primary transition-colors group-hover:text-white" />
-                                <span>Oral Participation</span>
+                                <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 font-medium">Oral Participation</span>
                             </Link>
+                            <button
+                                type="button"
+                                class="shadow-xs group inline-flex h-10 items-center justify-center rounded-xl border border-primary bg-white px-3 text-sm font-medium text-primary transition-all duration-200 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                title="Generate Random Groups"
+                                @click="showGroupGenerator = true"
+                            >
+                                <Dices class="size-4 text-primary transition-colors group-hover:text-white" />
+                                <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 font-medium">Random Groups</span>
+                            </button>
                             <Link
                                 :href="`/sections/${section.id}/edit`"
                                 prefetch="hover"
-                                class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-3 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
-                                title="Edit section details"
+                                class="shadow-xs group inline-flex h-10 items-center justify-center rounded-xl border border-primary bg-white px-3 text-sm font-medium text-primary transition-all duration-200 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                title="Edit Section Details"
                             >
                                 <Edit3 class="size-4 text-primary transition-colors group-hover:text-white" />
+                                <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 font-medium">Edit Section</span>
                             </Link>
-                            <Button class="ink-button !h-10 !rounded-xl" @click="showQr = true">
-                                <QrCode class="size-4" />
-                                <span>Enrollment QR</span>
-                            </Button>
+                            <button
+                                v-if="!isOffline && join_url"
+                                type="button"
+                                class="shadow-xs group inline-flex h-10 items-center justify-center rounded-xl border border-primary bg-primary px-3 text-sm font-medium text-white transition-all duration-200 hover:border-amber-400 hover:bg-amber-400"
+                                title="Display Enrollment QR"
+                                @click="showQr = true"
+                            >
+                                <QrCode class="size-4 text-white" />
+                                <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 font-medium text-white">Enrollment QR</span>
+                            </button>
                         </div>
                     </div>
                 </header>
 
-                <div class="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+                <!-- Section Key Performance Indicators (Statistics Strip) -->
+                <section class="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:gap-4" aria-label="Section Statistics">
+                    <!-- Enrolled & Seated Students -->
+                    <article class="paper-card group relative overflow-hidden p-4 transition-all hover:border-primary/40 hover:shadow-xs">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Students</span>
+                            <span class="grid size-8 place-items-center rounded-lg bg-sky-500/10 text-sky-600 transition-transform group-hover:scale-110 dark:text-sky-400">
+                                <Users class="size-4" />
+                            </span>
+                        </div>
+                        <div class="mt-3 flex items-baseline justify-between">
+                            <p class="text-2xl font-extrabold tracking-tight">{{ stats?.enrolled_count ?? section.students?.length ?? 0 }}</p>
+                            <span class="text-[11px] font-medium text-muted-foreground">
+                                {{ stats?.seated_count ?? seatedStudents.length }}/{{ stats?.available_seats_count ?? availableSeats.length + seatedStudents.length }} seated
+                            </span>
+                        </div>
+                    </article>
+
+                    <!-- Attendance Rate & Sessions -->
+                    <article class="paper-card group relative overflow-hidden p-4 transition-all hover:border-primary/40 hover:shadow-xs">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Attendance</span>
+                            <span class="grid size-8 place-items-center rounded-lg bg-emerald-500/10 text-emerald-600 transition-transform group-hover:scale-110 dark:text-emerald-400">
+                                <CalendarCheck2 class="size-4" />
+                            </span>
+                        </div>
+                        <div class="mt-3 flex items-baseline justify-between">
+                            <p class="text-2xl font-extrabold tracking-tight" :class="stats?.attendance_rate !== null && (stats?.attendance_rate ?? 0) >= 80 ? 'text-emerald-600 dark:text-emerald-400' : ''">
+                                {{ stats?.attendance_rate !== null && stats?.attendance_rate !== undefined ? `${stats.attendance_rate}%` : '—' }}
+                            </p>
+                            <span class="text-[11px] font-medium text-muted-foreground">
+                                {{ stats?.meetings_count ?? 0 }} sessions
+                            </span>
+                        </div>
+                    </article>
+
+                    <!-- Assessments & Lab Activities -->
+                    <article class="paper-card group relative overflow-hidden p-4 transition-all hover:border-primary/40 hover:shadow-xs">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Scores & Labs</span>
+                            <span class="grid size-8 place-items-center rounded-lg bg-amber-500/10 text-amber-600 transition-transform group-hover:scale-110 dark:text-amber-400">
+                                <ClipboardList class="size-4" />
+                            </span>
+                        </div>
+                        <div class="mt-3 flex items-baseline justify-between">
+                            <p class="text-2xl font-extrabold tracking-tight">
+                                {{ (stats?.assessments_count ?? 0) + (stats?.projects_count ?? 0) }}
+                            </p>
+                            <span class="text-[11px] font-medium text-muted-foreground">
+                                {{ stats?.assessments_count ?? 0 }} tasks · {{ stats?.projects_count ?? 0 }} proj
+                            </span>
+                        </div>
+                    </article>
+
+                    <!-- Oral Participation / Recitation -->
+                    <article class="paper-card group relative overflow-hidden p-4 transition-all hover:border-primary/40 hover:shadow-xs">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Recitations</span>
+                            <span class="grid size-8 place-items-center rounded-lg bg-purple-500/10 text-purple-600 transition-transform group-hover:scale-110 dark:text-purple-400">
+                                <MessageSquare class="size-4" />
+                            </span>
+                        </div>
+                        <div class="mt-3 flex items-baseline justify-between">
+                            <p class="text-2xl font-extrabold tracking-tight">{{ stats?.recitations_count ?? 0 }}</p>
+                            <span class="text-[11px] font-medium text-muted-foreground">
+                                {{ stats?.called_today_count ?? 0 }} called today
+                            </span>
+                        </div>
+                    </article>
+                </section>
+
+                <div class="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
                     <!-- Live Classroom Seating Section -->
                     <section class="paper-card min-w-0 p-6 md:p-8">
                         <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
@@ -479,17 +754,40 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                                         <span>Import CSV</span>
                                     </button>
                                 </div>
+                                <button
+                                    type="button"
+                                    class="shadow-xs group inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-primary bg-white px-3 text-xs font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                    @click="showBulkPhotosModal = true"
+                                >
+                                    <Camera class="size-3.5 text-primary transition-colors group-hover:text-white" />
+                                    <span>Bulk Photos (.ZIP)</span>
+                                </button>
                             </div>
                         </div>
                     </aside>
                 </div>
             </div>
 
+            <!-- Random Group Generator Modal -->
+            <RandomGroupGeneratorModal
+                :open="showGroupGenerator"
+                :students="section.students || []"
+                :section-name="section.name"
+                @close="showGroupGenerator = false"
+            />
+
+            <!-- Bulk Photo ZIP Import Modal -->
+            <BulkPhotoImportModal
+                :open="showBulkPhotosModal"
+                :section-id="section.id"
+                @close="showBulkPhotosModal = false"
+            />
+
             <!-- Enrollment QR Modal -->
             <div
-                v-if="showQr"
+                v-if="!isOffline && showQr"
+                v-modal-focus
                 class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-zinc-950/70 p-4 backdrop-blur-md"
-                @click.self="showQr = false"
             >
                 <section class="paper-card mt-0 w-full max-w-md p-7 text-center shadow-2xl duration-200 animate-in fade-in zoom-in-95">
                     <button
@@ -559,7 +857,7 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
             </div>
 
             <!-- Student Detail Drawer -->
-            <div v-if="selectedStudent" class="backdrop-blur-xs fixed inset-0 z-40 bg-zinc-950/50" @click.self="selectedStudent = null">
+            <div v-if="selectedStudent" v-modal-focus class="backdrop-blur-xs fixed inset-0 z-40 bg-zinc-950/50">
                 <aside
                     class="ml-auto flex h-full w-full max-w-md flex-col border-l border-border bg-card p-6 text-card-foreground shadow-2xl duration-200 animate-in slide-in-from-right"
                 >
@@ -581,10 +879,10 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                             v-else
                             class="grid size-20 place-items-center rounded-2xl border border-primary/20 bg-primary/10 text-3xl font-medium text-primary"
                         >
-                            {{ selectedStudent.first_name[0] }}{{ selectedStudent.last_name[0] }}
+                            {{ initials(formatStudentDisplayName(selectedStudent)) }}
                         </div>
                         <div>
-                            <h2 class="text-2xl font-medium tracking-tight">{{ selectedStudent.full_name }}</h2>
+                            <h2 class="text-2xl font-medium tracking-tight">{{ formatStudentDisplayName(selectedStudent) }}</h2>
                             <p class="font-mono text-xs text-muted-foreground">{{ selectedStudent.student_number }}</p>
                         </div>
                     </div>
@@ -624,6 +922,17 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                             <option v-for="seat in availableSeats" :key="seat.id" :value="seat.id">{{ seat.label }}</option>
                         </select>
 
+                        <!-- Edit Details Button -->
+                        <Button
+                            type="button"
+                            variant="outline"
+                            class="h-9.5 w-full gap-2 rounded-xl border-primary/30 bg-primary/5 text-xs font-semibold text-primary hover:bg-primary/15"
+                            @click="openEditStudent(selectedStudent)"
+                        >
+                            <Pencil class="size-4" />
+                            <span>Edit Student Details</span>
+                        </Button>
+
                         <!-- Direct Unseat Button if currently seated -->
                         <Button
                             v-if="selectedStudent.seat"
@@ -654,11 +963,8 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
             <!-- Quick Enroll Modal -->
             <div
                 v-if="showEnrollModal"
+                v-modal-focus
                 class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-zinc-950/70 p-4 backdrop-blur-md"
-                @click.self="
-                    showEnrollModal = false;
-                    selectedSeatId = null;
-                "
             >
                 <section class="paper-card mt-0 w-full max-w-md p-7 shadow-2xl duration-200 animate-in fade-in zoom-in-95">
                     <div class="flex items-center justify-between border-b border-border/60 pb-3">
@@ -719,16 +1025,6 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                             </div>
                             <div class="grid grid-cols-2 gap-2">
                                 <div>
-                                    <Label for="student-first-name" class="text-xs font-medium">First name</Label>
-                                    <Input
-                                        id="student-first-name"
-                                        v-model="studentForm.first_name"
-                                        class="mt-1 h-9 text-sm"
-                                        autocomplete="given-name"
-                                    />
-                                    <InputError class="mt-1 text-xs" :message="studentForm.errors.first_name" />
-                                </div>
-                                <div>
                                     <Label for="student-last-name" class="text-xs font-medium">Last name</Label>
                                     <Input
                                         id="student-last-name"
@@ -737,6 +1033,16 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                                         autocomplete="family-name"
                                     />
                                     <InputError class="mt-1 text-xs" :message="studentForm.errors.last_name" />
+                                </div>
+                                <div>
+                                    <Label for="student-first-name" class="text-xs font-medium">First name</Label>
+                                    <Input
+                                        id="student-first-name"
+                                        v-model="studentForm.first_name"
+                                        class="mt-1 h-9 text-sm"
+                                        autocomplete="given-name"
+                                    />
+                                    <InputError class="mt-1 text-xs" :message="studentForm.errors.first_name" />
                                 </div>
                             </div>
                             <div>
@@ -777,8 +1083,8 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
             <!-- Import Roster Modal -->
             <div
                 v-if="showImportModal"
+                v-modal-focus
                 class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-zinc-950/70 p-4 backdrop-blur-md"
-                @click.self="showImportModal = false"
             >
                 <section class="paper-card mt-0 w-full max-w-lg p-7 shadow-2xl duration-200 animate-in fade-in zoom-in-95">
                     <div class="flex items-center justify-between border-b border-border/60 pb-3">
@@ -823,11 +1129,11 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                                 <p class="text-muted-foreground">Optional ID</p>
                             </div>
                             <div>
-                                <span class="font-mono font-medium text-foreground">first_name</span>
+                                <span class="font-mono font-medium text-foreground">last_name</span>
                                 <p class="text-muted-foreground">Required</p>
                             </div>
                             <div>
-                                <span class="font-mono font-medium text-foreground">last_name</span>
+                                <span class="font-mono font-medium text-foreground">first_name</span>
                                 <p class="text-muted-foreground">Required</p>
                             </div>
                             <div>
@@ -871,8 +1177,8 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
             <!-- Import Results Summary Modal -->
             <div
                 v-if="showImportResults && page.props.flash?.import_results"
+                v-modal-focus
                 class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-zinc-950/70 p-4 backdrop-blur-md"
-                @click.self="showImportResults = false"
             >
                 <section class="paper-card mt-0 w-full max-w-2xl p-7 shadow-2xl duration-200 animate-in fade-in zoom-in-95">
                     <div class="flex items-center justify-between border-b border-border/60 pb-3">
@@ -1015,8 +1321,8 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
             <!-- View Class Roster Modal -->
             <div
                 v-if="showRosterModal"
+                v-modal-focus
                 class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-zinc-950/70 p-4 backdrop-blur-md"
-                @click.self="showRosterModal = false"
             >
                 <section class="paper-card mt-0 w-full max-w-lg p-7 shadow-2xl duration-200 animate-in fade-in zoom-in-95">
                     <div class="flex items-center justify-between border-b border-border/60 pb-3">
@@ -1066,14 +1372,14 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                                         v-else
                                         class="grid size-9 place-items-center rounded-xl border border-primary/20 bg-primary/10 text-xs font-medium text-primary"
                                     >
-                                        {{ student.first_name[0] }}{{ student.last_name[0] }}
+                                        {{ initials(formatStudentDisplayName(student)) }}
                                     </div>
                                 </div>
                                 <div class="min-w-0">
                                     <p class="truncate text-xs font-medium text-foreground transition-colors group-hover:text-primary">
-                                        {{ student.full_name }}
+                                        {{ formatStudentDisplayName(student) }}
                                     </p>
-                                    <p class="font-mono text-[10px] text-muted-foreground">{{ student.student_number }}</p>
+                                    <p class="font-mono text-xs text-muted-foreground">{{ student.student_number }}</p>
                                 </div>
                             </div>
 
@@ -1091,6 +1397,14 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                                     Unseated
                                 </span>
 
+                                <button
+                                    type="button"
+                                    class="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-primary/15 hover:text-primary"
+                                    title="Edit student details"
+                                    @click.stop="openEditStudent(student)"
+                                >
+                                    <Pencil class="size-3.5" />
+                                </button>
                                 <button
                                     v-if="student.seat"
                                     type="button"
@@ -1115,6 +1429,185 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                             {{ rosterSearchQuery ? 'No students match your search query.' : 'No students enrolled in this section.' }}
                         </div>
                     </div>
+                </section>
+            </div>
+
+            <!-- Edit Student Details Modal -->
+            <div
+                v-if="showEditStudentModal && editingStudent"
+                v-modal-focus
+                class="fixed inset-0 z-[60] grid place-items-center overflow-y-auto bg-zinc-950/75 p-4 backdrop-blur-md"
+            >
+                <section class="paper-card mt-0 w-full max-w-lg p-7 shadow-2xl duration-200 animate-in fade-in zoom-in-95">
+                    <div class="flex items-center justify-between border-b border-border/60 pb-3.5">
+                        <div class="flex items-center gap-3">
+                            <div class="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
+                                <Pencil class="size-5" />
+                            </div>
+                            <div>
+                                <span class="eyebrow">Roster Management</span>
+                                <h2 class="text-xl font-bold tracking-tight text-foreground">Edit Student Details</h2>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            class="grid size-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                            @click="showEditStudentModal = false"
+                        >
+                            <X class="size-4.5" />
+                        </button>
+                    </div>
+
+                    <form class="mt-6 space-y-4" @submit.prevent="updateStudent">
+                        <!-- Photo Section -->
+                        <div class="flex items-center gap-4 rounded-2xl border border-border/60 bg-secondary/30 p-3.5">
+                            <div class="relative shrink-0">
+                                <img
+                                    v-if="editPhotoPreview"
+                                    :src="editPhotoPreview"
+                                    alt="Student photo preview"
+                                    class="size-16 rounded-xl border border-border object-cover shadow-xs"
+                                />
+                                <div
+                                    v-else
+                                    class="grid size-16 place-items-center rounded-xl border border-primary/20 bg-primary/10 text-xl font-bold uppercase text-primary"
+                                >
+                                    {{ initials(editStudentForm.first_name + ' ' + editStudentForm.last_name) || 'S' }}
+                                </div>
+                            </div>
+
+                            <div class="flex-1 space-y-1.5">
+                                <Label class="text-xs font-semibold">Student Photo</Label>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <input
+                                        ref="editPhotoInputRef"
+                                        type="file"
+                                        accept="image/png,image/jpeg,image/webp"
+                                        class="hidden"
+                                        @change="handleEditPhotoChange"
+                                    />
+                                    <button
+                                        type="button"
+                                        class="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
+                                        @click="editPhotoInputRef?.click()"
+                                    >
+                                        <Camera class="size-3.5 text-primary" />
+                                        <span>{{ editPhotoPreview ? 'Change Photo' : 'Upload Photo' }}</span>
+                                    </button>
+                                    <button
+                                        v-if="editPhotoPreview"
+                                        type="button"
+                                        class="inline-flex h-8 items-center gap-1 rounded-lg border border-rose-500/20 bg-rose-500/10 px-2 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-500 hover:text-white dark:text-rose-400"
+                                        @click="removeEditPhoto"
+                                    >
+                                        <Trash2 class="size-3.5" />
+                                        <span>Remove</span>
+                                    </button>
+                                </div>
+                                <p class="text-[11px] text-muted-foreground">PNG, JPG or WebP up to 5MB.</p>
+                            </div>
+                        </div>
+
+                        <!-- Student Number / ID -->
+                        <div>
+                            <Label for="edit_student_number" class="text-xs font-semibold">Student Number / ID</Label>
+                            <Input
+                                id="edit_student_number"
+                                v-model="editStudentForm.student_number"
+                                placeholder="e.g. 2026-0001 (optional)"
+                                class="mt-1 font-mono text-xs"
+                                autocomplete="off"
+                            />
+                            <p v-if="editStudentForm.errors.student_number" class="mt-1 text-xs text-rose-600">
+                                {{ editStudentForm.errors.student_number }}
+                            </p>
+                        </div>
+
+                        <!-- Name Fields Grid -->
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                            <div>
+                                <Label for="edit_first_name" class="text-xs font-semibold">First Name <span class="text-rose-500">*</span></Label>
+                                <Input
+                                    id="edit_first_name"
+                                    v-model="editStudentForm.first_name"
+                                    placeholder="Juan"
+                                    class="mt-1 text-xs"
+                                    required
+                                    autocomplete="off"
+                                />
+                                <p v-if="editStudentForm.errors.first_name" class="mt-1 text-xs text-rose-600">
+                                    {{ editStudentForm.errors.first_name }}
+                                </p>
+                            </div>
+
+                            <div>
+                                <Label for="edit_middle_name" class="text-xs font-semibold">Middle Name</Label>
+                                <Input
+                                    id="edit_middle_name"
+                                    v-model="editStudentForm.middle_name"
+                                    placeholder="Reyes (optional)"
+                                    class="mt-1 text-xs"
+                                    autocomplete="off"
+                                />
+                                <p v-if="editStudentForm.errors.middle_name" class="mt-1 text-xs text-rose-600">
+                                    {{ editStudentForm.errors.middle_name }}
+                                </p>
+                            </div>
+
+                            <div>
+                                <Label for="edit_last_name" class="text-xs font-semibold">Last Name <span class="text-rose-500">*</span></Label>
+                                <Input
+                                    id="edit_last_name"
+                                    v-model="editStudentForm.last_name"
+                                    placeholder="Dela Cruz"
+                                    class="mt-1 text-xs"
+                                    required
+                                    autocomplete="off"
+                                />
+                                <p v-if="editStudentForm.errors.last_name" class="mt-1 text-xs text-rose-600">
+                                    {{ editStudentForm.errors.last_name }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Chair Assignment -->
+                        <div>
+                            <Label for="edit_seat_id" class="text-xs font-semibold">Assigned Chair / Seat</Label>
+                            <select
+                                id="edit_seat_id"
+                                v-model="editStudentForm.seat_id"
+                                class="mt-1 w-full rounded-xl border border-input bg-card px-3 py-2 text-xs font-medium focus-visible:ring-2 focus-visible:ring-primary"
+                            >
+                                <option :value="null">Leave unseated</option>
+                                <option v-for="seat in editAvailableSeats" :key="seat.id" :value="seat.id">
+                                    {{ seat.label }} {{ editingStudent.seat?.id === seat.id ? '(current)' : '' }}
+                                </option>
+                            </select>
+                            <p v-if="editStudentForm.errors.seat_id" class="mt-1 text-xs text-rose-600">
+                                {{ editStudentForm.errors.seat_id }}
+                            </p>
+                        </div>
+
+                        <!-- Modal Actions -->
+                        <div class="mt-6 flex items-center justify-end gap-2.5 border-t border-border/60 pt-4">
+                            <button
+                                type="button"
+                                class="rounded-xl border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-secondary"
+                                @click="showEditStudentModal = false"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                :disabled="editStudentForm.processing"
+                                class="ink-button !h-9 !rounded-xl !px-5 text-xs font-bold shadow-sm"
+                            >
+                                <LoaderCircle v-if="editStudentForm.processing" class="size-3.5 animate-spin" />
+                                <Save v-else class="size-3.5" />
+                                <span>{{ editStudentForm.processing ? 'Saving changes…' : 'Save Changes' }}</span>
+                            </button>
+                        </div>
+                    </form>
                 </section>
             </div>
         </main>

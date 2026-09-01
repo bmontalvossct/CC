@@ -113,8 +113,8 @@ defineExpose({ openPalette });
         <!-- Command Palette Modal -->
         <div
             v-if="open"
+            v-modal-focus
             class="fixed inset-0 z-50 grid place-items-start justify-center bg-zinc-950/60 p-4 pt-16 backdrop-blur-md duration-150 animate-in fade-in sm:pt-24"
-            @click.self="closePalette"
         >
             <div
                 class="paper-card w-full max-w-xl overflow-hidden border-border/90 p-0 shadow-2xl duration-150 animate-in zoom-in-95"

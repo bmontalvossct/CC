@@ -398,21 +398,19 @@ const daysWithEvents = computed(() => {
                                     ]"
                                 >
                                     <div class="flex items-center justify-between gap-1">
-                                        <!-- Course code by default; Course title/description when hovered -->
-                                        <span class="truncate font-bold text-foreground group-hover/item:hidden">
-                                            {{ cls.subject_code }}
-                                        </span>
-                                        <span class="hidden truncate text-[10.5px] font-bold text-primary group-hover/item:block">
-                                            {{ cls.subject_title || cls.subject_code }}
+                                        <!-- Section name first -->
+                                        <span class="truncate font-bold text-foreground">
+                                            {{ cls.section_name }}
                                         </span>
                                         <span class="shrink-0 font-mono text-[9px] text-muted-foreground">
-                                            {{ cls.starts_at }}
+                                            {{ formatTime12h(cls.starts_at) }}
                                         </span>
                                     </div>
 
                                     <div class="mt-0.5 flex items-center justify-between text-[10px]">
-                                        <span class="truncate text-muted-foreground">
-                                            {{ cls.section_name }}
+                                        <!-- Course code / title second -->
+                                        <span class="truncate text-muted-foreground group-hover/item:text-primary font-medium" :title="cls.subject_title || cls.subject_code">
+                                            {{ cls.subject_title || cls.subject_code }}
                                         </span>
 
                                         <!-- Status Badge -->
@@ -494,8 +492,8 @@ const daysWithEvents = computed(() => {
                                 <div>
                                     <div class="flex items-start justify-between gap-2">
                                         <div>
-                                            <span class="font-mono text-xs font-bold text-primary">{{ cls.subject_code }}</span>
                                             <h4 class="text-sm font-bold text-foreground">{{ cls.section_name }}</h4>
+                                            <span class="font-mono text-xs font-bold text-primary">{{ cls.subject_code }}</span>
                                         </div>
 
                                         <span
@@ -564,8 +562,8 @@ const daysWithEvents = computed(() => {
             <!-- Day & Class Details Drawer Modal -->
             <div
                 v-if="selectedDay"
+                v-modal-focus
                 class="backdrop-blur-xs fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-in fade-in"
-                @click.self="selectedDay = null"
             >
                 <div class="w-full max-w-xl rounded-3xl border border-border/80 bg-card p-6 shadow-2xl animate-in zoom-in-95">
                     <div class="flex items-start justify-between border-b border-border/80 pb-4">

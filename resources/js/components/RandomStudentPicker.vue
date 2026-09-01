@@ -74,19 +74,20 @@ const close = () => {
     <div>
         <button
             type="button"
-            class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white disabled:opacity-50 dark:bg-card"
+            class="shadow-xs group inline-flex h-10 items-center justify-center rounded-xl border border-primary bg-white px-3 text-sm font-medium text-primary transition-all duration-200 hover:border-amber-400 hover:bg-amber-400 hover:text-white disabled:opacity-50 dark:bg-card"
             :disabled="!eligibleStudents.length"
+            title="Pick Random Student"
             @click="pickRandom"
         >
             <Dices class="size-4 text-primary transition-colors group-hover:text-white" />
-            <span>Pick student</span>
+            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 font-medium">Pick student</span>
         </button>
 
         <!-- Random Picker Modal -->
         <div
             v-if="open"
+            v-modal-focus
             class="fixed inset-0 z-50 grid place-items-center bg-zinc-950/70 p-4 backdrop-blur-md duration-200 animate-in fade-in"
-            @click.self="close"
         >
             <div
                 class="paper-card relative w-full max-w-md overflow-hidden border-border/90 p-8 text-center shadow-2xl duration-200 animate-in zoom-in-95"

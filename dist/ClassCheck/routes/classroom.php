@@ -9,6 +9,9 @@ use App\Http\Controllers\StudentController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::redirect('modules', 'sections');
+    Route::redirect('recitation', 'schedule');
+    Route::redirect('students', 'sections');
     Route::get('sections/archived', [SectionController::class, 'archived'])->name('sections.archived');
     Route::resource('sections', SectionController::class);
     Route::get('sections/{section}/recitation', [RecitationController::class, 'index'])->name('sections.recitation.index');
@@ -27,6 +30,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('sections/{section}/students', [StudentController::class, 'store'])->name('sections.students.store');
     Route::get('sections/{section}/roster/template', [StudentController::class, 'downloadTemplate'])->name('sections.students.template');
     Route::post('sections/{section}/students-import', [StudentController::class, 'import'])->name('sections.students.import');
+    Route::post('sections/{section}/photos-import', [StudentController::class, 'importPhotos'])->name('sections.students.photos-import');
     Route::patch('sections/{section}/students/{student}', [StudentController::class, 'update'])->name('sections.students.update');
     Route::patch('sections/{section}/students/{student}/seat', [StudentController::class, 'move'])->name('sections.students.move');
     Route::delete('sections/{section}/students/{student}', [StudentController::class, 'destroy'])->name('sections.students.destroy');
@@ -39,6 +43,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('sections/{section}/modules/{courseModule}', [CourseModuleController::class, 'destroy'])->name('sections.modules.destroy');
     Route::get('sections/{section}/modules/{courseModule}/download', [CourseModuleController::class, 'download'])->name('sections.modules.download');
     Route::post('sections/{section}/modules/reorder', [CourseModuleController::class, 'reorder'])->name('sections.modules.reorder');
+    Route::post('system/open-file-location', [\App\Http\Controllers\SystemActionController::class, 'openFileLocation'])->name('system.open-file-location');
 });
 
 Route::get('join/{token}', [PublicJoinController::class, 'show'])->name('join.show');

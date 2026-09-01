@@ -80,7 +80,7 @@ class AssessmentController extends AssessmentModuleController
 
         if (empty($data['assessment_number'])) {
             $count = Assessment::where('section_id', $section->id)->where('type', $data['type'])->count();
-            $prefix = ucfirst($data['type']);
+            $prefix = $data['type'] === 'laboratory' ? 'Lab' : ucfirst($data['type']);
             $data['assessment_number'] = "{$prefix} ".($count + 1);
         }
 
@@ -100,7 +100,7 @@ class AssessmentController extends AssessmentModuleController
     public function show(Section $section, Assessment $assessment): Response
     {
         $this->authorizeAssessment($section, $assessment);
-        $assessment->load(['scores:id,assessment_id,student_id,score,absence_override', 'attendanceSession:id,session_date,starts_at,ends_at']);
+        $assessment->load(['scores:id,assessment_id,student_id,score,remarks,absence_override', 'attendanceSession:id,session_date,starts_at,ends_at']);
 
         $students = Student::query()
             ->where('students.section_id', $section->id)
@@ -132,6 +132,7 @@ class AssessmentController extends AssessmentModuleController
                 'full_name' => trim("{$student->last_name}, {$student->first_name} {$student->middle_name}"),
                 'is_absent' => $student->attendance_status === 'absent',
                 'score' => $saved?->score,
+                'remarks' => $saved?->remarks,
                 'absence_override' => (bool) ($saved?->absence_override ?? false),
             ];
         });

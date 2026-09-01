@@ -81,8 +81,8 @@ const formatStudentDisplayName = (student: StudentSummary | { name?: string; fir
 <template>
     <div
         v-if="open && student"
+        v-modal-focus
         class="fixed inset-0 z-50 grid place-items-center bg-zinc-950/70 p-4 backdrop-blur-sm duration-200 animate-in fade-in"
-        @click.self="emit('close')"
     >
         <div
             class="paper-card relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden border border-border/90 p-6 shadow-2xl duration-200 animate-in zoom-in-95"

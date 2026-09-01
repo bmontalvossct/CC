@@ -2,9 +2,12 @@
 import ThemeToggle from '@/components/ThemeToggle.vue';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import { useClassroomTimer } from '@/composables/useClassroomTimer';
 import type { BreadcrumbItemType } from '@/types';
+import { Clock } from 'lucide-vue-next';
 
 defineProps<{ breadcrumbs?: BreadcrumbItemType[] }>();
+const { toggleTimer, isTimerOpen } = useClassroomTimer();
 </script>
 
 <template>
@@ -30,7 +33,17 @@ defineProps<{ breadcrumbs?: BreadcrumbItemType[] }>();
             </template>
         </div>
 
-        <div class="flex items-center gap-2.5">
+        <div class="flex items-center gap-2">
+            <!-- Classroom Timer Button -->
+            <button
+                type="button"
+                class="inline-flex size-9 items-center justify-center rounded-xl border transition-colors"
+                :class="isTimerOpen ? 'border-primary bg-primary/10 text-primary' : 'border-border/80 bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground'"
+                title="Classroom Timer & Stopwatch"
+                @click="toggleTimer"
+            >
+                <Clock class="size-4" />
+            </button>
             <ThemeToggle />
         </div>
     </header>

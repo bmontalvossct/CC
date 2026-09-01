@@ -83,6 +83,7 @@ const confirmRestore = () => {
     isRestoring.value = true;
 
     restoreForm.post(route('backup.restore'), {
+        forceFormData: true,
         preserveScroll: true,
         onSuccess: () => {
             isRestoring.value = false;
@@ -207,7 +208,7 @@ const formatBytes = (bytes: number): string => {
                     <div class="mt-6 pt-2">
                         <h4 class="mb-1 text-sm font-semibold text-foreground">Restore or Sync from Backup File</h4>
                         <p class="mb-4 text-xs text-muted-foreground">
-                            Upload an exported <code class="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">classcheck_backup_*.json</code> file to
+                            Upload an exported <code class="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">classcheck_backup_*.json</code> or raw SQLite database <code class="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">classcheck_db_*.sqlite</code> file to
                             restore terms, sections, rosters, attendance, recitations, and grades.
                         </p>
 
@@ -215,7 +216,7 @@ const formatBytes = (bytes: number): string => {
                             <input
                                 ref="fileInputRef"
                                 type="file"
-                                accept=".json,application/json"
+                                accept=".json,.sqlite,.db,.sqlite3,.sql,application/json"
                                 class="block w-full cursor-pointer text-sm text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-primary/10 file:px-4 file:py-2 file:text-xs file:font-semibold file:text-primary hover:file:bg-primary/20"
                                 @change="handleFileSelect"
                             />

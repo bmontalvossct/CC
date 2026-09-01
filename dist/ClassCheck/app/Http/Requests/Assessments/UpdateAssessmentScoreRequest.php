@@ -15,6 +15,7 @@ class UpdateAssessmentScoreRequest extends FormRequest
     {
         return [
             'score' => ['present', 'nullable', 'numeric', 'min:0'],
+            'remarks' => ['nullable', 'string', 'max:500'],
             'include_absent' => ['sometimes', 'boolean'],
         ];
     }

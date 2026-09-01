@@ -46,28 +46,36 @@ namespace ClassCheckInstaller
         private void InitializeComponent()
         {
             this.Text = "ClassCheck Setup Wizard";
-            this.Size = new Size(560, 420);
+            this.Font = new Font("Segoe UI", 9F);
+            this.AutoScaleMode = AutoScaleMode.Dpi;
+            this.ClientSize = new Size(600, 460);
+            this.MinimumSize = new Size(600, 460);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
-            this.BackColor = Color.FromArgb(248, 249, 250);
-            this.Font = new Font("Segoe UI", 9.5F);
+            this.BackColor = Color.FromArgb(248, 250, 252);
+
+            try
+            {
+                this.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+            }
+            catch { }
 
             // Header Banner
             headerPanel = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 85,
-                BackColor = Color.FromArgb(22, 101, 52) // Emerald dark
+                Height = 88,
+                BackColor = Color.FromArgb(24, 24, 27) // Sleek Zinc Dark
             };
 
             Label lblTitle = new Label
             {
                 Text = "ClassCheck for Windows",
-                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 13.5F, FontStyle.Bold),
                 ForeColor = Color.White,
-                Location = new Point(20, 16),
+                Location = new Point(24, 18),
                 AutoSize = true
             };
 
@@ -75,40 +83,68 @@ namespace ClassCheckInstaller
             {
                 Text = "Classroom Seating, Attendance, Recitation & Grading Platform",
                 Font = new Font("Segoe UI", 9F),
-                ForeColor = Color.FromArgb(220, 252, 231),
-                Location = new Point(21, 46),
-                AutoSize = true
+                ForeColor = Color.FromArgb(245, 175, 45), // Brand Amber Accent
+                Location = new Point(25, 48),
+                Size = new Size(480, 22),
+                AutoEllipsis = true
             };
 
             headerPanel.Controls.Add(lblTitle);
             headerPanel.Controls.Add(lblSubtitle);
+
+            try
+            {
+                if (this.Icon != null)
+                {
+                    PictureBox picLogo = new PictureBox
+                    {
+                        Image = this.Icon.ToBitmap(),
+                        SizeMode = PictureBoxSizeMode.Zoom,
+                        Size = new Size(54, 54),
+                        Location = new Point(522, 17),
+                        BackColor = Color.Transparent
+                    };
+                    headerPanel.Controls.Add(picLogo);
+                }
+            }
+            catch { }
+
             this.Controls.Add(headerPanel);
+
+            // Auto-detect existing installation path from registry or fallback to default
+            string existingPath = GetExistingInstallPath();
+            bool isUpdate = !string.IsNullOrEmpty(existingPath);
+            string defaultPath = isUpdate ? existingPath : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClassCheck");
 
             // Installation Path Section
             Label lblPathDesc = new Label
             {
-                Text = "Install ClassCheck to the following location:",
-                Location = new Point(24, 105),
+                Text = isUpdate ? "Update ClassCheck at the following location (database preserved):" : "Install ClassCheck to the following location:",
+                Location = new Point(28, 108),
                 AutoSize = true,
-                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold)
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(15, 23, 42)
             };
             this.Controls.Add(lblPathDesc);
 
-            string defaultPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClassCheck");
             txtPath = new TextBox
             {
                 Text = defaultPath,
-                Location = new Point(24, 135),
-                Size = new Size(400, 28)
+                Location = new Point(28, 136),
+                Size = new Size(440, 28),
+                Font = new Font("Segoe UI", 9F)
             };
             this.Controls.Add(txtPath);
 
             btnBrowse = new Button
             {
                 Text = "Browse...",
-                Location = new Point(434, 133),
-                Size = new Size(85, 30),
-                BackColor = Color.White
+                Location = new Point(478, 134),
+                Size = new Size(94, 30),
+                Font = new Font("Segoe UI", 9F),
+                BackColor = Color.White,
+                FlatStyle = FlatStyle.System,
+                Cursor = Cursors.Hand
             };
             btnBrowse.Click += (s, e) =>
             {
@@ -117,7 +153,15 @@ namespace ClassCheckInstaller
                     fbd.SelectedPath = txtPath.Text;
                     if (fbd.ShowDialog() == DialogResult.OK)
                     {
-                        txtPath.Text = Path.Combine(fbd.SelectedPath, "ClassCheck");
+                        string selected = fbd.SelectedPath.TrimEnd('\\', '/');
+                        if (string.Equals(Path.GetFileName(selected), "ClassCheck", StringComparison.OrdinalIgnoreCase))
+                        {
+                            txtPath.Text = selected;
+                        }
+                        else
+                        {
+                            txtPath.Text = Path.Combine(selected, "ClassCheck");
+                        }
                     }
                 }
             };
@@ -128,8 +172,9 @@ namespace ClassCheckInstaller
             {
                 Text = "Create a Desktop shortcut",
                 Checked = true,
-                Location = new Point(24, 185),
-                AutoSize = true
+                Location = new Point(28, 184),
+                Size = new Size(540, 24),
+                Font = new Font("Segoe UI", 9F)
             };
             this.Controls.Add(chkDesktop);
 
@@ -137,8 +182,9 @@ namespace ClassCheckInstaller
             {
                 Text = "Create a Start Menu shortcut",
                 Checked = true,
-                Location = new Point(24, 215),
-                AutoSize = true
+                Location = new Point(28, 214),
+                Size = new Size(540, 24),
+                Font = new Font("Segoe UI", 9F)
             };
             this.Controls.Add(chkStartMenu);
 
@@ -146,54 +192,70 @@ namespace ClassCheckInstaller
             {
                 Text = "Launch ClassCheck immediately after setup",
                 Checked = true,
-                Location = new Point(24, 245),
-                AutoSize = true
+                Location = new Point(28, 244),
+                Size = new Size(540, 24),
+                Font = new Font("Segoe UI", 9F)
             };
             this.Controls.Add(chkLaunch);
 
             // Progress Bar & Status
             lblStatus = new Label
             {
-                Text = "Ready to install. Click Install to begin.",
-                Location = new Point(24, 280),
-                Size = new Size(495, 20),
-                ForeColor = Color.FromArgb(75, 85, 99)
+                Text = isUpdate ? "Existing installation detected. Click Update to upgrade in-place." : "Ready to install. Click Install to begin.",
+                Location = new Point(28, 288),
+                Size = new Size(544, 20),
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = isUpdate ? Color.FromArgb(22, 101, 52) : Color.FromArgb(71, 85, 105),
+                AutoEllipsis = true
             };
             this.Controls.Add(lblStatus);
 
             progressBar = new ProgressBar
             {
-                Location = new Point(24, 305),
-                Size = new Size(495, 22),
+                Location = new Point(28, 314),
+                Size = new Size(544, 22),
                 Style = ProgressBarStyle.Blocks,
                 Visible = false
             };
             this.Controls.Add(progressBar);
 
+            // Bottom horizontal divider line
+            Panel dividerPanel = new Panel
+            {
+                Location = new Point(0, 395),
+                Size = new Size(600, 1),
+                BackColor = Color.FromArgb(226, 232, 240)
+            };
+            this.Controls.Add(dividerPanel);
+
             // Bottom Buttons
+            btnCancel = new Button
+            {
+                Text = "Cancel",
+                Location = new Point(356, 408),
+                Size = new Size(100, 36),
+                Font = new Font("Segoe UI", 9F),
+                BackColor = Color.White,
+                FlatStyle = FlatStyle.System,
+                Cursor = Cursors.Hand
+            };
+            btnCancel.Click += (s, e) => this.Close();
+            this.Controls.Add(btnCancel);
+
             btnInstall = new Button
             {
-                Text = "Install ClassCheck",
-                Location = new Point(360, 340),
-                Size = new Size(160, 35),
-                BackColor = Color.FromArgb(22, 101, 52),
+                Text = isUpdate ? "Update" : "Install",
+                Location = new Point(466, 408),
+                Size = new Size(106, 36),
+                BackColor = isUpdate ? Color.FromArgb(16, 78, 63) : Color.FromArgb(24, 24, 27),
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
-                FlatStyle = FlatStyle.Flat
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
             };
             btnInstall.FlatAppearance.BorderSize = 0;
             btnInstall.Click += BtnInstall_Click;
             this.Controls.Add(btnInstall);
-
-            btnCancel = new Button
-            {
-                Text = "Cancel",
-                Location = new Point(265, 340),
-                Size = new Size(85, 35),
-                BackColor = Color.White
-            };
-            btnCancel.Click += (s, e) => this.Close();
-            this.Controls.Add(btnCancel);
         }
 
         private void BtnInstall_Click(object sender, EventArgs e)
@@ -205,6 +267,8 @@ namespace ClassCheckInstaller
                 return;
             }
 
+            btnInstall.Text = "Installing...";
+            btnInstall.BackColor = Color.FromArgb(100, 116, 139);
             btnInstall.Enabled = false;
             btnBrowse.Enabled = false;
             btnCancel.Enabled = false;
@@ -335,7 +399,11 @@ namespace ClassCheckInstaller
                         lblStatus.ForeColor = Color.FromArgb(22, 101, 52);
 
                         btnInstall.Text = "Launch & Close";
+                        btnInstall.BackColor = Color.FromArgb(22, 101, 52);
+                        btnInstall.Location = new Point(432, 408);
+                        btnInstall.Size = new Size(140, 36);
                         btnInstall.Enabled = true;
+                        btnCancel.Visible = false;
                         btnInstall.Click -= BtnInstall_Click;
                         btnInstall.Click += (s, ev) =>
                         {
@@ -353,6 +421,8 @@ namespace ClassCheckInstaller
                     {
                         lblStatus.Text = "Error during installation: " + ex.Message;
                         lblStatus.ForeColor = Color.Red;
+                        btnInstall.Text = "Retry";
+                        btnInstall.BackColor = Color.FromArgb(24, 24, 27);
                         btnInstall.Enabled = true;
                         btnCancel.Enabled = true;
                         MessageBox.Show("An error occurred during installation:\n" + ex.Message, "Installation Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -399,6 +469,30 @@ namespace ClassCheckInstaller
 
                 entry.ExtractToFile(completeFileName, true);
             }
+        }
+
+        private static string GetExistingInstallPath()
+        {
+            try
+            {
+                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\ClassCheck"))
+                {
+                    if (key != null)
+                    {
+                        object loc = key.GetValue("InstallLocation");
+                        if (loc != null)
+                        {
+                            string s = loc.ToString().Trim();
+                            if (!string.IsNullOrEmpty(s) && Directory.Exists(s))
+                            {
+                                return s;
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+            return null;
         }
 
         private static void RegisterUninstaller(string installPath, string mainExe, string uninstallerExe)

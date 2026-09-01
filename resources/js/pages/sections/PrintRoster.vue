@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { ArrowLeft, Printer } from 'lucide-vue-next';
-import { onMounted } from 'vue';
+import { computed, onMounted } from 'vue';
 
-defineProps<{
+const props = defineProps<{
     section: {
         id: number;
         name: string;
@@ -23,7 +23,18 @@ defineProps<{
     };
 }>();
 
-const initials = (first: string, last: string) => `${first?.[0] || ''}${last?.[0] || ''}`.toUpperCase();
+const sortedStudents = computed(() => {
+    return [...(props.section.students || [])].sort((a, b) => {
+        const lastA = (a.last_name || '').toLowerCase();
+        const lastB = (b.last_name || '').toLowerCase();
+        if (lastA !== lastB) return lastA.localeCompare(lastB);
+        const firstA = (a.first_name || '').toLowerCase();
+        const firstB = (b.first_name || '').toLowerCase();
+        return firstA.localeCompare(firstB);
+    });
+});
+
+const initials = (last: string, first: string) => `${last?.[0] || ''}${first?.[0] || ''}`.toUpperCase();
 
 const print = () => window.print();
 
@@ -74,7 +85,7 @@ onMounted(() => {
             <!-- Photo & Seat Directory Cards Grid -->
             <section class="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 print:grid-cols-4">
                 <article
-                    v-for="student in section.students"
+                    v-for="student in sortedStudents"
                     :key="student.id"
                     class="shadow-xs flex break-inside-avoid items-center gap-3 rounded-xl border border-border bg-card p-3 print:rounded-none print:border print:border-zinc-300 print:shadow-none"
                 >
@@ -88,7 +99,7 @@ onMounted(() => {
                         v-else
                         class="grid size-12 shrink-0 place-items-center rounded-xl border border-border bg-secondary font-mono text-xs font-bold text-muted-foreground print:size-10"
                     >
-                        {{ initials(student.first_name, student.last_name) }}
+                        {{ initials(student.last_name, student.first_name) }}
                     </div>
 
                     <div class="min-w-0 flex-1">

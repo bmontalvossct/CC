@@ -15,6 +15,8 @@ return [
 
     'name' => env('APP_NAME', 'ClassCheck'),
 
+    'offline' => (bool) env('APP_OFFLINE', false),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment

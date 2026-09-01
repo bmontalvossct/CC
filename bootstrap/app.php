@@ -19,7 +19,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(RecordRequestPerformance::class);
 
-        $middleware->web(append: [
+        $middleware->web(prepend: [
+            \App\Http\Middleware\EnsureOfflineUserAuthenticated::class,
+        ], append: [
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);

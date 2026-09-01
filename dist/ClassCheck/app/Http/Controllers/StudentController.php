@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -44,15 +45,45 @@ class StudentController extends Controller
             'first_name' => ['required', 'string', 'max:255'],
             'middle_name' => ['nullable', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
+            'seat_id' => ['nullable'],
+            'remove_photo' => ['nullable', 'boolean'],
             'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ]);
+
+        if ($request->boolean('remove_photo')) {
+            if ($student->photo_path) {
+                Storage::disk('local')->delete($student->photo_path);
+            }
+            $data['photo_path'] = null;
+        }
+
         if ($request->hasFile('photo')) {
             if ($student->photo_path) {
                 Storage::disk('local')->delete($student->photo_path);
             }
             $data['photo_path'] = $request->file('photo')->store('classcheck/students', 'local');
         }
-        unset($data['photo']);
+        unset($data['photo'], $data['remove_photo']);
+
+        if ($request->has('seat_id')) {
+            $seatId = $data['seat_id'] !== '' && $data['seat_id'] !== null ? (int) $data['seat_id'] : null;
+            $current = $student->seat()->lockForUpdate()->first();
+            if (! $seatId) {
+                $current?->update(['student_id' => null]);
+            } else {
+                $target = Seat::query()->with('layoutBlock')->lockForUpdate()->find($seatId);
+                if ($target && $target->layoutBlock->section_id === $section->id && ! $target->is_disabled) {
+                    if ($target->student_id !== $student->id) {
+                        $otherStudent = $target->student_id;
+                        $target->update(['student_id' => null]);
+                        $current?->update(['student_id' => $otherStudent]);
+                        $target->update(['student_id' => $student->id]);
+                    }
+                }
+            }
+        }
+        unset($data['seat_id']);
+
         $student->update($data);
 
         return back()->with('success', 'Student details updated.');
@@ -284,6 +315,89 @@ class StudentController extends Controller
         abort_unless(Storage::disk('local')->exists($student->photo_path), 404);
 
         return Storage::disk('local')->download($student->photo_path);
+    }
+
+    public function importPhotos(Request $request, Section $section): RedirectResponse
+    {
+        Gate::authorize('update', $section);
+
+        $request->validate([
+            'photos_zip' => ['required', 'file', 'mimes:zip', 'max:51200'],
+        ]);
+
+        $zipFile = $request->file('photos_zip');
+        $zip = new \ZipArchive();
+
+        if ($zip->open($zipFile->getRealPath()) !== true) {
+            throw ValidationException::withMessages([
+                'photos_zip' => 'Could not open the uploaded ZIP file. Please ensure it is a valid archive.',
+            ]);
+        }
+
+        $students = $section->students()->where('is_active', true)->get();
+        $studentMapByNumber = [];
+        $studentMapByName = [];
+
+        foreach ($students as $student) {
+            $normalizedNumber = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $student->student_number));
+            $studentMapByNumber[$normalizedNumber] = $student;
+
+            $normalizedLastFirst = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $student->last_name.$student->first_name));
+            $studentMapByName[$normalizedLastFirst] = $student;
+        }
+
+        $matchedCount = 0;
+        $unmatchedFiles = [];
+        $allowedExtensions = ['jpg', 'jpeg', 'png', 'webp'];
+
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $filename = $zip->getNameIndex($i);
+
+            if (str_ends_with($filename, '/') || str_contains($filename, '__MACOSX') || str_starts_with(basename($filename), '.')) {
+                continue;
+            }
+
+            $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+            if (! in_array($ext, $allowedExtensions)) {
+                continue;
+            }
+
+            $basenameWithoutExt = pathinfo($filename, PATHINFO_FILENAME);
+            $normalizedBase = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $basenameWithoutExt));
+
+            $matchedStudent = $studentMapByNumber[$normalizedBase] ?? $studentMapByName[$normalizedBase] ?? null;
+
+            if ($matchedStudent) {
+                $imageStream = $zip->getStream($filename);
+                if ($imageStream) {
+                    $photoContents = stream_get_contents($imageStream);
+                    fclose($imageStream);
+
+                    if ($photoContents) {
+                        $targetPath = 'classcheck/students/'.Str::random(40).'.'.$ext;
+
+                        if ($matchedStudent->photo_path && Storage::disk('local')->exists($matchedStudent->photo_path)) {
+                            Storage::disk('local')->delete($matchedStudent->photo_path);
+                        }
+
+                        Storage::disk('local')->put($targetPath, $photoContents);
+                        $matchedStudent->update(['photo_path' => $targetPath]);
+                        $matchedCount++;
+                    }
+                }
+            } else {
+                $unmatchedFiles[] = basename($filename);
+            }
+        }
+
+        $zip->close();
+
+        $message = "Photo import completed: {$matchedCount} student photo(s) updated.";
+        if (count($unmatchedFiles) > 0) {
+            $message .= ' ('.count($unmatchedFiles).' image(s) did not match any enrolled student number).';
+        }
+
+        return back()->with('success', $message);
     }
 
     private function assignSeat(Section $section, Student $student, int $seatId): void

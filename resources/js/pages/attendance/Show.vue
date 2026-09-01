@@ -2,7 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ArrowLeft, Check, FileCheck, LayoutGrid, LoaderCircle, RotateCcw, Search, Trash2, UserRound } from 'lucide-vue-next';
+import { ArrowLeft, Check, FileCheck, LayoutGrid, LoaderCircle, RotateCcw, Search, Trash2, UserRound, X } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
 type RecordData = { id: number; status: 'present' | 'absent' | 'late'; attended_minutes: number };
@@ -55,6 +55,26 @@ const props = defineProps<{
 const localSeats = ref(props.seats);
 const localUnseated = ref(props.unseated);
 const saveState = ref<Record<number, 'saving' | 'saved' | 'error'>>({});
+
+const formatTime12h = (timeStr: string) => {
+    if (!timeStr) return '';
+    const [hStr, mStr] = timeStr.split(':');
+    let hours = parseInt(hStr, 10);
+    const minutes = mStr || '00';
+    if (isNaN(hours)) return timeStr;
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    return `${hours}:${minutes} ${ampm}`;
+};
+
+const sortedUnseated = computed(() => {
+    return [...localUnseated.value].sort((a, b) => {
+        const nameA = formatStudentDisplayName(a.student).toLowerCase();
+        const nameB = formatStudentDisplayName(b.student).toLowerCase();
+        return nameA.localeCompare(nameB);
+    });
+});
 
 // View Mode: Seating Map vs Paper Sign-in / List View
 const viewMode = ref<'map' | 'list'>('map');
@@ -226,10 +246,18 @@ function dropStatus(event: DragEvent, record: RecordData | null) {
 }
 
 // Bulk marking
-function markAll(status: 'present' | 'absent') {
+const isMarkingAll = ref(false);
+
+async function markAll(status: 'present' | 'absent') {
+    if (isMarkingAll.value) return;
     const targets = rosterStudents.value.filter((item) => item.record.status !== status);
-    for (const item of targets) {
-        updateStatus(item.record, status);
+    if (targets.length === 0) return;
+
+    isMarkingAll.value = true;
+    try {
+        await Promise.all(targets.map((item) => updateStatus(item.record, status)));
+    } finally {
+        isMarkingAll.value = false;
     }
 }
 
@@ -303,7 +331,7 @@ function deleteSession() {
                         </div>
                         <h1 class="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">{{ section.name }} · Live Roll Call</h1>
                         <p class="mt-1 text-sm text-muted-foreground">
-                            {{ session.starts_at }} – {{ session.ends_at }} · {{ session.duration_minutes }} minutes
+                            {{ formatTime12h(session.starts_at) }} – {{ formatTime12h(session.ends_at) }} · {{ session.duration_minutes }} minutes
                         </p>
                     </div>
 
@@ -414,7 +442,34 @@ function deleteSession() {
                             <span class="size-3 rounded-full bg-amber-700 ring-4 ring-amber-700/20" /> Late (0.5 pt)
                         </span>
                     </div>
-                    <span class="text-xs text-muted-foreground"> Tap a seat: 1st click Absent → 2nd click Late → 3rd click Present. </span>
+
+                    <div class="flex flex-wrap items-center gap-3">
+                        <span class="hidden text-xs text-muted-foreground sm:inline">
+                            Tap a seat: 1st click Absent → 2nd click Late → 3rd click Present.
+                        </span>
+                        <div class="flex items-center gap-2">
+                            <button
+                                type="button"
+                                :disabled="isMarkingAll"
+                                class="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-emerald-800 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+                                @click="markAll('present')"
+                            >
+                                <LoaderCircle v-if="isMarkingAll" class="size-3.5 animate-spin" />
+                                <Check v-else class="size-3.5" />
+                                <span>All Present</span>
+                            </button>
+                            <button
+                                type="button"
+                                :disabled="isMarkingAll"
+                                class="inline-flex items-center gap-1.5 rounded-xl bg-rose-700 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-rose-800 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+                                @click="markAll('absent')"
+                            >
+                                <LoaderCircle v-if="isMarkingAll" class="size-3.5 animate-spin" />
+                                <X v-else class="size-3.5" />
+                                <span>All Absent</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Interactive Live Classroom Floor -->
@@ -675,7 +730,7 @@ function deleteSession() {
 
                     <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         <div
-                            v-for="item in localUnseated"
+                            v-for="item in sortedUnseated"
                             :key="item.student.id"
                             class="flex items-center justify-between rounded-xl border p-3"
                             :class="
@@ -818,17 +873,23 @@ function deleteSession() {
                             <div class="flex items-center gap-2">
                                 <button
                                     type="button"
-                                    class="rounded-xl bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-800"
+                                    :disabled="isMarkingAll"
+                                    class="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-emerald-800 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
                                     @click="markAll('present')"
                                 >
-                                    All Present
+                                    <LoaderCircle v-if="isMarkingAll" class="size-3.5 animate-spin" />
+                                    <Check v-else class="size-3.5" />
+                                    <span>All Present</span>
                                 </button>
                                 <button
                                     type="button"
-                                    class="rounded-xl bg-rose-700 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-rose-800"
+                                    :disabled="isMarkingAll"
+                                    class="inline-flex items-center gap-1.5 rounded-xl bg-rose-700 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-rose-800 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
                                     @click="markAll('absent')"
                                 >
-                                    All Absent
+                                    <LoaderCircle v-if="isMarkingAll" class="size-3.5 animate-spin" />
+                                    <X v-else class="size-3.5" />
+                                    <span>All Absent</span>
                                 </button>
                             </div>
                         </div>
@@ -965,10 +1026,10 @@ function deleteSession() {
         <!-- Delete Confirmation Modal -->
         <div
             v-if="showDeleteModal"
+            v-modal-focus
             class="backdrop-blur-xs fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
             role="dialog"
             aria-modal="true"
-            @click.self="showDeleteModal = false"
         >
             <div class="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in-95">
                 <div class="flex items-center gap-3">
@@ -977,7 +1038,7 @@ function deleteSession() {
                     </div>
                     <div>
                         <h3 class="text-lg font-bold text-foreground">Delete Roll Call</h3>
-                        <p class="text-xs text-muted-foreground">{{ session.session_date }} · {{ session.starts_at }} – {{ session.ends_at }}</p>
+                        <p class="text-xs text-muted-foreground">{{ session.session_date }} · {{ formatTime12h(session.starts_at) }} – {{ formatTime12h(session.ends_at) }}</p>
                     </div>
                 </div>
 

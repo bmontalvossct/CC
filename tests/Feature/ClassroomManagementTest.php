@@ -404,4 +404,105 @@ class ClassroomManagementTest extends TestCase
 
         $response->assertOk();
     }
+
+    public function test_section_show_orders_students_by_last_name_then_first_name(): void
+    {
+        $user = User::factory()->create();
+        $section = $this->section($user);
+
+        Student::create(['section_id' => $section->id, 'student_number' => '2026-001', 'first_name' => 'Zack', 'last_name' => 'Adams']);
+        Student::create(['section_id' => $section->id, 'student_number' => '2026-002', 'first_name' => 'Alice', 'last_name' => 'Zuckerberg']);
+        Student::create(['section_id' => $section->id, 'student_number' => '2026-003', 'first_name' => 'Bob', 'last_name' => 'Adams']);
+
+        $response = $this->actingAs($user)->get(route('sections.show', $section));
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('sections/Show')
+            ->where('section.students.0.last_name', 'Adams')
+            ->where('section.students.0.first_name', 'Bob')
+            ->where('section.students.1.last_name', 'Adams')
+            ->where('section.students.1.first_name', 'Zack')
+            ->where('section.students.2.last_name', 'Zuckerberg')
+            ->where('section.students.2.first_name', 'Alice')
+        );
+    }
+
+    public function test_teacher_can_edit_student_details_and_seat_assignment(): void
+    {
+        $user = User::factory()->create();
+        $section = $this->section($user);
+
+        $block = $section->layoutBlocks()->create([
+            'label' => 'Main',
+            'block_row' => 1,
+            'block_column' => 1,
+            'internal_rows' => 1,
+            'internal_columns' => 2,
+        ]);
+        $seat1 = $block->seats()->create(['row_number' => 1, 'column_number' => 1, 'label' => 'A1']);
+        $seat2 = $block->seats()->create(['row_number' => 1, 'column_number' => 2, 'label' => 'A2']);
+
+        $student = Student::create([
+            'section_id' => $section->id,
+            'student_number' => '2026-0001',
+            'first_name' => 'John',
+            'middle_name' => 'A.',
+            'last_name' => 'Doe',
+        ]);
+        $seat1->update(['student_id' => $student->id]);
+
+        $response = $this->actingAs($user)->patch(route('sections.students.update', [$section, $student]), [
+            'student_number' => '2026-9999',
+            'first_name' => 'Johnny',
+            'middle_name' => 'Alexander',
+            'last_name' => 'Smith',
+            'seat_id' => $seat2->id,
+        ]);
+
+        $response->assertRedirect();
+        $student->refresh();
+        $this->assertSame('2026-9999', $student->student_number);
+        $this->assertSame('Johnny', $student->first_name);
+        $this->assertSame('Alexander', $student->middle_name);
+        $this->assertSame('Smith', $student->last_name);
+        $this->assertSame('Smith, Johnny Alexander', $student->full_name);
+
+        $this->assertDatabaseHas('seats', ['id' => $seat2->id, 'student_id' => $student->id]);
+        $this->assertDatabaseHas('seats', ['id' => $seat1->id, 'student_id' => null]);
+    }
+
+    public function test_teacher_can_update_and_remove_student_photo(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+        $user = User::factory()->create();
+        $section = $this->section($user);
+
+        $student = Student::create([
+            'section_id' => $section->id,
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+        ]);
+
+        $photo = UploadedFile::fake()->image('profile.jpg');
+        $response = $this->actingAs($user)->patch(route('sections.students.update', [$section, $student]), [
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+            'photo' => $photo,
+        ]);
+        $response->assertRedirect();
+        $student->refresh();
+        $this->assertNotNull($student->photo_path);
+        \Illuminate\Support\Facades\Storage::disk('local')->assertExists($student->photo_path);
+
+        $oldPath = $student->photo_path;
+        $response = $this->actingAs($user)->patch(route('sections.students.update', [$section, $student]), [
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+            'remove_photo' => true,
+        ]);
+        $response->assertRedirect();
+        $student->refresh();
+        $this->assertNull($student->photo_path);
+        \Illuminate\Support\Facades\Storage::disk('local')->assertMissing($oldPath);
+    }
 }

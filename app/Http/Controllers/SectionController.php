@@ -172,9 +172,47 @@ class SectionController extends Controller
 
         $excludedStudentIds = array_values(array_unique(array_merge($calledTodayIds, $absentTodayIds)));
 
+        $totalSeats = $section->layoutBlocks->sum(fn ($b) => $b->seats->count());
+        $seatedCount = $section->layoutBlocks->sum(fn ($b) => $b->seats->whereNotNull('student_id')->count());
+        $enrolledCount = $section->students->count();
+
+        $attendanceStats = DB::table('attendance_sessions')
+            ->leftJoin('attendance_records', 'attendance_records.attendance_session_id', '=', 'attendance_sessions.id')
+            ->where('attendance_sessions.section_id', $section->id)
+            ->selectRaw('
+                COUNT(DISTINCT attendance_sessions.id) as sessions_count,
+                COUNT(attendance_records.id) as total_records,
+                SUM(CASE WHEN attendance_records.status = "present" THEN 1 ELSE 0 END) as present_records
+            ')
+            ->first();
+
+        $sessionsCount = (int) ($attendanceStats->sessions_count ?? 0);
+        $totalRecords = (int) ($attendanceStats->total_records ?? 0);
+        $presentRecords = (int) ($attendanceStats->present_records ?? 0);
+        $attendanceRate = $totalRecords > 0 ? round(($presentRecords / $totalRecords) * 100, 1) : null;
+
+        $assessmentsCount = DB::table('assessments')->where('section_id', $section->id)->count();
+        $projectsCount = DB::table('projects')->where('section_id', $section->id)->count();
+        $modulesCount = DB::table('course_modules')->where('section_id', $section->id)->count();
+        $recitationsCount = DB::table('recitations')->where('section_id', $section->id)->count();
+
+        $stats = [
+            'enrolled_count' => $enrolledCount,
+            'seated_count' => $seatedCount,
+            'available_seats_count' => $totalSeats,
+            'attendance_rate' => $attendanceRate,
+            'meetings_count' => $sessionsCount,
+            'assessments_count' => $assessmentsCount,
+            'projects_count' => $projectsCount,
+            'modules_count' => $modulesCount,
+            'recitations_count' => $recitationsCount,
+            'called_today_count' => count($calledTodayIds),
+        ];
+
         return Inertia::render('sections/Show', [
             'section' => $section,
-            'join_url' => $joinUrl,
+            'stats' => $stats,
+            'join_url' => config('app.offline', false) ? null : $joinUrl,
             'called_today_ids' => $excludedStudentIds,
         ]);
     }

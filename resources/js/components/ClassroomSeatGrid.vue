@@ -95,10 +95,48 @@ onUnmounted(() => {
     window.removeEventListener('click', closeMenu);
 });
 
+const formatStudentDisplayName = (student: any) => {
+    if (!student) return '—';
+    if (student.last_name && student.first_name) {
+        const firstMiddle = [student.first_name, student.middle_name].filter(Boolean).join(' ');
+        return `${student.last_name}, ${firstMiddle || student.first_name}`;
+    }
+    if (student.last_name) return student.last_name;
+    if (student.full_name) {
+        if (student.full_name.includes(',')) return student.full_name;
+        const parts = student.full_name.trim().split(/\s+/);
+        if (parts.length > 1) {
+            const last = parts.pop();
+            return `${last}, ${parts.join(' ')}`;
+        }
+        return student.full_name;
+    }
+    if (student.name) {
+        if (student.name.includes(',')) return student.name;
+        const parts = student.name.trim().split(/\s+/);
+        if (parts.length > 1) {
+            const last = parts.pop();
+            return `${last}, ${parts.join(' ')}`;
+        }
+        return student.name;
+    }
+    return student.first_name || '—';
+};
+
+const sortedUnseatedStudents = computed(() => {
+    if (!props.unseatedStudents) return [];
+    return [...props.unseatedStudents].sort((a: any, b: any) => {
+        const nameA = formatStudentDisplayName(a);
+        const nameB = formatStudentDisplayName(b);
+        return nameA.localeCompare(nameB);
+    });
+});
+
 const initials = (name?: string) => {
     if (!name) return '';
     return name
-        .split(' ')
+        .replace(/,/g, ' ')
+        .split(/[ ,]+/)
         .filter(Boolean)
         .slice(0, 2)
         .map((p) => p[0])
@@ -165,7 +203,7 @@ const density = computed<'spacious' | 'compact' | 'condensed' | 'micro'>(() => {
                                         @dragstart="dragStart($event, seat.student)"
                                         :aria-label="
                                             seat.student
-                                                ? `${seat.student.last_name}, ${seat.student.first_name}, ${seat.label}`
+                                                ? `${formatStudentDisplayName(seat.student)}, ${seat.label}`
                                                 : `${seat.label}, available chair`
                                         "
                                         :aria-pressed="!seat.student && selectedSeatId === seat.id"
@@ -213,7 +251,7 @@ const density = computed<'spacious' | 'compact' | 'condensed' | 'micro'>(() => {
                                                 <img
                                                     v-if="seat.student.photo_url"
                                                     :src="seat.student.photo_url"
-                                                    :alt="`${seat.student.last_name}, ${seat.student.first_name}`"
+                                                    :alt="formatStudentDisplayName(seat.student)"
                                                     class="size-full object-cover"
                                                 />
                                                 <span
@@ -229,7 +267,7 @@ const density = computed<'spacious' | 'compact' | 'condensed' | 'micro'>(() => {
                                                                 : 'text-[7px] font-bold'
                                                     "
                                                 >
-                                                    {{ initials(seat.student.last_name + ' ' + seat.student.first_name) }}
+                                                    {{ initials(formatStudentDisplayName(seat.student)) }}
                                                 </span>
                                             </div>
 
@@ -245,9 +283,9 @@ const density = computed<'spacious' | 'compact' | 'condensed' | 'micro'>(() => {
                                                             ? 'mt-0.5 max-w-[3.75rem] text-[8px] sm:text-[8.5px]'
                                                             : 'mt-0.25 max-w-[2.75rem] text-[7px]'
                                                 "
-                                                :title="`${seat.student.last_name}, ${seat.student.first_name}`"
+                                                :title="formatStudentDisplayName(seat.student)"
                                             >
-                                                {{ seat.student.last_name }}, {{ seat.student.first_name }}
+                                                {{ formatStudentDisplayName(seat.student) }}
                                             </span>
 
                                             <!-- Seat Label & 3+ Absences Indicator -->
@@ -285,10 +323,10 @@ const density = computed<'spacious' | 'compact' | 'condensed' | 'micro'>(() => {
                                         v-else
                                         class="flex size-16 items-center justify-center rounded-full bg-primary/20 text-xl font-bold text-primary shadow-sm"
                                     >
-                                        {{ initials(seat.student.last_name + ' ' + seat.student.first_name) }}
+                                        {{ initials(formatStudentDisplayName(seat.student)) }}
                                     </div>
                                     <div class="text-center">
-                                        <p class="text-sm font-bold leading-tight">{{ seat.student.last_name }}, {{ seat.student.first_name }}</p>
+                                        <p class="text-sm font-bold leading-tight">{{ formatStudentDisplayName(seat.student) }}</p>
                                         <p class="mt-0.5 text-[10px] uppercase text-muted-foreground">{{ sectionName || 'Student' }}</p>
                                         <div
                                             v-if="(seat.student.absent_count ?? 0) >= 3"
@@ -384,13 +422,13 @@ const density = computed<'spacious' | 'compact' | 'condensed' | 'micro'>(() => {
                                 </p>
                                 <div class="max-h-36 overflow-y-auto">
                                     <button
-                                        v-for="student in unseatedStudents"
+                                        v-for="student in sortedUnseatedStudents"
                                         :key="student.id"
                                         type="button"
                                         class="w-full truncate rounded-lg px-2 py-1 text-left text-xs font-semibold hover:bg-accent hover:text-accent-foreground"
                                         @click.stop="assignStudent(student, seat.id)"
                                     >
-                                        {{ student.full_name }}
+                                        {{ formatStudentDisplayName(student) }}
                                     </button>
                                 </div>
                                 <div class="mt-1 border-t border-border/60 pt-1">

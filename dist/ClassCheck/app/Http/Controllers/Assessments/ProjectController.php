@@ -14,6 +14,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -237,25 +238,71 @@ class ProjectController extends AssessmentModuleController
             $data['attachment_mime'] = $file->getMimeType();
         }
 
+        $groupCount = $data['group_count'] ?? null;
+        unset($data['group_count']);
+
         $project->update($data);
+
+        // Adjust group count if provided and activity is in group format
+        if ($groupCount !== null && ($project->format ?? 'group') !== 'individual') {
+            $targetGroupCount = max(1, min((int) $groupCount, 50));
+            $currentGroups = $project->groups()->orderBy('group_number')->get();
+            $currentGroupCount = $currentGroups->count();
+
+            if ($targetGroupCount > $currentGroupCount) {
+                $maxNumber = (int) ($project->groups()->max('group_number') ?? 0);
+                for ($i = 1; $i <= ($targetGroupCount - $currentGroupCount); $i++) {
+                    $newNumber = $maxNumber + $i;
+                    $project->groups()->create([
+                        'group_number' => $newNumber,
+                        'name' => "Group {$newNumber}",
+                        'order_column' => $newNumber,
+                    ]);
+                }
+            } elseif ($targetGroupCount < $currentGroupCount) {
+                $groupsToRemove = $project->groups()
+                    ->orderByDesc('group_number')
+                    ->limit($currentGroupCount - $targetGroupCount)
+                    ->get();
+
+                foreach ($groupsToRemove as $grp) {
+                    $grp->delete();
+                }
+            }
+        }
 
         return back()->with('success', 'Project details updated.');
     }
 
-    public function attachment(Request $request, Section $section, Project $project): StreamedResponse|BinaryFileResponse|\Symfony\Component\HttpFoundation\Response
+    public function attachment(Request $request, Section $section, Project $project): BinaryFileResponse|\Symfony\Component\HttpFoundation\Response
     {
         $this->authorizeProject($section, $project);
-        abort_unless($project->section_id === $section->id, 404);
-        abort_unless($project->attachment_path && Storage::disk('local')->exists($project->attachment_path), 404);
+        abort_unless((int) $project->section_id === (int) $section->id, 404);
 
-        $name = $project->attachment_name ?? basename($project->attachment_path);
-        $mime = $project->attachment_mime ?? Storage::disk('local')->mimeType($project->attachment_path) ?? 'application/octet-stream';
+        $path = $project->attachment_path;
+        abort_unless($path, 404);
 
-        if ($request->boolean('download')) {
-            return Storage::disk('local')->download($project->attachment_path, $name, ['Content-Type' => $mime]);
+        $fullPath = null;
+        if (Storage::disk('local')->exists($path)) {
+            $fullPath = Storage::disk('local')->path($path);
+        } elseif (Storage::disk('public')->exists($path)) {
+            $fullPath = Storage::disk('public')->path($path);
+        } elseif (file_exists(storage_path('app/'.$path))) {
+            $fullPath = storage_path('app/'.$path);
         }
 
-        return Storage::disk('local')->response($project->attachment_path, $name, [
+        abort_unless($fullPath && file_exists($fullPath), 404, 'Attachment file not found on disk.');
+
+        $name = $project->attachment_name ?: basename($path);
+        $mime = $project->attachment_mime ?: (\Illuminate\Support\Facades\File::mimeType($fullPath) ?: 'application/octet-stream');
+
+        if ($request->boolean('download') || $request->has('download')) {
+            return response()->download($fullPath, $name, [
+                'Content-Type' => $mime,
+            ]);
+        }
+
+        return response()->file($fullPath, [
             'Content-Type' => $mime,
             'Content-Disposition' => 'inline; filename="'.addslashes($name).'"',
         ]);
@@ -371,27 +418,55 @@ class ProjectController extends AssessmentModuleController
         $this->authorizeGroup($project, $group);
 
         $data = $request->validate([
-            'student_id' => ['required', 'exists:students,id'],
+            'student_id' => ['nullable', 'exists:students,id'],
+            'student_ids' => ['nullable', 'array'],
+            'student_ids.*' => ['exists:students,id'],
             'role' => ['nullable', 'string', 'max:50'],
         ]);
 
-        $student = Student::findOrFail($data['student_id']);
-        abort_unless((int) $student->section_id === (int) $section->id, 404);
+        $rawIds = [];
+        if (! empty($data['student_ids'])) {
+            $rawIds = array_merge($rawIds, (array) $data['student_ids']);
+        }
+        if (! empty($data['student_id'])) {
+            $rawIds[] = $data['student_id'];
+        }
 
-        DB::transaction(function () use ($project, $group, $student, $data) {
-            // Remove student from any other group in this project
+        $studentIds = array_values(array_unique(array_filter($rawIds)));
+
+        if (empty($studentIds)) {
+            throw ValidationException::withMessages(['student_ids' => 'Please select at least one student.']);
+        }
+
+        $students = Student::query()
+            ->whereIn('id', $studentIds)
+            ->where('section_id', $section->id)
+            ->get();
+
+        abort_if($students->isEmpty(), 404);
+
+        DB::transaction(function () use ($project, $group, $students, $data) {
             $otherGroupIds = $project->groups()->pluck('id');
+
+            // Remove students from any other group in this project
             ProjectGroupMember::whereIn('project_group_id', $otherGroupIds)
-                ->where('student_id', $student->id)
+                ->whereIn('student_id', $students->pluck('id'))
                 ->delete();
 
-            $group->members()->create([
-                'student_id' => $student->id,
-                'role' => $data['role'] ?? null,
-            ]);
+            foreach ($students as $student) {
+                $group->members()->create([
+                    'student_id' => $student->id,
+                    'role' => $data['role'] ?? null,
+                ]);
+            }
         });
 
-        return back()->with('success', "Added {$student->first_name} to {$group->name}.");
+        $count = $students->count();
+        $message = $count === 1
+            ? "Added {$students->first()->full_name} to {$group->name}."
+            : "Added {$count} students to {$group->name}.";
+
+        return back()->with('success', $message);
     }
 
     public function updateMember(Request $request, Section $section, Project $project, ProjectGroup $group, Student $student): JsonResponse|RedirectResponse

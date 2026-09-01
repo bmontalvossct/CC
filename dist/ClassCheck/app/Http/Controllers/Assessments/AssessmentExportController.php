@@ -46,10 +46,10 @@ class AssessmentExportController extends AssessmentModuleController
         $scores = $assessment->scores()->get()->keyBy('student_id');
         $rows = Student::where('section_id', $section->id)->orderBy('last_name')->orderBy('first_name')->get()
             ->map(fn ($student) => [$student->student_number, $student->full_name, $scores->get($student->id)?->score,
-                $assessment->max_points, $scores->get($student->id)?->score === null ? 'Missing' : 'Recorded']);
+                $assessment->max_points, $scores->get($student->id)?->score === null ? 'Missing' : 'Recorded', $scores->get($student->id)?->remarks ?? '']);
 
         return $this->csv($section, "{$assessment->type}-{$assessment->id}",
-            ['Student number', 'Student', 'Score', 'Max points', 'Status'], $rows);
+            ['Student number', 'Student', 'Score', 'Max points', 'Status', 'Remarks'], $rows);
     }
 
     public function gradebook(Section $section): StreamedResponse
@@ -64,6 +64,7 @@ class AssessmentExportController extends AssessmentModuleController
 
         $defaultWeights = [
             'activity' => 20,
+            'laboratory' => 0,
             'quiz' => 20,
             'exam' => 25,
             'project' => 20,
@@ -240,6 +241,10 @@ class AssessmentExportController extends AssessmentModuleController
                 if ($categoriesPct['activity'] !== null && $weights['activity'] > 0) {
                     $weighted += $categoriesPct['activity'] * ($weights['activity'] / 100);
                     $totalBaseWeight += $weights['activity'];
+                }
+                if (($categoriesPct['laboratory'] ?? null) !== null && ($weights['laboratory'] ?? 0) > 0) {
+                    $weighted += $categoriesPct['laboratory'] * ($weights['laboratory'] / 100);
+                    $totalBaseWeight += $weights['laboratory'];
                 }
                 if ($categoriesPct['quiz'] !== null && $weights['quiz'] > 0) {
                     $weighted += $categoriesPct['quiz'] * ($weights['quiz'] / 100);

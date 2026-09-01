@@ -9,6 +9,9 @@ use App\Http\Controllers\Assessments\ProjectController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::redirect('assessments', 'sections');
+    Route::redirect('projects', 'sections');
+    Route::redirect('gradebook', 'sections');
     Route::get('sections/{section}/assessments', [AssessmentController::class, 'index'])->name('sections.assessments.index');
     Route::post('sections/{section}/assessments', [AssessmentController::class, 'store'])->name('sections.assessments.store');
     Route::get('sections/{section}/assessments/{assessment}', [AssessmentController::class, 'show'])->name('sections.assessments.show');
@@ -19,6 +22,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('sections/{section}/assessments/{assessment}/scores/{student}', [AssessmentScoreController::class, 'update'])->name('sections.assessments.scores.update');
     Route::get('sections/{section}/assessments/{assessment}/attachment', AssessmentAttachmentController::class)->name('sections.assessments.attachment');
     Route::get('sections/{section}/assessments/{assessment}/export', [AssessmentExportController::class, 'assessment'])->name('sections.exports.assessment');
+
+    // Assessment Autochecker (Bulk upload + Ollama LLM evaluator)
+    Route::get('sections/{section}/assessments/{assessment}/autochecker/status', [\App\Http\Controllers\Assessments\AutocheckerController::class, 'status'])->name('sections.assessments.autochecker.status');
+    Route::post('sections/{section}/assessments/{assessment}/autochecker/inspect', [\App\Http\Controllers\Assessments\AutocheckerController::class, 'inspectFiles'])->name('sections.assessments.autochecker.inspect');
+    Route::post('sections/{section}/assessments/{assessment}/autochecker/evaluate', [\App\Http\Controllers\Assessments\AutocheckerController::class, 'evaluateSingle'])->name('sections.assessments.autochecker.evaluate');
+    Route::post('sections/{section}/assessments/{assessment}/autochecker/run-sandbox', [\App\Http\Controllers\Assessments\AutocheckerController::class, 'runPythonSandbox'])->name('sections.assessments.autochecker.run-sandbox');
+    Route::post('sections/{section}/assessments/{assessment}/autochecker/apply-scores', [\App\Http\Controllers\Assessments\AutocheckerController::class, 'applyScores'])->name('sections.assessments.autochecker.apply-scores');
 
     // Projects & Group Reporting
     Route::get('sections/{section}/projects', [ProjectController::class, 'index'])->name('sections.projects.index');
@@ -41,6 +51,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('sections/{section}/reports/gradebook', [AssessmentReportController::class, 'gradebook'])->name('sections.reports.gradebook');
     Route::get('sections/{section}/reports/gradebook/print', [AssessmentReportController::class, 'print'])->name('sections.reports.gradebook.print');
+    Route::post('sections/{section}/reports/gradebook/override-oral', [AssessmentReportController::class, 'overrideOralPoints'])->name('sections.reports.gradebook.override-oral');
     Route::put('sections/{section}/grading-weights', [AssessmentReportController::class, 'updateWeights'])->name('sections.grading-weights.update');
     Route::get('sections/{section}/exports/roster', [AssessmentExportController::class, 'roster'])->name('sections.exports.roster');
     Route::get('sections/{section}/exports/attendance', [AssessmentExportController::class, 'attendance'])->name('sections.exports.attendance');

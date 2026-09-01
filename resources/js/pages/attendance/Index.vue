@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AttendanceCalendar from '@/components/attendance/AttendanceCalendar.vue';
+import AttendanceTrendsHeatmap, { type DayTrend } from '@/components/attendance/AttendanceTrendsHeatmap.vue';
 import StudentAttendanceModal, { type StudentSummary } from '@/components/attendance/StudentAttendanceModal.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
@@ -22,9 +23,18 @@ import {
     Trash2,
     Users,
 } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 type Summary = { sessions: number; present: number; absent: number; rate: number | null; attended_hours: number };
+type Schedule = {
+    id: number;
+    day_of_week: number;
+    starts_at: string;
+    ends_at: string;
+    room?: string | null;
+    schedule_type?: string | null;
+};
+
 type Section = {
     id: number;
     subject_code: string;
@@ -32,6 +42,7 @@ type Section = {
     name: string;
     term: { name: string; school_year: string };
     default_schedule: { starts_at: string; ends_at: string } | null;
+    schedules?: Schedule[];
 };
 
 type SessionRecord = {
@@ -67,6 +78,7 @@ const props = defineProps<{
     studentSummaries: StudentSummary[];
     sessions: Session[];
     students?: Student[];
+    day_of_week_trends?: DayTrend[];
 }>();
 
 // Navigation Tabs
@@ -115,6 +127,99 @@ const form = useForm({
     notes: '',
 });
 
+const formatTime12h = (timeStr: string) => {
+    if (!timeStr) return '';
+    const [h, m] = timeStr.slice(0, 5).split(':').map(Number);
+    const period = h >= 12 ? 'PM' : 'AM';
+    const hour12 = h % 12 || 12;
+    return `${hour12}:${String(m).padStart(2, '0')} ${period}`;
+};
+
+const getDayName = (dayOfWeek?: number | null) => {
+    const days = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    return dayOfWeek && days[dayOfWeek] ? days[dayOfWeek] : '';
+};
+
+// Compute ISO day of week (1=Monday, ..., 7=Sunday) for the currently chosen meeting date
+const dayOfWeekForSessionDate = computed(() => {
+    if (!form.session_date) return null;
+    const d = new Date(`${form.session_date}T00:00:00`);
+    if (isNaN(d.getTime())) return null;
+    return d.getDay() === 0 ? 7 : d.getDay();
+});
+
+// All schedules for this section that occur on the selected meeting day
+const schedulesForSelectedDay = computed(() => {
+    if (!props.section.schedules || !dayOfWeekForSessionDate.value) return [];
+    return props.section.schedules.filter((s) => s.day_of_week === dayOfWeekForSessionDate.value);
+});
+
+// Other schedules in this section (different days of the week)
+const otherSchedules = computed(() => {
+    if (!props.section.schedules) return [];
+    return props.section.schedules.filter((s) => s.day_of_week !== dayOfWeekForSessionDate.value);
+});
+
+// Track chosen schedule ID or 'custom'
+const selectedScheduleId = ref<string | number>('custom');
+
+// Sync selected schedule based on the date or initial values
+const syncScheduleWithDate = () => {
+    if (schedulesForSelectedDay.value.length > 0) {
+        // Check if current form times match any schedule for today
+        const match = schedulesForSelectedDay.value.find(
+            (s) => s.starts_at === form.starts_at && s.ends_at === form.ends_at,
+        );
+        if (match) {
+            selectedScheduleId.value = match.id;
+        } else {
+            // Default to the first schedule for that day
+            const defaultSched = schedulesForSelectedDay.value[0];
+            selectedScheduleId.value = defaultSched.id;
+            form.starts_at = defaultSched.starts_at;
+            form.ends_at = defaultSched.ends_at;
+        }
+    } else if (otherSchedules.value.length > 0) {
+        const match = otherSchedules.value.find(
+            (s) => s.starts_at === form.starts_at && s.ends_at === form.ends_at,
+        );
+        selectedScheduleId.value = match ? match.id : 'custom';
+    } else {
+        selectedScheduleId.value = 'custom';
+    }
+};
+
+// When user chooses a schedule from dropdown
+const onScheduleSelectChange = () => {
+    if (selectedScheduleId.value === 'custom') {
+        return;
+    }
+    const allSchedules = props.section.schedules || [];
+    const found = allSchedules.find((s) => s.id === Number(selectedScheduleId.value));
+    if (found) {
+        form.starts_at = found.starts_at;
+        form.ends_at = found.ends_at;
+    }
+};
+
+// When user manually modifies starts_at or ends_at input, update selectedScheduleId if it matches or set to 'custom'
+const onManualTimeInput = () => {
+    const allSchedules = props.section.schedules || [];
+    const match = allSchedules.find(
+        (s) => s.starts_at === form.starts_at && s.ends_at === form.ends_at,
+    );
+    selectedScheduleId.value = match ? match.id : 'custom';
+};
+
+// Watch session_date to automatically update schedule when meeting date changes
+watch(
+    () => form.session_date,
+    () => {
+        syncScheduleWithDate();
+    },
+    { immediate: true },
+);
+
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Sections', href: '/sections' },
     { title: props.section.subject_code, href: `/sections/${props.section.id}` },
@@ -142,41 +247,22 @@ function changeReferenceDate(event: Event) {
     );
 }
 
-// Student list for calendar (falls back to studentSummaries if students prop is missing)
-const calendarStudents = computed<Student[]>(() => {
-    if (props.students && props.students.length > 0) {
-        return props.students;
-    }
-    return props.studentSummaries.map((s) => ({
-        id: s.id,
-        student_number: s.student_number,
-        name: s.name,
-    }));
-});
-
-// Student Table Filter and Search
-const searchQuery = ref('');
-const filterOption = ref<'all' | 'absences' | 'late'>('all');
-
-const filteredStudentSummaries = computed(() => {
-    let list = props.studentSummaries;
-
-    if (filterOption.value === 'absences') {
-        list = list.filter((s) => s.absent_count > 0);
-    } else if (filterOption.value === 'late') {
-        list = list.filter((s) => s.late_count > 0);
-    }
-
-    const q = searchQuery.value.trim().toLowerCase();
-    if (!q) return list;
-
-    return list.filter((s) => s.name.toLowerCase().includes(q) || s.student_number.toLowerCase().includes(q));
-});
-
-const formatStudentDisplayName = (student: StudentSummary | { name?: string; first_name?: string; last_name?: string } | null | undefined) => {
+const formatStudentDisplayName = (
+    student: StudentSummary | Student | { name?: string; first_name?: string; last_name?: string; full_name?: string } | null | undefined,
+) => {
     if (!student) return '—';
     if ('last_name' in student && 'first_name' in student && student.last_name && student.first_name) {
         return `${student.last_name}, ${student.first_name}`;
+    }
+    if ('last_name' in student && student.last_name) return student.last_name;
+    if ('full_name' in student && student.full_name) {
+        if (student.full_name.includes(',')) return student.full_name;
+        const parts = student.full_name.trim().split(/\s+/);
+        if (parts.length > 1) {
+            const last = parts.pop();
+            return `${last}, ${parts.join(' ')}`;
+        }
+        return student.full_name;
     }
     if (student.name) {
         if (student.name.includes(',')) return student.name;
@@ -187,8 +273,51 @@ const formatStudentDisplayName = (student: StudentSummary | { name?: string; fir
         }
         return student.name;
     }
-    return '—';
+    return 'first_name' in student && student.first_name ? student.first_name : '—';
 };
+
+// Student list for calendar (falls back to studentSummaries if students prop is missing)
+const calendarStudents = computed<Student[]>(() => {
+    const list =
+        props.students && props.students.length > 0
+            ? props.students
+            : props.studentSummaries.map((s) => ({
+                  id: s.id,
+                  student_number: s.student_number,
+                  first_name: s.first_name,
+                  last_name: s.last_name,
+                  name: s.name,
+              }));
+
+    return [...list].sort((a: any, b: any) => {
+        const nameA = formatStudentDisplayName(a).toLowerCase();
+        const nameB = formatStudentDisplayName(b).toLowerCase();
+        return nameA.localeCompare(nameB);
+    });
+});
+
+// Student Table Filter and Search
+const searchQuery = ref('');
+const filterOption = ref<'all' | 'absences' | 'late'>('all');
+
+const filteredStudentSummaries = computed(() => {
+    let list = [...props.studentSummaries].sort((a, b) => {
+        const nameA = formatStudentDisplayName(a).toLowerCase();
+        const nameB = formatStudentDisplayName(b).toLowerCase();
+        return nameA.localeCompare(nameB);
+    });
+
+    if (filterOption.value === 'absences') {
+        list = list.filter((s) => s.absent_count > 0);
+    } else if (filterOption.value === 'late') {
+        list = list.filter((s) => s.late_count > 0);
+    }
+
+    const q = searchQuery.value.trim().toLowerCase();
+    if (!q) return list;
+
+    return list.filter((s) => formatStudentDisplayName(s).toLowerCase().includes(q) || s.student_number.toLowerCase().includes(q));
+});
 </script>
 
 <template>
@@ -291,6 +420,9 @@ const formatStudentDisplayName = (student: StudentSummary | { name?: string; fir
                     </article>
                 </section>
 
+                <!-- Day-of-Week Absenteeism Analytics Heatmap -->
+                <AttendanceTrendsHeatmap :trends="day_of_week_trends || []" />
+
                 <!-- Start Session Form & Recent Sessions Grid -->
                 <section class="grid items-start gap-6 lg:grid-cols-[24rem_1fr]">
                     <!-- Start Attendance Session Form -->
@@ -312,15 +444,82 @@ const formatStudentDisplayName = (student: StudentSummary | { name?: string; fir
                                 <InputError class="mt-1 text-xs" :message="form.errors.session_date" />
                             </div>
 
+                            <!-- Schedule Selector Dropdown (When section has schedules configured) -->
+                            <div v-if="section.schedules && section.schedules.length > 0" class="grid gap-1.5">
+                                <div class="flex items-center justify-between">
+                                    <Label for="schedule-select" class="text-sm font-semibold">
+                                        Class schedule
+                                        <span
+                                            v-if="schedulesForSelectedDay.length > 1"
+                                            class="ml-1.5 rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-bold text-primary"
+                                        >
+                                            {{ schedulesForSelectedDay.length }} schedules today
+                                        </span>
+                                    </Label>
+                                    <span v-if="schedulesForSelectedDay.length === 0" class="text-[11px] text-muted-foreground">
+                                        No scheduled class today
+                                    </span>
+                                </div>
+                                <select
+                                    id="schedule-select"
+                                    v-model="selectedScheduleId"
+                                    class="h-11 w-full rounded-xl border border-input bg-background px-3 py-2 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                    @change="onScheduleSelectChange"
+                                >
+                                    <optgroup
+                                        v-if="schedulesForSelectedDay.length > 0"
+                                        :label="`Scheduled for ${getDayName(dayOfWeekForSessionDate)}`"
+                                    >
+                                        <option
+                                            v-for="sched in schedulesForSelectedDay"
+                                            :key="`today-${sched.id}`"
+                                            :value="sched.id"
+                                        >
+                                            {{ formatTime12h(sched.starts_at) }} – {{ formatTime12h(sched.ends_at) }}
+                                            {{ sched.schedule_type ? ` · ${sched.schedule_type.toUpperCase()}` : '' }}
+                                            {{ sched.room ? ` (${sched.room})` : '' }}
+                                        </option>
+                                    </optgroup>
+
+                                    <optgroup v-if="otherSchedules.length > 0" label="Other Day Schedules">
+                                        <option
+                                            v-for="sched in otherSchedules"
+                                            :key="`other-${sched.id}`"
+                                            :value="sched.id"
+                                        >
+                                            {{ getDayName(sched.day_of_week) }} · {{ formatTime12h(sched.starts_at) }} – {{ formatTime12h(sched.ends_at) }}
+                                            {{ sched.schedule_type ? ` · ${sched.schedule_type.toUpperCase()}` : '' }}
+                                            {{ sched.room ? ` (${sched.room})` : '' }}
+                                        </option>
+                                    </optgroup>
+
+                                    <option value="custom">Custom / Other Time</option>
+                                </select>
+                            </div>
+
                             <div class="grid grid-cols-2 gap-2.5">
                                 <div class="grid gap-1.5">
                                     <Label for="starts" class="text-sm font-semibold">Start time</Label>
-                                    <Input id="starts" v-model="form.starts_at" type="time" required class="h-11 rounded-xl text-sm" />
+                                    <Input
+                                        id="starts"
+                                        v-model="form.starts_at"
+                                        type="time"
+                                        required
+                                        class="h-11 rounded-xl text-sm"
+                                        @input="onManualTimeInput"
+                                    />
                                     <InputError class="mt-1 text-xs" :message="form.errors.starts_at" />
                                 </div>
                                 <div class="grid gap-1.5">
                                     <Label for="ends" class="text-sm font-semibold">End time</Label>
-                                    <Input id="ends" v-model="form.ends_at" type="time" required class="h-11 rounded-xl text-sm" />
+                                    <Input
+                                        id="ends"
+                                        v-model="form.ends_at"
+                                        type="time"
+                                        required
+                                        class="h-11 rounded-xl text-sm"
+                                        @input="onManualTimeInput"
+                                    />
                                     <InputError class="mt-1 text-xs" :message="form.errors.ends_at" />
                                 </div>
                             </div>
@@ -370,7 +569,7 @@ const formatStudentDisplayName = (student: StudentSummary | { name?: string; fir
                                         {{ readableDate(session.session_date) }}
                                     </p>
                                     <p class="mt-0.5 text-sm text-muted-foreground">
-                                        {{ session.starts_at }} – {{ session.ends_at }} · {{ session.duration_minutes }} mins
+                                        {{ formatTime12h(session.starts_at) }} – {{ formatTime12h(session.ends_at) }} · {{ session.duration_minutes }} mins
                                     </p>
                                 </div>
                                 <div class="flex items-center gap-3 text-right">
@@ -588,10 +787,10 @@ const formatStudentDisplayName = (student: StudentSummary | { name?: string; fir
         <!-- Delete Session Confirmation Modal -->
         <div
             v-if="sessionToDelete"
+            v-modal-focus
             class="backdrop-blur-xs fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
             role="dialog"
             aria-modal="true"
-            @click.self="sessionToDelete = null"
         >
             <div class="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in-95">
                 <div class="flex items-center gap-3">

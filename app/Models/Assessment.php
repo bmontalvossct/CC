@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Assessment extends Model
 {
-    public const TYPES = ['activity', 'quiz', 'exam'];
+    public const TYPES = ['activity', 'laboratory', 'quiz', 'exam'];
 
     protected $fillable = [
         'section_id',

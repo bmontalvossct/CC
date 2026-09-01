@@ -348,8 +348,8 @@ const submit = () => {
         <!-- Delete Project Confirmation Modal -->
         <div
             v-if="deleteProjectTarget"
+            v-modal-focus
             class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-zinc-950/70 p-4 backdrop-blur-md duration-200 animate-in fade-in"
-            @click.self="deleteProjectTarget = null"
         >
             <div
                 class="paper-card relative w-full max-w-lg border-border/90 p-6 shadow-2xl duration-200 animate-in zoom-in-95"

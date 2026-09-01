@@ -10,14 +10,22 @@ use App\Models\Project;
 use App\Models\Recitation;
 use App\Models\Section;
 use App\Models\Student;
+use App\Services\GradebookCalculationService;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class AssessmentReportController extends AssessmentModuleController
 {
+    public function __construct(
+        protected GradebookCalculationService $gradebookService
+    ) {
+    }
+
     public function gradebook(Section $section): Response
     {
         return $this->render($section, false);
@@ -32,18 +40,11 @@ class AssessmentReportController extends AssessmentModuleController
     {
         $this->authorizeSection($section);
 
-        $current = array_merge([
-            'activity' => 20,
-            'quiz' => 20,
-            'exam' => 25,
-            'project' => 20,
-            'attendance' => 15,
-            'recitation' => 5,
-        ], $section->grading_weights ?? []);
+        $current = array_merge(GradebookCalculationService::DEFAULT_WEIGHTS, $section->grading_weights ?? []);
 
         // Pre-cast all incoming numbers to integer
         $input = $request->all();
-        foreach (['activity', 'quiz', 'exam', 'project', 'attendance', 'recitation'] as $key) {
+        foreach (['activity', 'laboratory', 'quiz', 'exam', 'project', 'attendance', 'recitation'] as $key) {
             if (isset($input[$key]) && is_numeric($input[$key])) {
                 $input[$key] = (int) $input[$key];
             }
@@ -52,6 +53,7 @@ class AssessmentReportController extends AssessmentModuleController
 
         $data = $request->validate([
             'activity' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:100'],
+            'laboratory' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:100'],
             'quiz' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:100'],
             'exam' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:100'],
             'project' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:100'],
@@ -61,6 +63,7 @@ class AssessmentReportController extends AssessmentModuleController
 
         $merged = [
             'activity' => isset($data['activity']) && $data['activity'] !== null ? (int) $data['activity'] : (int) ($current['activity'] ?? 20),
+            'laboratory' => isset($data['laboratory']) && $data['laboratory'] !== null ? (int) $data['laboratory'] : (int) ($current['laboratory'] ?? 0),
             'quiz' => isset($data['quiz']) && $data['quiz'] !== null ? (int) $data['quiz'] : (int) ($current['quiz'] ?? 20),
             'exam' => isset($data['exam']) && $data['exam'] !== null ? (int) $data['exam'] : (int) ($current['exam'] ?? 25),
             'project' => isset($data['project']) && $data['project'] !== null ? (int) $data['project'] : (int) ($current['project'] ?? 20),
@@ -68,7 +71,7 @@ class AssessmentReportController extends AssessmentModuleController
             'recitation' => array_key_exists('recitation', $data) ? (int) ($data['recitation'] ?? 0) : (int) ($current['recitation'] ?? 5),
         ];
 
-        $baseTotal = $merged['activity'] + $merged['quiz'] + $merged['exam'] + $merged['project'] + $merged['attendance'];
+        $baseTotal = $merged['activity'] + $merged['laboratory'] + $merged['quiz'] + $merged['exam'] + $merged['project'] + $merged['attendance'];
         $totalWithRec = $baseTotal + $merged['recitation'];
 
         if ($baseTotal !== 100 && $totalWithRec !== 100) {
@@ -82,271 +85,139 @@ class AssessmentReportController extends AssessmentModuleController
         return back()->with('success', 'Grading weights and oral recitation bonus saved.');
     }
 
+    public function overrideOralPoints(Request $request, Section $section): RedirectResponse
+    {
+        $this->authorizeSection($section);
+
+        $validated = $request->validate([
+            'student_id' => ['nullable', 'integer'],
+            'apply_to_all' => ['nullable', 'boolean'],
+            'points' => ['required', 'numeric', 'min:0'],
+            'include_late' => ['nullable', 'boolean'],
+        ]);
+
+        $includeLate = ! empty($validated['include_late']);
+        $points = (float) $validated['points'];
+        $applyToAll = ! empty($validated['apply_to_all']);
+
+        $studentQuery = Student::where('section_id', $section->id)->where('is_active', true);
+        if (! $applyToAll && ! empty($validated['student_id'])) {
+            $students = $studentQuery->where('id', $validated['student_id'])->get();
+            if ($students->isEmpty()) {
+                return back()->withErrors(['student_id' => 'Selected student not found in this section.']);
+            }
+        } else {
+            $students = $studentQuery->orderBy('last_name')->orderBy('first_name')->get();
+        }
+
+        if ($students->isEmpty()) {
+            return back()->withErrors(['points' => 'No active students found in this section.']);
+        }
+
+        $eligibleStatuses = [AttendanceRecord::STATUS_PRESENT];
+        if ($includeLate) {
+            $eligibleStatuses[] = AttendanceRecord::STATUS_LATE;
+        }
+
+        // For a single student, validate days and max points strictly
+        if (! $applyToAll && $students->count() === 1) {
+            $singleStudent = $students->first();
+            $dates = DB::table('attendance_records')
+                ->join('attendance_sessions', 'attendance_sessions.id', '=', 'attendance_records.attendance_session_id')
+                ->where('attendance_sessions.section_id', $section->id)
+                ->where('attendance_records.student_id', $singleStudent->id)
+                ->whereIn('attendance_records.status', $eligibleStatuses)
+                ->orderBy('attendance_sessions.session_date')
+                ->pluck('attendance_sessions.session_date')
+                ->map(fn ($d) => Carbon::parse($d)->toDateString())
+                ->unique()
+                ->values();
+
+            $daysCount = $dates->count();
+            if ($daysCount === 0) {
+                return back()->withErrors([
+                    'points' => "{$singleStudent->full_name} has 0 recorded eligible attendance days. Oral points can only be allocated to days present.",
+                ]);
+            }
+
+            $maxAllowed = (float) ($daysCount * 10);
+            if ($points > $maxAllowed) {
+                return back()->withErrors([
+                    'points' => "Points for {$singleStudent->full_name} ({$points} pts) cannot surpass the maximum oral points ({$maxAllowed} pts across {$daysCount} present days at max 10 pts/day).",
+                ]);
+            }
+
+            // Distribute points across eligible days
+            $this->distributeOralPoints($section->id, $singleStudent->id, $dates->all(), $points);
+
+            return back()->with('success', "Oral points successfully overridden for {$singleStudent->full_name} ({$points} pts allocated across {$daysCount} present day(s) at max 10/day).");
+        }
+
+        // For all students (or multiple), distribute points based on each student's eligible days
+        $appliedCount = 0;
+        foreach ($students as $student) {
+            $dates = DB::table('attendance_records')
+                ->join('attendance_sessions', 'attendance_sessions.id', '=', 'attendance_records.attendance_session_id')
+                ->where('attendance_sessions.section_id', $section->id)
+                ->where('attendance_records.student_id', $student->id)
+                ->whereIn('attendance_records.status', $eligibleStatuses)
+                ->orderBy('attendance_sessions.session_date')
+                ->pluck('attendance_sessions.session_date')
+                ->map(fn ($d) => Carbon::parse($d)->toDateString())
+                ->unique()
+                ->values();
+
+            $daysCount = $dates->count();
+            if ($daysCount > 0) {
+                $cappedPoints = min($points, (float) ($daysCount * 10));
+                $this->distributeOralPoints($section->id, $student->id, $dates->all(), $cappedPoints);
+                $appliedCount++;
+            }
+        }
+
+        return back()->with('success', "Oral points successfully overridden for {$appliedCount} student(s) (allocated equally across present days, max 10/day).");
+    }
+
     private function render(Section $section, bool $print): Response
     {
         $this->authorizeSection($section);
-        [$assessments, $students, $scores, $projects, $attendanceSessions, $recitations] = $this->data($section);
+        $data = $this->gradebookService->calculateGradebook($section);
 
-        $defaultWeights = [
-            'activity' => 20,
-            'quiz' => 20,
-            'exam' => 25,
-            'project' => 20,
-            'attendance' => 15,
-            'recitation' => 5,
-        ];
-        $gradingWeights = array_merge($defaultWeights, $section->grading_weights ?? []);
-        $recitationBonusCap = (float) ($gradingWeights['recitation'] ?? 5);
-
-        $categorySummary = collect(Assessment::TYPES)->mapWithKeys(fn ($type) => [$type => [
-            'count' => 0,
-            'possible' => 0.0,
-        ]]);
-
-        foreach ($assessments as $assessment) {
-            $categorySummary[$assessment->type] = [
-                'count' => $categorySummary[$assessment->type]['count'] + 1,
-                'possible' => round($categorySummary[$assessment->type]['possible'] + (float) $assessment->max_points, 2),
-            ];
-        }
-
-        // Separate group activities (which count under Activity) from regular projects
-        $groupActivities = $projects->where('type', 'group_activity');
-        $regularProjects = $projects->whereIn('type', ['project', 'reporting']);
-
-        foreach ($groupActivities as $gAct) {
-            $categorySummary['activity'] = [
-                'count' => $categorySummary['activity']['count'] + 1,
-                'possible' => round($categorySummary['activity']['possible'] + (float) ($gAct->max_points ?: 100), 2),
-            ];
-        }
-
-        // Project possible points (regular projects only)
-        $totalProjectPossible = round($regularProjects->sum(fn ($p) => (float) ($p->max_points ?: 100)), 2);
-
-        // Pre-build project scores map: [student_id => [project_id => score]]
-        $studentProjectScores = [];
-        foreach ($projects as $project) {
-            $projMax = (float) ($project->max_points ?: 100);
-            foreach ($project->groups as $group) {
-                $groupScore = $group->score !== null ? (float) $group->score : null;
-                foreach ($group->members as $member) {
-                    $memberScore = $member->score !== null ? (float) $member->score : $groupScore;
-                    $studentProjectScores[$member->student_id][$project->id] = $memberScore;
-                }
-            }
-        }
-
-        // Pre-build attendance map per student: [student_id => ['present' => int, 'late' => int, 'absent' => int]]
-        $totalSessions = $attendanceSessions->count();
-        $studentAttendance = [];
-        foreach ($attendanceSessions as $session) {
-            foreach ($session->records as $record) {
-                if (! isset($studentAttendance[$record->student_id])) {
-                    $studentAttendance[$record->student_id] = [
-                        'present' => 0,
-                        'late' => 0,
-                        'absent' => 0,
-                    ];
-                }
-                if ($record->status === AttendanceRecord::STATUS_PRESENT) {
-                    $studentAttendance[$record->student_id]['present']++;
-                } elseif ($record->status === AttendanceRecord::STATUS_LATE) {
-                    $studentAttendance[$record->student_id]['late']++;
-                } elseif ($record->status === AttendanceRecord::STATUS_ABSENT) {
-                    $studentAttendance[$record->student_id]['absent']++;
-                }
-            }
-        }
-
-        $rows = $students->map(function ($student) use (
-            $assessments,
-            $scores,
-            $categorySummary,
-            $recitations,
-            $groupActivities,
-            $regularProjects,
-            $studentProjectScores,
-            $totalProjectPossible,
-            $studentAttendance,
-            $totalSessions,
-            $recitationBonusCap
-        ) {
-            $studentScores = $scores->get($student->id, collect());
-            $scoreGrid = [];
-            $earnedByType = array_fill_keys(Assessment::TYPES, 0.0);
-            $missingByType = array_fill_keys(Assessment::TYPES, 0);
-
-            foreach ($assessments as $assessment) {
-                $score = $studentScores->get($assessment->id)?->score;
-                $scoreGrid[$assessment->id] = $score;
-                $earnedByType[$assessment->type] += (float) ($score ?? 0);
-
-                if ($score === null) {
-                    $missingByType[$assessment->type]++;
-                }
-            }
-
-            // Group activities earn score directly in the Activity category
-            $groupActivityScoreGrid = [];
-            foreach ($groupActivities as $gAct) {
-                $score = $studentProjectScores[$student->id][$gAct->id] ?? null;
-                $groupActivityScoreGrid[$gAct->id] = $score !== null ? round($score, 2) : null;
-                if ($score !== null) {
-                    $earnedByType['activity'] += (float) $score;
-                } else {
-                    $missingByType['activity']++;
-                }
-            }
-
-            // Recitation stats: average out of 10, percentage, and earned additional bonus points
-            $studentRecs = $recitations->get($student->id, collect());
-            $recitationCount = $studentRecs->count();
-            $recitationAvg = $recitationCount > 0 ? round((float) $studentRecs->avg('score'), 2) : null;
-            $recitationPct = $recitationAvg !== null ? round(($recitationAvg / 10) * 100, 2) : null;
-            $earnedBonus = $recitationAvg !== null && $recitationBonusCap > 0
-                ? round(($recitationAvg / 10) * $recitationBonusCap, 2)
-                : 0.0;
-
-            $categories = collect(Assessment::TYPES)->mapWithKeys(function ($type) use ($categorySummary, $earnedByType, $missingByType, $earnedBonus) {
-                $rawEarned = round($earnedByType[$type], 2);
-                $bonusEarned = $type === 'activity' ? $earnedBonus : 0.0;
-                $earned = round($rawEarned + $bonusEarned, 2);
-                $possible = $categorySummary[$type]['possible'];
-
-                return [$type => [
-                    'raw_earned' => $rawEarned,
-                    'bonus_earned' => $bonusEarned,
-                    'earned' => $earned,
-                    'possible' => $possible,
-                    'percentage' => $possible > 0 ? min(100.0, round($earned / $possible * 100, 2)) : null,
-                    'missing' => $missingByType[$type],
-                ]];
-            });
-
-            // Project / Reporting stats
-            $projScoresMap = $studentProjectScores[$student->id] ?? [];
-            $projectEarned = 0.0;
-            $projectMissing = 0;
-            $projectScoreGrid = [];
-
-            foreach ($regularProjects as $proj) {
-                $projScore = $projScoresMap[$proj->id] ?? null;
-                $projectScoreGrid[$proj->id] = $projScore !== null ? round($projScore, 2) : null;
-                if ($projScore !== null) {
-                    $projectEarned += (float) $projScore;
-                } else {
-                    $projectMissing++;
-                }
-            }
-
-            $projectPct = $totalProjectPossible > 0 && $regularProjects->isNotEmpty()
-                ? round(($projectEarned / $totalProjectPossible) * 100, 2)
-                : null;
-
-            // Attendance stats
-            $att = $studentAttendance[$student->id] ?? ['present' => 0, 'late' => 0, 'absent' => 0];
-            $presentCount = $att['present'];
-            $lateCount = $att['late'];
-            $absentCount = $att['absent'];
-            $earnedAttendancePts = round(($presentCount * 1.0) + ($lateCount * 0.5), 1);
-            $possibleAttendancePts = (float) $totalSessions;
-            $attendancePct = $totalSessions > 0 ? round(($earnedAttendancePts / $totalSessions) * 100, 2) : null;
-
-            return [
-                'id' => $student->id,
-                'student_number' => $student->student_number,
-                'full_name' => $student->full_name,
-                'scores' => $scoreGrid,
-                'categories' => $categories,
-                'group_activity_scores' => $groupActivityScoreGrid,
-                'project_scores' => $projectScoreGrid,
-                'projectSummary' => [
-                    'count' => $regularProjects->count(),
-                    'earned' => round($projectEarned, 2),
-                    'possible' => $totalProjectPossible,
-                    'percentage' => $projectPct,
-                    'missing' => $projectMissing,
-                ],
-                'attendance' => [
-                    'total_sessions' => $totalSessions,
-                    'present_count' => $presentCount,
-                    'late_count' => $lateCount,
-                    'absent_count' => $absentCount,
-                    'earned_points' => $earnedAttendancePts,
-                    'possible_points' => $possibleAttendancePts,
-                    'percentage' => $attendancePct,
-                ],
-                'recitation' => [
-                    'count' => $recitationCount,
-                    'avg_score' => $recitationAvg,
-                    'percentage' => $recitationPct,
-                    'bonus_points' => $earnedBonus,
-                ],
-            ];
-        });
-
-        return Inertia::render('reports/Gradebook', [
-            'section' => $section->only('id', 'name', 'subject_code', 'subject_title'),
-            'assessments' => $assessments,
-            'groupActivities' => $groupActivities->map(fn ($p) => [
-                'id' => $p->id,
-                'type' => $p->type,
-                'project_number' => $p->project_number,
-                'title' => $p->title,
-                'conducted_on' => $p->conducted_on?->toDateString(),
-                'max_points' => $p->max_points ?: '100.00',
-            ])->values(),
-            'projects' => $regularProjects->map(fn ($p) => [
-                'id' => $p->id,
-                'type' => $p->type,
-                'project_number' => $p->project_number,
-                'title' => $p->title,
-                'conducted_on' => $p->conducted_on?->toDateString(),
-                'max_points' => $p->max_points ?: '100.00',
-            ])->values(),
-            'rows' => $rows,
-            'categorySummary' => $categorySummary,
-            'projectSummary' => [
-                'count' => $regularProjects->count(),
-                'possible' => $totalProjectPossible,
-            ],
-            'attendanceSummary' => [
-                'total_sessions' => $totalSessions,
-            ],
-            'gradingWeights' => $gradingWeights,
+        return Inertia::render('reports/Gradebook', array_merge($data, [
             'printMode' => $print,
-        ]);
+        ]));
     }
 
-    /** @return array{Collection, Collection, Collection, Collection, Collection, Collection} */
-    private function data(Section $section): array
+    private function distributeOralPoints(int $sectionId, int $studentId, array $dates, float $totalPoints): void
     {
-        $assessments = Assessment::where('section_id', $section->id)->orderBy('conducted_on')->orderBy('id')
-            ->get(['id', 'type', 'assessment_number', 'title', 'conducted_on', 'max_points']);
-        $students = Student::where('section_id', $section->id)
-            ->orderBy('last_name')
-            ->orderBy('first_name')
-            ->get(['id', 'student_number', 'first_name', 'middle_name', 'last_name']);
-        $scores = AssessmentScore::whereIn('assessment_id', $assessments->pluck('id'))
-            ->get(['assessment_id', 'student_id', 'score'])
-            ->groupBy('student_id')
-            ->map->keyBy('assessment_id');
+        $count = count($dates);
+        if ($count === 0 || $totalPoints <= 0) {
+            return;
+        }
 
-        $projects = Project::where('section_id', $section->id)
-            ->orderBy('conducted_on')
-            ->orderBy('id')
-            ->with(['groups.members'])
-            ->get();
+        $base = floor(($totalPoints / $count) * 100) / 100;
+        $remainder = round($totalPoints - ($base * $count), 2);
 
-        $attendanceSessions = AttendanceSession::where('section_id', $section->id)
-            ->with('records:id,attendance_session_id,student_id,status,attended_minutes')
-            ->get();
+        foreach ($dates as $index => $date) {
+            $score = $base;
+            if ($index === 0) {
+                $score = round($score + $remainder, 2);
+            }
+            $score = min(10.0, max(0.0, $score));
 
-        $recitations = Recitation::where('section_id', $section->id)
-            ->get(['student_id', 'score'])
-            ->groupBy('student_id');
-
-        return [$assessments, $students, $scores, $projects, $attendanceSessions, $recitations];
+            Recitation::updateOrCreate(
+                [
+                    'section_id' => $sectionId,
+                    'student_id' => $studentId,
+                    'conducted_on' => $date,
+                ],
+                [
+                    'score' => $score,
+                    'accuracy' => (int) round($score / 2),
+                    'delivery' => (int) round($score / 2),
+                    'comments' => 'Manual gradebook oral override',
+                ]
+            );
+        }
     }
 }

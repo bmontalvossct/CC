@@ -205,6 +205,10 @@ const getBlockDensity = (columns: number): 'spacious' | 'compact' | 'condensed' 
                             <InputError class="mt-1 text-xs" :message="form.errors.student_number" />
                         </div>
                         <div class="grid gap-1.5">
+                            <Label for="last-name" class="text-xs font-medium">Last name</Label>
+                            <Input id="last-name" v-model="form.last_name" autocomplete="family-name" class="h-10 rounded-xl text-sm" />
+                        </div>
+                        <div class="grid gap-1.5">
                             <Label for="first-name" class="text-xs font-medium">First name</Label>
                             <Input id="first-name" v-model="form.first_name" autocomplete="given-name" class="h-10 rounded-xl text-sm" />
                         </div>
@@ -213,10 +217,6 @@ const getBlockDensity = (columns: number): 'spacious' | 'compact' | 'condensed' 
                                 >Middle name <span class="font-normal text-muted-foreground">(optional)</span></Label
                             >
                             <Input id="middle-name" v-model="form.middle_name" autocomplete="additional-name" class="h-10 rounded-xl text-sm" />
-                        </div>
-                        <div class="grid gap-1.5">
-                            <Label for="last-name" class="text-xs font-medium">Last name</Label>
-                            <Input id="last-name" v-model="form.last_name" autocomplete="family-name" class="h-10 rounded-xl text-sm" />
                         </div>
 
                         <label

@@ -8,6 +8,7 @@ import {
     CalendarDays,
     ClipboardCheck,
     Download,
+    FlaskConical,
     FolderKanban,
     LoaderCircle,
     Paperclip,
@@ -20,7 +21,7 @@ import { computed, ref, watch } from 'vue';
 
 type Assessment = {
     id: number;
-    type: 'activity' | 'quiz' | 'exam';
+    type: 'activity' | 'laboratory' | 'quiz' | 'exam';
     assessment_number?: string | null;
     title: string;
     conducted_on: string;
@@ -159,7 +160,7 @@ const formatDate = (value: string | null) => {
 
 const getNextAssessmentNumber = (type: string) => {
     const list = props.assessments.filter((a) => a.type === type);
-    const prefix = type.charAt(0).toUpperCase() + type.slice(1);
+    const prefix = type === 'laboratory' ? 'Lab' : type.charAt(0).toUpperCase() + type.slice(1);
     return `${prefix} ${list.length + 1}`;
 };
 
@@ -209,19 +210,28 @@ watch(
     },
 );
 
-const setCreationMode = (mode: 'assessment' | 'group_activity' | 'project') => {
-    creationMode.value = mode;
-    if (mode === 'group_activity') {
+const setCreationMode = (mode: 'assessment' | 'laboratory' | 'group_activity' | 'project') => {
+    if (mode === 'laboratory') {
+        creationMode.value = 'assessment';
+        form.type = 'laboratory';
+        form.assessment_number = getNextAssessmentNumber('laboratory');
+    } else if (mode === 'group_activity') {
+        creationMode.value = 'group_activity';
         projectForm.type = 'group_activity';
         projectForm.format = 'group';
         projectForm.project_number = getNextProjectNumber('group_activity');
     } else if (mode === 'project') {
+        creationMode.value = 'project';
         projectForm.type = 'reporting';
         projectForm.project_number = getNextProjectNumber('reporting');
+    } else {
+        creationMode.value = 'assessment';
+        form.type = 'activity';
+        form.assessment_number = getNextAssessmentNumber('activity');
     }
 };
 
-const tabs = ['all', 'activity', 'quiz', 'exam', 'project'] as const;
+const tabs = ['all', 'activity', 'laboratory', 'quiz', 'exam', 'project'] as const;
 
 const filteredAssessments = computed(() => {
     if (props.filter === 'project') return [];
@@ -230,7 +240,7 @@ const filteredAssessments = computed(() => {
 });
 
 const filteredProjects = computed(() => {
-    if (props.filter === 'quiz' || props.filter === 'exam') return [];
+    if (props.filter === 'quiz' || props.filter === 'exam' || props.filter === 'laboratory') return [];
     if (props.filter === 'activity') {
         return (props.projects || []).filter((p) => p.type === 'group_activity');
     }
@@ -252,17 +262,6 @@ const submitAssessment = () =>
         },
     });
 
-const submitProject = () =>
-    projectForm.post(`/sections/${props.section.id}/projects`, {
-        forceFormData: true,
-        preserveScroll: true,
-        onSuccess: () => {
-            creating.value = false;
-            projectForm.reset();
-            projectForm.project_number = getNextProjectNumber(projectForm.type);
-            if (projectFileInputRef.value) projectFileInputRef.value.value = '';
-        },
-    });
 </script>
 
 <template>
@@ -279,61 +278,84 @@ const submitProject = () =>
             <header
                 class="relative overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card to-primary/5 p-6 shadow-sm sm:p-8"
             >
-                <div class="flex flex-col justify-between gap-6 md:flex-row md:items-end">
-                    <div>
-                        <div class="flex items-center gap-2">
-                            <span class="badge-primary font-mono font-bold">{{ section.subject_code || 'Assessment Ledger' }}</span>
-                            <span class="badge-muted">{{ section.name }}</span>
+                <div class="flex flex-col gap-5">
+                    <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="badge-primary font-mono font-bold">{{ section.subject_code || 'Assessment Ledger' }}</span>
+                                <span class="badge-muted">{{ section.name }}</span>
+                            </div>
+                            <h1 class="mt-2 text-2xl font-extrabold tracking-tight sm:text-3xl">Activities, Projects & Scores</h1>
+                            <p class="mt-0.5 text-xs text-muted-foreground sm:text-sm">Create quizzes, group projects, reporting presentations, and exams.</p>
                         </div>
-                        <h1 class="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">Activities, Projects & Scores</h1>
-                        <p class="mt-1 text-sm text-muted-foreground">Create quizzes, group projects, reporting presentations, and exams.</p>
                     </div>
 
-                    <div class="flex flex-wrap items-center gap-3">
+                    <!-- Single-line Action Buttons Row (Icon-only by default, expand on hover) -->
+                    <div class="flex flex-nowrap items-center gap-2 overflow-x-auto pb-1">
                         <Link
                             :href="`/sections/${section.id}/reports/gradebook`"
                             prefetch="hover"
-                            class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            title="Gradebook"
+                            class="shadow-xs group inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-primary bg-white px-3 text-xs font-medium text-primary transition-all duration-300 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                         >
-                            <BarChart3 class="size-4 text-primary transition-colors group-hover:text-white" />
-                            <span>Gradebook</span>
+                            <BarChart3 class="size-4 shrink-0 text-primary transition-colors group-hover:text-white" />
+                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">Gradebook</span>
                         </Link>
                         <a
                             :href="`/sections/${section.id}/exports/gradebook`"
-                            class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            title="Export CSV"
+                            class="shadow-xs group inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-primary bg-white px-3 text-xs font-medium text-primary transition-all duration-300 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                         >
-                            <Download class="size-4 text-primary transition-colors group-hover:text-white" />
-                            <span>Export CSV</span>
+                            <Download class="size-4 shrink-0 text-primary transition-colors group-hover:text-white" />
+                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">Export CSV</span>
                         </a>
                         <button
-                            class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            type="button"
+                            title="New Lab Activity"
+                            class="shadow-xs group inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-primary bg-white px-3 text-xs font-medium text-primary transition-all duration-300 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            @click="
+                                creating = true;
+                                setCreationMode('laboratory');
+                            "
+                        >
+                            <FlaskConical class="size-4 shrink-0 text-primary transition-colors group-hover:text-white" />
+                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">New Lab Activity</span>
+                        </button>
+                        <button
+                            type="button"
+                            title="New Group Activity"
+                            class="shadow-xs group inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-primary bg-white px-3 text-xs font-medium text-primary transition-all duration-300 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             @click="
                                 creating = true;
                                 setCreationMode('group_activity');
                             "
                         >
-                            <Users class="size-4 text-primary transition-colors group-hover:text-white" />
-                            <span>New Group Activity</span>
+                            <Users class="size-4 shrink-0 text-primary transition-colors group-hover:text-white" />
+                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">New Group Activity</span>
                         </button>
                         <button
-                            class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            type="button"
+                            title="New Project / Report"
+                            class="shadow-xs group inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-primary bg-white px-3 text-xs font-medium text-primary transition-all duration-300 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             @click="
                                 creating = true;
                                 setCreationMode('project');
                             "
                         >
-                            <FolderKanban class="size-4 text-primary transition-colors group-hover:text-white" />
-                            <span>New Project / Report</span>
+                            <FolderKanban class="size-4 shrink-0 text-primary transition-colors group-hover:text-white" />
+                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">New Project / Report</span>
                         </button>
                         <button
-                            class="ink-button !h-10 !rounded-xl"
+                            type="button"
+                            title="New Assessment"
+                            class="ink-button group !h-9 !shrink-0 !rounded-xl !px-3 whitespace-nowrap text-xs font-semibold shadow-xs transition-all duration-300"
                             @click="
                                 creating = true;
                                 setCreationMode('assessment');
                             "
                         >
-                            <Plus class="size-4" />
-                            <span>New assessment</span>
+                            <Plus class="size-4 shrink-0" />
+                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">New Assessment</span>
                         </button>
                     </div>
                 </div>
@@ -405,6 +427,7 @@ const submitProject = () =>
                             class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
                         >
                             <option value="activity">Individual Activity</option>
+                            <option value="laboratory">Laboratory Activity</option>
                             <option value="quiz">Quiz</option>
                             <option value="exam">Exam</option>
                         </select>
@@ -413,12 +436,12 @@ const submitProject = () =>
 
                     <label class="lg:col-span-3">
                         <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                            {{ form.type === 'quiz' ? 'Quiz #' : form.type === 'exam' ? 'Exam #' : 'Activity #' }}
+                            {{ form.type === 'quiz' ? 'Quiz #' : form.type === 'exam' ? 'Exam #' : form.type === 'laboratory' ? 'Lab #' : 'Activity #' }}
                         </span>
                         <input
                             v-model="form.assessment_number"
                             class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
-                            :placeholder="form.type === 'quiz' ? 'e.g. Quiz 1' : form.type === 'exam' ? 'e.g. Exam 1' : 'e.g. Activity 1'"
+                            :placeholder="form.type === 'quiz' ? 'e.g. Quiz 1' : form.type === 'exam' ? 'e.g. Exam 1' : form.type === 'laboratory' ? 'e.g. Lab 1' : 'e.g. Activity 1'"
                         />
                         <small v-if="form.errors.assessment_number" class="mt-1 block text-xs text-rose-600">{{
                             form.errors.assessment_number
@@ -484,7 +507,7 @@ const submitProject = () =>
                             <input
                                 ref="fileInputRef"
                                 type="file"
-                                accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z,.rtf,.odt,.ods,.odp,.svg"
+                                accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z,.rtf,.odt,.ods,.odp,.svg,.json,.sql,.db,.sqlite,.sqlite3"
                                 class="block w-full text-xs text-muted-foreground file:mr-2 file:rounded-lg file:border file:border-border file:bg-secondary file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-foreground hover:file:bg-secondary/80"
                                 @change="form.attachment = ($event.target as HTMLInputElement).files?.[0] || null"
                             />
@@ -718,7 +741,7 @@ const submitProject = () =>
                             <input
                                 ref="projectFileInputRef"
                                 type="file"
-                                accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z,.rtf,.odt,.ods,.odp,.svg"
+                                accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z,.rtf,.odt,.ods,.odp,.svg,.json,.sql,.db,.sqlite,.sqlite3"
                                 class="block w-full text-xs text-muted-foreground file:mr-2 file:rounded-lg file:border file:border-border file:bg-secondary file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-foreground hover:file:bg-secondary/80"
                                 @change="projectForm.attachment = ($event.target as HTMLInputElement).files?.[0] || null"
                             />
@@ -897,9 +920,9 @@ const submitProject = () =>
                             <div class="flex items-center justify-between">
                                 <span
                                     class="rounded-md px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white"
-                                    :class="item.type === 'exam' ? 'bg-purple-800' : item.type === 'quiz' ? 'bg-blue-800' : 'bg-emerald-800'"
+                                    :class="item.type === 'exam' ? 'bg-purple-800' : item.type === 'quiz' ? 'bg-blue-800' : item.type === 'laboratory' ? 'bg-cyan-800' : 'bg-emerald-800'"
                                 >
-                                    {{ item.assessment_number || item.type }}
+                                    {{ item.assessment_number || (item.type === 'laboratory' ? 'Lab' : item.type) }}
                                 </span>
                                 <div class="flex items-center gap-2">
                                     <span class="font-mono text-xs font-medium text-foreground">{{ item.max_points }} pts</span>
@@ -964,8 +987,8 @@ const submitProject = () =>
         <!-- Delete Assessment Confirmation Modal -->
         <div
             v-if="deleteAssessmentTarget"
+            v-modal-focus
             class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-zinc-950/70 p-4 backdrop-blur-md duration-200 animate-in fade-in"
-            @click.self="deleteAssessmentTarget = null"
         >
             <div
                 class="paper-card relative w-full max-w-lg border-border/90 p-6 shadow-2xl duration-200 animate-in zoom-in-95"
@@ -1027,8 +1050,8 @@ const submitProject = () =>
         <!-- Delete Project Confirmation Modal -->
         <div
             v-if="deleteProjectTarget"
+            v-modal-focus
             class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-zinc-950/70 p-4 backdrop-blur-md duration-200 animate-in fade-in"
-            @click.self="deleteProjectTarget = null"
         >
             <div
                 class="paper-card relative w-full max-w-lg border-border/90 p-6 shadow-2xl duration-200 animate-in zoom-in-95"

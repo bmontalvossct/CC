@@ -209,6 +209,64 @@ class ProjectWorkflowTest extends TestCase
         $this->assertSame(0, $group2->members()->count());
     }
 
+    public function test_teacher_can_add_multiple_members_to_group_at_once(): void
+    {
+        $user = User::factory()->create();
+        $section = $this->createSection($user);
+        $students = $this->createStudents($section, 4);
+
+        $project = Project::create([
+            'section_id' => $section->id,
+            'type' => 'group_activity',
+            'title' => 'Group Lab Experiment',
+        ]);
+
+        $group = $project->groups()->create(['group_number' => 1, 'name' => 'Lab Team Alpha', 'order_column' => 1]);
+
+        $this->actingAs($user)->post(route('sections.projects.groups.members.store', [$section, $project, $group]), [
+            'student_ids' => [$students[0]->id, $students[1]->id, $students[2]->id],
+        ])->assertRedirect();
+
+        $this->assertSame(3, $group->members()->count());
+        $this->assertTrue($group->members()->where('student_id', $students[0]->id)->exists());
+        $this->assertTrue($group->members()->where('student_id', $students[1]->id)->exists());
+        $this->assertTrue($group->members()->where('student_id', $students[2]->id)->exists());
+    }
+
+    public function test_teacher_can_edit_number_of_groups_for_activity(): void
+    {
+        $user = User::factory()->create();
+        $section = $this->createSection($user);
+
+        $project = Project::create([
+            'section_id' => $section->id,
+            'type' => 'group_activity',
+            'title' => 'Group Discussion',
+        ]);
+
+        $project->groups()->create(['group_number' => 1, 'name' => 'Group 1', 'order_column' => 1]);
+        $project->groups()->create(['group_number' => 2, 'name' => 'Group 2', 'order_column' => 2]);
+        $this->assertSame(2, $project->groups()->count());
+
+        // Increase group count to 4
+        $this->actingAs($user)->put(route('sections.projects.update', [$section, $project]), [
+            'type' => 'group_activity',
+            'title' => 'Group Discussion Updated',
+            'group_count' => 4,
+        ])->assertRedirect();
+
+        $this->assertSame(4, $project->fresh()->groups()->count());
+
+        // Decrease group count to 1
+        $this->actingAs($user)->put(route('sections.projects.update', [$section, $project]), [
+            'type' => 'group_activity',
+            'title' => 'Group Discussion Updated',
+            'group_count' => 1,
+        ])->assertRedirect();
+
+        $this->assertSame(1, $project->fresh()->groups()->count());
+    }
+
     public function test_teacher_cannot_access_or_modify_another_teachers_projects(): void
     {
         $teacher1 = User::factory()->create();

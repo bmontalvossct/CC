@@ -134,15 +134,31 @@ class BackupExportController extends Controller
         ]);
 
         $file = $request->file('backup_file');
-        $content = file_get_contents($file->getRealPath());
-        $data = json_decode($content, true);
-
-        if (!$data || !is_array($data)) {
-            return back()->withErrors(['backup_file' => 'The uploaded file is not a valid JSON backup.']);
-        }
+        $cleanReplace = (bool) $request->input('clean_replace', false);
+        $ext = strtolower($file->getClientOriginalExtension());
 
         try {
-            $cleanReplace = (bool) $request->input('clean_replace', false);
+            $data = null;
+
+            if (in_array($ext, ['sqlite', 'db', 'sqlite3'])) {
+                $data = $this->backupService->extractSqliteData($file->getRealPath());
+            } else {
+                $content = file_get_contents($file->getRealPath());
+                // Remove UTF-8 BOM if present
+                $content = preg_replace('/^\xEF\xBB\xBF/', '', $content);
+                $data = json_decode($content, true);
+
+                if (! $data || ! is_array($data)) {
+                    // Check if the uploaded file is a raw SQLite binary despite wrong extension
+                    if (str_starts_with($content, 'SQLite format 3')) {
+                        $data = $this->backupService->extractSqliteData($file->getRealPath());
+                    } else {
+                        $jsonErr = json_last_error_msg() ?: 'Invalid syntax';
+                        return back()->withErrors(['backup_file' => "The uploaded file is not a valid JSON or SQLite backup. ({$jsonErr})"]);
+                    }
+                }
+            }
+
             $stats = $this->backupService->restoreUserData($request->user(), $data, $cleanReplace);
 
             $msg = sprintf(

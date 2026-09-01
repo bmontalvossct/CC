@@ -24,6 +24,7 @@ export interface UserSectionItem {
 
 export interface SharedData extends Record<string, unknown> {
     name: string;
+    is_offline?: boolean;
     quote: { message: string; author: string };
     auth: Auth;
     userSections?: UserSectionItem[];

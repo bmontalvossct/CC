@@ -376,5 +376,25 @@ class AttendanceTest extends TestCase
             ->where('unseated.0.student.absent_count', 3)
         );
     }
+
+    public function test_attendance_index_provides_section_schedules(): void
+    {
+        $teacher = User::factory()->create();
+        $section = $this->makeSection($teacher);
+
+        $section->schedules()->createMany([
+            ['day_of_week' => 1, 'starts_at' => '08:00', 'ends_at' => '10:00', 'schedule_type' => 'lecture', 'room' => 'Room 101'],
+            ['day_of_week' => 1, 'starts_at' => '13:00', 'ends_at' => '16:00', 'schedule_type' => 'lab', 'room' => 'Lab 201'],
+        ]);
+
+        $response = $this->actingAs($teacher)->get(route('attendance.sections.index', $section));
+        $response->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('attendance/Index')
+            ->has('section.schedules', 2)
+            ->where('section.schedules.0.starts_at', '08:00')
+            ->where('section.schedules.1.starts_at', '13:00')
+        );
+    }
 }
 

@@ -221,10 +221,18 @@ class RouteAuditTest extends TestCase
         $this->get('/dashboard')->assertOk();
         $this->get('/schedule')->assertOk();
         $this->get('/settings')->assertRedirect('/settings/profile');
+        $this->get('/settings/academic-terms')->assertRedirect('/settings/academic-term');
         $this->get('/settings/profile')->assertOk();
         $this->get('/settings/academic-term')->assertOk();
         $this->get('/settings/password')->assertOk();
         $this->get('/settings/appearance')->assertOk();
+        $this->get('/settings/backup')->assertOk();
+        $this->get('/settings/backup/export-json')->assertOk();
+        $this->get('/settings/backup/export-csv?type=students')->assertOk();
+        $this->get('/settings/backup/export-csv?type=attendance')->assertOk();
+        $this->get('/settings/backup/export-csv?type=grades')->assertOk();
+        $this->get('/settings/backup/export-csv?type=recitations')->assertOk();
+        $this->get('/attendance')->assertRedirect('/schedule');
 
         // Sections
         $this->get('/sections')->assertOk();

@@ -32,6 +32,9 @@ namespace ClassCheck
         private static int assignedPort = 8000;
         private static string appRoot;
         private static string phpExe;
+        private static string phpDir;
+        private static string extDir;
+        private static string phpIni;
         private static string artisanScript;
         private static string serverScript;
         private static string activeUrlFile;
@@ -47,30 +50,7 @@ namespace ClassCheck
             activeUrlFile = Path.Combine(appRoot, "storage", "app", "active_url.txt");
             serverLogFile = Path.Combine(appRoot, "storage", "logs", "php_server.log");
 
-            // 1. Single Instance Check
-            bool createdNew;
-            appMutex = new Mutex(true, "ClassCheck_SingleInstance_Mutex_Global", out createdNew);
-            if (!createdNew)
-            {
-                // Already running - read active URL and open in browser
-                string runningUrl = "http://127.0.0.1:8000";
-                try
-                {
-                    if (File.Exists(activeUrlFile))
-                    {
-                        string savedUrl = File.ReadAllText(activeUrlFile).Trim();
-                        if (!string.IsNullOrEmpty(savedUrl))
-                        {
-                            runningUrl = savedUrl;
-                        }
-                    }
-                    Process.Start(new ProcessStartInfo(runningUrl) { UseShellExecute = true });
-                }
-                catch { }
-                return;
-            }
-
-            // 2. Locate PHP Binary
+            // 1. Locate PHP Binary & Paths
             phpExe = Path.Combine(appRoot, "bin", "php", "php.exe");
             if (!File.Exists(phpExe))
             {
@@ -81,8 +61,45 @@ namespace ClassCheck
                 }
             }
 
+            phpDir = File.Exists(phpExe) ? Path.GetDirectoryName(phpExe) : appRoot;
+            extDir = Path.Combine(phpDir, "ext");
+            phpIni = Path.Combine(phpDir, "php.ini");
             artisanScript = Path.Combine(appRoot, "artisan");
             serverScript = Path.Combine(appRoot, "server.php");
+
+            // 2. Single Instance & Alive Check
+            bool createdNew;
+            appMutex = new Mutex(true, "ClassCheck_SingleInstance_Mutex_Global", out createdNew);
+            if (!createdNew)
+            {
+                string runningUrl = "http://127.0.0.1:8000";
+                if (File.Exists(activeUrlFile))
+                {
+                    try
+                    {
+                        string savedUrl = File.ReadAllText(activeUrlFile).Trim();
+                        if (!string.IsNullOrEmpty(savedUrl)) runningUrl = savedUrl;
+                    }
+                    catch { }
+                }
+
+                if (IsServerAlive(runningUrl))
+                {
+                    try { Process.Start(new ProcessStartInfo(runningUrl) { UseShellExecute = true }); } catch { }
+                    return;
+                }
+
+                try { File.Delete(activeUrlFile); } catch { }
+            }
+
+            // Cleanup any stale/orphaned PHP processes from previous sessions
+            KillOrphanedPhpProcesses();
+
+            try
+            {
+                if (File.Exists(serverLogFile)) File.Delete(serverLogFile);
+            }
+            catch { }
 
             // 3. Find an Available Port
             assignedPort = GetFreePort(8000);
@@ -99,18 +116,26 @@ namespace ClassCheck
             }
 
             // 6. Active Health Check Polling (Wait until HTTP server is accepting requests)
-            bool isHealthy = WaitForServerReady(assignedPort, 15);
+            bool isHealthy = WaitForServerReady(assignedPort, 20);
             if (!isHealthy)
             {
-                string errorDetails = "Server did not respond within 15 seconds.";
+                string errorDetails = "Server did not respond within 20 seconds.";
                 if (File.Exists(serverLogFile))
                 {
                     try
                     {
-                        string logs = File.ReadAllText(serverLogFile).Trim();
-                        if (!string.IsNullOrEmpty(logs))
+                        string[] lines = File.ReadAllLines(serverLogFile);
+                        var filtered = new System.Collections.Generic.List<string>();
+                        foreach (string line in lines)
                         {
-                            errorDetails = logs;
+                            if (!line.Contains("Accepted") && !line.Contains("Closing") && !line.Contains("Development Server") && !line.Contains("forking is not supported"))
+                            {
+                                filtered.Add(line);
+                            }
+                        }
+                        if (filtered.Count > 0)
+                        {
+                            errorDetails = string.Join(Environment.NewLine, filtered);
                         }
                     }
                     catch { }
@@ -206,6 +231,7 @@ namespace ClassCheck
                 {
                     string defaultEnv = "APP_NAME=ClassCheck\n" +
                                        "APP_ENV=production\n" +
+                                       "APP_OFFLINE=true\n" +
                                        "APP_KEY=base64:7K0bE2q5Qv7X6g9r8+t1uF2w3x4y5z6a7b8c9d0e1f2=\n" +
                                        "APP_DEBUG=false\n" +
                                        "APP_URL=http://127.0.0.1:" + assignedPort + "\n" +
@@ -227,7 +253,17 @@ namespace ClassCheck
                 {
                     string defaultServerScript = "<?php\n" +
                         "$uri = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '');\n" +
-                        "if ($uri !== '/' && file_exists(__DIR__.'/public'.$uri)) { return false; }\n" +
+                        "if ($uri !== '/' && file_exists(__DIR__.'/public'.$uri) && !is_dir(__DIR__.'/public'.$uri)) { return false; }\n" +
+                        "if (str_starts_with($uri, '/storage/')) {\n" +
+                        "    $storageFile = __DIR__.'/storage/app/public/'.substr($uri, 9);\n" +
+                        "    if (file_exists($storageFile) && !is_dir($storageFile)) {\n" +
+                        "        $mime = mime_content_type($storageFile) ?: 'application/octet-stream';\n" +
+                        "        header('Content-Type: '.$mime);\n" +
+                        "        header('Content-Length: '.filesize($storageFile));\n" +
+                        "        readfile($storageFile);\n" +
+                        "        exit;\n" +
+                        "    }\n" +
+                        "}\n" +
                         "require_once __DIR__.'/public/index.php';\n";
                     File.WriteAllText(serverScript, defaultServerScript);
                 }
@@ -248,15 +284,31 @@ namespace ClassCheck
         {
             try
             {
+                string phpArgs;
+                if (File.Exists(phpIni) && Directory.Exists(extDir))
+                {
+                    phpArgs = string.Format("-c \"{0}\" -d extension_dir=\"{1}\" \"{2}\" {3}", phpIni, extDir, artisanScript, args);
+                }
+                else
+                {
+                    phpArgs = string.Format("\"{0}\" {1}", artisanScript, args);
+                }
+
                 ProcessStartInfo psi = new ProcessStartInfo
                 {
                     FileName = phpExe,
-                    Arguments = string.Format("\"{0}\" {1}", artisanScript, args),
+                    Arguments = phpArgs,
                     WorkingDirectory = appRoot,
                     CreateNoWindow = true,
                     UseShellExecute = false,
                     WindowStyle = ProcessWindowStyle.Hidden
                 };
+
+                string currentPath = Environment.GetEnvironmentVariable("PATH") ?? "";
+                psi.EnvironmentVariables["PATH"] = phpDir + ";" + extDir + ";" + currentPath;
+                psi.EnvironmentVariables["APP_ENV"] = "production";
+                psi.EnvironmentVariables["APP_OFFLINE"] = "true";
+
                 using (Process p = Process.Start(psi))
                 {
                     p.WaitForExit(30000);
@@ -275,16 +327,24 @@ namespace ClassCheck
                 string logsDir = Path.Combine(appRoot, "storage", "logs");
                 if (!Directory.Exists(logsDir)) Directory.CreateDirectory(logsDir);
 
-                // Run PHP built-in server directly using router script server.php
+                // Run PHP built-in server directly with document root set to public/ and router script server.php
+                string publicDir = Path.Combine(appRoot, "public");
+                if (!Directory.Exists(publicDir)) Directory.CreateDirectory(publicDir);
+
+                string phpArgsPrefix = "";
+                if (File.Exists(phpIni) && Directory.Exists(extDir))
+                {
+                    phpArgsPrefix = string.Format("-c \"{0}\" -d extension_dir=\"{1}\" ", phpIni, extDir);
+                }
+
                 string arguments;
                 if (File.Exists(serverScript))
                 {
-                    arguments = string.Format("-S 127.0.0.1:{0} \"{1}\"", assignedPort, serverScript);
+                    arguments = string.Format("{0}-S 127.0.0.1:{1} -t \"{2}\" \"{3}\"", phpArgsPrefix, assignedPort, publicDir, serverScript);
                 }
                 else
                 {
-                    string publicDir = Path.Combine(appRoot, "public");
-                    arguments = string.Format("-S 127.0.0.1:{0} -t \"{1}\"", assignedPort, publicDir);
+                    arguments = string.Format("{0}-S 127.0.0.1:{1} -t \"{2}\"", phpArgsPrefix, assignedPort, publicDir);
                 }
 
                 ProcessStartInfo psi = new ProcessStartInfo
@@ -299,8 +359,11 @@ namespace ClassCheck
                     RedirectStandardOutput = true
                 };
 
-                // Add necessary environment variables
+                // Add necessary environment variables and DLL paths
+                string currentPath = Environment.GetEnvironmentVariable("PATH") ?? "";
+                psi.EnvironmentVariables["PATH"] = phpDir + ";" + extDir + ";" + currentPath;
                 psi.EnvironmentVariables["APP_ENV"] = "production";
+                psi.EnvironmentVariables["APP_OFFLINE"] = "true";
                 psi.EnvironmentVariables["APP_URL"] = "http://127.0.0.1:" + assignedPort;
 
                 phpProcess = new Process();
@@ -335,6 +398,59 @@ namespace ClassCheck
             }
         }
 
+        private static void KillOrphanedPhpProcesses()
+        {
+            try
+            {
+                Process[] procs = Process.GetProcessesByName("php");
+                foreach (Process p in procs)
+                {
+                    try
+                    {
+                        string processPath = p.MainModule != null ? p.MainModule.FileName : "";
+                        if (!string.IsNullOrEmpty(processPath) && processPath.StartsWith(appRoot, StringComparison.OrdinalIgnoreCase))
+                        {
+                            p.Kill();
+                            p.WaitForExit(1000);
+                        }
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+        }
+
+        private static bool IsServerAlive(string url)
+        {
+            try
+            {
+                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+                request.Method = "GET";
+                request.Timeout = 2000;
+                request.ReadWriteTimeout = 2000;
+                request.AllowAutoRedirect = false;
+                request.KeepAlive = false;
+
+                using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
+                {
+                    return ((int)response.StatusCode >= 200 && (int)response.StatusCode < 500);
+                }
+            }
+            catch (WebException wex)
+            {
+                HttpWebResponse errRes = wex.Response as HttpWebResponse;
+                if (errRes != null && (int)errRes.StatusCode < 500)
+                {
+                    return true;
+                }
+                return false;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private static bool WaitForServerReady(int port, int timeoutSeconds)
         {
             Stopwatch sw = Stopwatch.StartNew();
@@ -347,39 +463,12 @@ namespace ClassCheck
                     return false;
                 }
 
-                try
+                if (IsServerAlive(testUrl))
                 {
-                    HttpWebRequest request = (HttpWebRequest)WebRequest.Create(testUrl);
-                    request.Method = "GET";
-                    request.Timeout = 1000;
-                    request.ReadWriteTimeout = 1000;
-
-                    using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
-                    {
-                        if ((int)response.StatusCode >= 200 && (int)response.StatusCode < 400)
-                        {
-                            return true;
-                        }
-                    }
-                }
-                catch (WebException wex)
-                {
-                    HttpWebResponse errRes = wex.Response as HttpWebResponse;
-                    if (errRes != null)
-                    {
-                        // Even a 404 or 302 means the server is UP and responding to HTTP
-                        if ((int)errRes.StatusCode < 500)
-                        {
-                            return true;
-                        }
-                    }
-                }
-                catch
-                {
-                    // Socket not yet accepting, sleep and retry
+                    return true;
                 }
 
-                Thread.Sleep(150);
+                Thread.Sleep(200);
             }
 
             return false;
@@ -437,10 +526,17 @@ namespace ClassCheck
         {
             try
             {
+                Icon appIcon = null;
+                try
+                {
+                    appIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+                }
+                catch { }
+
                 trayIcon = new NotifyIcon
                 {
                     Text = "ClassCheck (Running on http://127.0.0.1:" + assignedPort + ")",
-                    Icon = SystemIcons.Application,
+                    Icon = appIcon ?? SystemIcons.Application,
                     Visible = true
                 };
 

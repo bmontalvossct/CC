@@ -29,7 +29,7 @@ import {
     Users,
     X,
 } from 'lucide-vue-next';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 
 type Member = {
     id: number;
@@ -102,10 +102,17 @@ const showDeleteModal = ref(false);
 const isDeleting = ref(false);
 const activeGroupForMember = ref<Group | null>(null);
 const memberSearchQuery = ref('');
+const selectedStudentIds = ref<number[]>([]);
+const isAddingMembers = ref(false);
 
 // Filter & Search for individual reporting
 const presenterSearchQuery = ref('');
 const presenterFilterTab = ref<'all' | 'has_topic' | 'needs_topic' | 'scored' | 'pending_score'>('all');
+
+// Filter & Search for group reporting & group activities
+const groupSearchQuery = ref('');
+const groupFilterTab = ref<'all' | 'scored' | 'pending_score'>('all');
+const groupSearchInputRef = ref<HTMLInputElement | null>(null);
 
 const confirmDeleteProject = () => {
     isDeleting.value = true;
@@ -132,9 +139,22 @@ const editForm = useForm({
     description: props.project.description || '',
     conducted_on: props.project.conducted_on || '',
     max_points: props.project.max_points || '',
+    group_count: props.project.groups.length || 4,
     attachment: null as File | null,
     _method: 'PUT',
 });
+
+const openEditModal = () => {
+    editForm.type = props.project.type;
+    editForm.format = props.project.format || 'group';
+    editForm.title = props.project.title;
+    editForm.description = props.project.description || '';
+    editForm.conducted_on = props.project.conducted_on || '';
+    editForm.max_points = props.project.max_points || '';
+    editForm.group_count = props.project.groups.length || 4;
+    editForm.attachment = null;
+    showEditModal.value = true;
+};
 
 // Add group form
 const addGroupForm = useForm({
@@ -314,6 +334,82 @@ const filteredPresenters = computed(() => {
         return true;
     });
 });
+
+// Check if a member matches groupSearchQuery
+const isMemberMatch = (member: Member): boolean => {
+    const q = groupSearchQuery.value.toLowerCase().trim();
+    if (!q) return false;
+    const name = (member.full_name || '').toLowerCase();
+    const num = (member.student_number || '').toLowerCase();
+    const seat = (member.seat_label || '').toLowerCase();
+    return name.includes(q) || num.includes(q) || seat.includes(q);
+};
+
+// Filter & Search for group reporting & group activities
+const filteredGroups = computed(() => {
+    if (props.project.format === 'individual') return props.project.groups;
+
+    return props.project.groups.filter((g) => {
+        const q = groupSearchQuery.value.toLowerCase().trim();
+
+        let matchesQuery = !q;
+        if (q) {
+            const groupName = (g.name || '').toLowerCase();
+            const topicText = (groupTopics.value[g.id] || g.topic || '').toLowerCase();
+            const descText = (groupDescriptions.value[g.id] || g.description || '').toLowerCase();
+            const matchesGroup = groupName.includes(q) || topicText.includes(q) || descText.includes(q);
+            const matchesMember = g.members.some((m) => isMemberMatch(m));
+            matchesQuery = matchesGroup || matchesMember;
+        }
+        if (!matchesQuery) return false;
+
+        const grpScore = groupScores.value[g.id];
+        const isGrpScored = grpScore !== '' && grpScore !== null && grpScore !== undefined;
+        const allMembersScored =
+            g.members.length > 0 &&
+            g.members.every((m) => {
+                const ms = memberScores.value[m.id];
+                return ms !== '' && ms !== null && ms !== undefined;
+            });
+        const isFullyScored = isGrpScored || allMembersScored;
+
+        if (groupFilterTab.value === 'scored') return isFullyScored;
+        if (groupFilterTab.value === 'pending_score') return !isFullyScored;
+
+        return true;
+    });
+});
+
+const focusFirstGroupMatch = () => {
+    const q = groupSearchQuery.value.toLowerCase().trim();
+    if (!q) return;
+    for (const group of filteredGroups.value) {
+        for (const member of group.members) {
+            if (isMemberMatch(member)) {
+                nextTick(() => {
+                    const el = memberScoreInputs.get(member.id);
+                    if (el) {
+                        el.focus();
+                        el.select();
+                    }
+                });
+                return;
+            }
+        }
+        const el = groupScoreInputs.get(group.id);
+        if (el) {
+            el.focus();
+            el.select();
+            return;
+        }
+    }
+};
+
+const clearGroupFilters = () => {
+    groupSearchQuery.value = '';
+    groupFilterTab.value = 'all';
+    groupSearchInputRef.value?.focus();
+};
 
 // Compute distribution preview for randomization
 const distributionPreview = computed(() => {
@@ -575,18 +671,64 @@ const deleteGroup = (group: Group) => {
     }
 };
 
-// Add student to group
-const addStudentToGroup = (studentId: number, group: Group) => {
+// Modal Open/Close helpers
+const openAddMemberModal = (group: Group) => {
+    activeGroupForMember.value = group;
+    selectedStudentIds.value = [];
+    memberSearchQuery.value = '';
+};
+
+const closeAddMemberModal = () => {
+    activeGroupForMember.value = null;
+    selectedStudentIds.value = [];
+    memberSearchQuery.value = '';
+};
+
+// Selection helpers
+const toggleStudentSelection = (studentId: number) => {
+    const idx = selectedStudentIds.value.indexOf(studentId);
+    if (idx > -1) {
+        selectedStudentIds.value.splice(idx, 1);
+    } else {
+        selectedStudentIds.value.push(studentId);
+    }
+};
+
+const isAllFilteredSelected = computed(() => {
+    if (!filteredUnassigned.value.length) return false;
+    return filteredUnassigned.value.every((s) => selectedStudentIds.value.includes(s.id));
+});
+
+const toggleSelectAllFiltered = () => {
+    const filteredIds = filteredUnassigned.value.map((s) => s.id);
+    if (isAllFilteredSelected.value) {
+        selectedStudentIds.value = selectedStudentIds.value.filter((id) => !filteredIds.includes(id));
+    } else {
+        const toAdd = filteredIds.filter((id) => !selectedStudentIds.value.includes(id));
+        selectedStudentIds.value.push(...toAdd);
+    }
+};
+
+const clearSelectedStudents = () => {
+    selectedStudentIds.value = [];
+};
+
+// Add selected students to group
+const submitAddMembers = () => {
+    if (!activeGroupForMember.value || !selectedStudentIds.value.length || isAddingMembers.value) return;
+    isAddingMembers.value = true;
     router.post(
-        `/sections/${props.section.id}/projects/${props.project.id}/groups/${group.id}/members`,
+        `/sections/${props.section.id}/projects/${props.project.id}/groups/${activeGroupForMember.value.id}/members`,
         {
-            student_id: studentId,
+            student_ids: selectedStudentIds.value,
         },
         {
             preserveScroll: true,
             onSuccess: () => {
-                activeGroupForMember.value = null;
-                memberSearchQuery.value = '';
+                closeAddMemberModal();
+            },
+            onFinish: () => {
+                isAddingMembers.value = false;
             },
         },
     );
@@ -691,77 +833,91 @@ const filteredUnassigned = computed(() => {
                         </h1>
                     </div>
 
-                    <!-- Action Buttons Toolbar -->
-                    <div class="flex shrink-0 flex-wrap items-center gap-2.5">
+                    <!-- Action Buttons Toolbar (Icon-only by default, expand on hover) -->
+                    <div class="flex shrink-0 flex-wrap items-center gap-2">
                         <!-- PROMINENT SAVE ALL BUTTON -->
                         <button
                             type="button"
-                            class="ink-button !h-10 gap-2 !rounded-xl shadow-sm transition-all"
+                            class="ink-button group !h-10 !rounded-xl !px-3.5 shadow-sm transition-all duration-300"
                             :class="{ '!bg-emerald-600 !text-white': savedAllSuccess }"
                             :disabled="savingAll"
                             title="Save all topics and scores across all presenters (Ctrl+S)"
                             @click="saveAll"
                         >
-                            <LoaderCircle v-if="savingAll" class="size-4 animate-spin" />
-                            <Check v-else-if="savedAllSuccess" class="size-4" />
-                            <Save v-else class="size-4" />
-                            <span class="font-bold">{{
+                            <LoaderCircle v-if="savingAll" class="size-4 shrink-0 animate-spin" />
+                            <Check v-else-if="savedAllSuccess" class="size-4 shrink-0" />
+                            <Save v-else class="size-4 shrink-0" />
+                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 font-bold">{{
                                 savingAll ? 'Saving All…' : savedAllSuccess ? 'All Saved!' : 'Save All Topics & Scores'
                             }}</span>
-                            <span class="hidden rounded bg-black/20 px-1.5 py-0.5 font-mono text-[10px] sm:inline-block">Ctrl+S</span>
+                        </button>
+
+                        <button
+                            v-if="project.attachment_path"
+                            type="button"
+                            class="shadow-xs group inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-primary/40 bg-primary/10 px-3 text-xs font-semibold text-primary transition-all duration-300 hover:bg-primary hover:text-white"
+                            :title="`Preview: ${project.attachment_name || 'Attachment'}`"
+                            @click="showPreviewModal = true"
+                        >
+                            <Paperclip class="size-4 shrink-0" />
+                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-64 group-hover:opacity-100 group-hover:ml-1.5">Preview: {{ project.attachment_name || 'Attachment' }}</span>
                         </button>
 
                         <button
                             v-if="project.format !== 'individual'"
-                            class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            class="shadow-xs group inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-primary bg-white px-3 text-xs font-medium text-primary transition-all duration-300 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            title="Randomize members"
                             @click="showRandomizeModal = true"
                         >
-                            <Dices class="size-4 text-primary transition-colors group-hover:text-white" />
-                            <span>Randomize members</span>
+                            <Dices class="size-4 shrink-0 text-primary transition-colors group-hover:text-white" />
+                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">Randomize members</span>
                         </button>
 
                         <button
                             v-if="project.format !== 'individual'"
-                            class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-3.5 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            class="shadow-xs group inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-primary bg-white px-3 text-xs font-medium text-primary transition-all duration-300 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            title="Add group"
                             @click="showAddGroupModal = true"
                         >
-                            <Plus class="size-4 text-primary transition-colors group-hover:text-white" />
-                            <span>Add group</span>
+                            <Plus class="size-4 shrink-0 text-primary transition-colors group-hover:text-white" />
+                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">Add group</span>
                         </button>
 
                         <a
                             :href="`/sections/${section.id}/projects/${project.id}/export`"
-                            class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-3.5 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            class="shadow-xs group inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-primary bg-white px-3 text-xs font-medium text-primary transition-all duration-300 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             title="Export topics, members, and scores to CSV"
                         >
-                            <Download class="size-4 text-primary transition-colors group-hover:text-white" />
-                            <span>Export CSV</span>
+                            <Download class="size-4 shrink-0 text-primary transition-colors group-hover:text-white" />
+                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">Export CSV</span>
                         </a>
 
                         <a
                             :href="`/sections/${section.id}/projects/${project.id}/print`"
                             target="_blank"
-                            class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-3.5 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            class="shadow-xs group inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-primary bg-white px-3 text-xs font-medium text-primary transition-all duration-300 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             title="Print presentation roster and grading sheet"
                         >
-                            <Printer class="size-4 text-primary transition-colors group-hover:text-white" />
-                            <span>Print</span>
+                            <Printer class="size-4 shrink-0 text-primary transition-colors group-hover:text-white" />
+                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">Print</span>
                         </a>
 
                         <button
-                            class="shadow-xs group inline-flex h-10 items-center justify-center rounded-xl border border-primary bg-white px-3 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            class="shadow-xs group inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-primary bg-white px-3 text-xs font-medium text-primary transition-all duration-300 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             title="Edit project details"
-                            @click="showEditModal = true"
+                            @click="openEditModal"
                         >
-                            <Edit3 class="size-4 text-primary transition-colors group-hover:text-white" />
+                            <Edit3 class="size-4 shrink-0 text-primary transition-colors group-hover:text-white" />
+                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">Edit</span>
                         </button>
 
                         <button
-                            class="shadow-xs group inline-flex h-10 items-center justify-center rounded-xl border border-rose-600 bg-white px-3 text-sm font-medium text-rose-700 transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            class="shadow-xs group inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-rose-600 bg-white px-3 text-xs font-medium text-rose-700 transition-all duration-300 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             :title="`Delete ${project.type}`"
                             @click="deleteProject"
                         >
-                            <Trash2 class="size-4 text-rose-700 transition-colors group-hover:text-white" />
+                            <Trash2 class="size-4 shrink-0 text-rose-700 transition-colors group-hover:text-white" />
+                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 capitalize">Delete</span>
                         </button>
                     </div>
                 </div>
@@ -1047,7 +1203,7 @@ const filteredUnassigned = computed(() => {
                                 <div
                                     class="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold uppercase text-primary"
                                 >
-                                    {{ group.members[0]?.first_name?.[0] || 'S' }}{{ group.members[0]?.last_name?.[0] || '' }}
+                                    {{ group.members[0]?.last_name?.[0] || group.members[0]?.first_name?.[0] || 'S' }}{{ group.members[0]?.last_name ? (group.members[0]?.first_name?.[0] || '') : '' }}
                                 </div>
 
                                 <div class="min-w-0 flex-1">
@@ -1176,8 +1332,92 @@ const filteredUnassigned = computed(() => {
                     </div>
                 </div>
 
+                <!-- Search & Filters Toolbar for Groups -->
+                <div v-if="project.groups.length" class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div class="relative w-full md:max-w-md">
+                        <Search class="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                        <input
+                            ref="groupSearchInputRef"
+                            v-model="groupSearchQuery"
+                            type="text"
+                            placeholder="Search student name, ID, group name, or topic..."
+                            class="w-full rounded-xl border border-input bg-card py-2 pl-10 pr-9 text-xs font-medium text-foreground focus-visible:ring-2 focus-visible:ring-primary"
+                            @keydown.enter.prevent="focusFirstGroupMatch"
+                            @keydown.esc="clearGroupFilters"
+                        />
+                        <button
+                            v-if="groupSearchQuery"
+                            type="button"
+                            class="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:text-foreground"
+                            @click="clearGroupFilters"
+                        >
+                            <X class="size-3.5" />
+                        </button>
+                    </div>
+
+                    <!-- Quick Filter Tabs -->
+                    <div class="flex flex-wrap items-center gap-1.5">
+                        <button
+                            type="button"
+                            class="rounded-lg px-3 py-1.5 text-xs font-bold transition-colors"
+                            :class="
+                                groupFilterTab === 'all'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'border border-border bg-card text-muted-foreground hover:bg-secondary'
+                            "
+                            @click="groupFilterTab = 'all'"
+                        >
+                            All ({{ project.groups.length }})
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-lg px-3 py-1.5 text-xs font-bold transition-colors"
+                            :class="
+                                groupFilterTab === 'scored'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'border border-border bg-card text-muted-foreground hover:bg-secondary'
+                            "
+                            @click="groupFilterTab = 'scored'"
+                        >
+                            Scored
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-lg px-3 py-1.5 text-xs font-bold transition-colors"
+                            :class="
+                                groupFilterTab === 'pending_score'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'border border-border bg-card text-muted-foreground hover:bg-secondary'
+                            "
+                            @click="groupFilterTab = 'pending_score'"
+                        >
+                            Pending Score
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Empty Search Results in Groups -->
+                <div
+                    v-if="project.groups.length && !filteredGroups.length"
+                    class="paper-card rounded-2xl border border-dashed p-10 text-center"
+                >
+                    <Search class="mx-auto size-8 text-muted-foreground/60" />
+                    <h3 class="mt-3 text-base font-bold text-foreground">No matching groups or students found</h3>
+                    <p class="mt-1 text-xs text-muted-foreground">
+                        No groups or student members match "{{ groupSearchQuery }}".
+                    </p>
+                    <button
+                        type="button"
+                        class="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-primary hover:bg-secondary"
+                        @click="clearGroupFilters"
+                    >
+                        <X class="size-3.5" />
+                        <span>Clear search & show all</span>
+                    </button>
+                </div>
+
                 <!-- Empty State -->
-                <div v-if="!project.groups.length" class="paper-card rounded-2xl border-2 border-dashed p-14 text-center">
+                <div v-else-if="!project.groups.length" class="paper-card rounded-2xl border-2 border-dashed p-14 text-center">
                     <FolderKanban class="mx-auto size-12 text-muted-foreground/60" />
                     <h3 class="mt-4 text-xl font-bold text-foreground">No groups created yet</h3>
                     <p class="mx-auto mt-1.5 max-w-md text-sm text-muted-foreground">
@@ -1201,7 +1441,7 @@ const filteredUnassigned = computed(() => {
                 <!-- Groups Grid / List -->
                 <div v-else class="space-y-5">
                     <div
-                        v-for="group in project.groups"
+                        v-for="group in filteredGroups"
                         :key="group.id"
                         class="paper-card overflow-hidden rounded-2xl border border-border/80 p-0 shadow-sm transition-all hover:border-primary/40"
                     >
@@ -1259,7 +1499,7 @@ const filteredUnassigned = computed(() => {
                             <div class="flex items-center gap-2">
                                 <button
                                     class="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-secondary"
-                                    @click="activeGroupForMember = group"
+                                    @click="openAddMemberModal(group)"
                                 >
                                     <UserPlus class="size-3.5 text-primary" />
                                     <span>Add member</span>
@@ -1298,7 +1538,12 @@ const filteredUnassigned = computed(() => {
                                     <div
                                         v-for="(member, idx) in group.members"
                                         :key="member.id"
-                                        class="group/member flex items-center justify-between rounded-xl border border-border/70 bg-background/60 p-2.5 text-xs transition-colors hover:bg-secondary/40"
+                                        class="group/member flex items-center justify-between rounded-xl border p-2.5 text-xs transition-all hover:bg-secondary/40"
+                                        :class="[
+                                            isMemberMatch(member)
+                                                ? 'border-primary bg-primary/10 ring-1 ring-primary/40'
+                                                : 'border-border/70 bg-background/60',
+                                        ]"
                                     >
                                         <div class="flex min-w-0 items-center gap-2.5">
                                             <span class="w-4 text-right font-mono text-[10px] font-bold text-muted-foreground/70">
@@ -1307,12 +1552,20 @@ const filteredUnassigned = computed(() => {
                                             <div
                                                 class="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold uppercase text-primary"
                                             >
-                                                {{ member.first_name?.[0] || 'S' }}{{ member.last_name?.[0] || '' }}
+                                                {{ member.last_name?.[0] || member.first_name?.[0] || 'S' }}{{ member.last_name ? (member.first_name?.[0] || '') : '' }}
                                             </div>
                                             <div class="min-w-0">
-                                                <p class="truncate font-semibold text-foreground">
-                                                    {{ member.full_name }}
-                                                </p>
+                                                <div class="flex items-center gap-1.5">
+                                                    <p class="truncate font-semibold text-foreground">
+                                                        {{ member.full_name }}
+                                                    </p>
+                                                    <span
+                                                        v-if="isMemberMatch(member)"
+                                                        class="rounded bg-primary/20 px-1.5 py-0.5 font-mono text-[9px] font-bold text-primary"
+                                                    >
+                                                        Match
+                                                    </span>
+                                                </div>
                                                 <p class="flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
                                                     <span>{{ member.student_number }}</span>
                                                     <span v-if="member.seat_label" class="font-medium text-primary">· {{ member.seat_label }}</span>
@@ -1692,28 +1945,84 @@ const filteredUnassigned = computed(() => {
         <!-- ADD MEMBER TO GROUP MODAL -->
         <div
             v-if="activeGroupForMember"
+            v-modal-focus
             class="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm duration-150 animate-in fade-in"
         >
-            <div class="paper-card w-full max-w-md space-y-4 p-6 shadow-2xl">
+            <div class="paper-card w-full max-w-lg space-y-4 p-6 shadow-2xl">
                 <div class="flex items-center justify-between border-b border-border/80 pb-3">
                     <div>
-                        <h3 class="text-base font-bold text-foreground">Add Student to {{ activeGroupForMember.name }}</h3>
-                        <p class="text-xs text-muted-foreground">Select a student from the section roster</p>
+                        <h3 class="text-base font-bold text-foreground">Add Students to {{ activeGroupForMember.name }}</h3>
+                        <p class="text-xs text-muted-foreground">Select one or more students to assign to this group</p>
                     </div>
-                    <button class="text-muted-foreground hover:text-foreground" @click="activeGroupForMember = null">
+                    <button class="text-muted-foreground hover:text-foreground" @click="closeAddMemberModal">
                         <X class="size-5" />
                     </button>
                 </div>
 
                 <div class="space-y-3">
-                    <input
-                        v-model="memberSearchQuery"
-                        type="text"
-                        placeholder="Search unassigned student by name or ID..."
-                        class="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs font-medium focus-visible:ring-2 focus-visible:ring-primary"
-                    />
+                    <!-- Search Input -->
+                    <div class="relative">
+                        <Search class="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                        <input
+                            v-model="memberSearchQuery"
+                            type="text"
+                            placeholder="Search unassigned student by name or ID..."
+                            class="w-full rounded-xl border border-input bg-background py-2 pl-9 pr-8 text-xs font-medium focus-visible:ring-2 focus-visible:ring-primary"
+                        />
+                        <button
+                            v-if="memberSearchQuery"
+                            type="button"
+                            class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            @click="memberSearchQuery = ''"
+                        >
+                            <X class="size-3.5" />
+                        </button>
+                    </div>
 
-                    <div class="max-h-60 space-y-1.5 overflow-y-auto pr-1">
+                    <!-- Multi-select Action Bar -->
+                    <div class="flex items-center justify-between rounded-lg bg-secondary/50 px-3 py-1.5 text-xs">
+                        <div class="flex items-center gap-2">
+                            <button
+                                v-if="filteredUnassigned.length > 0"
+                                type="button"
+                                class="inline-flex items-center gap-1.5 font-semibold text-foreground hover:text-primary"
+                                @click="toggleSelectAllFiltered"
+                            >
+                                <span
+                                    class="flex size-4 items-center justify-center rounded border transition-colors"
+                                    :class="
+                                        isAllFilteredSelected
+                                            ? 'border-primary bg-primary text-primary-foreground'
+                                            : 'border-muted-foreground/50 bg-background'
+                                    "
+                                >
+                                    <Check v-if="isAllFilteredSelected" class="size-3 stroke-[3]" />
+                                </span>
+                                <span>{{ isAllFilteredSelected ? 'Deselect All' : `Select All (${filteredUnassigned.length})` }}</span>
+                            </button>
+                            <span v-else class="text-muted-foreground">0 available</span>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <span
+                                v-if="selectedStudentIds.length > 0"
+                                class="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-bold text-primary"
+                            >
+                                {{ selectedStudentIds.length }} selected
+                            </span>
+                            <button
+                                v-if="selectedStudentIds.length > 0"
+                                type="button"
+                                class="text-[11px] font-medium text-muted-foreground hover:text-foreground hover:underline"
+                                @click="clearSelectedStudents"
+                            >
+                                Clear
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Student List -->
+                    <div class="max-h-64 space-y-1.5 overflow-y-auto pr-1">
                         <div v-if="!filteredUnassigned.length" class="py-8 text-center text-xs text-muted-foreground">
                             {{
                                 unassignedStudents.length
@@ -1722,32 +2031,84 @@ const filteredUnassigned = computed(() => {
                             }}
                         </div>
 
-                        <button
+                        <div
                             v-for="student in filteredUnassigned"
                             :key="student.id"
-                            type="button"
-                            class="flex w-full items-center justify-between rounded-xl border border-border/70 bg-card p-2.5 text-left text-xs transition-colors hover:border-primary/50 hover:bg-secondary"
-                            @click="addStudentToGroup(student.id, activeGroupForMember!)"
+                            role="checkbox"
+                            :aria-checked="selectedStudentIds.includes(student.id)"
+                            tabindex="0"
+                            class="flex w-full cursor-pointer select-none items-center justify-between rounded-xl border p-2.5 text-left text-xs transition-all"
+                            :class="
+                                selectedStudentIds.includes(student.id)
+                                    ? 'border-primary bg-primary/10 shadow-xs ring-1 ring-primary/40'
+                                    : 'border-border/70 bg-card hover:border-primary/40 hover:bg-secondary/70'
+                            "
+                            @click="toggleStudentSelection(student.id)"
+                            @keydown.space.prevent="toggleStudentSelection(student.id)"
+                            @keydown.enter.prevent="toggleStudentSelection(student.id)"
                         >
-                            <div>
-                                <p class="font-bold text-foreground">{{ student.full_name }}</p>
-                                <p class="font-mono text-[10px] text-muted-foreground">
-                                    {{ student.student_number }}
-                                    <span v-if="student.seat_label">· Chair {{ student.seat_label }}</span>
-                                </p>
+                            <div class="flex min-w-0 items-center gap-3">
+                                <!-- Checkbox Indicator -->
+                                <div
+                                    class="flex size-4.5 shrink-0 items-center justify-center rounded-md border transition-colors"
+                                    :class="
+                                        selectedStudentIds.includes(student.id)
+                                            ? 'border-primary bg-primary text-primary-foreground'
+                                            : 'border-muted-foreground/40 bg-background'
+                                    "
+                                >
+                                    <Check v-if="selectedStudentIds.includes(student.id)" class="size-3 stroke-[3]" />
+                                </div>
+
+                                <div class="min-w-0">
+                                    <p
+                                        class="truncate font-bold text-foreground"
+                                        :class="{ 'text-primary': selectedStudentIds.includes(student.id) }"
+                                    >
+                                        {{ student.full_name }}
+                                    </p>
+                                    <p class="flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
+                                        <span>{{ student.student_number }}</span>
+                                        <span v-if="student.seat_label" class="font-medium text-primary">· Chair {{ student.seat_label }}</span>
+                                    </p>
+                                </div>
                             </div>
-                            <Plus class="size-4 text-primary" />
-                        </button>
+
+                            <span
+                                v-if="selectedStudentIds.includes(student.id)"
+                                class="rounded bg-primary/15 px-2 py-0.5 font-mono text-[10px] font-bold text-primary"
+                            >
+                                Selected
+                            </span>
+                        </div>
                     </div>
                 </div>
 
-                <div class="flex items-center justify-end border-t border-border/80 pt-3">
+                <div class="flex items-center justify-between border-t border-border/80 pt-3">
                     <button
                         type="button"
                         class="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
-                        @click="activeGroupForMember = null"
+                        :disabled="isAddingMembers"
+                        @click="closeAddMemberModal"
                     >
-                        Close
+                        Cancel
+                    </button>
+
+                    <button
+                        type="button"
+                        class="ink-button !h-9 !rounded-xl !px-4 text-xs font-bold"
+                        :disabled="!selectedStudentIds.length || isAddingMembers"
+                        @click="submitAddMembers"
+                    >
+                        <LoaderCircle v-if="isAddingMembers" class="size-3.5 animate-spin" />
+                        <UserPlus v-else class="size-3.5" />
+                        <span>
+                            {{
+                                selectedStudentIds.length === 0
+                                    ? 'Select Students to Add'
+                                    : `Add ${selectedStudentIds.length} Student${selectedStudentIds.length !== 1 ? 's' : ''}`
+                            }}
+                        </span>
                     </button>
                 </div>
             </div>
@@ -1841,6 +2202,27 @@ const filteredUnassigned = computed(() => {
                         </label>
                     </div>
 
+                    <label v-if="editForm.format !== 'individual'" class="block">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Number of Groups (Max Groups)</span>
+                            <span class="font-mono text-[11px] text-muted-foreground">Currently: {{ project.groups.length }} group{{ project.groups.length !== 1 ? 's' : '' }}</span>
+                        </div>
+                        <input
+                            v-model.number="editForm.group_count"
+                            type="number"
+                            min="1"
+                            max="50"
+                            class="mt-1 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
+                            placeholder="e.g. 4"
+                        />
+                        <p class="mt-1 text-[11px] text-muted-foreground">
+                            Adjusting group count will create new empty groups or remove trailing excess groups.
+                        </p>
+                        <small v-if="editForm.errors.group_count" class="mt-1 block text-xs font-semibold text-rose-600">{{
+                            editForm.errors.group_count
+                        }}</small>
+                    </label>
+
                     <label class="block">
                         <span class="text-xs font-bold uppercase tracking-wider text-muted-foreground"
                             >Attachment / Reference Guidelines
@@ -1858,7 +2240,7 @@ const filteredUnassigned = computed(() => {
                         </div>
                         <input
                             type="file"
-                            accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z,.rtf,.odt,.ods,.odp,.svg"
+                            accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z,.rtf,.odt,.ods,.odp,.svg,.json,.sql,.db,.sqlite,.sqlite3"
                             class="mt-1 block w-full text-xs text-muted-foreground file:mr-2 file:rounded-lg file:border file:border-border file:bg-secondary file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-foreground hover:file:bg-secondary/80"
                             @change="editForm.attachment = ($event.target as HTMLInputElement).files?.[0] || null"
                         />
@@ -1903,8 +2285,8 @@ const filteredUnassigned = computed(() => {
         <!-- Delete Project Confirmation Modal -->
         <div
             v-if="showDeleteModal"
+            v-modal-focus
             class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-zinc-950/70 p-4 backdrop-blur-md duration-200 animate-in fade-in"
-            @click.self="showDeleteModal = false"
         >
             <div
                 class="paper-card relative w-full max-w-lg border-border/90 p-6 shadow-2xl duration-200 animate-in zoom-in-95"

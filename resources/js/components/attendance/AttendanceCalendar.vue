@@ -247,6 +247,16 @@ const sessionStudentsBreakdown = computed(() => {
         }
     }
 
+    const sortByLastName = (a: Student, b: Student) => {
+        const nameA = formatStudentDisplayName(a).toLowerCase();
+        const nameB = formatStudentDisplayName(b).toLowerCase();
+        return nameA.localeCompare(nameB);
+    };
+
+    present.sort(sortByLastName);
+    late.sort(sortByLastName);
+    absent.sort(sortByLastName);
+
     return { present, late, absent };
 });
 
@@ -505,10 +515,10 @@ const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
         <!-- Delete Session Confirmation Modal -->
         <div
             v-if="sessionToDelete"
+            v-modal-focus
             class="backdrop-blur-xs fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
             role="dialog"
             aria-modal="true"
-            @click.self="sessionToDelete = null"
         >
             <div class="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in-95">
                 <div class="flex items-center gap-3">

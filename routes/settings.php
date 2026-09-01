@@ -13,6 +13,7 @@ Route::middleware('auth')->group(function () {
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('settings/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
+    Route::redirect('settings/academic-terms', 'settings/academic-term');
     Route::get('settings/academic-term', [AcademicTermSettingsController::class, 'edit'])->name('academic-term.edit');
     Route::put('settings/academic-term', [AcademicTermSettingsController::class, 'update'])->name('academic-term.update');
     Route::post('settings/academic-term/{term}/make-current', [AcademicTermSettingsController::class, 'makeCurrent'])->name('academic-term.make-current');

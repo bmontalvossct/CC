@@ -336,8 +336,8 @@ const printSlip = () => {
 <template>
     <div
         v-if="open && student"
+        v-modal-focus
         class="fixed inset-0 z-50 grid place-items-center bg-zinc-950/75 p-4 backdrop-blur-sm duration-200 animate-in fade-in print:static print:bg-transparent print:p-0"
-        @click.self="emit('close')"
     >
         <div
             class="paper-card relative flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden border border-border/90 bg-card p-6 shadow-2xl duration-200 animate-in zoom-in-95 print:max-h-none print:border-none print:shadow-none"
@@ -538,10 +538,12 @@ const printSlip = () => {
                                                     ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400'
                                                     : item.type === 'quiz'
                                                       ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                                                      : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                                      : item.type === 'laboratory'
+                                                        ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400'
+                                                        : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                                             "
                                         >
-                                            {{ item.type }}
+                                            {{ item.type === 'laboratory' ? 'Lab' : item.type }}
                                         </span>
                                         <span class="font-semibold text-foreground">{{ item.title }}</span>
                                     </div>
@@ -619,10 +621,12 @@ const printSlip = () => {
                                                     ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400'
                                                     : item.type === 'quiz'
                                                       ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                                                      : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                                      : item.type === 'laboratory'
+                                                        ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400'
+                                                        : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                                             "
                                         >
-                                            {{ item.type }}
+                                            {{ item.type === 'laboratory' ? 'Lab' : item.type }}
                                         </span>
                                         <span class="font-semibold text-foreground">{{ item.title }}</span>
                                     </div>
