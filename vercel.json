@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "regions": ["sin1"],
   "services": {
-    "app": {
+    "classcheck": {
       "root": ".",
       "entrypoint": "Dockerfile.vercel",
       "runtime": "container"
@@ -12,7 +12,7 @@
     {
       "source": "/(.*)",
       "destination": {
-        "service": "app"
+        "service": "classcheck"
       }
     }
   ],
