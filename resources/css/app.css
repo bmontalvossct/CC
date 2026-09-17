@@ -1,0 +1,117 @@
+@import '@fontsource/atkinson-hyperlegible/400.css';
+@import '@fontsource/atkinson-hyperlegible/700.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body,
+html {
+    --font-sans: 'Atkinson Hyperlegible', ui-sans-serif, sans-serif;
+}
+
+@layer base {
+    :root {
+        --background: 43 45% 96%;
+        --foreground: 158 28% 15%;
+        --card: 44 57% 98%;
+        --card-foreground: 158 28% 15%;
+        --popover: 44 57% 98%;
+        --popover-foreground: 158 28% 15%;
+        --primary: 164 38% 15%;
+        --primary-foreground: 43 100% 96%;
+        --secondary: 42 37% 90%;
+        --secondary-foreground: 158 28% 15%;
+        --muted: 40 28% 91%;
+        --muted-foreground: 43 10% 42%;
+        --accent: 42 86% 66%;
+        --accent-foreground: 158 28% 15%;
+        --destructive: 10 63% 48%;
+        --destructive-foreground: 40 100% 98%;
+        --border: 41 23% 81%;
+        --input: 41 23% 81%;
+        --ring: 164 38% 25%;
+        --radius: 0.85rem;
+        --sidebar-background: 43 45% 96%;
+        --sidebar-foreground: 158 20% 25%;
+        --sidebar-primary: 164 38% 15%;
+        --sidebar-primary-foreground: 43 100% 96%;
+        --sidebar-accent: 42 37% 90%;
+        --sidebar-accent-foreground: 158 28% 15%;
+        --sidebar-border: 41 23% 81%;
+        --sidebar-ring: 164 38% 25%;
+    }
+
+    .dark {
+        --background: 158 23% 10%;
+        --foreground: 43 42% 92%;
+        --card: 158 22% 13%;
+        --card-foreground: 43 42% 92%;
+        --popover: 158 22% 13%;
+        --popover-foreground: 43 42% 92%;
+        --primary: 42 86% 66%;
+        --primary-foreground: 158 28% 12%;
+        --secondary: 158 18% 20%;
+        --secondary-foreground: 43 42% 92%;
+        --muted: 158 16% 18%;
+        --muted-foreground: 42 18% 68%;
+        --accent: 164 26% 25%;
+        --accent-foreground: 43 42% 92%;
+        --destructive: 10 62% 52%;
+        --destructive-foreground: 43 42% 96%;
+        --border: 158 15% 24%;
+        --input: 158 15% 24%;
+        --ring: 42 86% 66%;
+        --sidebar-background: 158 23% 11%;
+        --sidebar-foreground: 43 35% 88%;
+        --sidebar-primary: 42 86% 66%;
+        --sidebar-primary-foreground: 158 28% 12%;
+        --sidebar-accent: 158 18% 19%;
+        --sidebar-accent-foreground: 43 42% 92%;
+        --sidebar-border: 158 15% 24%;
+        --sidebar-ring: 42 86% 66%;
+    }
+
+    * {
+        @apply border-border;
+    }
+    html {
+        @apply scroll-smooth;
+    }
+    body {
+        @apply bg-background text-foreground antialiased;
+        background-image: radial-gradient(circle at 1px 1px, rgba(24, 53, 47, 0.06) 1px, transparent 0);
+        background-size: 22px 22px;
+    }
+    h1,
+    h2,
+    h3,
+    .font-display {
+        font-family: 'Atkinson Hyperlegible', ui-sans-serif, sans-serif;
+    }
+    :focus-visible {
+        @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+    }
+}
+
+@layer components {
+    .paper-card {
+        @apply rounded-[1.15rem] border border-[#d8d0bd] bg-[#fffdf7] shadow-[0_18px_45px_rgba(69,59,38,.08)] dark:border-[#355047] dark:bg-[#1a2a25];
+    }
+    .eyebrow {
+        @apply text-[11px] font-bold uppercase tracking-[.12em] text-[#a05a3b] dark:text-[#f4c65d];
+    }
+    .ink-button {
+        @apply inline-flex items-center justify-center gap-2 rounded-xl bg-[#18352f] px-4 py-2.5 font-bold text-[#fff8e8] shadow-[0_8px_18px_rgba(24,53,47,.18)] transition hover:-translate-y-0.5 hover:bg-[#244b42] dark:bg-[#f4c65d] dark:text-[#18352f];
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
+}

@@ -1,0 +1,2225 @@
+{
+    "meta": {
+        "manifest_schema_version": 1,
+        "annotation_schema_version": 1,
+        "scope": {
+            "complete": true,
+            "artifact_types": [
+                "commands",
+                "enums",
+                "events",
+                "form_requests",
+                "gates",
+                "jobs",
+                "listeners",
+                "livewire_components",
+                "mailables",
+                "middleware",
+                "models",
+                "observers",
+                "policies",
+                "routes",
+                "scheduled_tasks",
+                "service_providers",
+                "tests",
+                "validation_rules"
+            ]
+        },
+        "generated_at": "2026-08-11T09:35:10+08:00",
+        "content_hash": "881faab8a45ba845ff8c91be6632a74d820d44210cc335471562af187c94e7b7",
+        "necromancer_version": "1.7.1",
+        "laravel_version": "13.24.0",
+        "php_version": "8.3.14",
+        "app_name": "ClassCheck",
+        "app_url": "http:\/\/localhost",
+        "app_env": "local"
+    },
+    "artifacts": {
+        "form_requests": [
+            {
+                "id": "form_requests:App\\Http\\Requests\\Assessments\\StoreAssessmentRequest",
+                "class": "App\\Http\\Requests\\Assessments\\StoreAssessmentRequest",
+                "rules": {
+                    "type": "required|Illuminate\\Validation\\Rules\\In",
+                    "title": "required|string|max:255",
+                    "description": "nullable|string|max:5000",
+                    "conducted_on": "required|date",
+                    "max_points": "required|numeric|gt:0|max:99999999.99",
+                    "attendance_session_id": "nullable|integer|exists:attendance_sessions,id",
+                    "attachment": "nullable|file|max:10240|mimes:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx,ppt,pptx"
+                },
+                "source": {
+                    "file": "app\\Http\\Requests\\Assessments\\StoreAssessmentRequest.php",
+                    "line": 9,
+                    "line_end": 28,
+                    "hash": "7d94303dfb8293fad617bc8e0a55c85d"
+                }
+            },
+            {
+                "id": "form_requests:App\\Http\\Requests\\Assessments\\UpdateAssessmentRequest",
+                "class": "App\\Http\\Requests\\Assessments\\UpdateAssessmentRequest",
+                "rules": {
+                    "type": "sometimes|Illuminate\\Validation\\Rules\\In",
+                    "title": "sometimes|string|max:255",
+                    "description": "nullable|string|max:5000",
+                    "conducted_on": "sometimes|date",
+                    "max_points": "sometimes|numeric|gt:0|max:99999999.99",
+                    "attendance_session_id": "nullable|integer|exists:attendance_sessions,id",
+                    "attachment": "nullable|file|max:10240|mimes:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx,ppt,pptx"
+                },
+                "source": {
+                    "file": "app\\Http\\Requests\\Assessments\\UpdateAssessmentRequest.php",
+                    "line": 5,
+                    "line_end": 14,
+                    "hash": "954c6cf08cdda1a60718eab9f14d1ce5"
+                }
+            },
+            {
+                "id": "form_requests:App\\Http\\Requests\\Assessments\\UpdateAssessmentScoreRequest",
+                "class": "App\\Http\\Requests\\Assessments\\UpdateAssessmentScoreRequest",
+                "rules": {
+                    "score": "present|nullable|numeric|min:0",
+                    "include_absent": "sometimes|boolean"
+                },
+                "source": {
+                    "file": "app\\Http\\Requests\\Assessments\\UpdateAssessmentScoreRequest.php",
+                    "line": 7,
+                    "line_end": 21,
+                    "hash": "a24067736ee56383f0a2f869fd072942"
+                }
+            },
+            {
+                "id": "form_requests:App\\Http\\Requests\\Attendance\\StoreAttendanceSessionRequest",
+                "class": "App\\Http\\Requests\\Attendance\\StoreAttendanceSessionRequest",
+                "rules": {
+                    "session_date": "required|date",
+                    "starts_at": "required|date_format:H:i|Illuminate\\Validation\\Rules\\Unique",
+                    "ends_at": "required|date_format:H:i|after:starts_at",
+                    "notes": "nullable|string|max:2000"
+                },
+                "source": {
+                    "file": "app\\Http\\Requests\\Attendance\\StoreAttendanceSessionRequest.php",
+                    "line": 9,
+                    "line_end": 37,
+                    "hash": "7bc0f4893ef611f1aa0f5550dcd31897"
+                }
+            },
+            {
+                "id": "form_requests:App\\Http\\Requests\\Attendance\\UpdateAttendanceRecordRequest",
+                "class": "App\\Http\\Requests\\Attendance\\UpdateAttendanceRecordRequest",
+                "rules": {
+                    "status": "required|Illuminate\\Validation\\Rules\\In"
+                },
+                "source": {
+                    "file": "app\\Http\\Requests\\Attendance\\UpdateAttendanceRecordRequest.php",
+                    "line": 9,
+                    "line_end": 28,
+                    "hash": "a775d7624ff259d62edf0a7bb9c34f8c"
+                }
+            },
+            {
+                "id": "form_requests:App\\Http\\Requests\\Auth\\LoginRequest",
+                "class": "App\\Http\\Requests\\Auth\\LoginRequest",
+                "rules": {
+                    "email": "required|string|email",
+                    "password": "required|string"
+                },
+                "source": {
+                    "file": "app\\Http\\Requests\\Auth\\LoginRequest.php",
+                    "line": 13,
+                    "line_end": 86,
+                    "hash": "21107567fe3fc4fa4f0adf159dc2269f"
+                }
+            },
+            {
+                "id": "form_requests:App\\Http\\Requests\\JoinSectionRequest",
+                "class": "App\\Http\\Requests\\JoinSectionRequest",
+                "rules": {
+                    "student_number": "required|string|max:80",
+                    "first_name": "required|string|max:255",
+                    "middle_name": "nullable|string|max:255",
+                    "last_name": "required|string|max:255",
+                    "seat_id": "required|integer|exists:seats,id",
+                    "photo": "nullable|image|mimes:jpg,jpeg,png,webp|max:5120"
+                },
+                "source": {
+                    "file": "app\\Http\\Requests\\JoinSectionRequest.php",
+                    "line": 7,
+                    "line_end": 25,
+                    "hash": "de7f077a9a15351ec073b86dc9bf90de"
+                }
+            },
+            {
+                "id": "form_requests:App\\Http\\Requests\\SaveFloorPlanRequest",
+                "class": "App\\Http\\Requests\\SaveFloorPlanRequest",
+                "rules": {
+                    "rows": "required|integer|between:1,20",
+                    "columns": "required|integer|between:1,20",
+                    "aisle_after_rows": "present|array",
+                    "aisle_after_rows.*": "integer|min:1|distinct",
+                    "aisle_after_columns": "present|array",
+                    "aisle_after_columns.*": "integer|min:1|distinct"
+                },
+                "source": {
+                    "file": "app\\Http\\Requests\\SaveFloorPlanRequest.php",
+                    "line": 8,
+                    "line_end": 48,
+                    "hash": "1dc29ccf14574fd5b2030c9ee68ac94d"
+                }
+            },
+            {
+                "id": "form_requests:App\\Http\\Requests\\Settings\\ProfileUpdateRequest",
+                "class": "App\\Http\\Requests\\Settings\\ProfileUpdateRequest",
+                "rules": [],
+                "source": {
+                    "file": "app\\Http\\Requests\\Settings\\ProfileUpdateRequest.php",
+                    "line": 10,
+                    "line_end": 31,
+                    "hash": "3e2b1a068dc8cb2429854c3af93b5940"
+                }
+            },
+            {
+                "id": "form_requests:App\\Http\\Requests\\StoreLayoutBlockRequest",
+                "class": "App\\Http\\Requests\\StoreLayoutBlockRequest",
+                "rules": {
+                    "label": "required|string|max:40",
+                    "block_row": "required|integer|between:1,50",
+                    "block_column": "required|integer|between:1,50",
+                    "internal_rows": "required|integer|between:1,20",
+                    "internal_columns": "required|integer|between:1,20",
+                    "disabled_positions": "array",
+                    "disabled_positions.*": "string|regex:\/^\\d+:\\d+$\/"
+                },
+                "source": {
+                    "file": "app\\Http\\Requests\\StoreLayoutBlockRequest.php",
+                    "line": 7,
+                    "line_end": 26,
+                    "hash": "cdf4f0833cb011791ad41fd4653f6b0e"
+                }
+            },
+            {
+                "id": "form_requests:App\\Http\\Requests\\StoreSectionRequest",
+                "class": "App\\Http\\Requests\\StoreSectionRequest",
+                "rules": {
+                    "subject_code": "required|string|max:50",
+                    "subject_title": "required|string|max:255",
+                    "name": "required|string|max:255",
+                    "room": "nullable|string|max:255",
+                    "term.name": "required|string|max:100",
+                    "term.school_year": "required|string|max:20",
+                    "term.starts_on": "required|date",
+                    "term.ends_on": "required|date|after_or_equal:term.starts_on",
+                    "schedules": "array|max:7",
+                    "schedules.*.day_of_week": "required|integer|between:1,7",
+                    "schedules.*.starts_at": "required|date_format:H:i",
+                    "schedules.*.ends_at": "required|date_format:H:i|after:schedules.*.starts_at"
+                },
+                "source": {
+                    "file": "app\\Http\\Requests\\StoreSectionRequest.php",
+                    "line": 7,
+                    "line_end": 31,
+                    "hash": "61ff783db73fae8e23ac2296fa50b21a"
+                }
+            },
+            {
+                "id": "form_requests:App\\Http\\Requests\\StoreStudentRequest",
+                "class": "App\\Http\\Requests\\StoreStudentRequest",
+                "rules": {
+                    "student_number": "required|string|max:80|Illuminate\\Validation\\Rules\\Unique",
+                    "first_name": "required|string|max:255",
+                    "middle_name": "nullable|string|max:255",
+                    "last_name": "required|string|max:255",
+                    "seat_id": "nullable|integer|exists:seats,id",
+                    "photo": "nullable|image|mimes:jpg,jpeg,png,webp|max:5120"
+                },
+                "source": {
+                    "file": "app\\Http\\Requests\\StoreStudentRequest.php",
+                    "line": 8,
+                    "line_end": 28,
+                    "hash": "102fd2e99066308e0f19e5620b35e1fe"
+                }
+            },
+            {
+                "id": "form_requests:App\\Http\\Requests\\UpdateSectionRequest",
+                "class": "App\\Http\\Requests\\UpdateSectionRequest",
+                "rules": {
+                    "subject_code": "required|string|max:50",
+                    "subject_title": "required|string|max:255",
+                    "name": "required|string|max:255",
+                    "room": "nullable|string|max:255",
+                    "term.name": "required|string|max:100",
+                    "term.school_year": "required|string|max:20",
+                    "term.starts_on": "required|date",
+                    "term.ends_on": "required|date|after_or_equal:term.starts_on",
+                    "schedules": "array|max:7",
+                    "schedules.*.day_of_week": "required|integer|between:1,7",
+                    "schedules.*.starts_at": "required|date_format:H:i",
+                    "schedules.*.ends_at": "required|date_format:H:i|after:schedules.*.starts_at"
+                },
+                "source": {
+                    "file": "app\\Http\\Requests\\UpdateSectionRequest.php",
+                    "line": 5,
+                    "line_end": 11,
+                    "hash": "23c6890a1ec6edcb42a086b732664e21"
+                }
+            }
+        ],
+        "middleware": [
+            {
+                "id": "middleware:alias:inertia.encrypt",
+                "alias": "inertia.encrypt",
+                "class": "Inertia\\EncryptHistoryMiddleware",
+                "scope": "alias",
+                "group": null,
+                "source": {
+                    "file": "vendor\\inertiajs\\inertia-laravel\\src\\EncryptHistoryMiddleware.php",
+                    "line": 9,
+                    "line_end": 24,
+                    "hash": "49686531325eea35d69a5ebaa807d14b"
+                }
+            },
+            {
+                "id": "middleware:group:web:App\\Http\\Middleware\\HandleInertiaRequests",
+                "alias": "HandleInertiaRequests",
+                "class": "App\\Http\\Middleware\\HandleInertiaRequests",
+                "scope": "group",
+                "group": "web",
+                "source": {
+                    "file": "app\\Http\\Middleware\\HandleInertiaRequests.php",
+                    "line": 9,
+                    "line_end": 50,
+                    "hash": "4d570a32681bfb957447f79fc1c12ece"
+                }
+            }
+        ],
+        "models": [
+            {
+                "id": "models:App\\Models\\AcademicTerm",
+                "class": "App\\Models\\AcademicTerm",
+                "table": "academic_terms",
+                "fillable": [
+                    "user_id",
+                    "name",
+                    "school_year",
+                    "starts_on",
+                    "ends_on"
+                ],
+                "casts": {
+                    "ends_on": "date",
+                    "id": "int",
+                    "starts_on": "date"
+                },
+                "relationships": [
+                    {
+                        "type": "hasMany",
+                        "related": "App\\Models\\Section",
+                        "method": "sections"
+                    },
+                    {
+                        "type": "belongsTo",
+                        "related": "App\\Models\\User",
+                        "method": "user"
+                    }
+                ],
+                "soft_deletes": false,
+                "guarded": [
+                    "*"
+                ],
+                "source": {
+                    "file": "app\\Models\\AcademicTerm.php",
+                    "line": 10,
+                    "line_end": 30,
+                    "hash": "6b0b0ac145ac9b2cdfb6707c0bcca66b"
+                }
+            },
+            {
+                "id": "models:App\\Models\\Assessment",
+                "class": "App\\Models\\Assessment",
+                "table": "assessments",
+                "fillable": [
+                    "section_id",
+                    "attendance_session_id",
+                    "type",
+                    "title",
+                    "description",
+                    "conducted_on",
+                    "max_points",
+                    "attachment_path",
+                    "attachment_name",
+                    "attachment_mime"
+                ],
+                "casts": {
+                    "conducted_on": "date",
+                    "id": "int",
+                    "max_points": "decimal:2"
+                },
+                "relationships": [
+                    {
+                        "type": "belongsTo",
+                        "related": "App\\Models\\AttendanceSession",
+                        "method": "attendanceSession"
+                    },
+                    {
+                        "type": "hasMany",
+                        "related": "App\\Models\\AssessmentScore",
+                        "method": "scores"
+                    },
+                    {
+                        "type": "belongsTo",
+                        "related": "App\\Models\\Section",
+                        "method": "section"
+                    }
+                ],
+                "soft_deletes": false,
+                "guarded": [
+                    "*"
+                ],
+                "source": {
+                    "file": "app\\Models\\Assessment.php",
+                    "line": 9,
+                    "line_end": 48,
+                    "hash": "ad0c9945909eaa301359a1ec558ec844"
+                }
+            },
+            {
+                "id": "models:App\\Models\\AssessmentScore",
+                "class": "App\\Models\\AssessmentScore",
+                "table": "assessment_scores",
+                "fillable": [
+                    "student_id",
+                    "score",
+                    "absence_override"
+                ],
+                "casts": {
+                    "absence_override": "boolean",
+                    "id": "int",
+                    "score": "decimal:2"
+                },
+                "relationships": [
+                    {
+                        "type": "belongsTo",
+                        "related": "App\\Models\\Assessment",
+                        "method": "assessment"
+                    },
+                    {
+                        "type": "belongsTo",
+                        "related": "App\\Models\\Student",
+                        "method": "student"
+                    }
+                ],
+                "soft_deletes": false,
+                "guarded": [
+                    "*"
+                ],
+                "source": {
+                    "file": "app\\Models\\AssessmentScore.php",
+                    "line": 8,
+                    "line_end": 29,
+                    "hash": "c5c45930ffa122fab7dae4eece39eb81"
+                }
+            },
+            {
+                "id": "models:App\\Models\\AttendanceRecord",
+                "class": "App\\Models\\AttendanceRecord",
+                "table": "attendance_records",
+                "fillable": [
+                    "attendance_session_id",
+                    "student_id",
+                    "status",
+                    "attended_minutes"
+                ],
+                "casts": {
+                    "attended_minutes": "integer",
+                    "id": "int"
+                },
+                "relationships": [
+                    {
+                        "type": "belongsTo",
+                        "related": "App\\Models\\AttendanceSession",
+                        "method": "session"
+                    },
+                    {
+                        "type": "belongsTo",
+                        "related": "App\\Models\\Student",
+                        "method": "student"
+                    }
+                ],
+                "soft_deletes": false,
+                "guarded": [
+                    "*"
+                ],
+                "source": {
+                    "file": "app\\Models\\AttendanceRecord.php",
+                    "line": 9,
+                    "line_end": 38,
+                    "hash": "5622e58defa4489c562e295f2ebd8904"
+                }
+            },
+            {
+                "id": "models:App\\Models\\AttendanceSession",
+                "class": "App\\Models\\AttendanceSession",
+                "table": "attendance_sessions",
+                "fillable": [
+                    "section_id",
+                    "session_date",
+                    "starts_at",
+                    "ends_at",
+                    "duration_minutes",
+                    "notes"
+                ],
+                "casts": {
+                    "duration_minutes": "integer",
+                    "id": "int",
+                    "session_date": "date:Y-m-d"
+                },
+                "relationships": [
+                    {
+                        "type": "hasMany",
+                        "related": "App\\Models\\AttendanceRecord",
+                        "method": "records"
+                    },
+                    {
+                        "type": "belongsTo",
+                        "related": "App\\Models\\Section",
+                        "method": "section"
+                    }
+                ],
+                "soft_deletes": false,
+                "guarded": [
+                    "*"
+                ],
+                "source": {
+                    "file": "app\\Models\\AttendanceSession.php",
+                    "line": 10,
+                    "line_end": 40,
+                    "hash": "f4fcdb8f1daeae9cb2c0bcf3b5e11af1"
+                }
+            },
+            {
+                "id": "models:App\\Models\\LayoutBlock",
+                "class": "App\\Models\\LayoutBlock",
+                "table": "layout_blocks",
+                "fillable": [
+                    "section_id",
+                    "label",
+                    "block_row",
+                    "block_column",
+                    "internal_rows",
+                    "internal_columns",
+                    "aisle_after_rows",
+                    "aisle_after_columns"
+                ],
+                "casts": {
+                    "aisle_after_columns": "array",
+                    "aisle_after_rows": "array",
+                    "id": "int"
+                },
+                "relationships": [
+                    {
+                        "type": "hasMany",
+                        "related": "App\\Models\\Seat",
+                        "method": "seats"
+                    },
+                    {
+                        "type": "belongsTo",
+                        "related": "App\\Models\\Section",
+                        "method": "section"
+                    }
+                ],
+                "soft_deletes": false,
+                "guarded": [
+                    "*"
+                ],
+                "source": {
+                    "file": "app\\Models\\LayoutBlock.php",
+                    "line": 9,
+                    "line_end": 39,
+                    "hash": "1b701f2a40ffd89288a1fd424cc1debf"
+                }
+            },
+            {
+                "id": "models:App\\Models\\Seat",
+                "class": "App\\Models\\Seat",
+                "table": "seats",
+                "fillable": [
+                    "layout_block_id",
+                    "student_id",
+                    "row_number",
+                    "column_number",
+                    "label",
+                    "is_disabled"
+                ],
+                "casts": {
+                    "id": "int",
+                    "is_disabled": "boolean"
+                },
+                "relationships": [
+                    {
+                        "type": "belongsTo",
+                        "related": "App\\Models\\LayoutBlock",
+                        "method": "layoutBlock"
+                    },
+                    {
+                        "type": "belongsTo",
+                        "related": "App\\Models\\Student",
+                        "method": "student"
+                    }
+                ],
+                "soft_deletes": false,
+                "guarded": [
+                    "*"
+                ],
+                "source": {
+                    "file": "app\\Models\\Seat.php",
+                    "line": 8,
+                    "line_end": 28,
+                    "hash": "12edc78e8fb568e4927b42ab6e5a668c"
+                }
+            },
+            {
+                "id": "models:App\\Models\\Section",
+                "class": "App\\Models\\Section",
+                "table": "sections",
+                "fillable": [
+                    "user_id",
+                    "academic_term_id",
+                    "subject_code",
+                    "subject_title",
+                    "name",
+                    "room",
+                    "enrollment_token",
+                    "enrollment_open",
+                    "archived_at"
+                ],
+                "casts": {
+                    "archived_at": "datetime",
+                    "enrollment_open": "boolean",
+                    "id": "int"
+                },
+                "relationships": [
+                    {
+                        "type": "belongsTo",
+                        "related": "App\\Models\\AcademicTerm",
+                        "method": "academicTerm"
+                    },
+                    {
+                        "type": "hasMany",
+                        "related": "App\\Models\\LayoutBlock",
+                        "method": "layoutBlocks"
+                    },
+                    {
+                        "type": "hasMany",
+                        "related": "App\\Models\\SectionSchedule",
+                        "method": "schedules"
+                    },
+                    {
+                        "type": "hasMany",
+                        "related": "App\\Models\\Student",
+                        "method": "students"
+                    },
+                    {
+                        "type": "belongsTo",
+                        "related": "App\\Models\\User",
+                        "method": "user"
+                    }
+                ],
+                "soft_deletes": false,
+                "guarded": [
+                    "*"
+                ],
+                "source": {
+                    "file": "app\\Models\\Section.php",
+                    "line": 11,
+                    "line_end": 56,
+                    "hash": "c4900f75722aadd69f58164bcbcdb57b"
+                }
+            },
+            {
+                "id": "models:App\\Models\\SectionSchedule",
+                "class": "App\\Models\\SectionSchedule",
+                "table": "section_schedules",
+                "fillable": [
+                    "section_id",
+                    "day_of_week",
+                    "starts_at",
+                    "ends_at"
+                ],
+                "casts": {
+                    "id": "int"
+                },
+                "relationships": [
+                    {
+                        "type": "belongsTo",
+                        "related": "App\\Models\\Section",
+                        "method": "section"
+                    }
+                ],
+                "soft_deletes": false,
+                "guarded": [
+                    "*"
+                ],
+                "source": {
+                    "file": "app\\Models\\SectionSchedule.php",
+                    "line": 8,
+                    "line_end": 16,
+                    "hash": "b6f00d42dc64e135265893dce1a7a7b1"
+                }
+            },
+            {
+                "id": "models:App\\Models\\Student",
+                "class": "App\\Models\\Student",
+                "table": "students",
+                "fillable": [
+                    "section_id",
+                    "student_number",
+                    "first_name",
+                    "middle_name",
+                    "last_name",
+                    "photo_path",
+                    "is_active"
+                ],
+                "casts": {
+                    "id": "int",
+                    "is_active": "boolean"
+                },
+                "relationships": [
+                    {
+                        "type": "hasOne",
+                        "related": "App\\Models\\Seat",
+                        "method": "seat"
+                    },
+                    {
+                        "type": "belongsTo",
+                        "related": "App\\Models\\Section",
+                        "method": "section"
+                    }
+                ],
+                "soft_deletes": false,
+                "guarded": [
+                    "*"
+                ],
+                "appends": [
+                    "full_name"
+                ],
+                "source": {
+                    "file": "app\\Models\\Student.php",
+                    "line": 10,
+                    "line_end": 39,
+                    "hash": "afdda5d982484617e8f90f07350c650d"
+                }
+            },
+            {
+                "id": "models:App\\Models\\User",
+                "class": "App\\Models\\User",
+                "table": "users",
+                "fillable": [
+                    "name",
+                    "email",
+                    "password"
+                ],
+                "casts": {
+                    "email_verified_at": "datetime",
+                    "id": "int",
+                    "password": "hashed"
+                },
+                "relationships": [],
+                "soft_deletes": false,
+                "guarded": [
+                    "*"
+                ],
+                "hidden": [
+                    "password",
+                    "remember_token"
+                ],
+                "source": {
+                    "file": "app\\Models\\User.php",
+                    "line": 11,
+                    "line_end": 49,
+                    "hash": "c573009762e4772f08d1a322447f7ae5"
+                }
+            }
+        ],
+        "policies": [
+            {
+                "id": "policies:App\\Policies\\SectionPolicy",
+                "class": "App\\Policies\\SectionPolicy",
+                "model": "App\\Models\\Section",
+                "methods": [
+                    "create",
+                    "delete",
+                    "update",
+                    "view",
+                    "viewAny"
+                ],
+                "source": {
+                    "file": "app\\Policies\\SectionPolicy.php",
+                    "line": 8,
+                    "line_end": 34,
+                    "hash": "44a5ccaa566a4746431ae384fcfde915"
+                }
+            }
+        ],
+        "routes": [
+            {
+                "id": "routes:DELETE:sections\/{section}",
+                "name": "sections.destroy",
+                "method": "DELETE",
+                "uri": "sections\/{section}",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\SectionController",
+                "action": "destroy",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\SectionController.php",
+                    "line": 125,
+                    "line_end": 131,
+                    "hash": "eb6212ea4fa4e48aae791f0ac988c475"
+                }
+            },
+            {
+                "id": "routes:DELETE:sections\/{section}\/assessments\/{assessment}",
+                "name": "sections.assessments.destroy",
+                "method": "DELETE",
+                "uri": "sections\/{section}\/assessments\/{assessment}",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\Assessments\\AssessmentController",
+                "action": "destroy",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    },
+                    {
+                        "name": "assessment",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\Assessments\\AssessmentController.php",
+                    "line": 158,
+                    "line_end": 167,
+                    "hash": "851109017584965b409a9e222b6382bb"
+                }
+            },
+            {
+                "id": "routes:DELETE:sections\/{section}\/layout-blocks\/{layoutBlock}",
+                "name": "sections.layout-blocks.destroy",
+                "method": "DELETE",
+                "uri": "sections\/{section}\/layout-blocks\/{layoutBlock}",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\LayoutBlockController",
+                "action": "destroy",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    },
+                    {
+                        "name": "layoutBlock",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\LayoutBlockController.php",
+                    "line": 117,
+                    "line_end": 127,
+                    "hash": "97937e1481a7875db85525af4863d98e"
+                }
+            },
+            {
+                "id": "routes:DELETE:sections\/{section}\/students\/{student}",
+                "name": "sections.students.destroy",
+                "method": "DELETE",
+                "uri": "sections\/{section}\/students\/{student}",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\StudentController",
+                "action": "destroy",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    },
+                    {
+                        "name": "student",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\StudentController.php",
+                    "line": 120,
+                    "line_end": 130,
+                    "hash": "f2ee029dd87d9eccac145f0c5c883eeb"
+                }
+            },
+            {
+                "id": "routes:DELETE:settings\/profile",
+                "name": "profile.destroy",
+                "method": "DELETE",
+                "uri": "settings\/profile",
+                "middleware": [
+                    "web",
+                    "auth"
+                ],
+                "controller": "App\\Http\\Controllers\\Settings\\ProfileController",
+                "action": "destroy",
+                "source": {
+                    "file": "app\\Http\\Controllers\\Settings\\ProfileController.php",
+                    "line": 46,
+                    "line_end": 62,
+                    "hash": "261f7df444d7a1e6a2e32767f8894b6d"
+                }
+            },
+            {
+                "id": "routes:DELETE|GET|OPTIONS|PATCH|POST|PUT:settings",
+                "name": null,
+                "method": "GET|POST|PUT|PATCH|DELETE|OPTIONS",
+                "uri": "settings",
+                "middleware": [
+                    "web",
+                    "auth"
+                ],
+                "controller": "\\Illuminate\\Routing\\RedirectController",
+                "action": "__invoke",
+                "source": {
+                    "file": "vendor\\laravel\\framework\\src\\Illuminate\\Routing\\RedirectController.php",
+                    "line": 19,
+                    "line_end": 44,
+                    "hash": "bda3f8202f0d1c1d0dc38a26a2682fa5"
+                }
+            },
+            {
+                "id": "routes:GET:\/",
+                "name": "home",
+                "method": "GET",
+                "uri": "\/",
+                "middleware": [
+                    "web"
+                ],
+                "controller": null,
+                "action": "Closure",
+                "source": {
+                    "file": "routes\\web.php",
+                    "line": 7,
+                    "line_end": 7,
+                    "hash": "c17086a0bfe9a8735a67146cf181297e"
+                }
+            },
+            {
+                "id": "routes:GET:attendance\/{attendanceSession}",
+                "name": "attendance.sessions.show",
+                "method": "GET",
+                "uri": "attendance\/{attendanceSession}",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\Attendance\\AttendanceController",
+                "action": "show",
+                "parameters": [
+                    {
+                        "name": "attendanceSession",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\Attendance\\AttendanceController.php",
+                    "line": 115,
+                    "line_end": 175,
+                    "hash": "695d7647fe41c9938056c17a868bb1d1"
+                }
+            },
+            {
+                "id": "routes:GET:dashboard",
+                "name": "dashboard",
+                "method": "GET",
+                "uri": "dashboard",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\DashboardController",
+                "action": "__invoke",
+                "source": {
+                    "file": "app\\Http\\Controllers\\DashboardController.php",
+                    "line": 13,
+                    "line_end": 88,
+                    "hash": "5ac1bd3430e825e79145ea1ef710ec5e"
+                }
+            },
+            {
+                "id": "routes:GET:join\/{token}",
+                "name": "join.show",
+                "method": "GET",
+                "uri": "join\/{token}",
+                "middleware": [
+                    "web"
+                ],
+                "controller": "App\\Http\\Controllers\\PublicJoinController",
+                "action": "show",
+                "parameters": [
+                    {
+                        "name": "token",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\PublicJoinController.php",
+                    "line": 19,
+                    "line_end": 57,
+                    "hash": "33e120f3a9e8bdb1bf01b6f3eb9dd369"
+                }
+            },
+            {
+                "id": "routes:GET:sections",
+                "name": "sections.index",
+                "method": "GET",
+                "uri": "sections",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\SectionController",
+                "action": "index",
+                "source": {
+                    "file": "app\\Http\\Controllers\\SectionController.php",
+                    "line": 18,
+                    "line_end": 31,
+                    "hash": "eb6212ea4fa4e48aae791f0ac988c475"
+                }
+            },
+            {
+                "id": "routes:GET:sections\/create",
+                "name": "sections.create",
+                "method": "GET",
+                "uri": "sections\/create",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\SectionController",
+                "action": "create",
+                "source": {
+                    "file": "app\\Http\\Controllers\\SectionController.php",
+                    "line": 33,
+                    "line_end": 38,
+                    "hash": "eb6212ea4fa4e48aae791f0ac988c475"
+                }
+            },
+            {
+                "id": "routes:GET:sections\/{section}",
+                "name": "sections.show",
+                "method": "GET",
+                "uri": "sections\/{section}",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\SectionController",
+                "action": "show",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\SectionController.php",
+                    "line": 69,
+                    "line_end": 97,
+                    "hash": "eb6212ea4fa4e48aae791f0ac988c475"
+                }
+            },
+            {
+                "id": "routes:GET:sections\/{section}\/assessments",
+                "name": "sections.assessments.index",
+                "method": "GET",
+                "uri": "sections\/{section}\/assessments",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\Assessments\\AssessmentController",
+                "action": "index",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\Assessments\\AssessmentController.php",
+                    "line": 19,
+                    "line_end": 45,
+                    "hash": "851109017584965b409a9e222b6382bb"
+                }
+            },
+            {
+                "id": "routes:GET:sections\/{section}\/assessments\/{assessment}",
+                "name": "sections.assessments.show",
+                "method": "GET",
+                "uri": "sections\/{section}\/assessments\/{assessment}",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\Assessments\\AssessmentController",
+                "action": "show",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    },
+                    {
+                        "name": "assessment",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\Assessments\\AssessmentController.php",
+                    "line": 79,
+                    "line_end": 131,
+                    "hash": "851109017584965b409a9e222b6382bb"
+                }
+            },
+            {
+                "id": "routes:GET:sections\/{section}\/assessments\/{assessment}\/attachment",
+                "name": "sections.assessments.attachment",
+                "method": "GET",
+                "uri": "sections\/{section}\/assessments\/{assessment}\/attachment",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\Assessments\\AssessmentAttachmentController",
+                "action": "__invoke",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    },
+                    {
+                        "name": "assessment",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\Assessments\\AssessmentAttachmentController.php",
+                    "line": 12,
+                    "line_end": 22,
+                    "hash": "8ad25dc65224b5972c1a6ec2a402870c"
+                }
+            },
+            {
+                "id": "routes:GET:sections\/{section}\/assessments\/{assessment}\/export",
+                "name": "sections.exports.assessment",
+                "method": "GET",
+                "uri": "sections\/{section}\/assessments\/{assessment}\/export",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\Assessments\\AssessmentExportController",
+                "action": "assessment",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    },
+                    {
+                        "name": "assessment",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\Assessments\\AssessmentExportController.php",
+                    "line": 40,
+                    "line_end": 50,
+                    "hash": "995573b294a906036b374d00e486a639"
+                }
+            },
+            {
+                "id": "routes:GET:sections\/{section}\/attendance",
+                "name": "attendance.sections.index",
+                "method": "GET",
+                "uri": "sections\/{section}\/attendance",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\Attendance\\AttendanceController",
+                "action": "index",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\Attendance\\AttendanceController.php",
+                    "line": 22,
+                    "line_end": 79,
+                    "hash": "695d7647fe41c9938056c17a868bb1d1"
+                }
+            },
+            {
+                "id": "routes:GET:sections\/{section}\/edit",
+                "name": "sections.edit",
+                "method": "GET",
+                "uri": "sections\/{section}\/edit",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\SectionController",
+                "action": "edit",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\SectionController.php",
+                    "line": 99,
+                    "line_end": 104,
+                    "hash": "eb6212ea4fa4e48aae791f0ac988c475"
+                }
+            },
+            {
+                "id": "routes:GET:sections\/{section}\/exports\/attendance",
+                "name": "sections.exports.attendance",
+                "method": "GET",
+                "uri": "sections\/{section}\/exports\/attendance",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\Assessments\\AssessmentExportController",
+                "action": "attendance",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\Assessments\\AssessmentExportController.php",
+                    "line": 23,
+                    "line_end": 38,
+                    "hash": "995573b294a906036b374d00e486a639"
+                }
+            },
+            {
+                "id": "routes:GET:sections\/{section}\/exports\/gradebook",
+                "name": "sections.exports.gradebook",
+                "method": "GET",
+                "uri": "sections\/{section}\/exports\/gradebook",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\Assessments\\AssessmentExportController",
+                "action": "gradebook",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\Assessments\\AssessmentExportController.php",
+                    "line": 52,
+                    "line_end": 83,
+                    "hash": "995573b294a906036b374d00e486a639"
+                }
+            },
+            {
+                "id": "routes:GET:sections\/{section}\/exports\/roster",
+                "name": "sections.exports.roster",
+                "method": "GET",
+                "uri": "sections\/{section}\/exports\/roster",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\Assessments\\AssessmentExportController",
+                "action": "roster",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\Assessments\\AssessmentExportController.php",
+                    "line": 14,
+                    "line_end": 21,
+                    "hash": "995573b294a906036b374d00e486a639"
+                }
+            },
+            {
+                "id": "routes:GET:sections\/{section}\/reports\/gradebook",
+                "name": "sections.reports.gradebook",
+                "method": "GET",
+                "uri": "sections\/{section}\/reports\/gradebook",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\Assessments\\AssessmentReportController",
+                "action": "gradebook",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\Assessments\\AssessmentReportController.php",
+                    "line": 15,
+                    "line_end": 18,
+                    "hash": "8c4351e0e363eea5c06e7b47fe35120c"
+                }
+            },
+            {
+                "id": "routes:GET:sections\/{section}\/reports\/gradebook\/print",
+                "name": "sections.reports.gradebook.print",
+                "method": "GET",
+                "uri": "sections\/{section}\/reports\/gradebook\/print",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\Assessments\\AssessmentReportController",
+                "action": "print",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\Assessments\\AssessmentReportController.php",
+                    "line": 20,
+                    "line_end": 23,
+                    "hash": "8c4351e0e363eea5c06e7b47fe35120c"
+                }
+            },
+            {
+                "id": "routes:GET:sections\/{section}\/students\/{student}\/photo",
+                "name": "sections.students.photo",
+                "method": "GET",
+                "uri": "sections\/{section}\/students\/{student}\/photo",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\StudentController",
+                "action": "photo",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    },
+                    {
+                        "name": "student",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\StudentController.php",
+                    "line": 132,
+                    "line_end": 139,
+                    "hash": "f2ee029dd87d9eccac145f0c5c883eeb"
+                }
+            },
+            {
+                "id": "routes:GET:settings\/appearance",
+                "name": "appearance",
+                "method": "GET",
+                "uri": "settings\/appearance",
+                "middleware": [
+                    "web",
+                    "auth"
+                ],
+                "controller": null,
+                "action": "Closure",
+                "source": {
+                    "file": "routes\\settings.php",
+                    "line": 18,
+                    "line_end": 20,
+                    "hash": "5b4898d196e65c040d0cf08bf89d7b4c"
+                }
+            },
+            {
+                "id": "routes:GET:settings\/profile",
+                "name": "profile.edit",
+                "method": "GET",
+                "uri": "settings\/profile",
+                "middleware": [
+                    "web",
+                    "auth"
+                ],
+                "controller": "App\\Http\\Controllers\\Settings\\ProfileController",
+                "action": "edit",
+                "source": {
+                    "file": "app\\Http\\Controllers\\Settings\\ProfileController.php",
+                    "line": 19,
+                    "line_end": 25,
+                    "hash": "261f7df444d7a1e6a2e32767f8894b6d"
+                }
+            },
+            {
+                "id": "routes:PATCH:attendance-records\/{record}",
+                "name": "attendance.records.update",
+                "method": "PATCH",
+                "uri": "attendance-records\/{record}",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\Attendance\\AttendanceRecordController",
+                "action": "update",
+                "parameters": [
+                    {
+                        "name": "record",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\Attendance\\AttendanceRecordController.php",
+                    "line": 13,
+                    "line_end": 35,
+                    "hash": "b401704a316e993a8b0ba1749a40dee3"
+                }
+            },
+            {
+                "id": "routes:PATCH:sections\/{section}\/archive",
+                "name": "sections.archive",
+                "method": "PATCH",
+                "uri": "sections\/{section}\/archive",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\SectionController",
+                "action": "archive",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\SectionController.php",
+                    "line": 149,
+                    "line_end": 155,
+                    "hash": "eb6212ea4fa4e48aae791f0ac988c475"
+                }
+            },
+            {
+                "id": "routes:PATCH:sections\/{section}\/assessments\/{assessment}",
+                "name": "sections.assessments.update",
+                "method": "PATCH",
+                "uri": "sections\/{section}\/assessments\/{assessment}",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\Assessments\\AssessmentController",
+                "action": "update",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    },
+                    {
+                        "name": "assessment",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\Assessments\\AssessmentController.php",
+                    "line": 133,
+                    "line_end": 156,
+                    "hash": "851109017584965b409a9e222b6382bb"
+                }
+            },
+            {
+                "id": "routes:PATCH:sections\/{section}\/assessments\/{assessment}\/scores\/{student}",
+                "name": "sections.assessments.scores.update",
+                "method": "PATCH",
+                "uri": "sections\/{section}\/assessments\/{assessment}\/scores\/{student}",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\Assessments\\AssessmentScoreController",
+                "action": "update",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    },
+                    {
+                        "name": "assessment",
+                        "optional": false,
+                        "constraint": null
+                    },
+                    {
+                        "name": "student",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\Assessments\\AssessmentScoreController.php",
+                    "line": 15,
+                    "line_end": 51,
+                    "hash": "eee846f41c7085e46ff7efaa10e3b289"
+                }
+            },
+            {
+                "id": "routes:PATCH:sections\/{section}\/enrollment",
+                "name": "sections.enrollment",
+                "method": "PATCH",
+                "uri": "sections\/{section}\/enrollment",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\SectionController",
+                "action": "enrollment",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\SectionController.php",
+                    "line": 133,
+                    "line_end": 139,
+                    "hash": "eb6212ea4fa4e48aae791f0ac988c475"
+                }
+            },
+            {
+                "id": "routes:PATCH:sections\/{section}\/students\/{student}",
+                "name": "sections.students.update",
+                "method": "PATCH",
+                "uri": "sections\/{section}\/students\/{student}",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\StudentController",
+                "action": "update",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    },
+                    {
+                        "name": "student",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\StudentController.php",
+                    "line": 38,
+                    "line_end": 57,
+                    "hash": "f2ee029dd87d9eccac145f0c5c883eeb"
+                }
+            },
+            {
+                "id": "routes:PATCH:sections\/{section}\/students\/{student}\/seat",
+                "name": "sections.students.move",
+                "method": "PATCH",
+                "uri": "sections\/{section}\/students\/{student}\/seat",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\StudentController",
+                "action": "move",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    },
+                    {
+                        "name": "student",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\StudentController.php",
+                    "line": 89,
+                    "line_end": 118,
+                    "hash": "f2ee029dd87d9eccac145f0c5c883eeb"
+                }
+            },
+            {
+                "id": "routes:PATCH:settings\/profile",
+                "name": "profile.update",
+                "method": "PATCH",
+                "uri": "settings\/profile",
+                "middleware": [
+                    "web",
+                    "auth"
+                ],
+                "controller": "App\\Http\\Controllers\\Settings\\ProfileController",
+                "action": "update",
+                "source": {
+                    "file": "app\\Http\\Controllers\\Settings\\ProfileController.php",
+                    "line": 30,
+                    "line_end": 41,
+                    "hash": "261f7df444d7a1e6a2e32767f8894b6d"
+                }
+            },
+            {
+                "id": "routes:PATCH|PUT:sections\/{section}",
+                "name": "sections.update",
+                "method": "PUT|PATCH",
+                "uri": "sections\/{section}",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\SectionController",
+                "action": "update",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\SectionController.php",
+                    "line": 106,
+                    "line_end": 123,
+                    "hash": "eb6212ea4fa4e48aae791f0ac988c475"
+                }
+            },
+            {
+                "id": "routes:POST:confirm-password",
+                "name": null,
+                "method": "POST",
+                "uri": "confirm-password",
+                "middleware": [
+                    "web",
+                    "auth"
+                ],
+                "controller": "App\\Http\\Controllers\\Auth\\ConfirmablePasswordController",
+                "action": "store",
+                "source": {
+                    "file": "app\\Http\\Controllers\\Auth\\ConfirmablePasswordController.php",
+                    "line": 26,
+                    "line_end": 40,
+                    "hash": "bdc6634f4eaad8b6f41ad91621ff0350"
+                }
+            },
+            {
+                "id": "routes:POST:join\/{token}",
+                "name": "join.store",
+                "method": "POST",
+                "uri": "join\/{token}",
+                "middleware": [
+                    "web",
+                    "throttle:10,1"
+                ],
+                "controller": "App\\Http\\Controllers\\PublicJoinController",
+                "action": "store",
+                "parameters": [
+                    {
+                        "name": "token",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\PublicJoinController.php",
+                    "line": 59,
+                    "line_end": 120,
+                    "hash": "33e120f3a9e8bdb1bf01b6f3eb9dd369"
+                }
+            },
+            {
+                "id": "routes:POST:login",
+                "name": null,
+                "method": "POST",
+                "uri": "login",
+                "middleware": [
+                    "web",
+                    "guest"
+                ],
+                "controller": "App\\Http\\Controllers\\Auth\\AuthenticatedSessionController",
+                "action": "store",
+                "source": {
+                    "file": "app\\Http\\Controllers\\Auth\\AuthenticatedSessionController.php",
+                    "line": 30,
+                    "line_end": 37,
+                    "hash": "c07e0dcd9d2546ca6fe50a6e266ca6e8"
+                }
+            },
+            {
+                "id": "routes:POST:register",
+                "name": null,
+                "method": "POST",
+                "uri": "register",
+                "middleware": [
+                    "web",
+                    "guest"
+                ],
+                "controller": "App\\Http\\Controllers\\Auth\\RegisteredUserController",
+                "action": "store",
+                "source": {
+                    "file": "app\\Http\\Controllers\\Auth\\RegisteredUserController.php",
+                    "line": 32,
+                    "line_end": 51,
+                    "hash": "49f3c77990cf6e081600cb4298d10813"
+                }
+            },
+            {
+                "id": "routes:POST:sections",
+                "name": "sections.store",
+                "method": "POST",
+                "uri": "sections",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\SectionController",
+                "action": "store",
+                "source": {
+                    "file": "app\\Http\\Controllers\\SectionController.php",
+                    "line": 40,
+                    "line_end": 67,
+                    "hash": "eb6212ea4fa4e48aae791f0ac988c475"
+                }
+            },
+            {
+                "id": "routes:POST:sections\/{section}\/assessments",
+                "name": "sections.assessments.store",
+                "method": "POST",
+                "uri": "sections\/{section}\/assessments",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\Assessments\\AssessmentController",
+                "action": "store",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\Assessments\\AssessmentController.php",
+                    "line": 47,
+                    "line_end": 77,
+                    "hash": "851109017584965b409a9e222b6382bb"
+                }
+            },
+            {
+                "id": "routes:POST:sections\/{section}\/attendance",
+                "name": "attendance.sections.store",
+                "method": "POST",
+                "uri": "sections\/{section}\/attendance",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\Attendance\\AttendanceController",
+                "action": "store",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\Attendance\\AttendanceController.php",
+                    "line": 81,
+                    "line_end": 113,
+                    "hash": "695d7647fe41c9938056c17a868bb1d1"
+                }
+            },
+            {
+                "id": "routes:POST:sections\/{section}\/enrollment-token",
+                "name": "sections.enrollment-token",
+                "method": "POST",
+                "uri": "sections\/{section}\/enrollment-token",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\SectionController",
+                "action": "regenerateToken",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\SectionController.php",
+                    "line": 141,
+                    "line_end": 147,
+                    "hash": "eb6212ea4fa4e48aae791f0ac988c475"
+                }
+            },
+            {
+                "id": "routes:POST:sections\/{section}\/layout-blocks",
+                "name": "sections.layout-blocks.store",
+                "method": "POST",
+                "uri": "sections\/{section}\/layout-blocks",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\LayoutBlockController",
+                "action": "store",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\LayoutBlockController.php",
+                    "line": 94,
+                    "line_end": 115,
+                    "hash": "97937e1481a7875db85525af4863d98e"
+                }
+            },
+            {
+                "id": "routes:POST:sections\/{section}\/students",
+                "name": "sections.students.store",
+                "method": "POST",
+                "uri": "sections\/{section}\/students",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\StudentController",
+                "action": "store",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\StudentController.php",
+                    "line": 20,
+                    "line_end": 36,
+                    "hash": "f2ee029dd87d9eccac145f0c5c883eeb"
+                }
+            },
+            {
+                "id": "routes:POST:sections\/{section}\/students-import",
+                "name": "sections.students.import",
+                "method": "POST",
+                "uri": "sections\/{section}\/students-import",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\StudentController",
+                "action": "import",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\StudentController.php",
+                    "line": 59,
+                    "line_end": 87,
+                    "hash": "f2ee029dd87d9eccac145f0c5c883eeb"
+                }
+            },
+            {
+                "id": "routes:PUT:sections\/{section}\/floor-plan",
+                "name": "sections.floor-plan.replace",
+                "method": "PUT",
+                "uri": "sections\/{section}\/floor-plan",
+                "middleware": [
+                    "web",
+                    "auth",
+                    "verified"
+                ],
+                "controller": "App\\Http\\Controllers\\LayoutBlockController",
+                "action": "replace",
+                "parameters": [
+                    {
+                        "name": "section",
+                        "optional": false,
+                        "constraint": null
+                    }
+                ],
+                "source": {
+                    "file": "app\\Http\\Controllers\\LayoutBlockController.php",
+                    "line": 16,
+                    "line_end": 92,
+                    "hash": "97937e1481a7875db85525af4863d98e"
+                }
+            }
+        ],
+        "service_providers": [
+            {
+                "id": "service_providers:App\\Providers\\AppServiceProvider",
+                "class": "App\\Providers\\AppServiceProvider",
+                "deferred": false,
+                "bindings": [],
+                "singletons": [],
+                "source": {
+                    "file": "app\\Providers\\AppServiceProvider.php",
+                    "line": 7,
+                    "line_end": 24,
+                    "hash": "c0094f35cad6bba7636002a62186dae4"
+                }
+            }
+        ],
+        "tests": [
+            {
+                "id": "tests:tests\/Feature\/Assessments\/AssessmentWorkflowTest.php",
+                "file": "tests\\Feature\\Assessments\\AssessmentWorkflowTest.php",
+                "type": "feature",
+                "class": "Tests\\Feature\\Assessments\\AssessmentWorkflowTest",
+                "methods": [
+                    "test_teacher_can_create_an_assessment_and_matching_session_is_selected",
+                    "test_zero_is_recorded_while_blank_remains_missing",
+                    "test_absent_students_require_an_explicit_override",
+                    "test_teachers_cannot_access_another_teachers_assessments",
+                    "test_score_cannot_exceed_the_assessment_maximum"
+                ],
+                "source": {
+                    "file": "tests\\Feature\\Assessments\\AssessmentWorkflowTest.php",
+                    "line": 1,
+                    "line_end": 130,
+                    "hash": "1527d952f0031452169f0756fed22b72"
+                }
+            },
+            {
+                "id": "tests:tests\/Feature\/AttendanceTest.php",
+                "file": "tests\\Feature\\AttendanceTest.php",
+                "type": "feature",
+                "class": "Tests\\Feature\\AttendanceTest",
+                "methods": [
+                    "test_teacher_starts_session_with_every_current_student_present",
+                    "test_exact_section_date_and_start_time_must_be_unique",
+                    "test_another_teacher_cannot_access_section_attendance",
+                    "test_teacher_can_mark_absent_and_restore_present",
+                    "test_summaries_use_monday_sunday_and_academic_term_periods",
+                    "test_session_page_uses_the_section_student_photo_route"
+                ],
+                "source": {
+                    "file": "tests\\Feature\\AttendanceTest.php",
+                    "line": 1,
+                    "line_end": 98,
+                    "hash": "3222e430c4c03b137847e04c04a702c0"
+                }
+            },
+            {
+                "id": "tests:tests\/Feature\/Auth\/AuthenticationTest.php",
+                "file": "tests\\Feature\\Auth\\AuthenticationTest.php",
+                "type": "feature",
+                "class": "Tests\\Feature\\Auth\\AuthenticationTest",
+                "methods": [
+                    "test_login_screen_can_be_rendered",
+                    "test_users_can_authenticate_using_the_login_screen",
+                    "test_users_can_not_authenticate_with_invalid_password",
+                    "test_users_can_logout"
+                ],
+                "source": {
+                    "file": "tests\\Feature\\Auth\\AuthenticationTest.php",
+                    "line": 1,
+                    "line_end": 54,
+                    "hash": "c5be027b4796c85fa239a93811277519"
+                }
+            },
+            {
+                "id": "tests:tests\/Feature\/Auth\/EmailVerificationTest.php",
+                "file": "tests\\Feature\\Auth\\EmailVerificationTest.php",
+                "type": "feature",
+                "class": "Tests\\Feature\\Auth\\EmailVerificationTest",
+                "methods": [
+                    "test_email_verification_screen_can_be_rendered",
+                    "test_email_can_be_verified",
+                    "test_email_is_not_verified_with_invalid_hash"
+                ],
+                "source": {
+                    "file": "tests\\Feature\\Auth\\EmailVerificationTest.php",
+                    "line": 1,
+                    "line_end": 58,
+                    "hash": "d68602267dcb776c5b5a04d9f20b2f8f"
+                }
+            },
+            {
+                "id": "tests:tests\/Feature\/Auth\/PasswordConfirmationTest.php",
+                "file": "tests\\Feature\\Auth\\PasswordConfirmationTest.php",
+                "type": "feature",
+                "class": "Tests\\Feature\\Auth\\PasswordConfirmationTest",
+                "methods": [
+                    "test_confirm_password_screen_can_be_rendered",
+                    "test_password_can_be_confirmed",
+                    "test_password_is_not_confirmed_with_invalid_password"
+                ],
+                "source": {
+                    "file": "tests\\Feature\\Auth\\PasswordConfirmationTest.php",
+                    "line": 1,
+                    "line_end": 44,
+                    "hash": "1b321186e1df8b4e1e4aebffe6eb14f7"
+                }
+            },
+            {
+                "id": "tests:tests\/Feature\/Auth\/PasswordResetTest.php",
+                "file": "tests\\Feature\\Auth\\PasswordResetTest.php",
+                "type": "feature",
+                "class": "Tests\\Feature\\Auth\\PasswordResetTest",
+                "methods": [
+                    "test_reset_password_link_screen_can_be_rendered",
+                    "test_reset_password_link_can_be_requested",
+                    "test_reset_password_screen_can_be_rendered",
+                    "test_password_can_be_reset_with_valid_token"
+                ],
+                "source": {
+                    "file": "tests\\Feature\\Auth\\PasswordResetTest.php",
+                    "line": 1,
+                    "line_end": 73,
+                    "hash": "a96a40cde79aa59e718aefb6536c0d3c"
+                }
+            },
+            {
+                "id": "tests:tests\/Feature\/Auth\/RegistrationTest.php",
+                "file": "tests\\Feature\\Auth\\RegistrationTest.php",
+                "type": "feature",
+                "class": "Tests\\Feature\\Auth\\RegistrationTest",
+                "methods": [
+                    "test_registration_screen_can_be_rendered",
+                    "test_new_users_can_register"
+                ],
+                "source": {
+                    "file": "tests\\Feature\\Auth\\RegistrationTest.php",
+                    "line": 1,
+                    "line_end": 31,
+                    "hash": "45c1cb3321f717d4eb76d872f1e97c30"
+                }
+            },
+            {
+                "id": "tests:tests\/Feature\/ClassroomManagementTest.php",
+                "file": "tests\\Feature\\ClassroomManagementTest.php",
+                "type": "feature",
+                "class": "Tests\\Feature\\ClassroomManagementTest",
+                "methods": [
+                    "test_section_is_private_and_teacher_can_save_a_simple_floor_plan_with_aisles",
+                    "test_teacher_can_manually_add_a_student_to_a_selected_chair_or_without_a_chair",
+                    "test_teacher_can_import_roster_swap_chairs_and_deactivate_without_deleting"
+                ],
+                "source": {
+                    "file": "tests\\Feature\\ClassroomManagementTest.php",
+                    "line": 1,
+                    "line_end": 124,
+                    "hash": "7479877c51180250bdc73c359cb0f691"
+                }
+            },
+            {
+                "id": "tests:tests\/Feature\/DashboardTest.php",
+                "file": "tests\\Feature\\DashboardTest.php",
+                "type": "feature",
+                "class": "Tests\\Feature\\DashboardTest",
+                "methods": [
+                    "test_guests_are_redirected_to_the_login_page",
+                    "test_authenticated_users_can_visit_the_dashboard"
+                ],
+                "source": {
+                    "file": "tests\\Feature\\DashboardTest.php",
+                    "line": 1,
+                    "line_end": 27,
+                    "hash": "79978ebdf85ca6bf72cc174446f9848f"
+                }
+            },
+            {
+                "id": "tests:tests\/Feature\/ExampleTest.php",
+                "file": "tests\\Feature\\ExampleTest.php",
+                "type": "feature",
+                "class": "Tests\\Feature\\ExampleTest",
+                "methods": [
+                    "test_returns_a_successful_response"
+                ],
+                "source": {
+                    "file": "tests\\Feature\\ExampleTest.php",
+                    "line": 1,
+                    "line_end": 18,
+                    "hash": "ee3a8a7fe5a05cd203a5d33a57480799"
+                }
+            },
+            {
+                "id": "tests:tests\/Feature\/PublicSectionJoinTest.php",
+                "file": "tests\\Feature\\PublicSectionJoinTest.php",
+                "type": "feature",
+                "class": "Tests\\Feature\\PublicSectionJoinTest",
+                "methods": [
+                    "test_public_map_hides_identity_and_claim_stores_private_photo",
+                    "test_closed_enrollment_and_second_claim_are_rejected"
+                ],
+                "source": {
+                    "file": "tests\\Feature\\PublicSectionJoinTest.php",
+                    "line": 1,
+                    "line_end": 49,
+                    "hash": "cb21aee9093f827fa3449616abcb7cfc"
+                }
+            },
+            {
+                "id": "tests:tests\/Feature\/Settings\/PasswordUpdateTest.php",
+                "file": "tests\\Feature\\Settings\\PasswordUpdateTest.php",
+                "type": "feature",
+                "class": "Tests\\Feature\\Settings\\PasswordUpdateTest",
+                "methods": [
+                    "test_password_can_be_updated",
+                    "test_correct_password_must_be_provided_to_update_password"
+                ],
+                "source": {
+                    "file": "tests\\Feature\\Settings\\PasswordUpdateTest.php",
+                    "line": 1,
+                    "line_end": 51,
+                    "hash": "6cd61a4591aaef59ce353633bf0a11e8"
+                }
+            },
+            {
+                "id": "tests:tests\/Feature\/Settings\/ProfileUpdateTest.php",
+                "file": "tests\\Feature\\Settings\\ProfileUpdateTest.php",
+                "type": "feature",
+                "class": "Tests\\Feature\\Settings\\ProfileUpdateTest",
+                "methods": [
+                    "test_profile_page_is_displayed",
+                    "test_profile_information_can_be_updated",
+                    "test_email_verification_status_is_unchanged_when_the_email_address_is_unchanged",
+                    "test_user_can_delete_their_account",
+                    "test_correct_password_must_be_provided_to_delete_account"
+                ],
+                "source": {
+                    "file": "tests\\Feature\\Settings\\ProfileUpdateTest.php",
+                    "line": 1,
+                    "line_end": 99,
+                    "hash": "e757d781c56d9bb508027a6cff788e02"
+                }
+            },
+            {
+                "id": "tests:tests\/Unit\/ExampleTest.php",
+                "file": "tests\\Unit\\ExampleTest.php",
+                "type": "unit",
+                "class": "Tests\\Unit\\ExampleTest",
+                "methods": [
+                    "test_that_true_is_true"
+                ],
+                "source": {
+                    "file": "tests\\Unit\\ExampleTest.php",
+                    "line": 1,
+                    "line_end": 16,
+                    "hash": "1a3a9cc72a35eea8c120f991a197484a"
+                }
+            }
+        ]
+    }
+}

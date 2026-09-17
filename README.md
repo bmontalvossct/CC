@@ -1,2 +1,79 @@
-# CC
-A classroom attendance and activity monitoring system
+# ClassCheck
+
+ClassCheck is a teacher-first classroom attendance and assessment application. It turns a real seating layout into the working interface for enrollment, roll call, activities, quizzes, exams, and reports.
+
+## Included workflows
+
+- Teacher registration, verification, login, password reset, and account settings
+- Subject sections with academic terms, schedules, and archives
+- Grouped row-by-column classroom blocks with disabled chair positions
+- Interactive desk-chair map with student details and seat reassignment
+- Manual roster entry and CSV roster import
+- Private, local QR generation for student chair claiming
+- Default-present attendance with chair toggles and automatic hour summaries
+- Activities, quizzes, and exams with keyboard-first score entry
+- Absent-student skipping with an explicit score override
+- Gradebook, CSV exports, print views, and private file attachments
+
+## Local setup
+
+Requirements: PHP 8.2+, Composer, Node 22+, npm, and SQLite or MySQL.
+
+```powershell
+composer install
+npm.cmd install
+Copy-Item .env.example .env
+php artisan key:generate
+php artisan migrate
+npm.cmd run build
+composer run dev
+```
+
+Open `http://localhost:8000`.
+
+For a populated local demonstration:
+
+```powershell
+php artisan db:seed
+```
+
+The non-production demo account is:
+
+- Email: `teacher@classcheck.test`
+- Password: `password`
+
+The demo seeder is disabled when `APP_ENV=production`.
+
+## CSV roster format
+
+Use a UTF-8 CSV file with these headers:
+
+```csv
+student_number,first_name,middle_name,last_name
+2026-001,Andrea,,Reyes
+2026-002,Ben,M.,Cruz
+```
+
+Student numbers are unique within each section. Existing student numbers are updated/matched instead of duplicated.
+
+## Verification
+
+```powershell
+php artisan test
+npx.cmd vue-tsc --noEmit
+npm.cmd run build
+composer audit --no-interaction
+npm.cmd audit --omit=dev
+```
+
+## Production deployment
+
+- Serve the Laravel `public/` directory through HTTPS.
+- Set `APP_ENV=production`, `APP_DEBUG=false`, and the public `APP_URL` used in QR links.
+- Configure MySQL and production mail credentials in `.env`.
+- Run `php artisan migrate --force` and `npm.cmd run build` during deployment.
+- Run `php artisan optimize` after environment values are final.
+- Keep `storage/` and `bootstrap/cache/` writable by the PHP process.
+- Back up the database and private storage together.
+
+Student photos and assessment attachments are stored privately and are served only through teacher-authorized routes.
