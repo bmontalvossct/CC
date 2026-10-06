@@ -1,5 +1,24 @@
 <script setup lang="ts">
-import { Check, Database, Download, FileJson, FileSpreadsheet, FileText, FileType2, FolderArchive, FolderOpen, Image as ImageIcon, Presentation, X } from 'lucide-vue-next';
+import AnimatedImage from '@/components/AnimatedImage.vue';
+import { router } from '@inertiajs/vue3';
+import {
+    AlertCircle,
+    Check,
+    Database,
+    Download,
+    FileJson,
+    FileSpreadsheet,
+    FileText,
+    FileType2,
+    FolderArchive,
+    FolderOpen,
+    Image as ImageIcon,
+    LoaderCircle,
+    Presentation,
+    RefreshCw,
+    Trash2,
+    X,
+} from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 const props = defineProps<{
@@ -8,14 +27,23 @@ const props = defineProps<{
     fileName?: string;
     fileUrl: string;
     downloadUrl?: string;
+    reuploadUrl?: string;
+    deleteUrl?: string;
 }>();
 
 const emit = defineEmits<{
     (e: 'close'): void;
+    (e: 'reuploaded'): void;
+    (e: 'deleted'): void;
 }>();
 
 const isOpeningFolder = ref(false);
 const folderOpened = ref(false);
+const isReuploading = ref(false);
+const isDeleting = ref(false);
+const showDeleteConfirm = ref(false);
+const fileInputRef = ref<HTMLInputElement | null>(null);
+const actionError = ref('');
 
 const openFolderLocation = async () => {
     isOpeningFolder.value = true;
@@ -25,7 +53,7 @@ const openFolderLocation = async () => {
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '',
-                'Accept': 'application/json',
+                Accept: 'application/json',
             },
             body: JSON.stringify({
                 file_url: props.fileUrl,
@@ -45,6 +73,65 @@ const openFolderLocation = async () => {
     } finally {
         isOpeningFolder.value = false;
     }
+};
+
+const triggerReupload = () => {
+    actionError.value = '';
+    fileInputRef.value?.click();
+};
+
+const handleFileChange = (e: Event) => {
+    const target = e.target as HTMLInputElement;
+    const file = target.files?.[0];
+    if (!file || !props.reuploadUrl) return;
+
+    if (file.size > 50 * 1024 * 1024) {
+        actionError.value = 'File is larger than 50MB. Please select a smaller file.';
+        target.value = '';
+        return;
+    }
+
+    isReuploading.value = true;
+    actionError.value = '';
+
+    const formData = new FormData();
+    formData.append('attachment', file);
+
+    router.post(props.reuploadUrl, formData, {
+        forceFormData: true,
+        preserveScroll: true,
+        onSuccess: () => {
+            isReuploading.value = false;
+            target.value = '';
+            emit('reuploaded');
+        },
+        onError: (errors) => {
+            isReuploading.value = false;
+            target.value = '';
+            actionError.value = errors.attachment || 'Failed to replace attachment. Please check file type.';
+        },
+    });
+};
+
+const deleteAttachment = () => {
+    if (!props.deleteUrl) return;
+
+    isDeleting.value = true;
+    actionError.value = '';
+
+    router.delete(props.deleteUrl, {
+        preserveScroll: true,
+        onSuccess: () => {
+            isDeleting.value = false;
+            showDeleteConfirm.value = false;
+            emit('deleted');
+            emit('close');
+        },
+        onError: () => {
+            isDeleting.value = false;
+            actionError.value = 'Unable to delete attachment. Please try again.';
+        },
+    });
 };
 
 const effectiveDownloadUrl = computed(() => {
@@ -156,6 +243,42 @@ onUnmounted(() => {
 
                 <!-- Action Controls -->
                 <div class="flex shrink-0 items-center gap-2">
+                    <!-- Hidden Reupload Input -->
+                    <input
+                        ref="fileInputRef"
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z,.rtf,.odt,.ods,.odp,.svg,.gif,.bmp,.heic,.pages,.numbers,.key,.json,.sql,.db,.sqlite,.sqlite3"
+                        class="hidden"
+                        @change="handleFileChange"
+                    />
+
+                    <!-- Replace / Reupload Button -->
+                    <button
+                        v-if="reuploadUrl"
+                        type="button"
+                        class="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-primary/40 bg-primary/10 px-3.5 text-xs font-semibold text-primary transition-all hover:bg-primary hover:text-white"
+                        :title="isReuploading ? 'Uploading replacement file...' : 'Replace or reupload attached file'"
+                        :disabled="isReuploading"
+                        @click="triggerReupload"
+                    >
+                        <LoaderCircle v-if="isReuploading" class="size-3.5 animate-spin" />
+                        <RefreshCw v-else class="size-3.5" />
+                        <span class="hidden sm:inline">{{ isReuploading ? 'Uploading...' : 'Replace File' }}</span>
+                    </button>
+
+                    <!-- Delete Attachment Button -->
+                    <button
+                        v-if="deleteUrl"
+                        type="button"
+                        class="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3.5 text-xs font-semibold text-rose-600 transition-all hover:bg-rose-600 hover:text-white dark:text-rose-400 dark:hover:text-white"
+                        title="Remove or delete this attached file"
+                        :disabled="isDeleting"
+                        @click="showDeleteConfirm = true"
+                    >
+                        <Trash2 class="size-3.5" />
+                        <span class="hidden sm:inline">Delete File</span>
+                    </button>
+
                     <button
                         type="button"
                         class="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3.5 text-xs font-semibold text-foreground transition-all hover:bg-secondary"
@@ -165,7 +288,9 @@ onUnmounted(() => {
                     >
                         <Check v-if="folderOpened" class="size-3.5 text-emerald-600 dark:text-emerald-400" />
                         <FolderOpen v-else class="size-3.5 text-amber-600 dark:text-amber-400" />
-                        <span class="hidden sm:inline">{{ folderOpened ? 'Opened in Explorer' : isOpeningFolder ? 'Opening...' : 'Open Folder' }}</span>
+                        <span class="hidden sm:inline">{{
+                            folderOpened ? 'Opened in Explorer' : isOpeningFolder ? 'Opening...' : 'Open Folder'
+                        }}</span>
                     </button>
 
                     <a
@@ -188,8 +313,67 @@ onUnmounted(() => {
                 </div>
             </header>
 
+            <!-- Error Banner -->
+            <div
+                v-if="actionError"
+                class="flex items-center justify-between border-b border-rose-500/30 bg-rose-500/10 px-5 py-2.5 text-xs font-semibold text-rose-700 dark:text-rose-300"
+            >
+                <div class="flex items-center gap-2">
+                    <AlertCircle class="size-4 shrink-0" />
+                    <span>{{ actionError }}</span>
+                </div>
+                <button type="button" class="text-rose-600 hover:text-rose-800" @click="actionError = ''">
+                    <X class="size-3.5" />
+                </button>
+            </div>
+
             <!-- Preview Body -->
-            <div class="flex-1 overflow-auto bg-muted/20 p-3 sm:p-5">
+            <div class="relative flex-1 overflow-auto bg-muted/20 p-3 sm:p-5">
+                <!-- Delete Confirmation Dialog Overlay -->
+                <div
+                    v-if="showDeleteConfirm"
+                    class="backdrop-blur-xs absolute inset-0 z-20 flex items-center justify-center bg-zinc-950/80 p-4 animate-in fade-in"
+                >
+                    <div class="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl animate-in zoom-in-95">
+                        <div class="flex items-center gap-3">
+                            <div class="grid size-11 place-items-center rounded-xl bg-rose-500/15 text-rose-600 dark:text-rose-400">
+                                <Trash2 class="size-5" />
+                            </div>
+                            <div>
+                                <h4 class="text-base font-bold text-foreground">Remove Attached File?</h4>
+                                <p class="text-xs text-muted-foreground">This file will be permanently deleted from the section folder.</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 rounded-xl border border-border/70 bg-secondary/30 p-3 text-xs">
+                            <p class="truncate font-mono font-semibold text-foreground">{{ fileName }}</p>
+                            <p class="mt-1 text-[11px] text-muted-foreground">
+                                Note: All existing student scores, task details, and records will remain completely intact.
+                            </p>
+                        </div>
+
+                        <div class="mt-5 flex items-center justify-end gap-2.5">
+                            <button
+                                type="button"
+                                class="rounded-xl border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground hover:bg-secondary"
+                                :disabled="isDeleting"
+                                @click="showDeleteConfirm = false"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                class="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-700 disabled:opacity-50"
+                                :disabled="isDeleting"
+                                @click="deleteAttachment"
+                            >
+                                <LoaderCircle v-if="isDeleting" class="size-3.5 animate-spin" />
+                                <span>{{ isDeleting ? 'Deleting...' : 'Yes, Delete Attachment' }}</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- PDF Viewer -->
                 <div v-if="fileCategory === 'pdf'" class="h-[68vh] w-full sm:h-[72vh]">
                     <iframe :src="fileUrl" class="size-full rounded-xl border border-border/80 bg-white shadow-inner" title="PDF Viewer" />
@@ -200,7 +384,12 @@ onUnmounted(() => {
                     v-else-if="fileCategory === 'image'"
                     class="flex max-h-[72vh] min-h-[50vh] items-center justify-center overflow-auto rounded-xl border border-border/60 bg-black/5 p-4 dark:bg-black/30"
                 >
-                    <img :src="fileUrl" :alt="fileName || 'Attached Image'" class="max-h-[66vh] max-w-full rounded-lg object-contain shadow-md" />
+                    <AnimatedImage
+                        :src="fileUrl"
+                        :alt="fileName || 'Attached Image'"
+                        image-class="object-contain"
+                        class="h-[60vh] w-full rounded-lg"
+                    />
                 </div>
 
                 <!-- Text / CSV Viewer -->
@@ -247,7 +436,9 @@ onUnmounted(() => {
                         >
                             <Check v-if="folderOpened" class="size-4 text-emerald-600 dark:text-emerald-400" />
                             <FolderOpen v-else class="size-4 text-amber-600 dark:text-amber-400" />
-                            <span>{{ folderOpened ? 'Folder Opened in Explorer' : isOpeningFolder ? 'Opening Explorer...' : 'Open File Location' }}</span>
+                            <span>{{
+                                folderOpened ? 'Folder Opened in Explorer' : isOpeningFolder ? 'Opening Explorer...' : 'Open File Location'
+                            }}</span>
                         </button>
                     </div>
                 </div>

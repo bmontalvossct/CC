@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Assessment;
+use App\Models\Project;
 use App\Models\Section;
 use App\Services\Autochecker\ChatbotService;
 use App\Services\Autochecker\OllamaClient;
@@ -40,15 +41,22 @@ class AiAssistantController extends Controller
     }
 
     /**
-     * Warm up the chat model weights on Ollama when UI opens.
+     * Warm up the model weights on Ollama (supports 'chat', 'code_grading', 'general_grading').
      */
-    public function warm(): JsonResponse
+    public function warm(Request $request): JsonResponse
     {
-        $success = $this->ollamaClient->warm('chat');
+        $profile = $request->input('profile', 'chat');
+        $allowedProfiles = ['chat', 'code_grading', 'general_grading'];
+        if (! in_array($profile, $allowedProfiles, true)) {
+            $profile = 'chat';
+        }
+
+        $success = $this->ollamaClient->warm($profile);
 
         return response()->json([
             'warmed' => $success,
-            'model' => $this->ollamaClient->resolveProfileModel('chat'),
+            'model' => $this->ollamaClient->resolveProfileModel($profile),
+            'profile' => $profile,
         ]);
     }
 
@@ -109,7 +117,7 @@ class AiAssistantController extends Controller
         $validated = $request->validate([
             'messages' => ['required', 'array', 'min:1'],
             'messages.*.role' => ['required', 'string', 'in:user,assistant,system'],
-            'messages.*.content' => ['required', 'string'],
+            'messages.*.content' => ['nullable', 'string'],
             'messages.*.attachments' => ['nullable', 'array'],
             'messages.*.attachments.*.name' => ['nullable', 'string'],
             'messages.*.attachments.*.content' => ['nullable', 'string'],
@@ -180,14 +188,18 @@ class AiAssistantController extends Controller
     {
         $user = $request->user();
         $validated = $request->validate([
-            'action' => ['required', 'string', 'in:create_assessment,update_assessment,delete_assessment'],
+            'action' => ['required', 'string', 'in:create_assessment,update_assessment,delete_assessment,create_project_groups'],
             'section_id' => ['required', 'integer'],
             'assessment_id' => ['nullable', 'integer'],
-            'type' => ['nullable', 'string', 'in:activity,laboratory,quiz,exam'],
+            'type' => ['nullable', 'string'],
             'title' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'max_points' => ['nullable', 'numeric', 'min:1', 'max:1000'],
             'conducted_on' => ['nullable', 'date'],
+            'group_count' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'source_project_id' => ['nullable', 'integer'],
+            'copy_names' => ['nullable', 'boolean'],
+            'copy_topics' => ['nullable', 'boolean'],
         ]);
 
         $section = Section::where('id', $validated['section_id'])
@@ -228,6 +240,99 @@ class AiAssistantController extends Controller
                 ],
                 'section_id' => $section->id,
                 'redirect_url' => route('sections.assessments.show', [$section, $assessment]),
+            ]);
+        }
+
+        if ($validated['action'] === 'create_project_groups') {
+            $type = in_array($validated['type'] ?? '', ['group_activity', 'reporting', 'project'], true)
+                ? $validated['type']
+                : 'group_activity';
+            $title = trim($validated['title'] ?? '') ?: 'New Group Activity';
+            $maxPoints = isset($validated['max_points']) ? (float) $validated['max_points'] : null;
+            $conductedOn = $validated['conducted_on'] ?? now()->toDateString();
+            $description = $validated['description'] ?? null;
+            $sourceProjectId = isset($validated['source_project_id']) ? (int) $validated['source_project_id'] : null;
+            $copyNames = (bool) ($validated['copy_names'] ?? true);
+            $copyTopics = (bool) ($validated['copy_topics'] ?? false);
+            $groupCount = max(1, min(50, (int) ($validated['group_count'] ?? 4)));
+
+            $project = Project::create([
+                'section_id' => $section->id,
+                'type' => $type,
+                'format' => 'group',
+                'title' => $title,
+                'description' => $description,
+                'conducted_on' => $conductedOn,
+                'max_points' => $maxPoints,
+            ]);
+
+            $activeStudents = $section->students()->where('is_active', true)->get();
+
+            // Replicate previous grouping if source_project_id provided
+            if ($sourceProjectId) {
+                $sourceProject = Project::where('section_id', $section->id)->find($sourceProjectId);
+                if ($sourceProject) {
+                    $activeStudentIds = $activeStudents->pluck('id')->flip();
+
+                    foreach ($sourceProject->groups()->with('members')->orderBy('order_column')->get() as $sourceGroup) {
+                        $newGroup = $project->groups()->create([
+                            'group_number' => $sourceGroup->group_number,
+                            'name' => $copyNames ? $sourceGroup->name : "Group {$sourceGroup->group_number}",
+                            'topic' => $copyTopics ? $sourceGroup->topic : null,
+                            'description' => $copyTopics ? $sourceGroup->description : null,
+                            'order_column' => $sourceGroup->order_column,
+                        ]);
+
+                        foreach ($sourceGroup->members as $sourceMember) {
+                            if ($activeStudentIds->has($sourceMember->student_id)) {
+                                $newGroup->members()->create([
+                                    'student_id' => $sourceMember->student_id,
+                                    'role' => $sourceMember->role,
+                                ]);
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Auto-assign random distribution across groupCount
+                $shuffled = $activeStudents->shuffle()->values();
+                $groups = [];
+                for ($i = 1; $i <= $groupCount; $i++) {
+                    $groups[$i] = $project->groups()->create([
+                        'group_number' => $i,
+                        'name' => "Group {$i}",
+                        'order_column' => $i,
+                    ]);
+                }
+
+                if ($shuffled->isNotEmpty()) {
+                    foreach ($shuffled as $index => $student) {
+                        $assignedGroupNumber = ($index % $groupCount) + 1;
+                        $groups[$assignedGroupNumber]->members()->create([
+                            'student_id' => $student->id,
+                        ]);
+                    }
+                }
+            }
+
+            $typeLabel = match ($type) {
+                'group_activity' => 'Group Activity',
+                'reporting' => 'Group Reporting',
+                'project' => 'Project',
+            };
+
+            return response()->json([
+                'success' => true,
+                'action' => 'create_project_groups',
+                'message' => "Successfully created {$typeLabel} \"{$project->title}\" with {$project->groups()->count()} groups in {$section->name}!",
+                'project' => [
+                    'id' => $project->id,
+                    'title' => $project->title,
+                    'type' => $project->type,
+                    'groups_count' => $project->groups()->count(),
+                ],
+                'section_id' => $section->id,
+                'redirect_url' => route('sections.projects.show', [$section, $project]),
             ]);
         }
 
@@ -296,7 +401,7 @@ class AiAssistantController extends Controller
                 'suggestions' => [
                     'How do I arrange classroom seats and aisles in Floor Plan?',
                     'How does the Bulk Activity Autochecker work?',
-                    'How do I randomize student groups for projects?',
+                    'How do I reuse previous groupings for a new group activity?',
                     'How do I export or backup my grades and rosters?',
                     'How do I configure grading weights and oral bonus cap?',
                 ],
@@ -304,16 +409,26 @@ class AiAssistantController extends Controller
         }
 
         if ($sectionId && $scope === 'current_section') {
-            $hasSection = Section::where('id', $sectionId)->where('user_id', $user->id)->exists();
-            if ($hasSection) {
+            $section = Section::where('id', $sectionId)->where('user_id', $user->id)->first();
+            if ($section) {
+                $modules = $section->courseModules()->orderBy('sort_order')->take(2)->get();
+                $suggestions = [];
+
+                if ($modules->isNotEmpty()) {
+                    $firstMod = $modules->first();
+                    $suggestions[] = "Draft a 10-item quiz grounded in {$firstMod->module_number}: {$firstMod->title}";
+                    $suggestions[] = "Summarize the key lecture concepts and definitions from our attached course modules";
+                }
+
+                $suggestions = array_merge($suggestions, [
+                    'Form 4 balanced student teams for a new group activity',
+                    'Which students need academic follow-up or have high absences?',
+                    'Draft a formal parent advisory letter for at-risk students',
+                    'Create a 4-part grading rubric for our next laboratory task',
+                ]);
+
                 return response()->json([
-                    'suggestions' => [
-                        'Summarize this section\'s overall gradebook performance',
-                        'Which students need academic follow-up or have high absences?',
-                        'Draft a 5-item quiz with answer key for this subject',
-                        'Create a 4-part grading rubric for our next laboratory task',
-                        'Suggest active learning recitation questions for today\'s session',
-                    ],
+                    'suggestions' => array_slice($suggestions, 0, 5),
                 ]);
             }
         }

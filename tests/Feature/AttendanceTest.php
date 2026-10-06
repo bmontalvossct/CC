@@ -377,23 +377,181 @@ class AttendanceTest extends TestCase
         );
     }
 
-    public function test_attendance_index_provides_section_schedules(): void
+    public function test_teacher_can_mark_student_as_excused_with_reason_and_points_awarded(): void
     {
         $teacher = User::factory()->create();
-        $section = $this->makeSection($teacher);
+        $section = $this->makeSection($teacher, 1);
+        $student = $section->students()->first();
+        $session = AttendanceSession::create(['section_id' => $section->id, 'session_date' => '2026-08-10', 'starts_at' => '08:00', 'ends_at' => '09:30', 'duration_minutes' => 90]);
+        $record = AttendanceRecord::create(['attendance_session_id' => $session->id, 'student_id' => $student->id, 'status' => 'present', 'attended_minutes' => 90]);
 
-        $section->schedules()->createMany([
-            ['day_of_week' => 1, 'starts_at' => '08:00', 'ends_at' => '10:00', 'schedule_type' => 'lecture', 'room' => 'Room 101'],
-            ['day_of_week' => 1, 'starts_at' => '13:00', 'ends_at' => '16:00', 'schedule_type' => 'lab', 'room' => 'Lab 201'],
+        $response = $this->actingAs($teacher)->patchJson(route('attendance.records.update', $record), [
+            'status' => 'excused',
+            'excuse_reason' => 'Doctor appointment - medical certificate provided',
+            'points_awarded' => true,
         ]);
 
-        $response = $this->actingAs($teacher)->get(route('attendance.sections.index', $section));
+        $response->assertOk()
+            ->assertJsonPath('record.status', 'excused')
+            ->assertJsonPath('record.excuse_reason', 'Doctor appointment - medical certificate provided')
+            ->assertJsonPath('record.points_awarded', true)
+            ->assertJsonPath('record.attended_minutes', 90);
+
+        $this->assertDatabaseHas('attendance_records', [
+            'id' => $record->id,
+            'status' => 'excused',
+            'excuse_reason' => 'Doctor appointment - medical certificate provided',
+            'points_awarded' => 1,
+            'attended_minutes' => 90,
+        ]);
+    }
+
+    public function test_teacher_can_mark_student_as_excused_without_points(): void
+    {
+        $teacher = User::factory()->create();
+        $section = $this->makeSection($teacher, 1);
+        $student = $section->students()->first();
+        $session = AttendanceSession::create(['section_id' => $section->id, 'session_date' => '2026-08-10', 'starts_at' => '08:00', 'ends_at' => '09:30', 'duration_minutes' => 90]);
+        $record = AttendanceRecord::create(['attendance_session_id' => $session->id, 'student_id' => $student->id, 'status' => 'present', 'attended_minutes' => 90]);
+
+        $response = $this->actingAs($teacher)->patchJson(route('attendance.records.update', $record), [
+            'status' => 'excused',
+            'excuse_reason' => 'Personal matter',
+            'points_awarded' => false,
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('record.status', 'excused')
+            ->assertJsonPath('record.excuse_reason', 'Personal matter')
+            ->assertJsonPath('record.points_awarded', false)
+            ->assertJsonPath('record.attended_minutes', 0);
+
+        $this->assertDatabaseHas('attendance_records', [
+            'id' => $record->id,
+            'status' => 'excused',
+            'points_awarded' => 0,
+            'attended_minutes' => 0,
+        ]);
+    }
+
+    public function test_excused_days_do_not_count_towards_3_absence_limit(): void
+    {
+        $teacher = User::factory()->create();
+        $section = $this->makeSection($teacher, 1);
+        $student = $section->students()->first();
+
+        // 2 absent sessions
+        foreach (['2026-08-10', '2026-08-11'] as $date) {
+            $sess = AttendanceSession::create(['section_id' => $section->id, 'session_date' => $date, 'starts_at' => '08:00', 'ends_at' => '09:00', 'duration_minutes' => 60]);
+            AttendanceRecord::create(['attendance_session_id' => $sess->id, 'student_id' => $student->id, 'status' => 'absent', 'attended_minutes' => 0]);
+        }
+
+        // 2 excused sessions
+        foreach (['2026-08-12', '2026-08-13'] as $date) {
+            $sess = AttendanceSession::create(['section_id' => $section->id, 'session_date' => $date, 'starts_at' => '08:00', 'ends_at' => '09:00', 'duration_minutes' => 60]);
+            AttendanceRecord::create([
+                'attendance_session_id' => $sess->id,
+                'student_id' => $student->id,
+                'status' => 'excused',
+                'excuse_reason' => 'Official event',
+                'points_awarded' => false,
+                'attended_minutes' => 0,
+            ]);
+        }
+
+        // 5th live session
+        $live = AttendanceSession::create(['section_id' => $section->id, 'session_date' => '2026-08-14', 'starts_at' => '08:00', 'ends_at' => '09:00', 'duration_minutes' => 60]);
+        AttendanceRecord::create(['attendance_session_id' => $live->id, 'student_id' => $student->id, 'status' => 'present', 'attended_minutes' => 60]);
+
+        $response = $this->actingAs($teacher)->get(route('attendance.sessions.show', $live));
         $response->assertOk();
         $response->assertInertia(fn (Assert $page) => $page
-            ->component('attendance/Index')
-            ->has('section.schedules', 2)
-            ->where('section.schedules.0.starts_at', '08:00')
-            ->where('section.schedules.1.starts_at', '13:00')
+            ->component('attendance/Show')
+            ->where('unseated.0.student.absent_count', 2)
+            ->where('unseated.0.student.needs_letter', false)
+        );
+    }
+
+    public function test_3_absence_policy_clearing_with_letter_resets_counter_and_preserves_past_history(): void
+    {
+        $teacher = User::factory()->create();
+        $section = $this->makeSection($teacher, 1);
+        $student = $section->students()->first();
+
+        // 3 absent sessions
+        $pastRecords = [];
+        foreach (['2026-08-10', '2026-08-11', '2026-08-12'] as $date) {
+            $sess = AttendanceSession::create(['section_id' => $section->id, 'session_date' => $date, 'starts_at' => '08:00', 'ends_at' => '09:00', 'duration_minutes' => 60]);
+            $pastRecords[] = AttendanceRecord::create(['attendance_session_id' => $sess->id, 'student_id' => $student->id, 'status' => 'absent', 'attended_minutes' => 0]);
+        }
+
+        // 4th session where student provides letter and is marked present
+        $live = AttendanceSession::create(['section_id' => $section->id, 'session_date' => '2026-08-13', 'starts_at' => '08:00', 'ends_at' => '09:00', 'duration_minutes' => 60]);
+        $liveRecord = AttendanceRecord::create(['attendance_session_id' => $live->id, 'student_id' => $student->id, 'status' => 'absent', 'attended_minutes' => 0]);
+
+        $response = $this->actingAs($teacher)->patchJson(route('attendance.records.update', $liveRecord), [
+            'status' => 'present',
+            'clear_absences' => true,
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('record.status', 'present')
+            ->assertJsonPath('record.attended_minutes', 60)
+            ->assertJsonPath('student_uncleared_absent_count', 0);
+
+        // Verify past 3 absences are marked cleared_by_letter = true, but their status is STILL absent and attended_minutes is STILL 0
+        foreach ($pastRecords as $rec) {
+            $this->assertDatabaseHas('attendance_records', [
+                'id' => $rec->id,
+                'status' => 'absent',
+                'attended_minutes' => 0,
+                'cleared_by_letter' => 1,
+            ]);
+        }
+
+        // Verify subsequent show reflects 0 uncleared absences
+        $showResponse = $this->actingAs($teacher)->get(route('attendance.sessions.show', $live));
+        $showResponse->assertOk();
+        $showResponse->assertInertia(fn (Assert $page) => $page
+            ->component('attendance/Show')
+            ->where('unseated.0.student.absent_count', 0)
+            ->where('unseated.0.student.needs_letter', false)
+        );
+    }
+
+    public function test_3_absence_policy_override_marks_present_without_clearing_past_absences(): void
+    {
+        $teacher = User::factory()->create();
+        $section = $this->makeSection($teacher, 1);
+        $student = $section->students()->first();
+
+        // 3 absent sessions
+        foreach (['2026-08-10', '2026-08-11', '2026-08-12'] as $date) {
+            $sess = AttendanceSession::create(['section_id' => $section->id, 'session_date' => $date, 'starts_at' => '08:00', 'ends_at' => '09:00', 'duration_minutes' => 60]);
+            AttendanceRecord::create(['attendance_session_id' => $sess->id, 'student_id' => $student->id, 'status' => 'absent', 'attended_minutes' => 0]);
+        }
+
+        // 4th session
+        $live = AttendanceSession::create(['section_id' => $section->id, 'session_date' => '2026-08-13', 'starts_at' => '08:00', 'ends_at' => '09:00', 'duration_minutes' => 60]);
+        $liveRecord = AttendanceRecord::create(['attendance_session_id' => $live->id, 'student_id' => $student->id, 'status' => 'absent', 'attended_minutes' => 0]);
+
+        $response = $this->actingAs($teacher)->patchJson(route('attendance.records.update', $liveRecord), [
+            'status' => 'present',
+            'override_absent_limit' => true,
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('record.status', 'present')
+            ->assertJsonPath('record.attended_minutes', 60)
+            ->assertJsonPath('student_uncleared_absent_count', 3);
+
+        // Check show still has 3 uncleared absences
+        $showResponse = $this->actingAs($teacher)->get(route('attendance.sessions.show', $live));
+        $showResponse->assertOk();
+        $showResponse->assertInertia(fn (Assert $page) => $page
+            ->component('attendance/Show')
+            ->where('unseated.0.student.absent_count', 3)
+            ->where('unseated.0.student.needs_letter', true)
         );
     }
 }

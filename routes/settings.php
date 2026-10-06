@@ -25,6 +25,8 @@ Route::middleware('auth')->group(function () {
         return Inertia::render('settings/Appearance');
     })->name('appearance');
 
+    Route::get('settings/notifications', [\App\Http\Controllers\Settings\NotificationSettingsController::class, 'index'])->name('notifications.settings');
+
     // Backup & Export
     Route::get('settings/backup', [\App\Http\Controllers\Settings\BackupExportController::class, 'index'])->name('backup.index');
     Route::get('settings/backup/export-json', [\App\Http\Controllers\Settings\BackupExportController::class, 'exportJson'])->name('backup.export-json');

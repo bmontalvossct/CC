@@ -16,6 +16,9 @@ class ProjectGroupMember extends Model
         'role',
         'score',
         'notes',
+        'attachment_path',
+        'attachment_name',
+        'attachment_mime',
     ];
 
     protected function casts(): array

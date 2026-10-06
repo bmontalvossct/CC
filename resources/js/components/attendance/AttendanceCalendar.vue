@@ -1,19 +1,24 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
 import { Link, router } from '@inertiajs/vue3';
-import { ArrowRight, Calendar, ChevronLeft, ChevronRight, Clock, LoaderCircle, Trash2, UserCheck, UserX } from 'lucide-vue-next';
+import { ArrowRight, Calendar, ChevronLeft, ChevronRight, Clock, LoaderCircle, ShieldCheck, Trash2, UserCheck, UserX } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
 type Student = {
     id: number;
     student_number: string;
     name: string;
+    first_name?: string;
+    last_name?: string;
 };
 
 type SessionRecord = {
     student_id: number;
-    status: 'present' | 'late' | 'absent';
+    status: 'present' | 'late' | 'absent' | 'excused';
     attended_minutes: number;
+    excuse_reason?: string | null;
+    points_awarded?: boolean;
+    cleared_by_letter?: boolean;
 };
 
 type Session = {
@@ -26,6 +31,7 @@ type Session = {
     records_count: number;
     present_count: number;
     late_count: number;
+    excused_count?: number;
     absent_count: number;
     records: SessionRecord[];
 };
@@ -227,11 +233,12 @@ const currentSessionForDate = computed<Session | null>(() => {
 const sessionStudentsBreakdown = computed(() => {
     const session = currentSessionForDate.value;
     if (!session) {
-        return { present: [], late: [], absent: [] };
+        return { present: [], late: [], excused: [], absent: [] };
     }
 
     const present: Student[] = [];
     const late: Student[] = [];
+    const excused: Array<Student & { excuse_reason?: string | null; points_awarded?: boolean }> = [];
     const absent: Student[] = [];
 
     for (const record of session.records) {
@@ -242,6 +249,12 @@ const sessionStudentsBreakdown = computed(() => {
             present.push(student);
         } else if (record.status === 'late') {
             late.push(student);
+        } else if (record.status === 'excused') {
+            excused.push({
+                ...student,
+                excuse_reason: record.excuse_reason,
+                points_awarded: record.points_awarded,
+            });
         } else if (record.status === 'absent') {
             absent.push(student);
         }
@@ -255,9 +268,10 @@ const sessionStudentsBreakdown = computed(() => {
 
     present.sort(sortByLastName);
     late.sort(sortByLastName);
+    excused.sort(sortByLastName);
     absent.sort(sortByLastName);
 
-    return { present, late, absent };
+    return { present, late, excused, absent };
 });
 
 const selectDay = (dateStr: string) => {
@@ -437,10 +451,42 @@ const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
                         >
                             <Clock class="size-3.5" /> {{ sessionStudentsBreakdown.late.length }} Late
                         </span>
+                        <span
+                            v-if="sessionStudentsBreakdown.excused.length > 0"
+                            class="inline-flex items-center gap-1.5 rounded-full bg-indigo-700 px-3 py-1 text-xs font-medium text-white shadow-sm"
+                        >
+                            <ShieldCheck class="size-3.5" /> {{ sessionStudentsBreakdown.excused.length }} Excused
+                        </span>
                         <span class="inline-flex items-center gap-1.5 rounded-full bg-rose-700 px-3 py-1 text-xs font-medium text-white shadow-sm">
                             <UserX class="size-3.5" /> {{ sessionStudentsBreakdown.absent.length }} Absent
                         </span>
                     </div>
+                </div>
+
+                <!-- Excused Students List (if any) -->
+                <div v-if="sessionStudentsBreakdown.excused.length > 0">
+                    <div class="flex items-center justify-between border-b border-border/70 pb-2">
+                        <span class="flex items-center gap-1.5 text-sm font-medium text-indigo-700 dark:text-indigo-400">
+                            <ShieldCheck class="size-4" /> Excused Students ({{ sessionStudentsBreakdown.excused.length }})
+                        </span>
+                    </div>
+                    <ul class="mt-2 max-h-48 divide-y divide-border/60 overflow-y-auto pr-1">
+                        <li
+                            v-for="student in sessionStudentsBreakdown.excused"
+                            :key="student.id"
+                            class="flex flex-col gap-1 py-2 text-sm sm:flex-row sm:items-center sm:justify-between"
+                        >
+                            <div>
+                                <span class="font-medium text-foreground">{{ formatStudentDisplayName(student) }}</span>
+                                <p v-if="student.excuse_reason" class="text-xs italic text-indigo-700 dark:text-indigo-300">
+                                    "{{ student.excuse_reason }}" ({{ student.points_awarded ? '1.0 pt' : '0 pt' }})
+                                </p>
+                            </div>
+                            <span class="self-start rounded bg-indigo-700 px-2 py-0.5 font-mono text-xs text-white sm:self-auto">
+                                {{ student.student_number }}
+                            </span>
+                        </li>
+                    </ul>
                 </div>
 
                 <!-- Absent Students List -->

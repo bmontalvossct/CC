@@ -253,6 +253,8 @@ const density = computed<'spacious' | 'compact' | 'condensed' | 'micro'>(() => {
                                                     :src="seat.student.photo_url"
                                                     :alt="formatStudentDisplayName(seat.student)"
                                                     class="size-full object-cover"
+                                                    loading="lazy"
+                                                    decoding="async"
                                                 />
                                                 <span
                                                     v-else
@@ -316,8 +318,10 @@ const density = computed<'spacious' | 'compact' | 'condensed' | 'micro'>(() => {
                                     <img
                                         v-if="seat.student.photo_url"
                                         :src="seat.student.photo_url"
-                                        alt=""
+                                        :alt="formatStudentDisplayName(seat.student)"
                                         class="size-16 rounded-full object-cover shadow-sm"
+                                        loading="lazy"
+                                        decoding="async"
                                     />
                                     <div
                                         v-else

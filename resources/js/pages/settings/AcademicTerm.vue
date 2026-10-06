@@ -102,11 +102,11 @@ const selectClass =
 
                 <!-- Flash Success Notification -->
                 <div
-                    v-if="page.props.flash?.success"
+                    v-if="(page.props as any).flash?.success"
                     class="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-xs font-semibold text-emerald-700 dark:text-emerald-400"
                 >
                     <CheckCircle2 class="size-4" />
-                    <span>{{ page.props.flash.success }}</span>
+                    <span>{{ (page.props as any).flash.success }}</span>
                 </div>
 
                 <form @submit.prevent="submit" class="space-y-6">

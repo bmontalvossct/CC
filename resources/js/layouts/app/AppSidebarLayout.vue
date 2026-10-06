@@ -5,6 +5,7 @@ import AppShell from '@/components/AppShell.vue';
 import AppSidebar from '@/components/AppSidebar.vue';
 import AppSidebarHeader from '@/components/AppSidebarHeader.vue';
 import ClassroomTimer from '@/components/tools/ClassroomTimer.vue';
+import { useClassReminders } from '@/composables/useClassReminders';
 import { useClassroomTimer } from '@/composables/useClassroomTimer';
 import type { BreadcrumbItemType } from '@/types';
 
@@ -17,6 +18,7 @@ withDefaults(defineProps<Props>(), {
 });
 
 const { isTimerOpen } = useClassroomTimer();
+useClassReminders();
 </script>
 
 <template>

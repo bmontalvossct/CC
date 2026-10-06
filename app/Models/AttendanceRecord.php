@@ -16,16 +16,27 @@ class AttendanceRecord extends Model
 
     public const STATUS_LATE = 'late';
 
+    public const STATUS_EXCUSED = 'excused';
+
     protected $fillable = [
         'attendance_session_id',
         'student_id',
         'status',
         'attended_minutes',
+        'excuse_reason',
+        'points_awarded',
+        'cleared_by_letter',
+        'cleared_at',
     ];
 
     protected function casts(): array
     {
-        return ['attended_minutes' => 'integer'];
+        return [
+            'attended_minutes' => 'integer',
+            'points_awarded' => 'boolean',
+            'cleared_by_letter' => 'boolean',
+            'cleared_at' => 'datetime',
+        ];
     }
 
     public function session(): BelongsTo

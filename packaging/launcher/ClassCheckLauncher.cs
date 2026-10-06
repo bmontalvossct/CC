@@ -208,6 +208,7 @@ namespace ClassCheck
                 string storageDir = Path.Combine(appRoot, "storage");
                 string[] subDirs = new string[] {
                     Path.Combine(storageDir, "app"),
+                    Path.Combine(storageDir, "app", "sections"),
                     Path.Combine(storageDir, "app", "public"),
                     Path.Combine(storageDir, "app", "public", "photos"),
                     Path.Combine(storageDir, "app", "public", "modules"),
@@ -566,7 +567,7 @@ namespace ClassCheck
                 });
                 menu.Items.Add(folderItem);
 
-                ToolStripMenuItem backupItem = new ToolStripMenuItem("💾 Backup Database Now", null, (s, e) => BackupDatabase());
+                ToolStripMenuItem backupItem = new ToolStripMenuItem("💾 Back Up Database Now", null, (s, e) => BackupDatabase());
                 menu.Items.Add(backupItem);
 
                 ToolStripMenuItem restartItem = new ToolStripMenuItem("🔄 Restart Server", null, (s, e) =>
@@ -610,7 +611,7 @@ namespace ClassCheck
                 string dbFile = Path.Combine(appRoot, "database", "database.sqlite");
                 if (!File.Exists(dbFile) || new FileInfo(dbFile).Length == 0)
                 {
-                    MessageBox.Show("No active database records found to backup.", "ClassCheck Backup", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show("No active database records were found to back up.", "ClassCheck Backup", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
 
@@ -641,7 +642,7 @@ namespace ClassCheck
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Failed to backup database:\n" + ex.Message, "Backup Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Failed to back up database:\n" + ex.Message, "Backup Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
     }

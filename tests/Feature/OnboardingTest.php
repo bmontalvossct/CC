@@ -146,4 +146,55 @@ class OnboardingTest extends TestCase
         $this->assertEquals('2026-2027', $term->school_year);
         $this->assertTrue($term->is_current);
     }
+
+    public function test_user_can_save_onboarding_quick_setup_with_custom_passing_rates_and_prefill_section_creation(): void
+    {
+        $user = User::factory()->create(['name' => 'Initial Name']);
+
+        $response = $this->actingAs($user)->postJson('/onboarding/quick-setup', [
+            'name' => 'Prof. Ada Lovelace',
+            'term_name' => '2nd Semester',
+            'school_year' => '2026-2027',
+            'starts_on' => '2027-01-15',
+            'ends_on' => '2027-05-30',
+            'passing_rates' => [
+                'quiz' => 80,
+                'activity' => 70,
+                'project' => 85,
+                'exam' => 65,
+            ],
+        ]);
+
+        $response->assertOk();
+        $response->assertJson([
+            'success' => true,
+            'passing_rates' => [
+                'quiz' => 80,
+                'activity' => 70,
+                'project' => 85,
+                'exam' => 65,
+            ],
+        ]);
+
+        $cachedRates = cache()->get("user_{$user->id}_default_passing_rates");
+        $this->assertEquals([
+            'quiz' => 80,
+            'activity' => 70,
+            'project' => 85,
+            'exam' => 65,
+        ], $cachedRates);
+
+        // Verify that navigating to /sections/create reflects the onboarding benchmarks in defaultPassingRates
+        $createResponse = $this->actingAs($user)->get(route('sections.create'));
+        $createResponse->assertOk();
+        $createResponse->assertInertia(fn (Assert $page) => $page
+            ->component('sections/Create')
+            ->where('defaultPassingRates', [
+                'quiz' => 80,
+                'activity' => 70,
+                'project' => 85,
+                'exam' => 65,
+            ])
+        );
+    }
 }

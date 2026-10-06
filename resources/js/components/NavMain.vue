@@ -108,7 +108,7 @@ const handleSelectSection = (sec: any) => {
                         :is-active="page.url === item.href || (item.href === '/sections' && page.url === '/sections')"
                         class="data-[active=true]:shadow-xs h-10 rounded-xl px-3.5 font-medium text-sidebar-foreground/80 transition-all duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground data-[active=true]:bg-primary data-[active=true]:text-white [&[data-active=true]_svg]:text-white"
                     >
-                        <Link :href="item.href" prefetch="hover" class="flex items-center gap-3">
+                        <Link :href="item.href" prefetch="hover" cache-for="1m" class="flex items-center gap-3">
                             <component :is="item.icon" class="size-4 shrink-0 transition-transform group-hover:scale-110" />
                             <span class="text-sm">{{ item.title }}</span>
                         </Link>
@@ -120,11 +120,14 @@ const handleSelectSection = (sec: any) => {
         <!-- Active Section Context Navigation -->
         <SidebarGroup v-if="activeSection" class="border-t border-border/70 px-3 pt-4">
             <div class="mb-2 flex items-center justify-between px-2">
-                <div class="flex flex-col min-w-0 flex-1">
+                <div class="flex min-w-0 flex-1 flex-col">
                     <span class="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Active Section</span>
                     <div class="flex items-center gap-1.5 truncate text-xs font-semibold text-foreground" :title="activeSection.name">
                         <span class="truncate">{{ activeSection.name }}</span>
-                        <span v-if="activeSection.subject_code" class="shrink-0 rounded bg-primary/15 px-1.5 py-0.2 text-[10px] font-bold text-primary dark:bg-primary/25">
+                        <span
+                            v-if="activeSection.subject_code"
+                            class="inline-flex items-center whitespace-nowrap shrink-0 mx-1 rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold text-primary dark:bg-primary/25"
+                        >
                             {{ activeSection.subject_code }}
                         </span>
                     </div>
@@ -138,6 +141,7 @@ const handleSelectSection = (sec: any) => {
                     type="button"
                     class="rounded-lg p-1 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
                     title="Switch section"
+                    :aria-expanded="showAllSections"
                     @click="showAllSections = !showAllSections"
                 >
                     <ChevronDown class="size-3.5 transition-transform" :class="{ 'rotate-180': showAllSections }" />
@@ -145,25 +149,28 @@ const handleSelectSection = (sec: any) => {
             </div>
 
             <!-- Quick Section Switcher Dropdown (if toggled) -->
-            <div v-if="showAllSections && userSectionsList.length > 1" class="mb-3 space-y-1 rounded-xl border border-border/80 bg-card/60 p-1.5">
-                <div class="px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Switch Section</div>
-                <Link
-                    v-for="sec in userSectionsList"
-                    :key="sec.id"
-                    :href="`/sections/${sec.id}`"
-                    prefetch="hover"
-                    class="flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors"
-                    :class="
-                        sec.id === activeSection.id
-                            ? 'bg-primary text-white'
-                            : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground'
-                    "
-                    @click="handleSelectSection(sec)"
-                >
-                    <span class="truncate">{{ sec.name }}</span>
-                    <span v-if="sec.subject_code" class="font-mono text-[10px] opacity-80">{{ sec.subject_code }}</span>
-                </Link>
-            </div>
+            <Transition name="section-switch">
+                <div v-if="showAllSections && userSectionsList.length > 1" class="mb-3 space-y-1 rounded-xl border border-border/80 bg-card/60 p-1.5">
+                    <div class="px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Switch Section</div>
+                    <Link
+                        v-for="sec in userSectionsList"
+                        :key="sec.id"
+                        :href="`/sections/${sec.id}`"
+                        prefetch="hover"
+                        cache-for="1m"
+                        class="flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors"
+                        :class="
+                            sec.id === activeSection.id
+                                ? 'bg-primary text-white'
+                                : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground'
+                        "
+                        @click="handleSelectSection(sec)"
+                    >
+                        <span class="truncate">{{ sec.name }}</span>
+                        <span v-if="sec.subject_code" class="font-mono text-[10px] opacity-80">{{ sec.subject_code }}</span>
+                    </Link>
+                </div>
+            </Transition>
 
             <!-- Section Sub-Pages Menu -->
             <SidebarMenu class="gap-1">
@@ -173,7 +180,7 @@ const handleSelectSection = (sec: any) => {
                         :is-active="isSubNavActive(nav.href, nav.exact)"
                         class="data-[active=true]:shadow-xs h-9 rounded-xl px-3 text-xs font-medium text-sidebar-foreground/80 transition-all duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground data-[active=true]:bg-primary data-[active=true]:text-white [&[data-active=true]_svg]:text-white"
                     >
-                        <Link :href="nav.href" prefetch="hover" class="flex items-center gap-2.5">
+                        <Link :href="nav.href" prefetch="hover" cache-for="1m" class="flex items-center gap-2.5">
                             <component :is="nav.icon" class="size-3.5 shrink-0" />
                             <span class="truncate">{{ nav.title }}</span>
                         </Link>
@@ -193,14 +200,20 @@ const handleSelectSection = (sec: any) => {
                         as-child
                         class="h-9 rounded-xl px-3 text-xs font-medium text-sidebar-foreground/80 transition-all duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                     >
-                        <Link :href="`/sections/${sec.id}`" prefetch="hover" class="flex items-center justify-between" @click="handleSelectSection(sec)">
+                        <Link
+                            :href="`/sections/${sec.id}`"
+                            prefetch="hover"
+                            cache-for="1m"
+                            class="flex items-center justify-between"
+                            @click="handleSelectSection(sec)"
+                        >
                             <div class="flex items-center gap-2 truncate">
                                 <GraduationCap class="size-3.5 shrink-0 text-primary" />
                                 <span class="truncate">{{ sec.name }}</span>
                             </div>
                             <span
                                 v-if="sec.subject_code"
-                                class="shadow-xs rounded bg-primary px-1.5 py-0.5 font-mono text-[9px] font-medium text-white"
+                                class="inline-flex items-center whitespace-nowrap shrink-0 mx-1 rounded bg-primary px-1.5 py-0.5 font-mono text-[9px] font-medium text-white shadow-sm"
                             >
                                 {{ sec.subject_code }}
                             </span>
@@ -211,3 +224,17 @@ const handleSelectSection = (sec: any) => {
         </SidebarGroup>
     </div>
 </template>
+
+<style scoped>
+.section-switch-enter-active,
+.section-switch-leave-active {
+    transition:
+        opacity 180ms,
+        transform 220ms var(--ease-out);
+}
+.section-switch-enter-from,
+.section-switch-leave-to {
+    opacity: 0;
+    transform: translateY(-5px);
+}
+</style>

@@ -30,7 +30,7 @@ class CourseModuleController extends Controller
                 'title' => $module->title,
                 'description' => $module->description,
                 'link_url' => $module->link_url,
-                'has_file' => ! empty($module->file_path) && Storage::disk('local')->exists($module->file_path),
+                'has_file' => ! empty($module->file_path),
                 'file_name' => $module->file_name,
                 'file_size' => $module->file_size,
                 'formatted_file_size' => $module->formatted_file_size,
@@ -147,6 +147,7 @@ class CourseModuleController extends Controller
         }
 
         $courseModule->update($updateData);
+        app(\App\Services\Autochecker\ModuleRagService::class)->clearModuleCache($courseModule);
 
         return back()->with('success', "{$courseModule->module_number} updated successfully.");
     }
@@ -155,6 +156,8 @@ class CourseModuleController extends Controller
     {
         $this->authorizeSection($request, $section);
         abort_unless((int) $courseModule->section_id === (int) $section->id, 404);
+
+        app(\App\Services\Autochecker\ModuleRagService::class)->clearModuleCache($courseModule);
 
         if (! empty($courseModule->file_path) && Storage::disk('local')->exists($courseModule->file_path)) {
             Storage::disk('local')->delete($courseModule->file_path);

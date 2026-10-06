@@ -1,11 +1,16 @@
 <script setup lang="ts">
+import OctoMascot from '@/components/OctoMascot.vue';
 import GettingStartedChecklist, { type OnboardingData } from '@/components/onboarding/GettingStartedChecklist.vue';
 import OnboardingModal from '@/components/onboarding/OnboardingModal.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { cardHover, staggerItem } from '@/lib/motion';
 import type { BreadcrumbItem } from '@/types';
-import { Head, Link, router } from '@inertiajs/vue3';
-import { ArrowRight, CalendarCheck2, CheckCircle2, ClipboardList, GraduationCap, HelpCircle, LayoutGrid, Plus, Sparkles, Users } from 'lucide-vue-next';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { ArrowRight, CalendarCheck2, CheckCircle2, ClipboardList, GraduationCap, HelpCircle, LayoutGrid, Plus, Users } from 'lucide-vue-next';
+import { motion } from 'motion-v';
 import { onMounted, ref, watch } from 'vue';
+
+const page = usePage();
 
 interface SectionCard {
     id: number;
@@ -94,29 +99,25 @@ onMounted(() => {
     <AppLayout :breadcrumbs="breadcrumbs">
         <main class="page-enter mx-auto w-full max-w-[1360px] px-5 pb-16 pt-8 md:px-10 md:pt-10">
             <!-- Header Section -->
-            <section
-                class="relative overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card to-primary/5 p-6 shadow-sm sm:p-8 md:p-10"
-            >
+            <section class="workspace-hero p-6 shadow-sm sm:p-8 md:p-10">
                 <div class="pointer-events-none absolute right-0 top-0 -mr-8 -mt-8 size-64 rounded-full bg-primary/5 blur-3xl" />
                 <div class="relative flex flex-col justify-between gap-6 md:flex-row md:items-end">
                     <div>
                         <div
                             class="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary"
                         >
-                            <Sparkles class="size-3.5" />
-                            <span>Teacher workspace</span>
+                            <OctoMascot size="sm" :interactive="false" />
+                            <span>A little clarity for your teaching day</span>
                         </div>
-                        <h1 class="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl md:text-5xl">Good day, {{ teacherName.split(' ')[0] }}</h1>
+                        <h1 class="mt-4 font-display text-3xl tracking-tight sm:text-4xl md:text-5xl">
+                            Good day, {{ activeTeacherName.split(' ')[0] }}
+                        </h1>
                         <p class="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">
                             Here is your classroom overview. Manage seats, run roll-call, and log assessments in real time.
                         </p>
                     </div>
                     <div class="flex flex-wrap items-center gap-3">
-                        <button
-                            type="button"
-                            class="secondary-button !h-9 !px-3 text-xs"
-                            @click="showOnboardingTour = true"
-                        >
+                        <button type="button" class="secondary-button !h-9 !px-3 text-xs" @click="showOnboardingTour = true">
                             <HelpCircle class="size-3.5 text-muted-foreground" />
                             <span>Guided Tour</span>
                         </button>
@@ -132,14 +133,17 @@ onMounted(() => {
             </section>
 
             <!-- Getting Started Onboarding Checklist -->
-            <GettingStartedChecklist
-                :onboarding="onboarding"
-                @open-tour="showOnboardingTour = true"
-            />
+            <GettingStartedChecklist :onboarding="onboarding" @open-tour="showOnboardingTour = true" />
 
             <!-- KPI Summary Cards -->
             <section class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Key Performance Indicators">
-                <article class="paper-card group relative overflow-hidden p-6 hover:border-primary/40 hover:shadow-md">
+                <motion.article
+                    :initial="{ opacity: 0, y: 14 }"
+                    :animate="{ opacity: 1, y: 0 }"
+                    :transition="staggerItem(0)"
+                    :while-hover="cardHover"
+                    class="paper-card group relative overflow-hidden p-6 transition-shadow hover:border-primary/40 hover:shadow-md"
+                >
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Active sections</span>
                         <span
@@ -152,9 +156,15 @@ onMounted(() => {
                         <p class="text-3xl font-extrabold tracking-tight">{{ stats.sections }}</p>
                         <span class="text-xs font-medium text-muted-foreground">courses</span>
                     </div>
-                </article>
+                </motion.article>
 
-                <article class="paper-card group relative overflow-hidden p-6 hover:border-primary/40 hover:shadow-md">
+                <motion.article
+                    :initial="{ opacity: 0, y: 14 }"
+                    :animate="{ opacity: 1, y: 0 }"
+                    :transition="staggerItem(1)"
+                    :while-hover="cardHover"
+                    class="paper-card group relative overflow-hidden p-6 transition-shadow hover:border-primary/40 hover:shadow-md"
+                >
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Enrolled students</span>
                         <span
@@ -167,9 +177,15 @@ onMounted(() => {
                         <p class="text-3xl font-extrabold tracking-tight">{{ stats.students }}</p>
                         <span class="text-xs font-medium text-muted-foreground">seated</span>
                     </div>
-                </article>
+                </motion.article>
 
-                <article class="paper-card group relative overflow-hidden p-6 hover:border-primary/40 hover:shadow-md">
+                <motion.article
+                    :initial="{ opacity: 0, y: 14 }"
+                    :animate="{ opacity: 1, y: 0 }"
+                    :transition="staggerItem(2)"
+                    :while-hover="cardHover"
+                    class="paper-card group relative overflow-hidden p-6 transition-shadow hover:border-primary/40 hover:shadow-md"
+                >
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Meetings logged</span>
                         <span
@@ -182,9 +198,15 @@ onMounted(() => {
                         <p class="text-3xl font-extrabold tracking-tight">{{ stats.meetings }}</p>
                         <span class="text-xs font-medium text-muted-foreground">sessions</span>
                     </div>
-                </article>
+                </motion.article>
 
-                <article class="paper-card group relative overflow-hidden p-6 hover:border-primary/40 hover:shadow-md">
+                <motion.article
+                    :initial="{ opacity: 0, y: 14 }"
+                    :animate="{ opacity: 1, y: 0 }"
+                    :transition="staggerItem(3)"
+                    :while-hover="cardHover"
+                    class="paper-card group relative overflow-hidden p-6 transition-shadow hover:border-primary/40 hover:shadow-md"
+                >
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Attendance rate</span>
                         <span
@@ -199,7 +221,7 @@ onMounted(() => {
                         </p>
                         <span class="text-xs font-medium text-muted-foreground">overall</span>
                     </div>
-                </article>
+                </motion.article>
             </section>
 
             <!-- Sections List Section -->
@@ -220,10 +242,14 @@ onMounted(() => {
                 </div>
 
                 <div v-if="sections.length" class="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                    <article
-                        v-for="section in sections"
+                    <motion.article
+                        v-for="(section, idx) in sections"
                         :key="section.id"
-                        class="paper-card group flex flex-col justify-between hover:border-primary/50 hover:shadow-lg"
+                        :initial="{ opacity: 0, y: 14 }"
+                        :animate="{ opacity: 1, y: 0 }"
+                        :transition="staggerItem(idx)"
+                        :while-hover="cardHover"
+                        class="paper-card group flex flex-col justify-between transition-shadow hover:border-primary/50 hover:shadow-lg"
                     >
                         <div>
                             <div class="flex items-start justify-between gap-3">
@@ -253,25 +279,18 @@ onMounted(() => {
                             <!-- Metrics Strip -->
                             <div class="mt-6 grid grid-cols-3 gap-2 rounded-lg bg-secondary/60 p-3 text-center text-xs">
                                 <div>
-                                    <span class="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Students</span>
-                                    <strong class="mt-1 block text-sm font-bold">{{ section.students }}</strong>
-                                </div>
-                                <div class="border-x border-border/80">
-                                    <span class="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Seats</span>
-                                    <strong class="mt-1 block text-sm font-bold">{{ section.seats }}</strong>
+                                    <span class="block font-mono text-base font-bold text-foreground">{{ section.students }}</span>
+                                    <span class="text-[11px] text-muted-foreground">Students</span>
                                 </div>
                                 <div>
-                                    <span class="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Attendance</span>
-                                    <strong
-                                        class="mt-1 block text-sm font-bold"
-                                        :class="
-                                            section.attendance_rate !== null && section.attendance_rate >= 80
-                                                ? 'text-emerald-600 dark:text-emerald-400'
-                                                : ''
-                                        "
-                                    >
+                                    <span class="block font-mono text-base font-bold text-foreground">{{ section.seats }}</span>
+                                    <span class="text-[11px] text-muted-foreground">Seats</span>
+                                </div>
+                                <div>
+                                    <span class="block font-mono text-base font-bold text-foreground">
                                         {{ section.attendance_rate === null ? '—' : section.attendance_rate + '%' }}
-                                    </strong>
+                                    </span>
+                                    <span class="text-[11px] text-muted-foreground">Attendance</span>
                                 </div>
                             </div>
                         </div>
@@ -303,7 +322,7 @@ onMounted(() => {
                                 <LayoutGrid class="size-4" />
                             </Link>
                         </div>
-                    </article>
+                    </motion.article>
                 </div>
 
                 <div v-else class="mt-6 rounded-2xl border border-dashed border-border/80 bg-card p-12 text-center shadow-sm">
@@ -313,7 +332,7 @@ onMounted(() => {
                     <h3 class="mt-5 text-2xl font-bold">Create your first classroom</h3>
                     <p class="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
                         {{
-                            $page.props.is_offline
+                            page.props.is_offline
                                 ? 'Add a section, arrange its seating layout, and manage your students and classroom chairs.'
                                 : 'Add a section, arrange its seating layout, and let students self-claim chairs with a single QR code.'
                         }}

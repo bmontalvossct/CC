@@ -1,3 +1,5 @@
+import '@fontsource/atkinson-hyperlegible/latin-400.css';
+import '@fontsource/atkinson-hyperlegible/latin-700.css';
 import '../css/app.css';
 
 import { createInertiaApp } from '@inertiajs/vue3';
@@ -8,6 +10,7 @@ import { createApp, Fragment, h } from 'vue';
 import { ZiggyVue } from 'ziggy-js';
 import { initializeTheme } from './composables/useAppearance';
 import { modalFocus } from './directives/modalFocus';
+import { reveal } from './directives/reveal';
 
 const appName = import.meta.env.VITE_APP_NAME || 'ClassCheck';
 
@@ -17,12 +20,11 @@ createInertiaApp({
     setup({ el, App, props, plugin }) {
         const app = createApp({ render: () => h(Fragment, [h(App, props), h(SpeedInsights)]) });
         app.directive('modal-focus', modalFocus);
-        app.use(plugin)
-            .use(ZiggyVue)
-            .mount(el);
+        app.directive('reveal', reveal);
+        app.use(plugin).use(ZiggyVue).mount(el);
     },
     progress: {
-        color: '#4B5563',
+        color: '#247557',
     },
 });
 

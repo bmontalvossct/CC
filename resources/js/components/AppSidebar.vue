@@ -22,7 +22,7 @@ const mainNavItems: NavItem[] = [
             <SidebarMenu>
                 <SidebarMenuItem>
                     <SidebarMenuButton size="lg" as-child class="h-12 rounded-xl transition-colors hover:bg-sidebar-accent">
-                        <Link href="/dashboard" prefetch="hover"><AppLogo /></Link>
+                        <Link href="/dashboard" prefetch="hover" cache-for="1m"><AppLogo /></Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
             </SidebarMenu>

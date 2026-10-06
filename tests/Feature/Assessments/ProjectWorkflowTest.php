@@ -328,7 +328,7 @@ class ProjectWorkflowTest extends TestCase
         $project = Project::where('title', 'Software Engineering Project')->firstOrFail();
         $res->assertRedirect(route('sections.projects.show', [$section, $project]));
         $this->assertNotNull($project->attachment_path);
-        $this->assertSame('project_rubric.pdf', $project->attachment_name);
+        $this->assertSame('Project_details 1.pdf', $project->attachment_name);
         Storage::disk('local')->assertExists($project->attachment_path);
 
         $this->actingAs($user)->get(route('sections.projects.attachment', [$section, $project]))
@@ -361,7 +361,7 @@ class ProjectWorkflowTest extends TestCase
 
         $project->refresh();
         $this->assertSame('Research Reporting Revised', $project->title);
-        $this->assertSame('revised_rubric.pdf', $project->attachment_name);
+        $this->assertSame('Report_details.pdf', $project->attachment_name);
         Storage::disk('local')->assertExists($project->attachment_path);
     }
 
@@ -592,4 +592,175 @@ class ProjectWorkflowTest extends TestCase
         $this->assertStringContainsString('Explain service meshes and ingress controllers', $content);
         $this->assertStringContainsString('Lead', $content);
     }
+
+    public function test_teacher_can_create_project_using_grouping_from_previous_activity(): void
+    {
+        $user = User::factory()->create();
+        $section = $this->createSection($user);
+        $students = $this->createStudents($section, 6);
+
+        // Previous activity with 2 custom groups
+        $previousProject = Project::create([
+            'section_id' => $section->id,
+            'type' => 'group_activity',
+            'format' => 'group',
+            'title' => 'Activity 1 - Team Formation',
+            'max_points' => 30,
+        ]);
+
+        $group1 = $previousProject->groups()->create([
+            'group_number' => 1,
+            'name' => 'Team Alpha',
+            'topic' => 'Database Design',
+            'description' => 'ERD Modeling',
+        ]);
+        $group1->members()->create(['student_id' => $students[0]->id]);
+        $group1->members()->create(['student_id' => $students[1]->id]);
+        $group1->members()->create(['student_id' => $students[2]->id]);
+
+        $group2 = $previousProject->groups()->create([
+            'group_number' => 2,
+            'name' => 'Team Beta',
+            'topic' => 'Frontend Architecture',
+            'description' => 'Vue + Tailwind',
+        ]);
+        $group2->members()->create(['student_id' => $students[3]->id]);
+        $group2->members()->create(['student_id' => $students[4]->id]);
+        $group2->members()->create(['student_id' => $students[5]->id]);
+
+        // Create new project reusing grouping from Activity 1 with copy_topics = true and copy_names = true
+        $response = $this->actingAs($user)->post(route('sections.projects.store', $section), [
+            'type' => 'reporting',
+            'format' => 'group',
+            'title' => 'Midterm Reporting',
+            'conducted_on' => '2026-09-10',
+            'max_points' => 100,
+            'source_project_id' => $previousProject->id,
+            'copy_names' => true,
+            'copy_topics' => true,
+        ]);
+
+        $response->assertRedirect();
+
+        $newProject = Project::where('title', 'Midterm Reporting')->first();
+        $this->assertNotNull($newProject);
+        $this->assertEquals(2, $newProject->groups()->count());
+
+        $newGroup1 = $newProject->groups()->where('group_number', 1)->first();
+        $this->assertEquals('Team Alpha', $newGroup1->name);
+        $this->assertEquals('Database Design', $newGroup1->topic);
+        $this->assertEquals('ERD Modeling', $newGroup1->description);
+        $this->assertEquals(3, $newGroup1->members()->count());
+        $this->assertEquals(
+            [$students[0]->id, $students[1]->id, $students[2]->id],
+            $newGroup1->members()->pluck('student_id')->toArray()
+        );
+
+        $newGroup2 = $newProject->groups()->where('group_number', 2)->first();
+        $this->assertEquals('Team Beta', $newGroup2->name);
+        $this->assertEquals('Frontend Architecture', $newGroup2->topic);
+        $this->assertEquals(3, $newGroup2->members()->count());
+        $this->assertEquals(
+            [$students[3]->id, $students[4]->id, $students[5]->id],
+            $newGroup2->members()->pluck('student_id')->toArray()
+        );
+    }
+
+    public function test_teacher_can_copy_grouping_to_existing_project(): void
+    {
+        $user = User::factory()->create();
+        $section = $this->createSection($user);
+        $students = $this->createStudents($section, 4);
+
+        // Source project
+        $sourceProject = Project::create([
+            'section_id' => $section->id,
+            'type' => 'group_activity',
+            'format' => 'group',
+            'title' => 'Source Activity',
+        ]);
+        $srcGroup1 = $sourceProject->groups()->create(['group_number' => 1, 'name' => 'Phoenix']);
+        $srcGroup1->members()->create(['student_id' => $students[0]->id]);
+        $srcGroup1->members()->create(['student_id' => $students[1]->id]);
+
+        $srcGroup2 = $sourceProject->groups()->create(['group_number' => 2, 'name' => 'Dragon']);
+        $srcGroup2->members()->create(['student_id' => $students[2]->id]);
+        $srcGroup2->members()->create(['student_id' => $students[3]->id]);
+
+        // Target project with empty or different groups
+        $targetProject = Project::create([
+            'section_id' => $section->id,
+            'type' => 'reporting',
+            'format' => 'group',
+            'title' => 'Target Project',
+        ]);
+        $targetProject->groups()->create(['group_number' => 1, 'name' => 'Old Group 1']);
+
+        // Copy grouping via endpoint
+        $response = $this->actingAs($user)->post(
+            route('sections.projects.copy-grouping', [$section, $targetProject]),
+            [
+                'source_project_id' => $sourceProject->id,
+                'copy_names' => true,
+                'copy_topics' => false,
+            ]
+        );
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        $targetProject->refresh();
+        $this->assertEquals(2, $targetProject->groups()->count());
+
+        $grp1 = $targetProject->groups()->where('group_number', 1)->first();
+        $this->assertEquals('Phoenix', $grp1->name);
+        $this->assertEquals([$students[0]->id, $students[1]->id], $grp1->members()->pluck('student_id')->toArray());
+
+        $grp2 = $targetProject->groups()->where('group_number', 2)->first();
+        $this->assertEquals('Dragon', $grp2->name);
+        $this->assertEquals([$students[2]->id, $students[3]->id], $grp2->members()->pluck('student_id')->toArray());
+    }
+
+    public function test_copy_grouping_skips_inactive_students(): void
+    {
+        $user = User::factory()->create();
+        $section = $this->createSection($user);
+        $students = $this->createStudents($section, 3);
+
+        // Deactivate student 2
+        $students[1]->update(['is_active' => false]);
+
+        $sourceProject = Project::create([
+            'section_id' => $section->id,
+            'type' => 'group_activity',
+            'format' => 'group',
+            'title' => 'Prior Activity',
+        ]);
+        $srcGroup = $sourceProject->groups()->create(['group_number' => 1, 'name' => 'Team 1']);
+        $srcGroup->members()->create(['student_id' => $students[0]->id]);
+        $srcGroup->members()->create(['student_id' => $students[1]->id]); // Inactive
+        $srcGroup->members()->create(['student_id' => $students[2]->id]);
+
+        $targetProject = Project::create([
+            'section_id' => $section->id,
+            'type' => 'project',
+            'format' => 'group',
+            'title' => 'Final Project',
+        ]);
+
+        $this->actingAs($user)->post(
+            route('sections.projects.copy-grouping', [$section, $targetProject]),
+            [
+                'source_project_id' => $sourceProject->id,
+                'copy_names' => true,
+            ]
+        );
+
+        $targetProject->refresh();
+        $newGroup = $targetProject->groups()->first();
+        // Inactive student is omitted
+        $this->assertEquals(2, $newGroup->members()->count());
+        $this->assertEquals([$students[0]->id, $students[2]->id], $newGroup->members()->pluck('student_id')->toArray());
+    }
 }
+

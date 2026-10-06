@@ -10,6 +10,7 @@ use App\Models\Project;
 use App\Models\Section;
 use App\Models\Student;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -46,10 +47,40 @@ class AssessmentController extends AssessmentModuleController
             ->where('is_active', true)
             ->count();
 
+        $availableGroupProjects = Project::query()
+            ->where('section_id', $section->id)
+            ->where('format', '!=', 'individual')
+            ->has('groups')
+            ->withCount(['groups', 'members'])
+            ->with(['groups.members.student:id,student_number,first_name,last_name,middle_name'])
+            ->latest('conducted_on')
+            ->latest('id')
+            ->get()
+            ->map(fn ($p) => [
+                'id' => $p->id,
+                'title' => $p->title,
+                'type' => $p->type,
+                'format' => $p->format,
+                'conducted_on' => $p->conducted_on?->toDateString(),
+                'groups_count' => $p->groups_count,
+                'members_count' => $p->members_count,
+                'groups' => $p->groups->map(fn ($g) => [
+                    'id' => $g->id,
+                    'group_number' => $g->group_number,
+                    'name' => $g->name,
+                    'topic' => $g->topic,
+                    'members' => $g->members->map(fn ($m) => [
+                        'student_id' => $m->student_id,
+                        'full_name' => $m->student ? trim("{$m->student->last_name}, {$m->student->first_name}") : 'Unknown Student',
+                    ]),
+                ]),
+            ]);
+
         return Inertia::render('assessments/Index', [
             'section' => $section->only('id', 'name', 'subject_code', 'subject_title'),
             'assessments' => $assessments,
             'projects' => $projects,
+            'availableGroupProjects' => $availableGroupProjects,
             'activeStudentsCount' => $activeStudentsCount,
             'filter' => in_array($type, [...Assessment::TYPES, 'project'], true) ? $type : 'all',
             'attendanceSessions' => AttendanceSession::query()
@@ -86,9 +117,16 @@ class AssessmentController extends AssessmentModuleController
 
         if ($request->hasFile('attachment')) {
             $file = $request->file('attachment');
-            $data['attachment_path'] = $file->store("assessments/{$section->id}", 'local');
-            $data['attachment_name'] = $file->getClientOriginalName();
-            $data['attachment_mime'] = $file->getMimeType();
+            $stored = app(\App\Services\SectionFolderService::class)->storeAssessmentAttachment(
+                $section,
+                $file,
+                $data['type'] ?? 'activity',
+                $data['assessment_number'] ?? null,
+                $data['title'] ?? null
+            );
+            $data['attachment_path'] = $stored['path'];
+            $data['attachment_name'] = $stored['name'];
+            $data['attachment_mime'] = $stored['mime'];
         }
 
         $assessment = Assessment::create($data);
@@ -100,7 +138,7 @@ class AssessmentController extends AssessmentModuleController
     public function show(Section $section, Assessment $assessment): Response
     {
         $this->authorizeAssessment($section, $assessment);
-        $assessment->load(['scores:id,assessment_id,student_id,score,remarks,absence_override', 'attendanceSession:id,session_date,starts_at,ends_at']);
+        $assessment->load(['scores:id,assessment_id,student_id,score,remarks,absence_override,attachment_path,attachment_name,attachment_mime', 'attendanceSession:id,session_date,starts_at,ends_at']);
 
         $students = Student::query()
             ->where('students.section_id', $section->id)
@@ -134,6 +172,9 @@ class AssessmentController extends AssessmentModuleController
                 'score' => $saved?->score,
                 'remarks' => $saved?->remarks,
                 'absence_override' => (bool) ($saved?->absence_override ?? false),
+                'attachment_path' => $saved?->attachment_path,
+                'attachment_name' => $saved?->attachment_name,
+                'attachment_mime' => $saved?->attachment_mime,
             ];
         });
 
@@ -166,19 +207,86 @@ class AssessmentController extends AssessmentModuleController
             throw ValidationException::withMessages(['max_points' => 'The maximum cannot be lower than an existing score.']);
         }
 
-        unset($data['attachment']);
-        if ($request->hasFile('attachment')) {
+        unset($data['attachment'], $data['remove_attachment']);
+
+        if ($request->boolean('remove_attachment')) {
+            if ($assessment->attachment_path) {
+                Storage::disk('local')->delete($assessment->attachment_path);
+            }
+            $data['attachment_path'] = null;
+            $data['attachment_name'] = null;
+            $data['attachment_mime'] = null;
+        } elseif ($request->hasFile('attachment')) {
             if ($assessment->attachment_path) {
                 Storage::disk('local')->delete($assessment->attachment_path);
             }
             $file = $request->file('attachment');
-            $data['attachment_path'] = $file->store("assessments/{$section->id}", 'local');
-            $data['attachment_name'] = $file->getClientOriginalName();
-            $data['attachment_mime'] = $file->getMimeType();
+            $type = $data['type'] ?? $assessment->type;
+            $stored = app(\App\Services\SectionFolderService::class)->storeAssessmentAttachment(
+                $section,
+                $file,
+                $type,
+                $data['assessment_number'] ?? $assessment->assessment_number,
+                $data['title'] ?? $assessment->title
+            );
+            $data['attachment_path'] = $stored['path'];
+            $data['attachment_name'] = $stored['name'];
+            $data['attachment_mime'] = $stored['mime'];
         }
+
         $assessment->update($data);
 
         return back()->with('success', 'Assessment updated.');
+    }
+
+    public function reuploadAttachment(Request $request, Section $section, Assessment $assessment): RedirectResponse
+    {
+        $this->authorizeAssessment($section, $assessment);
+
+        $request->validate([
+            'attachment' => ['required', 'file', 'max:51200', 'extensions:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx,ppt,pptx,txt,csv,zip,rar,7z,rtf,odt,ods,odp,svg,gif,bmp,heic,pages,numbers,key,json,sql,db,sqlite,sqlite3'],
+        ], [
+            'attachment.max' => 'The attachment must not be larger than 50MB.',
+            'attachment.extensions' => 'The attachment must be a valid file type.',
+        ]);
+
+        if ($assessment->attachment_path) {
+            Storage::disk('local')->delete($assessment->attachment_path);
+        }
+
+        $file = $request->file('attachment');
+        $stored = app(\App\Services\SectionFolderService::class)->storeAssessmentAttachment(
+            $section,
+            $file,
+            $assessment->type,
+            $assessment->assessment_number,
+            $assessment->title
+        );
+
+        $assessment->update([
+            'attachment_path' => $stored['path'],
+            'attachment_name' => $stored['name'],
+            'attachment_mime' => $stored['mime'],
+        ]);
+
+        return back()->with('success', 'Attachment reuploaded successfully.');
+    }
+
+    public function destroyAttachment(Section $section, Assessment $assessment): RedirectResponse
+    {
+        $this->authorizeAssessment($section, $assessment);
+
+        if ($assessment->attachment_path) {
+            Storage::disk('local')->delete($assessment->attachment_path);
+        }
+
+        $assessment->update([
+            'attachment_path' => null,
+            'attachment_name' => null,
+            'attachment_mime' => null,
+        ]);
+
+        return back()->with('success', 'Attachment deleted successfully.');
     }
 
     public function destroy(Section $section, Assessment $assessment): RedirectResponse
@@ -190,6 +298,102 @@ class AssessmentController extends AssessmentModuleController
         $assessment->delete();
 
         return to_route('sections.assessments.index', $section)->with('success', 'Assessment deleted.');
+    }
+
+    public function saveRubric(Request $request, Section $section, Assessment $assessment)
+    {
+        $this->authorizeAssessment($section, $assessment);
+
+        if ($request->has('rubric_data') && is_string($request->input('rubric_data'))) {
+            $decoded = json_decode($request->input('rubric_data'), true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $request->merge(['rubric_data' => $decoded]);
+            }
+        }
+
+        $validated = $request->validate([
+            'rubric_type' => ['nullable', 'string', 'in:percentage,answer_key,file,custom'],
+            'rubric_data' => ['nullable', 'array'],
+            'attachment' => ['nullable', 'file', 'max:25600'],
+            'remove_attachment' => ['nullable', 'boolean'],
+        ]);
+
+        if ($request->boolean('remove_attachment')) {
+            if ($assessment->attachment_path) {
+                Storage::disk('local')->delete($assessment->attachment_path);
+            }
+            $assessment->attachment_path = null;
+            $assessment->attachment_name = null;
+            $assessment->attachment_mime = null;
+        }
+
+        if ($request->hasFile('attachment')) {
+            if ($assessment->attachment_path) {
+                Storage::disk('local')->delete($assessment->attachment_path);
+            }
+            $stored = app(\App\Services\SectionFolderService::class)->storeAssessmentAttachment(
+                $section,
+                $request->file('attachment'),
+                $assessment->type ?? 'activity',
+                $assessment->assessment_number ?? null,
+                $assessment->title ?? null
+            );
+            $assessment->attachment_path = $stored['path'];
+            $assessment->attachment_name = $stored['name'];
+            $assessment->attachment_mime = $stored['mime'];
+        }
+
+        $assessment->rubric_type = $validated['rubric_type'] ?? null;
+        $assessment->rubric_data = $validated['rubric_data'] ?? null;
+        $assessment->save();
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Rubric configuration successfully saved.',
+                'assessment' => $assessment->fresh(),
+            ]);
+        }
+
+        return back()->with('success', 'Rubric configuration successfully saved.');
+    }
+
+    public function studyRubric(Request $request, Section $section, Assessment $assessment)
+    {
+        $this->authorizeAssessment($section, $assessment);
+
+        $validated = $request->validate([
+            'raw_text' => ['nullable', 'string'],
+        ]);
+
+        $filePath = null;
+        $fileName = null;
+
+        if ($assessment->attachment_path) {
+            $grader = app(\App\Services\Autochecker\AiDocumentGraderService::class);
+            $filePath = $grader->resolveFilePath($assessment->attachment_path);
+            $fileName = $assessment->attachment_name;
+        }
+
+        try {
+            $grader = app(\App\Services\Autochecker\AiDocumentGraderService::class);
+            $result = $grader->studyRubricDocument(
+                filePath: $filePath,
+                fileName: $fileName,
+                maxPoints: (float) $assessment->max_points,
+                rawText: $validated['raw_text'] ?? null
+            );
+
+            return response()->json([
+                'success' => true,
+                'studied' => $result,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $e->getCode() >= 400 && $e->getCode() < 600 ? $e->getCode() : 422);
+        }
     }
 
     private function validateSession(Section $section, mixed $sessionId): void

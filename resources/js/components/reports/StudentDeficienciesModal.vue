@@ -8,14 +8,15 @@ import {
     FileSpreadsheet,
     FileWarning,
     FolderKanban,
+    ListOrdered,
     Printer,
     Sparkles,
     UserX,
     X,
 } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
-type Assessment = { id: number; type: 'activity' | 'quiz' | 'exam'; title: string; conducted_on: string; max_points: string };
+type Assessment = { id: number; type: 'activity' | 'laboratory' | 'quiz' | 'exam' | string; title: string; conducted_on: string | null; max_points: string | number };
 type ProjectItem = {
     id: number;
     type: 'project' | 'reporting' | 'group_activity';
@@ -41,12 +42,29 @@ export type StudentRow = {
     student_number: string;
     full_name: string;
     scores: Record<number, string | null>;
+    remarks?: Record<number, string | null>;
     categories: Record<'activity' | 'quiz' | 'exam', Category>;
     group_activity_scores?: Record<number, number | null>;
     project_scores: Record<number, number | null>;
+    project_notes?: Record<number, string | null>;
     projectSummary: ProjectSummary;
     attendance: AttendanceSummary;
     recitation: Recitation;
+};
+
+export type ActivityLogEntry = {
+    id: number;
+    key: string;
+    title: string;
+    type: 'activity' | 'quiz' | 'laboratory' | 'exam' | 'project' | 'reporting' | 'group_activity';
+    typeLabel: string;
+    conducted_on: string | null;
+    score: number | null;
+    max_points: number;
+    pct: number | null;
+    status: 'passed' | 'failed' | 'missing';
+    remarks?: string | null;
+    isProject?: boolean;
 };
 
 const props = withDefaults(
@@ -59,9 +77,11 @@ const props = withDefaults(
         sectionName?: string;
         subjectCode?: string;
         open: boolean;
+        initialTab?: 'activity_log' | 'deficiencies' | 'missing' | 'failing';
     }>(),
     {
         groupActivities: () => [],
+        initialTab: 'activity_log',
     },
 );
 
@@ -69,9 +89,20 @@ const emit = defineEmits<{
     (e: 'close'): void;
 }>();
 
-type ActiveTab = 'deficiencies' | 'missing' | 'failing' | 'all';
-const currentTab = ref<ActiveTab>('deficiencies');
+type ActiveTab = 'activity_log' | 'deficiencies' | 'missing' | 'failing';
+const currentTab = ref<ActiveTab>(props.initialTab || 'activity_log');
+const logCategoryFilter = ref<'all' | 'activity' | 'quiz' | 'laboratory' | 'exam' | 'project' | 'deficiencies'>('all');
 const copied = ref(false);
+
+watch(
+    () => props.open,
+    (isOpen) => {
+        if (isOpen) {
+            currentTab.value = props.initialTab || 'activity_log';
+            logCategoryFilter.value = 'all';
+        }
+    },
+);
 
 const readableDate = (date: string | null) => {
     if (!date) return 'No date set';
@@ -84,15 +115,16 @@ const readableDate = (date: string | null) => {
 
 const percentToGrade = (pct: number | null): string => {
     if (pct === null) return '—';
-    if (pct >= 97) return '1.00';
-    if (pct >= 94) return '1.25';
-    if (pct >= 91) return '1.50';
-    if (pct >= 88) return '1.75';
-    if (pct >= 85) return '2.00';
-    if (pct >= 82) return '2.25';
-    if (pct >= 79) return '2.50';
-    if (pct >= 76) return '2.75';
-    if (pct >= 75) return '3.00';
+    const val = Math.round(pct * 100) / 100;
+    if (val >= 97.0) return '1.00';
+    if (val >= 94.0) return '1.25';
+    if (val >= 91.0) return '1.50';
+    if (val >= 88.0) return '1.75';
+    if (val >= 85.0) return '2.00';
+    if (val >= 82.0) return '2.25';
+    if (val >= 79.0) return '2.50';
+    if (val >= 76.0) return '2.75';
+    if (val >= 75.0) return '3.00';
     return '5.00';
 };
 
@@ -105,6 +137,9 @@ const isFailingGrade = (grade: string) => {
 // Compute base coursework weighted percentage
 const overallPercentage = computed<number | null>(() => {
     if (!props.student) return null;
+    if (props.student.weighted_grade !== null && props.student.weighted_grade !== undefined) {
+        return props.student.weighted_grade;
+    }
     const w = props.gradingWeights;
     let totalWeight = 0;
     let weighted = 0;
@@ -134,7 +169,12 @@ const overallPercentage = computed<number | null>(() => {
     return Math.min(100, Math.round(weighted * 100) / 100);
 });
 
-const overallGrade = computed(() => percentToGrade(overallPercentage.value));
+const overallGrade = computed(() => {
+    if (props.student?.scale_grade && props.student.scale_grade !== '—') {
+        return props.student.scale_grade;
+    }
+    return percentToGrade(overallPercentage.value);
+});
 
 // Uncomplied / Missing Assessments (score is null)
 const uncompliedAssessments = computed(() => {
@@ -145,7 +185,25 @@ const uncompliedAssessments = computed(() => {
     });
 });
 
-// Failing Assessments (score recorded but < 75%)
+const passingRates = computed(() => ({
+    quiz: Number(props.gradingWeights?.passing_rates?.quiz ?? 75),
+    activity: Number(props.gradingWeights?.passing_rates?.activity ?? 75),
+    project: Number(props.gradingWeights?.passing_rates?.project ?? 75),
+    exam: Number(props.gradingWeights?.passing_rates?.exam ?? 75),
+}));
+
+const getPassingRateForAssessment = (type: string): number => {
+    return (passingRates.value as Record<string, number>)[type] ?? 75;
+};
+
+const getPassingRateForProject = (type: string): number => {
+    if (type === 'group_activity') {
+        return passingRates.value.activity ?? 75;
+    }
+    return passingRates.value.project ?? 75;
+};
+
+// Failing Assessments (score recorded but below category threshold)
 const failingAssessments = computed(() => {
     if (!props.student) return [];
     return props.assessments
@@ -154,7 +212,8 @@ const failingAssessments = computed(() => {
             if (val === null || val === undefined || val === '') return false;
             const score = parseFloat(String(val));
             const max = parseFloat(String(a.max_points));
-            return max > 0 && score / max < 0.75;
+            const threshold = getPassingRateForAssessment(a.type) / 100;
+            return max > 0 && score / max < threshold;
         })
         .map((a) => {
             const score = parseFloat(String(props.student!.scores[a.id]));
@@ -178,7 +237,8 @@ const passingAssessments = computed(() => {
             if (val === null || val === undefined || val === '') return false;
             const score = parseFloat(String(val));
             const max = parseFloat(String(a.max_points));
-            return max > 0 && score / max >= 0.75;
+            const threshold = getPassingRateForAssessment(a.type) / 100;
+            return max > 0 && score / max >= threshold;
         })
         .map((a) => {
             const score = parseFloat(String(props.student!.scores[a.id]));
@@ -223,7 +283,8 @@ const failingProjects = computed(() => {
             if (val === null || val === undefined) return false;
             const score = Number(val);
             const max = typeof p.max_points === 'number' ? p.max_points : parseFloat(String(p.max_points || 100));
-            return max > 0 && score / max < 0.75;
+            const threshold = getPassingRateForProject(p.type) / 100;
+            return max > 0 && score / max < threshold;
         })
         .map((p) => {
             const score = Number(getStudentProjectScore(p));
@@ -247,7 +308,8 @@ const passingProjects = computed(() => {
             if (val === null || val === undefined) return false;
             const score = Number(val);
             const max = typeof p.max_points === 'number' ? p.max_points : parseFloat(String(p.max_points || 100));
-            return max > 0 && score / max >= 0.75;
+            const threshold = getPassingRateForProject(p.type) / 100;
+            return max > 0 && score / max >= threshold;
         })
         .map((p) => {
             const score = Number(getStudentProjectScore(p));
@@ -266,10 +328,86 @@ const totalMissingCount = computed(() => uncompliedAssessments.value.length + un
 const totalFailingCount = computed(() => failingAssessments.value.length + failingProjects.value.length);
 const totalDeficiencies = computed(() => totalMissingCount.value + totalFailingCount.value);
 
+const allActivityLogs = computed<ActivityLogEntry[]>(() => {
+    if (!props.student) return [];
+    const list: ActivityLogEntry[] = [];
+
+    for (const a of props.assessments) {
+        const val = props.student.scores[a.id];
+        const max = parseFloat(String(a.max_points)) || 0;
+        let score: number | null = null;
+        let pct: number | null = null;
+        let status: 'passed' | 'failed' | 'missing' = 'missing';
+
+        if (val !== null && val !== undefined && val !== '') {
+            score = parseFloat(String(val));
+            pct = max > 0 ? Math.round((score / max) * 1000) / 10 : 0;
+            status = pct >= getPassingRateForAssessment(a.type) ? 'passed' : 'failed';
+        }
+
+        list.push({
+            id: a.id,
+            key: `assessment-${a.id}`,
+            title: a.title,
+            type: a.type as any,
+            typeLabel: a.type === 'laboratory' ? 'Laboratory' : a.type.charAt(0).toUpperCase() + a.type.slice(1),
+            conducted_on: a.conducted_on,
+            score,
+            max_points: max,
+            pct,
+            status,
+            remarks: props.student.remarks?.[a.id] || null,
+            isProject: false,
+        });
+    }
+
+    for (const p of allProjectItems.value) {
+        const val = getStudentProjectScore(p);
+        const max = typeof p.max_points === 'number' ? p.max_points : parseFloat(String(p.max_points || 100));
+        let score: number | null = null;
+        let pct: number | null = null;
+        let status: 'passed' | 'failed' | 'missing' = 'missing';
+
+        if (val !== null && val !== undefined) {
+            score = Number(val);
+            pct = max > 0 ? Math.round((score / max) * 1000) / 10 : 0;
+            status = pct >= getPassingRateForProject(p.type) ? 'passed' : 'failed';
+        }
+
+        list.push({
+            id: p.id,
+            key: `project-${p.type}-${p.id}`,
+            title: p.title,
+            type: p.type as any,
+            typeLabel: p.type === 'group_activity' ? 'Group Activity' : p.type === 'reporting' ? 'Reporting' : 'Project',
+            conducted_on: p.conducted_on,
+            score,
+            max_points: max,
+            pct,
+            status,
+            remarks: props.student.project_notes?.[p.id] || null,
+            isProject: true,
+        });
+    }
+
+    return list;
+});
+
+const filteredActivityLogs = computed(() => {
+    if (logCategoryFilter.value === 'all') return allActivityLogs.value;
+    if (logCategoryFilter.value === 'deficiencies') {
+        return allActivityLogs.value.filter((item) => item.status !== 'passed');
+    }
+    if (logCategoryFilter.value === 'project') {
+        return allActivityLogs.value.filter((item) => item.type === 'project' || item.type === 'reporting' || item.type === 'group_activity');
+    }
+    return allActivityLogs.value.filter((item) => item.type === logCategoryFilter.value);
+});
+
 const typeBadgeClass = (type: string) => {
-    if (type === 'group_activity') return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400';
-    if (type === 'project') return 'bg-teal-500/10 text-teal-600 dark:text-teal-400';
-    return 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400';
+    if (type === 'group_activity') return 'bg-emerald-700 text-white';
+    if (type === 'project') return 'bg-teal-700 text-white';
+    return 'bg-indigo-700 text-white';
 };
 
 const typeLabel = (type: string) => {
@@ -349,7 +487,7 @@ const printSlip = () => {
             <div class="flex flex-wrap items-start justify-between gap-4 border-b border-border/80 pb-4 print:border-b-2 print:border-black">
                 <div>
                     <div class="flex items-center gap-2">
-                        <span class="rounded bg-primary px-2.5 py-0.5 font-mono text-xs font-semibold text-white">
+                        <span class="inline-flex items-center whitespace-nowrap shrink-0 mx-1 rounded bg-primary px-2.5 py-0.5 font-mono text-xs font-semibold text-white shadow-xs">
                             {{ student.student_number }}
                         </span>
                         <span class="text-xs font-medium uppercase tracking-wider text-muted-foreground"> Academic Deficiency File </span>
@@ -400,15 +538,15 @@ const printSlip = () => {
 
                 <!-- Numerical Grade -->
                 <div
-                    class="rounded-xl border p-3 text-center"
+                    class="rounded-xl border p-3 text-center shadow-xs"
                     :class="
                         isFailingGrade(overallGrade)
-                            ? 'border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400'
-                            : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                            ? 'border-rose-800 bg-rose-700 text-white'
+                            : 'border-emerald-800 bg-emerald-700 text-white'
                     "
                 >
-                    <span class="block text-[10px] font-bold uppercase tracking-wider">Grade (1.0–5.0)</span>
-                    <span class="mt-0.5 block font-mono text-xl font-bold">
+                    <span class="block text-[10px] font-bold uppercase tracking-wider text-white/90">Grade (1.0–5.0)</span>
+                    <span class="mt-0.5 block font-mono text-xl font-bold text-white">
                         {{ overallGrade }}
                     </span>
                 </div>
@@ -418,12 +556,12 @@ const printSlip = () => {
                     class="rounded-xl border p-3 text-center"
                     :class="
                         totalMissingCount > 0
-                            ? 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400'
+                            ? 'border-amber-800 bg-amber-700 text-white shadow-xs'
                             : 'border-border/80 bg-secondary/30 text-muted-foreground'
                     "
                 >
-                    <span class="block text-[10px] font-bold uppercase tracking-wider">Uncomplied Items</span>
-                    <span class="mt-0.5 block font-mono text-xl font-bold">
+                    <span class="block text-[10px] font-bold uppercase tracking-wider" :class="totalMissingCount > 0 ? 'text-white/90' : 'text-muted-foreground'">Uncomplied Items</span>
+                    <span class="mt-0.5 block font-mono text-xl font-bold" :class="totalMissingCount > 0 ? 'text-white' : ''">
                         {{ totalMissingCount }}
                     </span>
                 </div>
@@ -433,67 +571,71 @@ const printSlip = () => {
                     class="rounded-xl border p-3 text-center"
                     :class="
                         totalFailingCount > 0
-                            ? 'border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                            ? 'border-rose-800 bg-rose-700 text-white shadow-xs'
                             : 'border-border/80 bg-secondary/30 text-muted-foreground'
                     "
                 >
-                    <span class="block text-[10px] font-bold uppercase tracking-wider">Failing Tasks</span>
-                    <span class="mt-0.5 block font-mono text-xl font-bold">
+                    <span class="block text-[10px] font-bold uppercase tracking-wider" :class="totalFailingCount > 0 ? 'text-white/90' : 'text-muted-foreground'">Failing Tasks</span>
+                    <span class="mt-0.5 block font-mono text-xl font-bold" :class="totalFailingCount > 0 ? 'text-white' : ''">
                         {{ totalFailingCount }}
                     </span>
                 </div>
             </div>
 
             <!-- Navigation Tabs (Hidden on Print) -->
-            <div class="mt-4 flex items-center gap-1 border-b border-border/80 pb-2 text-xs print:hidden">
+            <div class="mt-4 flex flex-wrap items-center gap-1 border-b border-border/80 pb-2 text-xs print:hidden">
                 <button
                     type="button"
-                    class="rounded-lg px-3 py-1.5 font-medium transition-colors"
+                    class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition-colors"
+                    :class="
+                        currentTab === 'activity_log'
+                            ? 'shadow-xs bg-primary text-white'
+                            : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                    "
+                    @click="currentTab = 'activity_log'"
+                >
+                    <ListOrdered class="size-3.5" />
+                    <span>Activity & Score Log ({{ allActivityLogs.length }})</span>
+                </button>
+
+                <button
+                    type="button"
+                    class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition-colors"
                     :class="
                         currentTab === 'deficiencies'
-                            ? 'shadow-xs bg-primary text-white'
+                            ? 'shadow-xs bg-rose-700 text-white'
                             : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
                     "
                     @click="currentTab = 'deficiencies'"
                 >
-                    All Deficiencies ({{ totalDeficiencies }})
+                    <AlertTriangle class="size-3.5" />
+                    <span>All Deficiencies ({{ totalDeficiencies }})</span>
                 </button>
 
                 <button
                     type="button"
-                    class="rounded-lg px-3 py-1.5 font-medium transition-colors"
+                    class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition-colors"
                     :class="
                         currentTab === 'missing'
-                            ? 'shadow-xs bg-amber-600 text-white'
+                            ? 'shadow-xs bg-amber-700 text-white'
                             : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
                     "
                     @click="currentTab = 'missing'"
                 >
-                    Uncomplied ({{ totalMissingCount }})
+                    <span>Uncomplied ({{ totalMissingCount }})</span>
                 </button>
 
                 <button
                     type="button"
-                    class="rounded-lg px-3 py-1.5 font-medium transition-colors"
+                    class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition-colors"
                     :class="
                         currentTab === 'failing'
-                            ? 'shadow-xs bg-rose-600 text-white'
+                            ? 'shadow-xs bg-rose-700 text-white'
                             : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
                     "
                     @click="currentTab = 'failing'"
                 >
-                    Failing Scores ({{ totalFailingCount }})
-                </button>
-
-                <button
-                    type="button"
-                    class="rounded-lg px-3 py-1.5 font-medium transition-colors"
-                    :class="
-                        currentTab === 'all' ? 'shadow-xs bg-primary text-white' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
-                    "
-                    @click="currentTab = 'all'"
-                >
-                    Complete Log ({{ assessments.length + projects.length }})
+                    <span>Failing Scores ({{ totalFailingCount }})</span>
                 </button>
             </div>
 
@@ -502,13 +644,13 @@ const printSlip = () => {
                 <!-- ALL COMPLIED & PASSING EMPTY STATE -->
                 <div
                     v-if="totalDeficiencies === 0 && (currentTab === 'deficiencies' || currentTab === 'missing' || currentTab === 'failing')"
-                    class="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-8 text-center"
+                    class="rounded-2xl border border-emerald-800 bg-emerald-700 p-8 text-center text-white shadow-sm"
                 >
-                    <div class="mx-auto grid size-12 place-items-center rounded-2xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                    <div class="mx-auto grid size-12 place-items-center rounded-2xl bg-emerald-800 text-white">
                         <Sparkles class="size-6" />
                     </div>
-                    <h3 class="mt-3 text-lg font-bold text-emerald-700 dark:text-emerald-400">No Deficiencies Found!</h3>
-                    <p class="mt-1 text-xs text-muted-foreground">
+                    <h3 class="mt-3 text-lg font-bold text-white">No Deficiencies Found!</h3>
+                    <p class="mt-1 text-xs text-emerald-100">
                         This student has submitted all assigned coursework, activities, quizzes, exams, and projects with passing marks (75% or
                         above).
                     </p>
@@ -532,15 +674,15 @@ const printSlip = () => {
                                 <div>
                                     <div class="flex items-center gap-2">
                                         <span
-                                            class="rounded px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider"
+                                            class="inline-flex items-center whitespace-nowrap shrink-0 mx-1 rounded px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white shadow-2xs"
                                             :class="
                                                 item.type === 'exam'
-                                                    ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400'
+                                                    ? 'bg-purple-700'
                                                     : item.type === 'quiz'
-                                                      ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                                                      ? 'bg-blue-700'
                                                       : item.type === 'laboratory'
-                                                        ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400'
-                                                        : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                                        ? 'bg-cyan-700'
+                                                        : 'bg-emerald-700'
                                             "
                                         >
                                             {{ item.type === 'laboratory' ? 'Lab' : item.type }}
@@ -554,9 +696,9 @@ const printSlip = () => {
 
                                 <div class="text-right">
                                     <span
-                                        class="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 font-mono text-xs font-bold text-amber-700 dark:text-amber-400"
+                                        class="inline-flex items-center gap-1 rounded-full border border-amber-800 bg-amber-700 px-2.5 py-1 font-mono text-xs font-bold text-white shadow-xs whitespace-nowrap shrink-0 mx-1"
                                     >
-                                        <FileWarning class="size-3" />
+                                        <FileWarning class="size-3 shrink-0" />
                                         <span>Missing (0/{{ item.max_points }})</span>
                                     </span>
                                 </div>
@@ -576,7 +718,7 @@ const printSlip = () => {
                                 <div>
                                     <div class="flex items-center gap-2">
                                         <span
-                                            class="rounded px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider"
+                                            class="inline-flex items-center whitespace-nowrap shrink-0 mx-1 rounded px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white shadow-2xs"
                                             :class="typeBadgeClass(item.type)"
                                         >
                                             {{ typeLabel(item.type) }}
@@ -590,9 +732,9 @@ const printSlip = () => {
 
                                 <div class="text-right">
                                     <span
-                                        class="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 font-mono text-xs font-bold text-amber-700 dark:text-amber-400"
+                                        class="inline-flex items-center gap-1 rounded-full border border-amber-800 bg-amber-700 px-2.5 py-1 font-mono text-xs font-bold text-white shadow-xs whitespace-nowrap shrink-0 mx-1"
                                     >
-                                        <FileWarning class="size-3" />
+                                        <FileWarning class="size-3 shrink-0" />
                                         <span>Uncomplied (0/{{ item.max_points }})</span>
                                     </span>
                                 </div>
@@ -607,7 +749,7 @@ const printSlip = () => {
                     <div v-if="failingAssessments.length > 0" class="space-y-3">
                         <div class="flex items-center gap-2">
                             <AlertCircle class="size-4 text-rose-600 dark:text-rose-400" />
-                            <h3 class="text-sm font-bold text-foreground">Failing Assessment Scores (&lt; 75%) ({{ failingAssessments.length }})</h3>
+                            <h3 class="text-sm font-bold text-foreground">Failing Assessment Scores ({{ failingAssessments.length }})</h3>
                         </div>
 
                         <div class="divide-y divide-border/60 rounded-xl border border-border/80 bg-secondary/20">
@@ -615,15 +757,15 @@ const printSlip = () => {
                                 <div>
                                     <div class="flex items-center gap-2">
                                         <span
-                                            class="rounded px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider"
+                                            class="inline-flex items-center whitespace-nowrap shrink-0 mx-1 rounded px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white shadow-2xs"
                                             :class="
                                                 item.type === 'exam'
-                                                    ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400'
+                                                    ? 'bg-purple-700'
                                                     : item.type === 'quiz'
-                                                      ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                                                      ? 'bg-blue-700'
                                                       : item.type === 'laboratory'
-                                                        ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400'
-                                                        : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                                        ? 'bg-cyan-700'
+                                                        : 'bg-emerald-700'
                                             "
                                         >
                                             {{ item.type === 'laboratory' ? 'Lab' : item.type }}
@@ -633,15 +775,18 @@ const printSlip = () => {
                                     <span class="mt-0.5 block text-[11px] text-muted-foreground">
                                         Conducted: {{ readableDate(item.conducted_on) }}
                                     </span>
+                                    <p v-if="student?.remarks?.[item.id]" class="mt-1 text-[11px] font-medium text-amber-700 dark:text-amber-300">
+                                        Justification: "{{ student.remarks[item.id] }}"
+                                    </p>
                                 </div>
 
                                 <div class="text-right font-mono">
                                     <span
-                                        class="inline-flex items-center gap-1 rounded-full border border-rose-500/30 bg-rose-500/10 px-2.5 py-1 text-xs font-bold text-rose-600 dark:text-rose-400"
+                                        class="inline-flex items-center gap-1 rounded-full border border-rose-800 bg-rose-700 px-2.5 py-1 text-xs font-bold text-white shadow-xs whitespace-nowrap shrink-0 mx-1"
                                     >
                                         {{ item.score }}/{{ item.max }} ({{ item.pct }}%)
                                     </span>
-                                    <span class="mt-0.5 block text-[10px] text-muted-foreground">Passing: 75%</span>
+                                    <span class="mt-0.5 block text-[10px] text-muted-foreground">Passing: {{ getPassingRateForAssessment(item.type) }}%</span>
                                 </div>
                             </div>
                         </div>
@@ -651,7 +796,7 @@ const printSlip = () => {
                     <div v-if="failingProjects.length > 0" class="space-y-3">
                         <div class="flex items-center gap-2">
                             <AlertCircle class="size-4 text-rose-600 dark:text-rose-400" />
-                            <h3 class="text-sm font-bold text-foreground">Failing Project Scores (&lt; 75%) ({{ failingProjects.length }})</h3>
+                            <h3 class="text-sm font-bold text-foreground">Failing Project Scores ({{ failingProjects.length }})</h3>
                         </div>
 
                         <div class="divide-y divide-border/60 rounded-xl border border-border/80 bg-secondary/20">
@@ -659,7 +804,7 @@ const printSlip = () => {
                                 <div>
                                     <div class="flex items-center gap-2">
                                         <span
-                                            class="rounded px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider"
+                                            class="inline-flex items-center whitespace-nowrap shrink-0 mx-1 rounded px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white shadow-2xs"
                                             :class="typeBadgeClass(item.type)"
                                         >
                                             {{ typeLabel(item.type) }}
@@ -669,15 +814,18 @@ const printSlip = () => {
                                     <span class="mt-0.5 block text-[11px] text-muted-foreground">
                                         Conducted: {{ readableDate(item.conducted_on) }}
                                     </span>
+                                    <p v-if="student?.project_notes?.[item.id]" class="mt-1 text-[11px] font-medium text-amber-700 dark:text-amber-300">
+                                        Justification: "{{ student.project_notes[item.id] }}"
+                                    </p>
                                 </div>
 
                                 <div class="text-right font-mono">
                                     <span
-                                        class="inline-flex items-center gap-1 rounded-full border border-rose-500/30 bg-rose-500/10 px-2.5 py-1 text-xs font-bold text-rose-600 dark:text-rose-400"
+                                        class="inline-flex items-center gap-1 rounded-full border border-rose-800 bg-rose-700 px-2.5 py-1 text-xs font-bold text-white shadow-xs whitespace-nowrap shrink-0 mx-1"
                                     >
                                         {{ item.score }}/{{ item.max }} ({{ item.pct }}%)
                                     </span>
-                                    <span class="mt-0.5 block text-[10px] text-muted-foreground">Passing: 75%</span>
+                                    <span class="mt-0.5 block text-[10px] text-muted-foreground">Passing: {{ getPassingRateForProject(item.type) }}%</span>
                                 </div>
                             </div>
                         </div>
@@ -694,102 +842,163 @@ const printSlip = () => {
                     <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
                         <div class="rounded-xl border border-border/80 bg-secondary/20 p-3 text-center">
                             <span class="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total Sessions</span>
-                            <span class="mt-0.5 block font-mono text-base font-bold">{{ student.attendance.total_sessions }}</span>
+                            <span class="mt-0.5 block font-mono text-base font-bold text-foreground">{{ student.attendance.total_sessions }}</span>
                         </div>
-                        <div class="rounded-xl border border-border/80 bg-secondary/20 p-3 text-center">
-                            <span class="block text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Present</span>
-                            <span class="mt-0.5 block font-mono text-base font-bold text-emerald-600 dark:text-emerald-400">{{
+                        <div class="rounded-xl border border-emerald-800 bg-emerald-700 p-3 text-center shadow-xs">
+                            <span class="block text-[10px] font-bold uppercase tracking-wider text-white/90">Present</span>
+                            <span class="mt-0.5 block font-mono text-base font-bold text-white">{{
                                 student.attendance.present_count
                             }}</span>
                         </div>
-                        <div class="rounded-xl border border-border/80 bg-secondary/20 p-3 text-center">
-                            <span class="block text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Late</span>
-                            <span class="mt-0.5 block font-mono text-base font-bold text-amber-600 dark:text-amber-400">{{
+                        <div class="rounded-xl border border-amber-800 bg-amber-700 p-3 text-center shadow-xs">
+                            <span class="block text-[10px] font-bold uppercase tracking-wider text-white/90">Late</span>
+                            <span class="mt-0.5 block font-mono text-base font-bold text-white">{{
                                 student.attendance.late_count
                             }}</span>
                         </div>
-                        <div class="rounded-xl border border-border/80 bg-secondary/20 p-3 text-center">
-                            <span class="block text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">Absent</span>
-                            <span class="mt-0.5 block font-mono text-base font-bold text-rose-600 dark:text-rose-400">{{
+                        <div class="rounded-xl border border-rose-800 bg-rose-700 p-3 text-center shadow-xs">
+                            <span class="block text-[10px] font-bold uppercase tracking-wider text-white/90">Absent</span>
+                            <span class="mt-0.5 block font-mono text-base font-bold text-white">{{
                                 student.attendance.absent_count
                             }}</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- TAB: COMPLETE LOG -->
-                <template v-if="currentTab === 'all'">
-                    <div class="space-y-3">
-                        <div class="flex items-center gap-2">
-                            <FileSpreadsheet class="size-4 text-primary" />
-                            <h3 class="text-sm font-bold text-foreground">
-                                Passing Coursework ({{ passingAssessments.length + passingProjects.length }})
-                            </h3>
+                <!-- TAB: ACTIVITY & SCORE LOG -->
+                <template v-if="currentTab === 'activity_log'">
+                    <div class="space-y-4">
+                        <!-- Category Sub-filter Pills -->
+                        <div class="flex flex-wrap items-center gap-1.5 border-b border-border/60 pb-3">
+                            <button
+                                type="button"
+                                class="inline-flex items-center whitespace-nowrap shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors"
+                                :class="logCategoryFilter === 'all' ? 'bg-zinc-800 text-white shadow-2xs' : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'"
+                                @click="logCategoryFilter = 'all'"
+                            >
+                                All Items ({{ allActivityLogs.length }})
+                            </button>
+                            <button
+                                type="button"
+                                class="inline-flex items-center whitespace-nowrap shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors"
+                                :class="logCategoryFilter === 'activity' ? 'bg-emerald-700 text-white shadow-xs' : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'"
+                                @click="logCategoryFilter = 'activity'"
+                            >
+                                Activities ({{ allActivityLogs.filter(i => i.type === 'activity').length }})
+                            </button>
+                            <button
+                                type="button"
+                                class="inline-flex items-center whitespace-nowrap shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors"
+                                :class="logCategoryFilter === 'quiz' ? 'bg-blue-700 text-white shadow-xs' : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'"
+                                @click="logCategoryFilter = 'quiz'"
+                            >
+                                Quizzes ({{ allActivityLogs.filter(i => i.type === 'quiz').length }})
+                            </button>
+                            <button
+                                v-if="allActivityLogs.some(i => i.type === 'laboratory')"
+                                type="button"
+                                class="inline-flex items-center whitespace-nowrap shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors"
+                                :class="logCategoryFilter === 'laboratory' ? 'bg-cyan-700 text-white shadow-xs' : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'"
+                                @click="logCategoryFilter = 'laboratory'"
+                            >
+                                Laboratories ({{ allActivityLogs.filter(i => i.type === 'laboratory').length }})
+                            </button>
+                            <button
+                                type="button"
+                                class="inline-flex items-center whitespace-nowrap shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors"
+                                :class="logCategoryFilter === 'exam' ? 'bg-purple-700 text-white shadow-xs' : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'"
+                                @click="logCategoryFilter = 'exam'"
+                            >
+                                Exams ({{ allActivityLogs.filter(i => i.type === 'exam').length }})
+                            </button>
+                            <button
+                                v-if="allActivityLogs.some(i => i.isProject)"
+                                type="button"
+                                class="inline-flex items-center whitespace-nowrap shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors"
+                                :class="logCategoryFilter === 'project' ? 'bg-teal-700 text-white shadow-xs' : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'"
+                                @click="logCategoryFilter = 'project'"
+                            >
+                                Projects & Reports ({{ allActivityLogs.filter(i => i.isProject).length }})
+                            </button>
+                            <button
+                                type="button"
+                                class="inline-flex items-center whitespace-nowrap shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors"
+                                :class="logCategoryFilter === 'deficiencies' ? 'bg-rose-700 text-white shadow-xs' : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'"
+                                @click="logCategoryFilter = 'deficiencies'"
+                            >
+                                Deficiencies Only ({{ allActivityLogs.filter(i => i.status !== 'passed').length }})
+                            </button>
                         </div>
 
-                        <div
-                            v-if="passingAssessments.length > 0 || passingProjects.length > 0"
-                            class="divide-y divide-border/60 rounded-xl border border-border/80 bg-secondary/20"
-                        >
+                        <!-- Individual Activity List / Log -->
+                        <div v-if="filteredActivityLogs.length > 0" class="divide-y divide-border/60 rounded-xl border border-border/80 bg-secondary/20">
                             <div
-                                v-for="item in passingAssessments"
-                                :key="`pass-${item.id}`"
-                                class="flex items-center justify-between gap-4 px-4 py-3 text-xs"
+                                v-for="item in filteredActivityLogs"
+                                :key="item.key"
+                                class="flex flex-col gap-2 p-3.5 text-xs sm:flex-row sm:items-center sm:justify-between transition-colors hover:bg-secondary/40"
                             >
-                                <div>
-                                    <div class="flex items-center gap-2">
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex flex-wrap items-center gap-2">
                                         <span
-                                            class="rounded bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400"
+                                            class="inline-flex items-center whitespace-nowrap shrink-0 mx-1 rounded px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white shadow-2xs"
+                                            :class="
+                                                item.type === 'exam'
+                                                    ? 'bg-purple-700'
+                                                    : item.type === 'quiz'
+                                                      ? 'bg-blue-700'
+                                                      : item.type === 'laboratory'
+                                                        ? 'bg-cyan-700'
+                                                        : item.type === 'group_activity'
+                                                          ? 'bg-emerald-700'
+                                                          : item.type === 'reporting'
+                                                            ? 'bg-indigo-700'
+                                                            : item.type === 'project'
+                                                              ? 'bg-teal-700'
+                                                              : 'bg-emerald-700'
+                                            "
                                         >
-                                            {{ item.type }}
+                                            {{ item.typeLabel }}
                                         </span>
-                                        <span class="font-semibold text-foreground">{{ item.title }}</span>
+                                        <h4 class="font-semibold text-foreground">{{ item.title }}</h4>
                                     </div>
-                                    <span class="mt-0.5 block text-[11px] text-muted-foreground">
-                                        Conducted: {{ readableDate(item.conducted_on) }}
-                                    </span>
-                                </div>
 
-                                <div class="text-right font-mono">
-                                    <span
-                                        class="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400"
-                                    >
-                                        {{ item.score }}/{{ item.max }} ({{ item.pct }}%)
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div
-                                v-for="item in passingProjects"
-                                :key="`pass-proj-${item.id}`"
-                                class="flex items-center justify-between gap-4 px-4 py-3 text-xs"
-                            >
-                                <div>
-                                    <div class="flex items-center gap-2">
-                                        <span
-                                            class="rounded px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider"
-                                            :class="typeBadgeClass(item.type)"
-                                        >
-                                            {{ typeLabel(item.type) }}
+                                    <div class="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                                        <span>Conducted: {{ readableDate(item.conducted_on) }}</span>
+                                        <span v-if="item.remarks" class="font-medium text-amber-700 dark:text-amber-300">
+                                            Feedback: "{{ item.remarks }}"
                                         </span>
-                                        <span class="font-semibold text-foreground">{{ item.title }}</span>
                                     </div>
-                                    <span class="mt-0.5 block text-[11px] text-muted-foreground">
-                                        Conducted: {{ readableDate(item.conducted_on) }}
-                                    </span>
                                 </div>
 
-                                <div class="text-right font-mono">
-                                    <span
-                                        class="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400"
-                                    >
-                                        {{ item.score }}/{{ item.max }} ({{ item.pct }}%)
-                                    </span>
+                                <div class="shrink-0 font-mono text-left sm:text-right">
+                                    <template v-if="item.status === 'passed'">
+                                        <span class="inline-flex items-center gap-1 rounded-full border border-emerald-800 bg-emerald-700 px-2.5 py-1 text-xs font-bold text-white shadow-xs whitespace-nowrap shrink-0 mx-1">
+                                            <CheckCircle2 class="size-3 shrink-0" />
+                                            {{ item.score }}/{{ item.max_points }} ({{ item.pct }}%)
+                                        </span>
+                                        <span class="mt-0.5 block text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">Passed · 75%+</span>
+                                    </template>
+                                    <template v-else-if="item.status === 'failed'">
+                                        <span class="inline-flex items-center gap-1 rounded-full border border-rose-800 bg-rose-700 px-2.5 py-1 text-xs font-bold text-white shadow-xs whitespace-nowrap shrink-0 mx-1">
+                                            <AlertCircle class="size-3 shrink-0" />
+                                            {{ item.score }}/{{ item.max_points }} ({{ item.pct }}%)
+                                        </span>
+                                        <span class="mt-0.5 block text-[10px] font-semibold text-rose-700 dark:text-rose-400">Failed · Below 75%</span>
+                                    </template>
+                                    <template v-else>
+                                        <span class="inline-flex items-center gap-1 rounded-full border border-amber-800 bg-amber-700 px-2.5 py-1 text-xs font-bold text-white shadow-xs whitespace-nowrap shrink-0 mx-1">
+                                            <AlertTriangle class="size-3 shrink-0" />
+                                            Uncomplied / 0 / {{ item.max_points }}
+                                        </span>
+                                        <span class="mt-0.5 block text-[10px] font-semibold text-amber-700 dark:text-amber-400">Missing submission</span>
+                                    </template>
                                 </div>
                             </div>
                         </div>
 
-                        <div v-else class="py-6 text-center text-xs text-muted-foreground">No passing scores recorded yet.</div>
+                        <div v-else class="rounded-xl border border-dashed border-border/80 p-8 text-center text-xs text-muted-foreground">
+                            No coursework items found matching this filter.
+                        </div>
                     </div>
                 </template>
             </div>

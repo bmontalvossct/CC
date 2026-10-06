@@ -34,12 +34,17 @@ export type ChoiceCard = {
 };
 
 export type ActionProposal = {
-    action: 'create_assessment' | 'update_assessment' | 'delete_assessment';
+    action: 'create_assessment' | 'update_assessment' | 'delete_assessment' | 'create_project_groups';
     section_id: number;
     section_name?: string;
     assessment_id?: number;
-    type?: 'activity' | 'laboratory' | 'quiz' | 'exam';
+    type?: string;
     title: string;
+    group_count?: number;
+    source_project_id?: number | null;
+    source_project_title?: string;
+    copy_names?: boolean;
+    copy_topics?: boolean;
     max_points?: number;
     conducted_on?: string;
     description?: string;
@@ -260,6 +265,7 @@ export function useAiAssistant() {
         isAiAssistantOpen.value = !isAiAssistantOpen.value;
         if (isAiAssistantOpen.value) {
             loadConversations(sectionId);
+            fetchStatus();
             warmModel();
         }
     };
@@ -268,6 +274,7 @@ export function useAiAssistant() {
         if (!isAiEnabled.value) return;
         isAiAssistantOpen.value = true;
         loadConversations(sectionId);
+        fetchStatus();
         warmModel();
     };
 
@@ -285,9 +292,15 @@ export function useAiAssistant() {
         }
     };
 
-    const fetchStatus = async () => {
+    let lastStatusFetchTimestamp = 0;
+    const STATUS_CACHE_TTL_MS = 60000;
+
+    const fetchStatus = async (force = false) => {
         if (!isAiEnabled.value) {
             isOllamaOnline.value = false;
+            return;
+        }
+        if (!force && lastStatusFetchTimestamp > 0 && Date.now() - lastStatusFetchTimestamp < STATUS_CACHE_TTL_MS) {
             return;
         }
         try {
@@ -303,13 +316,14 @@ export function useAiAssistant() {
                 isLocalEndpoint.value = Boolean(data.is_local);
                 availableModels.value = data.models || [];
                 activeProfiles.value = data.active_profiles || {};
+                lastStatusFetchTimestamp = Date.now();
             }
         } catch {
             isOllamaOnline.value = false;
         }
     };
 
-    const warmModel = async () => {
+    const warmModel = async (profile: 'chat' | 'code_grading' | 'general_grading' = 'chat') => {
         if (!isAiEnabled.value || !isOllamaOnline.value) return;
         try {
             const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
@@ -321,6 +335,7 @@ export function useAiAssistant() {
                     'X-Requested-With': 'XMLHttpRequest',
                     Accept: 'application/json',
                 },
+                body: JSON.stringify({ profile }),
             });
         } catch {
             // Ignore warming errors
@@ -340,7 +355,6 @@ export function useAiAssistant() {
         const trimmed = userPrompt.trim();
         if ((!trimmed && (!attachments || attachments.length === 0)) || isSending.value || !isAiEnabled.value) return;
 
-        // Clean user message
         const userMsg: ChatMessage = {
             id: 'msg_' + Date.now(),
             role: 'user',
@@ -349,12 +363,73 @@ export function useAiAssistant() {
             attachments: attachments && attachments.length > 0 ? [...attachments] : undefined,
         };
 
-        messages.value.push(userMsg);
-        // Update active session title and sync messages
+        // Check if there is a pending proposal awaiting confirmation from the teacher
+        const lastAssistantMsg = [...messages.value].reverse().find(
+            (m) => m.role === 'assistant' && m.proposals && m.proposals.some((p) => p.status === 'pending'),
+        );
+        const pendingProposal = lastAssistantMsg?.proposals?.find((p) => p.status === 'pending');
+
+        const affirmativeRegex = /^(yes|yeah|yep|y|sure|add it|create it|add as activity|yes, add as activity|yes, create activity & groups|yes please|confirm|proceed|ok|okay|1|yes, add to class)$/i;
+        const negativeRegex = /^(no|nope|cancel|dismiss|no thanks|keep as draft|no, keep as draft|no, dismiss|keep record|no, keep record)$/i;
+
         let session = conversations.value.find((c) => c.id === currentConversationId.value);
         if (!session) {
             session = startNewConversation(sectionId, currentScope.value);
         }
+
+        // If user replies affirmative to a pending proposal, immediately execute and confirm
+        if (pendingProposal && affirmativeRegex.test(trimmed)) {
+            messages.value.push(userMsg);
+            if (session) {
+                session.messages = messages.value;
+                session.updatedAt = Date.now();
+                saveConversations();
+            }
+
+            const result = await executeActionProposal(pendingProposal, sectionId || pendingProposal.section_id);
+
+            const isProject = pendingProposal.action === 'create_project_groups';
+            const confirmationMsg: ChatMessage = {
+                id: 'msg_' + (Date.now() + 1),
+                role: 'assistant',
+                content: result.success
+                    ? `Done! I've added **${pendingProposal.title}** to **${pendingProposal.section_name || 'your section'}**.\n\nYou can view and manage it here: [View ${isProject ? 'Activity' : 'Assessment'}](${pendingProposal.redirect_url})`
+                    : `I encountered an issue adding this activity: ${result.error || 'Please try clicking the button on the proposal card above.'}`,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            };
+            messages.value.push(confirmationMsg);
+
+            if (session) {
+                session.messages = messages.value;
+                session.updatedAt = Date.now();
+                saveConversations();
+            }
+            return;
+        }
+
+        // If user replies negative to a pending proposal, dismiss and acknowledge
+        if (pendingProposal && negativeRegex.test(trimmed)) {
+            messages.value.push(userMsg);
+            dismissProposal(pendingProposal, sectionId || pendingProposal.section_id);
+
+            const dismissMsg: ChatMessage = {
+                id: 'msg_' + (Date.now() + 1),
+                role: 'assistant',
+                content: `Understood! I've kept **${pendingProposal.title}** as a draft here in our chat without saving it to your section. You can copy the generated instructions anytime or ask me to modify it.`,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            };
+            messages.value.push(dismissMsg);
+
+            if (session) {
+                session.messages = messages.value;
+                session.updatedAt = Date.now();
+                saveConversations();
+            }
+            return;
+        }
+
+        messages.value.push(userMsg);
+        // Update active session title and sync messages
         if (session.title === 'New Conversation' || !session.title) {
             session.title = trimmed.length > 42 ? trimmed.slice(0, 42).trim() + '...' : trimmed;
         }
@@ -541,6 +616,10 @@ export function useAiAssistant() {
                     assessment_id: proposal.assessment_id,
                     type: proposal.type,
                     title: proposal.title,
+                    group_count: proposal.group_count,
+                    source_project_id: proposal.source_project_id,
+                    copy_names: proposal.copy_names,
+                    copy_topics: proposal.copy_topics,
                     max_points: proposal.max_points,
                     conducted_on: proposal.conducted_on,
                     description: proposal.description,
@@ -693,7 +772,7 @@ export function useAiAssistant() {
 
     onMounted(() => {
         window.addEventListener('keydown', handleKeydown);
-        if (isAiEnabled.value) {
+        if (isAiEnabled.value && isAiAssistantOpen.value) {
             fetchStatus();
         }
     });
@@ -738,5 +817,6 @@ export function useAiAssistant() {
         executeActionProposal,
         dismissProposal,
         stopStreaming,
+        warmModel,
     };
 }

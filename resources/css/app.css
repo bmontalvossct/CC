@@ -4,12 +4,13 @@
 
 body,
 html {
-    --font-sans: Tahoma, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --font-sans: 'Atkinson Hyperlegible', 'Segoe UI', sans-serif;
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @layer base {
     :root {
-        --background: 0 0% 100%;
+        --background: 45 25% 97%;
         --foreground: 222 47% 11%;
         --card: 0 0% 100%;
         --card-foreground: 222 47% 11%;
@@ -25,8 +26,8 @@ html {
         --accent-foreground: 153 60% 15%;
         --destructive: 0 84% 60%;
         --destructive-foreground: 0 0% 100%;
-        --border: 216 24% 90%;
-        --input: 216 24% 90%;
+        --border: 145 12% 87%;
+        --input: 145 12% 84%;
         --ring: 153 60% 20%;
         --radius: 0.75rem;
 
@@ -93,10 +94,12 @@ html {
     }
     html {
         @apply scroll-smooth;
+        scroll-padding-top: 5rem;
     }
     body {
         @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary;
         font-family: var(--font-sans);
+        line-height: 1.6;
     }
     h1,
     h2,
@@ -109,8 +112,9 @@ html {
     th,
     dt,
     .font-display {
-        letter-spacing: -0.01em;
+        letter-spacing: -0.015em;
         font-weight: 500;
+        line-height: 1.25;
     }
     :focus-visible {
         @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
@@ -119,7 +123,14 @@ html {
 
 @layer components {
     .paper-card {
-        @apply relative rounded-xl border border-border/80 bg-card p-6 text-card-foreground shadow-sm transition-all duration-200;
+        @apply relative rounded-2xl border border-border/80 bg-card p-6 text-card-foreground;
+        box-shadow:
+            0 2px 3px hsl(var(--foreground) / 0.02),
+            0 8px 24px -16px hsl(var(--foreground) / 0.12);
+        transition:
+            border-color 200ms,
+            box-shadow 250ms,
+            transform 250ms var(--ease-out);
     }
     .paper-card-interactive {
         @apply paper-card hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md;
@@ -131,51 +142,162 @@ html {
         @apply text-[11px] font-medium uppercase tracking-[0.14em] text-primary;
     }
     .ink-button {
-        @apply inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-5 text-sm font-medium text-primary shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:border-amber-400 hover:bg-amber-400 hover:text-white hover:shadow active:translate-y-0 disabled:pointer-events-none disabled:opacity-50 dark:border-white/30 dark:bg-card dark:text-white;
+        @apply inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 hover:shadow-md active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
     }
     .secondary-button {
-        @apply inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-white px-5 text-sm font-medium text-foreground shadow-sm transition-all duration-150 hover:border-amber-400 hover:bg-amber-400 hover:text-white active:bg-amber-500 disabled:pointer-events-none disabled:opacity-50 dark:border-white/30 dark:bg-card dark:text-white;
+        @apply inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-card px-5 text-sm font-medium text-foreground shadow-sm hover:border-primary/40 hover:bg-accent active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
     }
     .dark-button {
-        @apply inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary shadow-sm transition-all duration-150 hover:border-amber-400 hover:bg-amber-400 hover:text-white active:bg-amber-500 disabled:pointer-events-none disabled:opacity-50 dark:border-white/30 dark:bg-card dark:text-white;
+        @apply inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary/80 bg-primary px-4 text-sm font-medium text-white shadow-sm hover:bg-primary/90 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
     }
     .danger-button {
-        @apply inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-rose-600 bg-white px-4 text-sm font-medium text-rose-700 shadow-sm transition-all duration-150 hover:border-amber-400 hover:bg-amber-400 hover:text-white active:bg-amber-500 disabled:pointer-events-none disabled:opacity-50 dark:border-rose-500/50 dark:bg-card dark:text-white;
+        @apply inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-rose-800 bg-rose-700 px-4 text-sm font-medium text-white shadow-sm hover:bg-rose-800 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
     }
     .page-enter {
-        animation: page-enter 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+        animation: page-enter 180ms var(--ease-out) backwards;
+    }
+
+    /* Badges & Status Tags: Strictly one line, shrink-resistant, with horizontal margins */
+    .badge,
+    [class*='badge-'] {
+        @apply inline-flex items-center whitespace-nowrap shrink-0 mx-1.5;
     }
     .badge-primary {
-        @apply inline-flex items-center gap-1.5 rounded-full bg-primary px-2.5 py-0.5 text-xs font-medium text-white shadow-sm;
+        @apply inline-flex items-center gap-1.5 rounded-full bg-primary px-2.5 py-0.5 text-xs font-medium text-white shadow-sm whitespace-nowrap shrink-0 mx-1.5;
     }
     .badge-success {
-        @apply inline-flex items-center gap-1.5 rounded-full bg-emerald-700 px-2.5 py-0.5 text-xs font-medium text-white shadow-sm dark:bg-emerald-800;
+        @apply inline-flex items-center gap-1.5 rounded-full bg-emerald-700 px-2.5 py-0.5 text-xs font-medium text-white shadow-sm dark:bg-emerald-800 whitespace-nowrap shrink-0 mx-1.5;
     }
     .badge-warning {
-        @apply inline-flex items-center gap-1.5 rounded-full bg-amber-700 px-2.5 py-0.5 text-xs font-medium text-white shadow-sm dark:bg-amber-800;
+        @apply inline-flex items-center gap-1.5 rounded-full bg-amber-700 px-2.5 py-0.5 text-xs font-medium text-white shadow-sm dark:bg-amber-800 whitespace-nowrap shrink-0 mx-1.5;
     }
     .badge-danger {
-        @apply inline-flex items-center gap-1.5 rounded-full bg-rose-700 px-2.5 py-0.5 text-xs font-medium text-white shadow-sm dark:bg-rose-800;
+        @apply inline-flex items-center gap-1.5 rounded-full bg-rose-700 px-2.5 py-0.5 text-xs font-medium text-white shadow-sm dark:bg-rose-800 whitespace-nowrap shrink-0 mx-1.5;
     }
     .badge-muted {
-        @apply inline-flex items-center gap-1.5 rounded-full bg-primary px-2.5 py-0.5 text-xs font-medium text-white shadow-sm;
+        @apply inline-flex items-center gap-1.5 rounded-full bg-zinc-800 px-2.5 py-0.5 text-xs font-medium text-white shadow-sm dark:bg-zinc-700 whitespace-nowrap shrink-0 mx-1.5;
     }
     .badge-info {
-        @apply inline-flex items-center gap-1.5 rounded-full bg-blue-700 px-2.5 py-0.5 text-xs font-medium text-white shadow-sm dark:bg-blue-800;
+        @apply inline-flex items-center gap-1.5 rounded-full bg-blue-700 px-2.5 py-0.5 text-xs font-medium text-white shadow-sm dark:bg-blue-800 whitespace-nowrap shrink-0 mx-1.5;
     }
     .badge-purple {
-        @apply inline-flex items-center gap-1.5 rounded-full bg-purple-700 px-2.5 py-0.5 text-xs font-medium text-white shadow-sm dark:bg-purple-800;
+        @apply inline-flex items-center gap-1.5 rounded-full bg-purple-700 px-2.5 py-0.5 text-xs font-medium text-white shadow-sm dark:bg-purple-800 whitespace-nowrap shrink-0 mx-1.5;
+    }
+    .badge-amber {
+        @apply inline-flex items-center gap-1.5 rounded-full bg-amber-700 px-2.5 py-0.5 text-xs font-medium text-white shadow-sm dark:bg-amber-800 whitespace-nowrap shrink-0 mx-1.5;
     }
 }
 
 @keyframes page-enter {
     from {
         opacity: 0;
-        transform: translateY(8px);
+        transform: translateY(4px);
     }
     to {
         opacity: 1;
-        transform: translateY(0);
+        transform: none;
+    }
+}
+
+/* Shared motion: transforms are released after entry so fixed dialogs keep their viewport. */
+@layer components {
+    .ink-button,
+    .secondary-button,
+    .dark-button,
+    .danger-button {
+        transition:
+            background-color 180ms,
+            border-color 180ms,
+            box-shadow 200ms,
+            transform 200ms var(--ease-out);
+    }
+    .ink-button svg,
+    .secondary-button svg {
+        transition: transform 220ms var(--ease-out);
+    }
+    .stagger-enter > * {
+        animation: page-enter 220ms var(--ease-out) backwards;
+    }
+    .stagger-enter > :nth-child(2) {
+        animation-delay: 30ms;
+    }
+    .stagger-enter > :nth-child(3) {
+        animation-delay: 60ms;
+    }
+    .stagger-enter > :nth-child(4) {
+        animation-delay: 90ms;
+    }
+    .stagger-enter > :nth-child(n + 5) {
+        animation-delay: 120ms;
+    }
+    .workspace-hero {
+        @apply relative overflow-hidden rounded-2xl border border-border bg-card;
+        background-image: radial-gradient(ellipse at top right, hsl(var(--primary) / 0.09), transparent 65%);
+    }
+    .surface-grid {
+        background-image: radial-gradient(hsl(var(--primary) / 0.13) 1px, transparent 1px);
+        background-size: 22px 22px;
+    }
+}
+[data-reveal='pending'] {
+    opacity: 0;
+}
+[data-reveal='visible'] {
+    animation: page-enter 260ms var(--ease-out) var(--reveal-delay, 0ms) backwards;
+}
+.image-crossfade-enter-active,
+.image-crossfade-leave-active {
+    transition:
+        opacity 260ms ease,
+        transform 450ms var(--ease-out);
+}
+.image-crossfade-enter-from {
+    opacity: 0;
+    transform: scale(1.025);
+}
+.image-crossfade-leave-to {
+    opacity: 0;
+}
+.image-crossfade-enter-active {
+    z-index: 1;
+}
+.media-placeholder::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(100deg, transparent 25%, hsl(var(--card) / 0.7), transparent 75%);
+    animation: media-shimmer 1.8s ease-in-out infinite;
+}
+@keyframes media-shimmer {
+    from {
+        transform: translateX(-100%);
+    }
+    to {
+        transform: translateX(100%);
+    }
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+    .ink-button:hover,
+    .dark-button:hover {
+        transform: translateY(-2px);
+    }
+    .ink-button:hover svg:last-child {
+        transform: translateX(2px);
+    }
+}
+@media print {
+    [data-reveal='pending'] {
+        opacity: 1;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    [data-reveal='pending'] {
+        opacity: 1;
+    }
+    .paper-card-interactive:hover,
+    .ink-button:hover,
+    .dark-button:hover {
+        transform: none;
     }
 }
 
@@ -201,6 +323,26 @@ html {
     *::after {
         scroll-behavior: auto !important;
         animation-duration: 0.01ms !important;
+        animation-delay: 0ms !important;
+        animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
     }
+}
+
+/* Keep the grading action visible and feedback comfortable to review. */
+.grading-toolbar {
+    @apply flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-primary/20 bg-card p-5 shadow-sm;
+    animation: page-enter 320ms var(--ease-out) both;
+}
+.grading-check-button {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm;
+    transition: background-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+.grading-check-button:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 5px 15px hsl(var(--primary) / 0.18); }
+.grading-check-button:focus-visible { outline: 2px solid hsl(var(--primary)); outline-offset: 3px; }
+.grading-check-button:disabled { opacity: .5; cursor: not-allowed; }
+@media (prefers-reduced-motion: reduce) {
+    .grading-toolbar { animation: none; }
+    .grading-check-button:hover:not(:disabled) { transform: none; }
+    .image-crossfade-enter-from { transform: none; }
 }

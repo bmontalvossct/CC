@@ -18,6 +18,13 @@ class StoreAssessmentRequest extends FormRequest
         if ($this->has('attendance_session_id') && ($this->attendance_session_id === '' || $this->attendance_session_id === 'null')) {
             $this->merge(['attendance_session_id' => null]);
         }
+
+        if ($this->has('rubric_data') && is_string($this->rubric_data)) {
+            $decoded = json_decode($this->rubric_data, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $this->merge(['rubric_data' => $decoded]);
+            }
+        }
     }
 
     public function rules(): array
@@ -30,7 +37,10 @@ class StoreAssessmentRequest extends FormRequest
             'conducted_on' => ['required', 'date'],
             'max_points' => ['required', 'numeric', 'gt:0', 'max:99999999.99'],
             'attendance_session_id' => ['nullable', 'integer', 'exists:attendance_sessions,id'],
+            'rubric_type' => ['nullable', 'string', 'in:percentage,answer_key,file,custom'],
+            'rubric_data' => ['nullable', 'array'],
             'attachment' => ['nullable', 'file', 'max:51200', 'extensions:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx,ppt,pptx,txt,csv,zip,rar,7z,rtf,odt,ods,odp,svg,gif,bmp,heic,pages,numbers,key,json,sql,db,sqlite,sqlite3'],
+            'remove_attachment' => ['nullable', 'boolean'],
         ];
     }
 

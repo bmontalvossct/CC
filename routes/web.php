@@ -19,6 +19,10 @@ Route::get('schedule', [ScheduleController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('schedule.index');
 
+Route::get('schedule/today-reminders', [\App\Http\Controllers\ScheduleReminderController::class, 'todayReminders'])
+    ->middleware(['auth', 'verified'])
+    ->name('schedule.today-reminders');
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('ai-assistant/status', [\App\Http\Controllers\AiAssistantController::class, 'status'])->name('ai-assistant.status');
     Route::post('ai-assistant/warm', [\App\Http\Controllers\AiAssistantController::class, 'warm'])->name('ai-assistant.warm');

@@ -49,6 +49,9 @@ interface StudentRow {
     is_absent?: boolean;
     is_present?: boolean;
     can_recite?: boolean;
+    absent_count?: number;
+    present_count?: number;
+    late_count?: number;
     times_called: number;
     avg_accuracy: number | null;
     avg_delivery: number | null;

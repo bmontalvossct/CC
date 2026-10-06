@@ -14,12 +14,24 @@ class SystemActionController extends Controller
     public function openFileLocation(Request $request): JsonResponse
     {
         $user = $request->user();
+        $sectionId = $request->input('section_id');
+        $category = $request->input('category');
         $fileUrl = (string) $request->input('file_url', '');
         $fileName = (string) $request->input('file_name', '');
         $fullPath = null;
 
+        // 0. Direct section or section category folder request
+        if ($sectionId) {
+            $section = \App\Models\Section::where('user_id', $user->id)->find($sectionId);
+            if ($section) {
+                $folderService = app(\App\Services\SectionFolderService::class);
+                $folderService->ensureSectionFolders($section);
+                $fullPath = $folderService->getPhysicalPath($section, $category ? (string) $category : null);
+            }
+        }
+
         // 1. Try matching assessment attachment route: /sections/{section}/assessments/{assessment}/...
-        if (preg_match('#/sections/\d+/assessments/(\d+)#', $fileUrl, $matches)) {
+        if (! $fullPath && preg_match('#/sections/\d+/assessments/(\d+)#', $fileUrl, $matches)) {
             $assessmentId = (int) $matches[1];
             $assessment = Assessment::whereHas('section', fn ($q) => $q->where('user_id', $user->id))->find($assessmentId);
             if ($assessment && $assessment->attachment_path) {

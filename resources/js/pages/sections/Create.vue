@@ -13,6 +13,12 @@ defineProps<{
         default_starts_at?: string;
         default_ends_at?: string;
     };
+    defaultPassingRates?: {
+        quiz: number;
+        activity: number;
+        project: number;
+        exam: number;
+    };
 }>();
 </script>
 
@@ -34,7 +40,7 @@ defineProps<{
                     </p>
                 </header>
                 <div class="mt-8">
-                    <SectionForm :current-term="currentTerm" />
+                    <SectionForm :current-term="currentTerm" :default-passing-rates="defaultPassingRates" />
                 </div>
             </div>
         </main>

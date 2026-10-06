@@ -30,6 +30,7 @@ import {
     School,
     ShieldCheck,
     Sparkles,
+    Target,
     Trophy,
     User,
     UserCheck,
@@ -126,7 +127,21 @@ const form = ref({
     ends_on:
         props.currentTerm?.ends_on ||
         new Date(new Date().setMonth(new Date().getMonth() + 5)).toISOString().split('T')[0],
+    reporting_frequency: 'once_per_sem' as 'once_per_sem' | 'twice_per_sem',
+    passing_rates: {
+        quiz: 75,
+        activity: 75,
+        project: 75,
+        exam: 75,
+    },
 });
+
+const setAllPassingRates = (val: number) => {
+    form.value.passing_rates.quiz = val;
+    form.value.passing_rates.activity = val;
+    form.value.passing_rates.project = val;
+    form.value.passing_rates.exam = val;
+};
 
 // Simulation tick for visual guides
 const simulationTick = ref(0);
@@ -220,7 +235,7 @@ const guideTabs = computed(() => [
         highlights: [
             { title: 'Fair Random Picker', text: 'Calls students fairly and logs oral participation scores.' },
             { title: 'Weighted Gradebook', text: 'Customizable weights for Activities, Quizzes, Exams, Projects, and Attendance.' },
-            { title: 'Deficiency Reports', text: 'Export student slips and grade sheets to Excel, CSV, or PDF.' },
+            { title: 'Passing Benchmarks', text: 'Configurable passing percentage rates per coursework category with deficiency tracking.' },
         ],
     },
 ]);
@@ -263,6 +278,8 @@ const saveAndContinueToAi = async () => {
                 school_year: form.value.school_year.trim(),
                 starts_on: form.value.starts_on,
                 ends_on: form.value.ends_on,
+                reporting_frequency: form.value.reporting_frequency,
+                passing_rates: form.value.passing_rates,
             }),
         });
 
@@ -465,6 +482,115 @@ const saveAndContinueToAi = async () => {
                         <div>
                             <Label for="ends-on-input" class="text-xs font-medium text-muted-foreground"> Term Ends On </Label>
                             <Input id="ends-on-input" v-model="form.ends_on" type="date" class="mt-1 h-10 rounded-xl bg-card text-xs font-medium" />
+                        </div>
+                    </div>
+
+                    <!-- Oral Reporting Frequency & Periodic Grading Setup -->
+                    <div class="rounded-xl border border-teal-500/30 bg-teal-500/5 p-4 space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <Award class="size-4 text-teal-600 dark:text-teal-400" />
+                                <Label class="text-xs font-bold text-foreground">Oral Reporting Frequency & Midterm Grading</Label>
+                            </div>
+                            <span class="rounded bg-teal-500/20 px-2 py-0.5 font-mono text-[10px] font-bold text-teal-700 dark:text-teal-300">
+                                Periodic Grading
+                            </span>
+                        </div>
+                        <p class="text-[11px] text-muted-foreground leading-relaxed">
+                            Midterm Grade is calculated from tasks on/before Midterm Exam + Midterm Exam. Choose your reporting policy below:
+                        </p>
+                        <div class="grid gap-2 sm:grid-cols-2 pt-1">
+                            <button
+                                type="button"
+                                class="flex flex-col justify-between rounded-xl border p-3 text-left transition-all cursor-pointer"
+                                :class="
+                                    form.reporting_frequency === 'once_per_sem'
+                                        ? 'border-teal-500 bg-teal-500/10 ring-1 ring-teal-500/30 shadow-xs'
+                                        : 'border-border/80 bg-card hover:bg-secondary/40'
+                                "
+                                @click="form.reporting_frequency = 'once_per_sem'"
+                            >
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold text-foreground">1 Report / Sem (Default)</span>
+                                    <span v-if="form.reporting_frequency === 'once_per_sem'" class="text-[10px] font-bold text-teal-600 dark:text-teal-400">✓ Selected</span>
+                                </div>
+                                <p class="mt-1 text-[10px] text-muted-foreground leading-normal">
+                                    Recorded in Finals so students reporting later aren't marked missing in Midterms.
+                                </p>
+                            </button>
+
+                            <button
+                                type="button"
+                                class="flex flex-col justify-between rounded-xl border p-3 text-left transition-all cursor-pointer"
+                                :class="
+                                    form.reporting_frequency === 'twice_per_sem'
+                                        ? 'border-teal-500 bg-teal-500/10 ring-1 ring-teal-500/30 shadow-xs'
+                                        : 'border-border/80 bg-card hover:bg-secondary/40'
+                                "
+                                @click="form.reporting_frequency = 'twice_per_sem'"
+                            >
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold text-foreground">2 Reports / Sem</span>
+                                    <span v-if="form.reporting_frequency === 'twice_per_sem'" class="text-[10px] font-bold text-teal-600 dark:text-teal-400">✓ Selected</span>
+                                </div>
+                                <p class="mt-1 text-[10px] text-muted-foreground leading-normal">
+                                    Students present twice: 1 oral report in Midterms and 1 oral report in Finals.
+                                </p>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Coursework Passing Benchmarks -->
+                    <div class="rounded-2xl border border-primary/25 bg-primary/5 p-4 space-y-3">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <div class="flex items-center gap-2">
+                                <Target class="size-4 text-primary" />
+                                <div>
+                                    <Label class="text-xs font-bold text-foreground">Coursework Passing Benchmarks (%)</Label>
+                                    <p class="text-[11px] text-muted-foreground">Default passing threshold per category applied when creating sections.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <span class="text-[10px] font-medium text-muted-foreground mr-1">Presets:</span>
+                                <button
+                                    v-for="rate in [60, 70, 75, 80]"
+                                    :key="rate"
+                                    type="button"
+                                    class="rounded-md border border-border/70 bg-card px-2 py-0.5 font-mono text-[10px] font-bold text-muted-foreground transition hover:border-primary hover:text-primary"
+                                    @click="setAllPassingRates(rate)"
+                                >
+                                    {{ rate }}%
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                            <div
+                                v-for="cat in [
+                                    { key: 'quiz', label: 'Quizzes' },
+                                    { key: 'activity', label: 'Activities' },
+                                    { key: 'project', label: 'Projects' },
+                                    { key: 'exam', label: 'Exams' },
+                                ] as const"
+                                :key="cat.key"
+                                class="rounded-xl border border-border/80 bg-card p-2.5 shadow-2xs"
+                            >
+                                <div class="flex items-center justify-between text-[11px] font-medium text-muted-foreground mb-1">
+                                    <span>{{ cat.label }}</span>
+                                    <span class="font-mono text-xs font-bold text-primary">{{ form.passing_rates[cat.key] }}%</span>
+                                </div>
+                                <div class="relative flex items-center">
+                                    <Input
+                                        v-model.number="form.passing_rates[cat.key]"
+                                        type="number"
+                                        min="1"
+                                        max="100"
+                                        step="1"
+                                        class="h-8 rounded-lg bg-background text-xs font-mono font-bold pr-6 text-foreground"
+                                    />
+                                    <span class="pointer-events-none absolute right-2 text-xs font-semibold text-muted-foreground">%</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -854,6 +980,29 @@ const saveAndContinueToAi = async () => {
                         <span class="text-xs font-semibold" :class="isAiEnabled ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'">
                             {{ isAiEnabled ? (isOllamaOnline ? 'Enabled (Ollama Online)' : 'Enabled') : 'Disabled (Lightweight Mode)' }}
                         </span>
+                    </div>
+
+                    <div class="flex items-center justify-between border-b border-border/60 pb-3">
+                        <div class="flex items-center gap-2">
+                            <Award class="size-4 text-primary" />
+                            <span class="text-xs font-semibold text-muted-foreground">Reporting Setup</span>
+                        </div>
+                        <span class="text-xs font-semibold text-teal-600 dark:text-teal-400">
+                            {{ form.reporting_frequency === 'once_per_sem' ? '1 Report/Sem (In Finals)' : '2 Reports/Sem (Mid & Fin)' }}
+                        </span>
+                    </div>
+
+                    <div class="flex items-center justify-between border-b border-border/60 pb-3">
+                        <div class="flex items-center gap-2">
+                            <Target class="size-4 text-primary" />
+                            <span class="text-xs font-semibold text-muted-foreground">Passing Benchmarks</span>
+                        </div>
+                        <div class="flex items-center gap-1.5 font-mono text-[11px] font-bold">
+                            <span class="rounded bg-primary/10 px-1.5 py-0.5 text-primary">Q: {{ form.passing_rates.quiz }}%</span>
+                            <span class="rounded bg-primary/10 px-1.5 py-0.5 text-primary">A: {{ form.passing_rates.activity }}%</span>
+                            <span class="rounded bg-primary/10 px-1.5 py-0.5 text-primary">P: {{ form.passing_rates.project }}%</span>
+                            <span class="rounded bg-primary/10 px-1.5 py-0.5 text-primary">E: {{ form.passing_rates.exam }}%</span>
+                        </div>
                     </div>
 
                     <div class="flex items-center justify-between">

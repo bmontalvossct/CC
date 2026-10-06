@@ -4,8 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { cardHover, modalBackdropVariants, modalContentVariants, staggerItem, tabIndicatorTransition } from '@/lib/motion';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { AnimatePresence, motion } from 'motion-v';
 import {
     ArrowLeft,
     Check,
@@ -20,9 +22,11 @@ import {
     Plus,
     Presentation,
     Search,
+    Sparkles,
     Trash2,
     X,
 } from 'lucide-vue-next';
+import ExamGeneratorModal from '@/components/assessments/ExamGeneratorModal.vue';
 import { computed, ref } from 'vue';
 
 type CourseModule = {
@@ -97,13 +101,21 @@ const fileInputRef = ref<HTMLInputElement | null>(null);
 const selectedFile = ref<File | null>(null);
 const isDragOver = ref(false);
 const copiedId = ref<number | null>(null);
+const showExamGeneratorModal = ref(false);
 
-const form = useForm({
+const form = useForm<{
+    module_number: string;
+    title: string;
+    description: string;
+    link_url: string;
+    file: File | null;
+    remove_file: boolean;
+}>({
     module_number: '',
     title: '',
     description: '',
     link_url: '',
-    file: null as File | null,
+    file: null,
     remove_file: false,
 });
 
@@ -268,6 +280,14 @@ const getFileTypeBadge = (fileName: string | null, mime: string | null) => {
                     </div>
 
                     <div class="flex flex-wrap items-center gap-3">
+                        <Button
+                            variant="outline"
+                            class="!h-10 !rounded-xl border-primary/40 bg-primary/5 text-primary hover:bg-primary/10 font-semibold"
+                            @click="showExamGeneratorModal = true"
+                        >
+                            <Sparkles class="size-4 mr-1.5" />
+                            <span>Generate Exam (Hermes)</span>
+                        </Button>
                         <Button class="ink-button !h-10 !rounded-xl" @click="openCreateModal">
                             <Plus class="size-4" />
                             <span>Add Module</span>
@@ -319,27 +339,45 @@ const getFileTypeBadge = (fileName: string | null, mime: string | null) => {
                         <div class="flex items-center gap-1 rounded-xl border border-border/80 bg-secondary/30 p-1">
                             <button
                                 type="button"
-                                class="rounded-lg px-3 py-1 text-xs font-medium transition-colors"
-                                :class="filterType === 'all' ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-secondary'"
+                                class="relative rounded-lg px-3 py-1 text-xs font-semibold transition-colors"
+                                :class="filterType === 'all' ? 'text-white' : 'text-muted-foreground hover:text-foreground'"
                                 @click="filterType = 'all'"
                             >
-                                All ({{ modules.length }})
+                                <motion.div
+                                    v-if="filterType === 'all'"
+                                    layout-id="modules-active-filter-pill"
+                                    class="absolute inset-0 rounded-lg bg-primary shadow-xs"
+                                    :transition="tabIndicatorTransition"
+                                />
+                                <span class="relative z-10">All ({{ modules.length }})</span>
                             </button>
                             <button
                                 type="button"
-                                class="rounded-lg px-3 py-1 text-xs font-medium transition-colors"
-                                :class="filterType === 'files' ? 'bg-emerald-700 text-white' : 'text-muted-foreground hover:bg-secondary'"
+                                class="relative rounded-lg px-3 py-1 text-xs font-semibold transition-colors"
+                                :class="filterType === 'files' ? 'text-white' : 'text-muted-foreground hover:text-foreground'"
                                 @click="filterType = 'files'"
                             >
-                                Files ({{ totalFilesCount }})
+                                <motion.div
+                                    v-if="filterType === 'files'"
+                                    layout-id="modules-active-filter-pill"
+                                    class="absolute inset-0 rounded-lg bg-emerald-700 shadow-xs"
+                                    :transition="tabIndicatorTransition"
+                                />
+                                <span class="relative z-10">Files ({{ totalFilesCount }})</span>
                             </button>
                             <button
                                 type="button"
-                                class="rounded-lg px-3 py-1 text-xs font-medium transition-colors"
-                                :class="filterType === 'links' ? 'bg-blue-700 text-white' : 'text-muted-foreground hover:bg-secondary'"
+                                class="relative rounded-lg px-3 py-1 text-xs font-semibold transition-colors"
+                                :class="filterType === 'links' ? 'text-white' : 'text-muted-foreground hover:text-foreground'"
                                 @click="filterType = 'links'"
                             >
-                                Links ({{ totalLinksCount }})
+                                <motion.div
+                                    v-if="filterType === 'links'"
+                                    layout-id="modules-active-filter-pill"
+                                    class="absolute inset-0 rounded-lg bg-blue-700 shadow-xs"
+                                    :transition="tabIndicatorTransition"
+                                />
+                                <span class="relative z-10">Links ({{ totalLinksCount }})</span>
                             </button>
                         </div>
                     </div>
@@ -347,10 +385,14 @@ const getFileTypeBadge = (fileName: string | null, mime: string | null) => {
 
                 <!-- Structured Modules List (Module -> Title -> Link / Presentation) -->
                 <div v-if="filteredModules.length > 0" class="mt-5 space-y-3">
-                    <article
-                        v-for="item in filteredModules"
+                    <motion.article
+                        v-for="(item, idx) in filteredModules"
                         :key="item.id"
-                        class="shadow-xs group relative flex flex-col justify-between gap-4 rounded-2xl border border-border/80 bg-card p-5 transition-all hover:border-primary/50 hover:shadow-md md:flex-row md:items-center"
+                        :initial="{ opacity: 0, y: 12 }"
+                        :animate="{ opacity: 1, y: 0 }"
+                        :transition="staggerItem(idx)"
+                        :while-hover="cardHover"
+                        class="shadow-xs group relative flex flex-col justify-between gap-4 rounded-2xl border border-border/80 bg-card p-5 transition-shadow hover:border-primary/50 hover:shadow-md md:flex-row md:items-center"
                     >
                         <!-- Left Info: Module Identifier & Title -->
                         <div class="flex min-w-0 items-start gap-4">
@@ -454,7 +496,7 @@ const getFileTypeBadge = (fileName: string | null, mime: string | null) => {
                                 <Trash2 class="size-4" />
                             </button>
                         </div>
-                    </article>
+                    </motion.article>
                 </div>
 
                 <!-- Empty State -->
@@ -481,17 +523,28 @@ const getFileTypeBadge = (fileName: string | null, mime: string | null) => {
         </main>
 
         <!-- Add / Edit Module Modal -->
-        <div
-            v-if="showModal"
-            v-modal-focus
-            class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-zinc-950/70 p-4 backdrop-blur-md"
-        >
-            <div class="paper-card my-8 w-full max-w-lg p-7 shadow-2xl duration-200 animate-in fade-in zoom-in-95">
-                <div class="flex items-center justify-between border-b border-border/60 pb-3">
-                    <div>
-                        <span class="eyebrow">{{ editingModule ? 'Edit Content' : 'Course Material' }}</span>
-                        <h2 class="text-xl font-bold text-foreground">{{ editingModule ? 'Edit Course Module' : 'Add Course Module' }}</h2>
-                    </div>
+        <AnimatePresence>
+            <motion.div
+                v-if="showModal"
+                v-modal-focus
+                :initial="modalBackdropVariants.initial"
+                :animate="modalBackdropVariants.animate"
+                :exit="modalBackdropVariants.exit"
+                :transition="modalBackdropVariants.transition"
+                class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-zinc-950/70 p-4 backdrop-blur-md"
+            >
+                <motion.div
+                    :initial="modalContentVariants.initial"
+                    :animate="modalContentVariants.animate"
+                    :exit="modalContentVariants.exit"
+                    :transition="modalContentVariants.transition"
+                    class="paper-card my-8 w-full max-w-lg p-7 shadow-2xl"
+                >
+                    <div class="flex items-center justify-between border-b border-border/60 pb-3">
+                        <div>
+                            <span class="eyebrow">{{ editingModule ? 'Edit Content' : 'Course Material' }}</span>
+                            <h2 class="text-xl font-bold text-foreground">{{ editingModule ? 'Edit Course Module' : 'Add Course Module' }}</h2>
+                        </div>
                     <button
                         type="button"
                         class="grid size-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
@@ -656,19 +709,31 @@ const getFileTypeBadge = (fileName: string | null, mime: string | null) => {
                         </Button>
                     </div>
                 </form>
-            </div>
-        </div>
+            </motion.div>
+        </motion.div>
+    </AnimatePresence>
 
         <!-- Delete Confirmation Modal -->
-        <div
-            v-if="moduleToDelete"
-            v-modal-focus
-            class="backdrop-blur-xs fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-            role="dialog"
-            aria-modal="true"
-        >
-            <div class="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in-95">
-                <div class="flex items-center gap-3">
+        <AnimatePresence>
+            <motion.div
+                v-if="moduleToDelete"
+                v-modal-focus
+                :initial="modalBackdropVariants.initial"
+                :animate="modalBackdropVariants.animate"
+                :exit="modalBackdropVariants.exit"
+                :transition="modalBackdropVariants.transition"
+                class="backdrop-blur-xs fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+                role="dialog"
+                aria-modal="true"
+            >
+                <motion.div
+                    :initial="modalContentVariants.initial"
+                    :animate="modalContentVariants.animate"
+                    :exit="modalContentVariants.exit"
+                    :transition="modalContentVariants.transition"
+                    class="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl"
+                >
+                    <div class="flex items-center gap-3">
                     <div class="grid size-10 shrink-0 place-items-center rounded-xl bg-rose-100 dark:bg-rose-950/60">
                         <Trash2 class="size-5 text-rose-600 dark:text-rose-400" />
                     </div>
@@ -702,7 +767,16 @@ const getFileTypeBadge = (fileName: string | null, mime: string | null) => {
                         <span>{{ isDeleting ? 'Deleting...' : 'Yes, Delete Module' }}</span>
                     </button>
                 </div>
-            </div>
-        </div>
+            </motion.div>
+        </motion.div>
+    </AnimatePresence>
+
+        <!-- Hermes Exam Generator Modal -->
+        <ExamGeneratorModal
+            :open="showExamGeneratorModal"
+            :section="section"
+            :initial-modules="modules"
+            @close="showExamGeneratorModal = false"
+        />
     </AppLayout>
 </template>

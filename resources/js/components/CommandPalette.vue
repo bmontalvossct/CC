@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { modalBackdropVariants, modalContentVariants } from '@/lib/motion';
 import { router } from '@inertiajs/vue3';
-import { GraduationCap, LayoutDashboard, Plus, Search, Settings, User, X } from 'lucide-vue-next';
+import { Bell, GraduationCap, LayoutDashboard, Plus, Search, Settings, User, X } from 'lucide-vue-next';
+import { AnimatePresence, motion } from 'motion-v';
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 
 const open = ref(false);
@@ -24,6 +26,13 @@ const items = [
         subtitle: 'Customize light, dark or system mode',
         href: '/settings/appearance',
         icon: Settings,
+        category: 'Settings',
+    },
+    {
+        title: 'Class Reminders & Notifications',
+        subtitle: '20-minute reminders and Windows status alerts',
+        href: '/settings/notifications',
+        icon: Bell,
         category: 'Settings',
     },
     { title: 'Security & Password', subtitle: 'Update your account password', href: '/settings/password', icon: Settings, category: 'Settings' },
@@ -111,88 +120,106 @@ defineExpose({ openPalette });
         </button>
 
         <!-- Command Palette Modal -->
-        <div
-            v-if="open"
-            v-modal-focus
-            class="fixed inset-0 z-50 grid place-items-start justify-center bg-zinc-950/60 p-4 pt-16 backdrop-blur-md duration-150 animate-in fade-in sm:pt-24"
-        >
-            <div
-                class="paper-card w-full max-w-xl overflow-hidden border-border/90 p-0 shadow-2xl duration-150 animate-in zoom-in-95"
-                role="dialog"
-                aria-modal="true"
-                aria-label="Command palette"
+        <AnimatePresence>
+            <motion.div
+                v-if="open"
+                v-modal-focus
+                :initial="modalBackdropVariants.initial"
+                :animate="modalBackdropVariants.animate"
+                :exit="modalBackdropVariants.exit"
+                :transition="modalBackdropVariants.transition"
+                class="fixed inset-0 z-50 grid place-items-start justify-center bg-zinc-950/60 p-4 pt-16 backdrop-blur-md sm:pt-24"
+                @click.self="closePalette"
             >
-                <!-- Search Input Bar -->
-                <div class="flex items-center border-b border-border/80 bg-card px-4 py-3.5">
-                    <Search class="size-4.5 mr-3 shrink-0 text-primary" />
-                    <input
-                        ref="searchInput"
-                        v-model="query"
-                        type="text"
-                        placeholder="Search commands, pages, and actions..."
-                        class="w-full bg-transparent text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none"
-                    />
-                    <button
-                        type="button"
-                        class="grid size-6 place-items-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground"
-                        @click="closePalette"
-                    >
-                        <X class="size-4" />
-                    </button>
-                </div>
-
-                <!-- Results List -->
-                <div class="max-h-80 overflow-y-auto p-2">
-                    <div v-if="filteredItems.length" class="space-y-1">
+                <motion.div
+                    :initial="modalContentVariants.initial"
+                    :animate="modalContentVariants.animate"
+                    :exit="modalContentVariants.exit"
+                    :transition="modalContentVariants.transition"
+                    class="paper-card w-full max-w-xl overflow-hidden border-border/90 p-0 shadow-2xl"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Command palette"
+                >
+                    <!-- Search Input Bar -->
+                    <div class="flex items-center border-b border-border/80 bg-card px-4 py-3.5">
+                        <Search class="size-4.5 mr-3 shrink-0 text-primary" />
+                        <input
+                            ref="searchInput"
+                            v-model="query"
+                            type="text"
+                            placeholder="Search commands, pages, and actions..."
+                            class="w-full bg-transparent text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none"
+                        />
                         <button
-                            v-for="(item, index) in filteredItems"
-                            :key="item.href"
                             type="button"
-                            class="flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-left transition-colors"
-                            :class="
-                                index === activeIndex
-                                    ? 'shadow-xs bg-primary font-semibold text-primary-foreground'
-                                    : 'text-foreground hover:bg-secondary'
-                            "
-                            @click="navigateTo(item.href)"
-                            @mouseenter="activeIndex = index"
+                            class="grid size-6 place-items-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground"
+                            @click="closePalette"
                         >
-                            <div class="flex min-w-0 items-center gap-3">
-                                <component :is="item.icon" class="size-4 shrink-0" :class="index === activeIndex ? 'text-white' : 'text-primary'" />
-                                <div class="min-w-0">
-                                    <p class="truncate text-xs font-bold leading-tight">{{ item.title }}</p>
-                                    <p
-                                        class="mt-0.5 truncate text-[11px] leading-none"
-                                        :class="index === activeIndex ? 'text-white/80' : 'text-muted-foreground'"
-                                    >
-                                        {{ item.subtitle }}
-                                    </p>
-                                </div>
-                            </div>
-                            <span
-                                class="ml-2 shrink-0 rounded-md px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider"
-                                :class="index === activeIndex ? 'bg-white/20 text-white' : 'bg-secondary text-muted-foreground'"
-                            >
-                                {{ item.category }}
-                            </span>
+                            <X class="size-4" />
                         </button>
                     </div>
 
-                    <div v-else class="py-10 text-center text-xs text-muted-foreground">No actions or pages found for "{{ query }}".</div>
-                </div>
+                    <!-- Results List -->
+                    <div class="max-h-80 overflow-y-auto p-2">
+                        <div v-if="filteredItems.length" class="space-y-1">
+                            <button
+                                v-for="(item, index) in filteredItems"
+                                :key="item.href"
+                                type="button"
+                                class="flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-left transition-colors"
+                                :class="
+                                    index === activeIndex
+                                        ? 'shadow-xs bg-primary font-semibold text-primary-foreground'
+                                        : 'text-foreground hover:bg-secondary'
+                                "
+                                @click="navigateTo(item.href)"
+                                @mouseenter="activeIndex = index"
+                            >
+                                <div class="flex min-w-0 items-center gap-3">
+                                    <component :is="item.icon" class="size-4 shrink-0" :class="index === activeIndex ? 'text-white' : 'text-primary'" />
+                                    <div class="min-w-0">
+                                        <p class="truncate text-xs font-bold leading-tight">{{ item.title }}</p>
+                                        <p
+                                            class="mt-0.5 truncate text-[11px] leading-none"
+                                            :class="index === activeIndex ? 'text-white/80' : 'text-muted-foreground'"
+                                        >
+                                            {{ item.subtitle }}
+                                        </p>
+                                    </div>
+                                </div>
+                                <span
+                                    class="ml-2 shrink-0 rounded-md px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider"
+                                    :class="
+                                        index === activeIndex
+                                            ? 'bg-primary-foreground/20 text-primary-foreground'
+                                            : 'bg-secondary text-muted-foreground'
+                                    "
+                                >
+                                    {{ item.category }}
+                                </span>
+                            </button>
+                        </div>
 
-                <!-- Footer Shortcut Help -->
-                <div
-                    class="flex items-center justify-between border-t border-border/80 bg-secondary/40 px-4 py-2 text-[10px] font-medium text-muted-foreground"
-                >
-                    <div class="flex items-center gap-3">
-                        <span><kbd class="font-mono font-bold">↑↓</kbd> to navigate</span>
-                        <span><kbd class="font-mono font-bold">↵</kbd> to select</span>
-                        <span><kbd class="font-mono font-bold">esc</kbd> to close</span>
+                        <div v-else class="px-4 py-8 text-center text-xs text-muted-foreground">
+                            No commands matching "<span class="font-semibold text-foreground">{{ query }}</span
+                            >"
+                        </div>
                     </div>
-                    <span class="font-semibold text-primary">ClassCheck Quick Jump</span>
-                </div>
-            </div>
-        </div>
+
+                    <!-- Footer Shortcut Help -->
+                    <div
+                        class="flex items-center justify-between border-t border-border/80 bg-secondary/40 px-4 py-2 text-[10px] font-medium text-muted-foreground"
+                    >
+                        <div class="flex items-center gap-3">
+                            <span><kbd class="font-mono font-bold">↑↓</kbd> to navigate</span>
+                            <span><kbd class="font-mono font-bold">↵</kbd> to select</span>
+                            <span><kbd class="font-mono font-bold">esc</kbd> to close</span>
+                        </div>
+                        <span class="font-semibold text-primary">ClassCheck Quick Jump</span>
+                    </div>
+                </motion.div>
+            </motion.div>
+        </AnimatePresence>
     </div>
 </template>

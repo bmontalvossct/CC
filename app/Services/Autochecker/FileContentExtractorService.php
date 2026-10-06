@@ -29,14 +29,47 @@ class FileContentExtractorService
             ];
         }
 
-        // 1. Plain text & code files
+        // 1. PDF Files (Local extraction via stream / regex or pdftotext)
+        if ($extension === 'pdf') {
+            $pdfText = $this->extractPdfText($filePath);
+            return [
+                'success' => ! empty(trim($pdfText)),
+                'content' => $pdfText,
+                'extension' => $extension,
+                'error' => empty(trim($pdfText)) ? 'Could not extract readable text from PDF.' : null,
+            ];
+        }
+
+        // 2. Word DOCX Files (Extract text from word/document.xml)
+        if ($extension === 'docx') {
+            $docxText = $this->extractDocxText($filePath);
+            return [
+                'success' => ! empty(trim($docxText)),
+                'content' => $docxText,
+                'extension' => $extension,
+                'error' => empty(trim($docxText)) ? 'Could not extract readable text from Word document.' : null,
+            ];
+        }
+
+        // 3. PowerPoint PPTX Files (Extract text from ppt/slides/slide*.xml)
+        if ($extension === 'pptx') {
+            $pptxText = $this->extractPptxText($filePath);
+            return [
+                'success' => ! empty(trim($pptxText)),
+                'content' => $pptxText,
+                'extension' => $extension,
+                'error' => empty(trim($pptxText)) ? 'Could not extract readable text from PowerPoint presentation.' : null,
+            ];
+        }
+
+        // 4. Plain text & code files
         $codeExtensions = config('autochecker.supported_extensions', [
             'py', 'java', 'c', 'cpp', 'cs', 'js', 'jsx', 'ts', 'tsx',
             'php', 'html', 'css', 'sql', 'rb', 'go', 'rs', 'swift', 'kt',
             'txt', 'md', 'json', 'xml', 'csv',
         ]);
 
-        if (in_array($extension, $codeExtensions, true) && $extension !== 'pdf') {
+        if (in_array($extension, $codeExtensions, true)) {
             $raw = file_get_contents($filePath);
             if ($raw === false) {
                 return [
@@ -52,17 +85,6 @@ class FileContentExtractorService
                 'success' => true,
                 'content' => $cleaned,
                 'extension' => $extension,
-            ];
-        }
-
-        // 2. PDF Files (Local extraction via stream / regex or pdftotext)
-        if ($extension === 'pdf') {
-            $pdfText = $this->extractPdfText($filePath);
-            return [
-                'success' => ! empty(trim($pdfText)),
-                'content' => $pdfText,
-                'extension' => $extension,
-                'error' => empty(trim($pdfText)) ? 'Could not extract readable text from PDF.' : null,
             ];
         }
 
@@ -172,6 +194,104 @@ class FileContentExtractorService
         }
 
         return $this->cleanUtf8($text);
+    }
+
+    /**
+     * Extract text from Microsoft Word DOCX files by reading word/document.xml.
+     */
+    private function extractDocxText(string $filePath): string
+    {
+        if (! class_exists('ZipArchive')) {
+            return '';
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($filePath) !== true) {
+            return '';
+        }
+
+        $xml = $zip->getFromName('word/document.xml');
+        $zip->close();
+
+        if (! $xml) {
+            return '';
+        }
+
+        // Replace paragraph & break tags with newlines
+        $clean = preg_replace('/<w:p[^>]*>/i', "\n", $xml) ?? $xml;
+        $clean = preg_replace('/<w:br[^>]*>/i', "\n", $clean) ?? $clean;
+        $clean = strip_tags($clean);
+
+        return $this->cleanUtf8(trim($clean));
+    }
+
+    /**
+     * Extract text from Microsoft PowerPoint PPTX files by reading ppt/slides/slide*.xml.
+     */
+    private function extractPptxText(string $filePath): string
+    {
+        if (! class_exists('ZipArchive')) {
+            return '';
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($filePath) !== true) {
+            return '';
+        }
+
+        $slideTexts = [];
+        $slideIndex = 1;
+
+        // Collect all sequential slide xml entries
+        while ($slideIndex <= 200) {
+            $xml = $zip->getFromName("ppt/slides/slide{$slideIndex}.xml");
+            if (! $xml) {
+                break;
+            }
+
+            preg_match_all('/<a:t[^>]*>(.*?)<\/a:t>/is', $xml, $matches);
+            if (! empty($matches[1])) {
+                $slideContent = trim(implode(' ', array_map('html_entity_decode', $matches[1])));
+                if ($slideContent !== '') {
+                    $slideTexts[] = "[Slide {$slideIndex}]\n" . $slideContent;
+                }
+            }
+
+            $slideIndex++;
+        }
+
+        // If sequential check found none or missed non-sequential slides, iterate all entries
+        if (empty($slideTexts)) {
+            $indexedSlides = [];
+            for ($i = 0; $i < $zip->numFiles; $i++) {
+                $name = $zip->getNameIndex($i);
+                if (preg_match('#ppt/slides/slide(\d+)\.xml#i', $name, $m)) {
+                    $idx = (int) $m[1];
+                    $xml = $zip->getFromIndex($i);
+                    if ($xml) {
+                        preg_match_all('/<a:t[^>]*>(.*?)<\/a:t>/is', $xml, $matches);
+                        if (! empty($matches[1])) {
+                            $slideContent = trim(implode(' ', array_map('html_entity_decode', $matches[1])));
+                            if ($slideContent !== '') {
+                                $indexedSlides[$idx] = "[Slide {$idx}]\n" . $slideContent;
+                            }
+                        }
+                    }
+                }
+            }
+            if (! empty($indexedSlides)) {
+                ksort($indexedSlides);
+                $slideTexts = array_values($indexedSlides);
+            }
+        }
+
+        $zip->close();
+
+        if (empty($slideTexts)) {
+            return '';
+        }
+
+        return $this->cleanUtf8(implode("\n\n", $slideTexts));
     }
 
     private function cleanUtf8(string $text): string

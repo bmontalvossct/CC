@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
 import { Link } from '@inertiajs/vue3';
-import { ArrowRight, CheckCircle2, Clock, UserX, X } from 'lucide-vue-next';
+import { ArrowRight, CheckCircle2, Clock, ShieldCheck, UserX, X } from 'lucide-vue-next';
 
 type DayRecord = {
     session_id: number;
@@ -9,6 +9,9 @@ type DayRecord = {
     time: string;
     notes?: string | null;
     duration_minutes: number;
+    excuse_reason?: string | null;
+    points_awarded?: boolean;
+    cleared_by_letter?: boolean;
 };
 
 type Summary = {
@@ -23,14 +26,19 @@ export type StudentSummary = {
     id: number;
     student_number: string;
     name: string;
+    first_name?: string;
+    last_name?: string;
     week: Summary;
     month: Summary;
     term: Summary;
     overall: Summary;
     absent_days: DayRecord[];
     late_days: DayRecord[];
+    excused_days?: DayRecord[];
     absent_count: number;
+    uncleared_absent_count?: number;
     late_count: number;
+    excused_count?: number;
     present_count: number;
     total_sessions?: number;
     earned_points?: number;
@@ -160,41 +168,92 @@ const formatStudentDisplayName = (student: StudentSummary | { name?: string; fir
                 </div>
 
                 <!-- Summary KPI Highlights -->
-                <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    <div class="rounded-xl border border-border/80 bg-secondary/30 p-3.5 text-center">
+                <div class="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                    <div class="rounded-xl border border-border/80 bg-secondary/30 p-3 text-center">
                         <span class="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Grade Score</span>
-                        <p class="mt-1 font-mono text-3xl font-semibold text-foreground">{{ student.grade_rate ?? student.overall.rate ?? '—' }}%</p>
+                        <p class="mt-1 font-mono text-2xl font-semibold text-foreground">{{ student.grade_rate ?? student.overall.rate ?? '—' }}%</p>
                         <span class="text-xs text-muted-foreground">
                             {{ student.earned_points ?? student.present_count }}/{{ student.possible_points ?? student.overall.sessions }} pts
                         </span>
                     </div>
 
-                    <div class="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3.5 text-center">
+                    <div class="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-center">
                         <span class="block text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400"
                             >Present (1 pt)</span
                         >
-                        <p class="mt-1 font-mono text-3xl font-semibold text-emerald-700 dark:text-emerald-400">
+                        <p class="mt-1 font-mono text-2xl font-semibold text-emerald-700 dark:text-emerald-400">
                             {{ student.present_count }}
                         </p>
                         <span class="text-xs text-muted-foreground">sessions</span>
                     </div>
 
-                    <div class="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3.5 text-center">
+                    <div class="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-center">
                         <span class="block text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">Late (0.5 pt)</span>
-                        <p class="mt-1 font-mono text-3xl font-semibold text-amber-700 dark:text-amber-400">
+                        <p class="mt-1 font-mono text-2xl font-semibold text-amber-700 dark:text-amber-400">
                             {{ student.late_count }}
                         </p>
                         <span class="text-xs text-muted-foreground">sessions</span>
                     </div>
 
-                    <div class="rounded-xl border border-rose-500/20 bg-rose-500/5 p-3.5 text-center">
+                    <div class="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-3 text-center">
+                        <span class="block text-xs font-semibold uppercase tracking-wider text-indigo-700 dark:text-indigo-400">Excused</span>
+                        <p class="mt-1 font-mono text-2xl font-semibold text-indigo-700 dark:text-indigo-400">
+                            {{ student.excused_count ?? (student.excused_days?.length ?? 0) }}
+                        </p>
+                        <span class="text-xs text-muted-foreground">sessions</span>
+                    </div>
+
+                    <div class="rounded-xl border border-rose-500/20 bg-rose-500/5 p-3 text-center">
                         <span class="block text-xs font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-400">Absent (0 pt)</span>
-                        <p class="mt-1 font-mono text-3xl font-semibold text-rose-700 dark:text-rose-400">
+                        <p class="mt-1 font-mono text-2xl font-semibold text-rose-700 dark:text-rose-400">
                             {{ student.absent_count }}
                         </p>
-                        <span class="text-xs text-muted-foreground">/ 3 max allowed</span>
+                        <span class="text-xs text-muted-foreground">/ 3 limit</span>
                     </div>
                 </div>
+
+                <!-- Exact Excused Days Breakdown -->
+                <section v-if="student.excused_days && student.excused_days.length > 0" class="space-y-3">
+                    <div class="flex items-center justify-between border-b border-border/80 pb-2">
+                        <div class="flex items-center gap-2">
+                            <ShieldCheck class="size-4.5 text-indigo-700 dark:text-indigo-400" />
+                            <h3 class="text-base font-semibold text-foreground">Excused Days</h3>
+                        </div>
+                        <span class="font-mono text-sm font-semibold text-indigo-700 dark:text-indigo-400">
+                            {{ student.excused_days.length }} days
+                        </span>
+                    </div>
+
+                    <div class="space-y-2">
+                        <div
+                            v-for="day in student.excused_days"
+                            :key="day.session_id"
+                            class="flex items-center justify-between rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-3.5"
+                        >
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-base font-medium text-foreground">{{ readableDate(day.date) }}</span>
+                                    <span class="rounded bg-indigo-500/20 px-2 py-0.5 text-xs font-bold text-indigo-700 dark:text-indigo-300">
+                                        Excused ({{ day.points_awarded ? '1.0 pt' : '0 pt' }})
+                                    </span>
+                                </div>
+                                <p class="mt-0.5 text-sm text-muted-foreground">{{ day.time }} ({{ day.duration_minutes }} mins)</p>
+                                <p v-if="day.excuse_reason" class="mt-1 text-sm font-medium italic text-indigo-900 dark:text-indigo-200">
+                                    Reason: {{ day.excuse_reason }}
+                                </p>
+                            </div>
+
+                            <Link
+                                :href="`/attendance/${day.session_id}`"
+                                prefetch="hover"
+                                class="shadow-xs inline-flex items-center gap-1 rounded-lg border border-primary bg-white px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            >
+                                <span>Session</span>
+                                <ArrowRight class="size-3.5" />
+                            </Link>
+                        </div>
+                    </div>
+                </section>
 
                 <!-- Exact Absent Days Breakdown -->
                 <section class="space-y-3">
@@ -221,6 +280,12 @@ const formatStudentDisplayName = (student: StudentSummary | { name?: string; fir
                                 <div class="flex items-center gap-2">
                                     <span class="text-base font-medium text-foreground">{{ readableDate(day.date) }}</span>
                                     <span class="text-sm font-semibold text-rose-700 dark:text-rose-400">Absent</span>
+                                    <span
+                                        v-if="day.cleared_by_letter"
+                                        class="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300"
+                                    >
+                                        ✓ Cleared with Letter
+                                    </span>
                                 </div>
                                 <p class="mt-0.5 text-sm text-muted-foreground">{{ day.time }} ({{ day.duration_minutes }} mins)</p>
                                 <p v-if="day.notes" class="mt-1 text-sm italic text-muted-foreground">Note: {{ day.notes }}</p>

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useAppearance } from '@/composables/useAppearance';
+import { tabIndicatorTransition } from '@/lib/motion';
 import { Monitor, Moon, Sun } from 'lucide-vue-next';
+import { motion } from 'motion-v';
 
 interface Props {
     class?: string;
@@ -22,16 +24,25 @@ const tabs = [
         <button
             v-for="{ value, Icon, label } in tabs"
             :key="value"
+            type="button"
             @click="updateAppearance(value)"
             :class="[
-                'flex items-center rounded-md px-3.5 py-1.5 transition-colors',
+                'relative flex items-center rounded-md px-3.5 py-1.5 transition-colors',
                 appearance === value
-                    ? 'bg-white shadow-sm dark:bg-neutral-700 dark:text-neutral-100'
-                    : 'text-neutral-500 hover:bg-neutral-200/60 hover:text-black dark:text-neutral-400 dark:hover:bg-neutral-700/60',
+                    ? 'text-neutral-900 dark:text-neutral-100'
+                    : 'text-neutral-500 hover:text-black dark:text-neutral-400 dark:hover:text-white',
             ]"
         >
-            <component :is="Icon" class="-ml-1 h-4 w-4" />
-            <span class="ml-1.5 text-sm">{{ label }}</span>
+            <motion.div
+                v-if="appearance === value"
+                layout-id="appearance-active-tab"
+                class="absolute inset-0 rounded-md bg-white shadow-xs dark:bg-neutral-700"
+                :transition="tabIndicatorTransition"
+            />
+            <span class="relative z-10 flex items-center">
+                <component :is="Icon" class="-ml-1 h-4 w-4" />
+                <span class="ml-1.5 text-sm font-medium">{{ label }}</span>
+            </span>
         </button>
     </div>
 </template>

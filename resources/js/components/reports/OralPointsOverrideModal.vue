@@ -150,8 +150,13 @@ const setPreset = (percentage: number) => {
 };
 
 // Form submission
-const form = useForm({
-    student_id: null as number | null,
+const form = useForm<{
+    student_id: number | null;
+    apply_to_all: boolean;
+    points: number;
+    include_late: boolean;
+}>({
+    student_id: null,
     apply_to_all: false,
     points: 0,
     include_late: false,

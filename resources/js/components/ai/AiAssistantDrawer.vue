@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useActiveSection } from '@/composables/useActiveSection';
 import { type AiScope, type ChatAttachment, type ChatMessage, useAiAssistant } from '@/composables/useAiAssistant';
+import OctoMascot from '@/components/OctoMascot.vue';
 import OctoSpinner from '@/components/OctoSpinner.vue';
 import DOMPurify from 'dompurify';
 import {
@@ -40,6 +41,7 @@ import {
     Square,
     Trash2,
     User,
+    Users,
     X,
     Zap,
 } from 'lucide-vue-next';
@@ -352,24 +354,15 @@ const switchScope = (scope: AiScope) => {
             title="Ask Octo AI (Ctrl+J)"
             aria-label="Open Octo AI Teaching Copilot"
         >
-            <div class="relative flex items-center justify-center rounded-full">
-                <img
-                    src="/images/octo.png"
-                    alt="Octo AI Mascot"
-                    class="size-14 rounded-full object-cover select-none drop-shadow-lg transition-all group-hover:drop-shadow-xl"
-                />
-                <!-- Online Status Dot -->
-                <span
-                    v-if="isOllamaOnline"
-                    class="absolute bottom-0.5 right-0.5 size-3.5 rounded-full border-2 border-background bg-emerald-500 shadow-xs"
-                    title="Ollama Connected"
-                />
-                <span
-                    v-else
-                    class="absolute bottom-0.5 right-0.5 size-3.5 rounded-full border-2 border-background bg-amber-500 shadow-xs"
-                    title="Ollama Offline"
-                />
-            </div>
+            <OctoMascot
+                size="lg"
+                :interactive="true"
+                :show-bubble="true"
+                :bubble-text="isSending ? 'Octo is generating... 💭' : 'Ask me anything! (Ctrl+J)'"
+                :show-status="true"
+                :is-online="isOllamaOnline"
+                :is-thinking="isSending"
+            />
         </button>
     </Transition>
 
@@ -402,7 +395,7 @@ const switchScope = (scope: AiScope) => {
                 <div class="flex items-center justify-between border-b border-border/80 bg-secondary/30 px-4 py-3 sm:px-5 sm:py-3.5">
                     <div class="flex items-center gap-2.5 sm:gap-3">
                         <div class="relative flex size-9 sm:size-10 shrink-0 items-center justify-center rounded-full overflow-hidden shadow-xs border border-border/60 bg-card">
-                            <img src="/images/octo.png" alt="Octo" class="size-full rounded-full object-contain p-0.5" />
+                            <OctoMascot size="sm" :interactive="true" :is-thinking="isSending" />
                         </div>
                         <div>
                             <div class="flex items-center gap-1.5 sm:gap-2">
@@ -694,7 +687,7 @@ const switchScope = (scope: AiScope) => {
                     <!-- Welcome Banner if no messages -->
                     <div v-if="messages.length === 0" class="flex flex-col items-center justify-center py-8 text-center">
                         <div class="flex size-16 items-center justify-center rounded-full bg-card p-1 shadow-md border border-border">
-                            <img src="/images/octo.png" alt="Octo" class="size-full rounded-full object-contain" />
+                            <OctoMascot size="xl" :interactive="true" />
                         </div>
                         <h4 class="mt-3 text-base font-bold text-foreground">Grounded Teaching Copilot</h4>
                         <p class="mt-1 max-w-md text-xs text-muted-foreground leading-relaxed">
@@ -756,7 +749,7 @@ const switchScope = (scope: AiScope) => {
                             <div class="flex items-center justify-between border-b border-border/60 pb-2.5">
                                 <div class="flex items-center gap-2">
                                     <div class="grid size-6 place-items-center rounded-full bg-card overflow-hidden border border-border/70 p-0.5">
-                                        <img src="/images/octo.png" alt="Octo" class="size-full object-contain" />
+                                        <OctoMascot size="xs" :interactive="true" :is-streaming="msg.isStreaming" :is-thinking="msg.isStreaming && !msg.content" />
                                     </div>
                                     <span class="text-xs font-bold text-foreground">Octo Ledger Response</span>
                                     <span class="text-[10px] text-muted-foreground">&bull; {{ msg.timestamp }}</span>
@@ -768,8 +761,12 @@ const switchScope = (scope: AiScope) => {
                                         v-if="msg.isStreaming"
                                         class="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold text-primary"
                                     >
-                                        <Loader2 class="size-3 animate-spin text-primary" />
-                                        <span>Octo is thinking...</span>
+                                        <span class="inline-flex gap-0.5">
+                                            <span class="size-1 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]" />
+                                            <span class="size-1 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]" />
+                                            <span class="size-1 rounded-full bg-primary animate-bounce" />
+                                        </span>
+                                        <span>{{ !msg.content ? 'Octo is thinking...' : 'Generating...' }}</span>
                                     </span>
 
                                     <!-- Copy Button -->
@@ -800,9 +797,24 @@ const switchScope = (scope: AiScope) => {
                             <!-- Live Markdown Output (Rendered in real-time for organized tables, lists & headings) -->
                             <div class="text-xs leading-relaxed text-foreground">
                                 <!-- In-card streaming status indicator before first token -->
-                                <div v-if="msg.isStreaming && !msg.content" class="flex items-center gap-2 py-1.5 text-muted-foreground text-xs">
-                                    <Loader2 class="size-3.5 animate-spin text-primary shrink-0" />
-                                    <span class="font-medium text-foreground">{{ streamingStatusText || 'Octo is analyzing records...' }}</span>
+                                <div
+                                    v-if="msg.isStreaming && !msg.content"
+                                    class="flex items-center gap-3.5 py-3 px-3.5 rounded-xl border border-primary/20 bg-gradient-to-r from-primary/5 via-primary/10 to-transparent"
+                                >
+                                    <div class="relative shrink-0">
+                                        <OctoMascot size="sm" :interactive="false" :forced-state="'thinking'" :is-thinking="true" />
+                                    </div>
+                                    <div class="space-y-0.5 min-w-0 flex-1">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs font-bold text-foreground">{{ streamingStatusText || 'Octo is thinking...' }}</span>
+                                            <span class="inline-flex items-center gap-1">
+                                                <span class="size-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]" />
+                                                <span class="size-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]" />
+                                                <span class="size-1.5 rounded-full bg-primary animate-bounce" />
+                                            </span>
+                                        </div>
+                                        <p class="text-[11px] text-muted-foreground">Consulting live classroom records and verified curriculum data</p>
+                                    </div>
                                 </div>
 
                                 <!-- Fallback for interrupted or empty past responses -->
@@ -871,7 +883,19 @@ const switchScope = (scope: AiScope) => {
                                                             v-if="proposal.type"
                                                             class="rounded-full bg-background/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground border border-border/50"
                                                         >
-                                                            {{ proposal.type }}
+                                                            {{ proposal.type.replace('_', ' ') }}
+                                                        </span>
+                                                        <span
+                                                            v-if="proposal.group_count"
+                                                            class="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-bold text-foreground border border-border/50"
+                                                        >
+                                                            {{ proposal.group_count }} groups
+                                                        </span>
+                                                        <span
+                                                            v-if="proposal.source_project_title"
+                                                            class="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary"
+                                                        >
+                                                            Cloned from: {{ proposal.source_project_title }}
                                                         </span>
                                                         <span
                                                             v-if="proposal.max_points"
@@ -881,7 +905,7 @@ const switchScope = (scope: AiScope) => {
                                                         </span>
                                                     </div>
                                                     <p class="text-[11px] text-muted-foreground mt-0.5">
-                                                        {{ proposal.confirmation_prompt || (proposal.action === 'create_assessment' ? 'Would you like to add this directly to your section?' : 'Confirmation required') }}
+                                                        {{ proposal.confirmation_prompt || (proposal.action === 'create_assessment' ? `Would you like to add "${proposal.title}" as an activity to ${proposal.section_name || 'your section'}?` : proposal.action === 'create_project_groups' ? `Would you like to create this group activity in ${proposal.section_name || 'your section'}?` : 'Confirmation required') }}
                                                     </p>
                                                 </div>
                                             </div>
@@ -938,7 +962,7 @@ const switchScope = (scope: AiScope) => {
                                             <div class="flex justify-end pt-1">
                                                 <button
                                                     type="button"
-                                                    class="rounded-md bg-secondary px-2.5 py-1 text-[11px] font-semibold text-foreground hover:bg-secondary/80"
+                                                    class="rounded-md bg-secondary px-2.5 py-1 text-[11px] font-semibold text-foreground hover:bg-secondary/80 cursor-pointer"
                                                     @click="editingProposal[`${msg.id}_${pIdx}`] = false"
                                                 >
                                                     Done Editing
@@ -961,7 +985,7 @@ const switchScope = (scope: AiScope) => {
                                                 class="inline-flex items-center gap-1 font-bold text-primary hover:underline text-xs"
                                                 target="_blank"
                                             >
-                                                <span>View Assessment</span>
+                                                <span>{{ proposal.action === 'create_project_groups' ? 'View Activity' : 'View Assessment' }}</span>
                                                 <ExternalLink class="size-3" />
                                             </a>
                                         </div>
@@ -973,18 +997,18 @@ const switchScope = (scope: AiScope) => {
                                                 <button
                                                     type="button"
                                                     :disabled="proposal.status === 'executing'"
-                                                    class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs disabled:opacity-50"
+                                                    class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-1.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition-all shadow-xs disabled:opacity-50 cursor-pointer"
                                                     @click="handleExecuteProposal(proposal)"
                                                 >
                                                     <OctoSpinner v-if="proposal.status === 'executing'" size="xs" />
                                                     <Check v-else class="size-3.5" />
-                                                    <span>Yes, Add to Class</span>
+                                                    <span>Yes, Add as {{ proposal.type === 'laboratory' ? 'Lab Activity' : proposal.type === 'quiz' ? 'Quiz' : proposal.type === 'exam' ? 'Exam' : 'Activity' }}</span>
                                                 </button>
 
                                                 <button
                                                     type="button"
                                                     :disabled="proposal.status === 'executing'"
-                                                    class="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-secondary transition-colors"
+                                                    class="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-secondary transition-colors cursor-pointer"
                                                     @click="editingProposal[`${msg.id}_${pIdx}`] = !editingProposal[`${msg.id}_${pIdx}`]"
                                                 >
                                                     <Pencil class="size-3" />
@@ -994,10 +1018,11 @@ const switchScope = (scope: AiScope) => {
                                                 <button
                                                     type="button"
                                                     :disabled="proposal.status === 'executing'"
-                                                    class="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                                                    class="inline-flex items-center gap-1 rounded-lg border border-border/70 px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors cursor-pointer"
                                                     @click="dismissProposal(proposal, activeSectionId)"
                                                 >
-                                                    <span>No, Dismiss</span>
+                                                    <X class="size-3" />
+                                                    <span>No, Keep as Draft</span>
                                                 </button>
                                             </template>
 
@@ -1006,7 +1031,7 @@ const switchScope = (scope: AiScope) => {
                                                 <button
                                                     type="button"
                                                     :disabled="proposal.status === 'executing'"
-                                                    class="inline-flex items-center gap-1.5 rounded-lg bg-destructive px-3 py-1.5 text-xs font-bold text-destructive-foreground hover:bg-destructive/90 transition-colors shadow-xs disabled:opacity-50"
+                                                    class="inline-flex items-center gap-1.5 rounded-lg bg-destructive px-3 py-1.5 text-xs font-bold text-destructive-foreground hover:bg-destructive/90 transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
                                                     @click="handleExecuteProposal(proposal)"
                                                 >
                                                     <OctoSpinner v-if="proposal.status === 'executing'" size="xs" />
@@ -1017,10 +1042,34 @@ const switchScope = (scope: AiScope) => {
                                                 <button
                                                     type="button"
                                                     :disabled="proposal.status === 'executing'"
-                                                    class="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-secondary transition-colors"
+                                                    class="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-secondary transition-colors cursor-pointer"
                                                     @click="dismissProposal(proposal, activeSectionId)"
                                                 >
                                                     <span>No, Keep Record</span>
+                                                </button>
+                                            </template>
+
+                                            <!-- Create Project / Group Activity Buttons -->
+                                            <template v-else-if="proposal.action === 'create_project_groups'">
+                                                <button
+                                                    type="button"
+                                                    :disabled="proposal.status === 'executing'"
+                                                    class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-1.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+                                                    @click="handleExecuteProposal(proposal)"
+                                                >
+                                                    <OctoSpinner v-if="proposal.status === 'executing'" size="xs" />
+                                                    <Users v-else class="size-3.5" />
+                                                    <span>Yes, Create Activity & Groups</span>
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    :disabled="proposal.status === 'executing'"
+                                                    class="inline-flex items-center gap-1 rounded-lg border border-border/70 px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors cursor-pointer"
+                                                    @click="dismissProposal(proposal, activeSectionId)"
+                                                >
+                                                    <X class="size-3" />
+                                                    <span>No, Keep as Draft</span>
                                                 </button>
                                             </template>
                                         </div>

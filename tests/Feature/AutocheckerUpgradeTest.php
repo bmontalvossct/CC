@@ -7,6 +7,8 @@ use App\Models\Assessment;
 use App\Models\AssessmentScore;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
+use App\Models\Project;
+use App\Models\Recitation;
 use App\Models\Section;
 use App\Models\Student;
 use App\Models\User;
@@ -76,6 +78,16 @@ class AutocheckerUpgradeTest extends TestCase
         $warmRes = $this->postJson(route('ai-assistant.warm'));
         $warmRes->assertOk();
         $warmRes->assertJsonStructure(['warmed', 'model']);
+
+        $warmCodeRes = $this->postJson(route('ai-assistant.warm'), ['profile' => 'code_grading']);
+        $warmCodeRes->assertOk();
+        $warmCodeRes->assertJsonStructure(['warmed', 'model', 'profile']);
+        $this->assertEquals('code_grading', $warmCodeRes->json('profile'));
+
+        $warmGeneralRes = $this->postJson(route('ai-assistant.warm'), ['profile' => 'general_grading']);
+        $warmGeneralRes->assertOk();
+        $warmGeneralRes->assertJsonStructure(['warmed', 'model', 'profile']);
+        $this->assertEquals('general_grading', $warmGeneralRes->json('profile'));
     }
 
     public function test_ai_pull_endpoint_validates_allowed_models()
@@ -362,5 +374,168 @@ class AutocheckerUpgradeTest extends TestCase
         ]);
 
         $response->assertOk();
+    }
+
+    public function test_propose_create_project_groups_tool_and_execution()
+    {
+        $this->actingAs($this->user);
+        $toolRegistry = app(\App\Services\Autochecker\ChatToolRegistry::class);
+
+        // Add 3 more active students to section
+        Student::create(['section_id' => $this->section->id, 'student_number' => '2024-002', 'first_name' => 'Juan', 'last_name' => 'Dela Cruz', 'is_active' => true]);
+        Student::create(['section_id' => $this->section->id, 'student_number' => '2024-003', 'first_name' => 'Ana', 'last_name' => 'Reyes', 'is_active' => true]);
+        Student::create(['section_id' => $this->section->id, 'student_number' => '2024-004', 'first_name' => 'Pedro', 'last_name' => 'Penduko', 'is_active' => true]);
+
+        // 1. Tool execution generates proposal
+        $toolOutput = $toolRegistry->executeTool('propose_create_project_groups', [
+            'section_id' => $this->section->id,
+            'title' => 'Group Activity 1: MVC Architecture',
+            'type' => 'group_activity',
+            'group_count' => 2,
+            'max_points' => 50,
+        ], $this->user);
+
+        $this->assertEquals('action_proposal', $toolOutput['source']['type']);
+        $proposal = $toolOutput['result']['proposal'];
+        $this->assertEquals('create_project_groups', $proposal['action']);
+        $this->assertEquals('Group Activity 1: MVC Architecture', $proposal['title']);
+        $this->assertEquals(2, $proposal['group_count']);
+
+        // 2. Action execution endpoint executes confirmed proposal
+        $executeRes = $this->postJson(route('ai-assistant.actions.execute'), [
+            'action' => 'create_project_groups',
+            'section_id' => $this->section->id,
+            'type' => 'group_activity',
+            'title' => 'Group Activity 1: MVC Architecture',
+            'group_count' => 2,
+            'max_points' => 50,
+        ]);
+
+        $executeRes->assertOk();
+        $executeRes->assertJson(['success' => true, 'action' => 'create_project_groups']);
+
+        $createdProject = Project::where('section_id', $this->section->id)->where('title', 'Group Activity 1: MVC Architecture')->first();
+        $this->assertNotNull($createdProject);
+        $this->assertEquals(2, $createdProject->groups()->count());
+        $this->assertEquals(4, $createdProject->groups()->withCount('members')->get()->sum('members_count'));
+    }
+
+    public function test_create_project_groups_cloning_from_previous_project()
+    {
+        $this->actingAs($this->user);
+
+        // Create base project with custom groups
+        $baseProject = Project::create([
+            'section_id' => $this->section->id,
+            'type' => 'group_activity',
+            'title' => 'Midterm Project',
+            'format' => 'group',
+        ]);
+        $g1 = $baseProject->groups()->create(['group_number' => 1, 'name' => 'Alpha Team', 'order_column' => 1]);
+        $g1->members()->create(['student_id' => $this->student->id]);
+
+        $toolRegistry = app(\App\Services\Autochecker\ChatToolRegistry::class);
+
+        // Tool execution referencing source project
+        $toolOutput = $toolRegistry->executeTool('propose_create_project_groups', [
+            'section_id' => $this->section->id,
+            'title' => 'Finals Reporting',
+            'type' => 'reporting',
+            'source_project_id' => $baseProject->id,
+            'copy_names' => true,
+        ], $this->user);
+
+        $this->assertEquals($baseProject->id, $toolOutput['result']['proposal']['source_project_id']);
+        $this->assertEquals('Midterm Project', $toolOutput['result']['proposal']['source_project_title']);
+
+        // Action execution replicates groups and members
+        $executeRes = $this->postJson(route('ai-assistant.actions.execute'), [
+            'action' => 'create_project_groups',
+            'section_id' => $this->section->id,
+            'type' => 'reporting',
+            'title' => 'Finals Reporting',
+            'source_project_id' => $baseProject->id,
+            'copy_names' => true,
+        ]);
+
+        $executeRes->assertOk();
+        $clonedProject = Project::where('section_id', $this->section->id)->where('title', 'Finals Reporting')->first();
+        $this->assertNotNull($clonedProject);
+        $this->assertEquals(1, $clonedProject->groups()->count());
+        $this->assertEquals('Alpha Team', $clonedProject->groups()->first()->name);
+        $this->assertEquals($this->student->id, $clonedProject->groups()->first()->members()->first()->student_id);
+    }
+
+    public function test_draft_student_intervention_tool()
+    {
+        $toolRegistry = app(\App\Services\Autochecker\ChatToolRegistry::class);
+
+        $output = $toolRegistry->executeTool('draft_student_intervention', [
+            'section_id' => $this->section->id,
+            'student_query' => 'Maria Santos',
+            'tone' => 'formal_parent_advisory',
+        ], $this->user);
+
+        $this->assertEquals('intervention_draft', $output['source']['type']);
+        $this->assertStringContainsString('Santos, Maria', $output['result']['draft']);
+        $this->assertStringContainsString('SUMMARY OF ACADEMIC CONCERNS', $output['result']['draft']);
+        $this->assertStringContainsString('OFFICIAL PARENT / GUARDIAN ACADEMIC ADVISORY', $output['result']['draft']);
+    }
+
+    public function test_recitation_analytics_tool()
+    {
+        // Add a recitation record
+        Recitation::create([
+            'section_id' => $this->section->id,
+            'student_id' => $this->student->id,
+            'score' => 95,
+            'conducted_on' => Carbon::today(),
+        ]);
+
+        $toolRegistry = app(\App\Services\Autochecker\ChatToolRegistry::class);
+
+        $output = $toolRegistry->executeTool('get_recitation_analytics', [
+            'section_id' => $this->section->id,
+        ], $this->user);
+
+        $this->assertEquals('recitation_analytics', $output['source']['type']);
+        $this->assertEquals(1, $output['result']['total_recitations_recorded']);
+        $this->assertEquals(95.0, $output['result']['class_recitation_average']);
+        $this->assertEquals(0, $output['result']['uncalled_count']);
+    }
+
+    public function test_grading_system_prompt_few_shot_and_citations()
+    {
+        $ollamaService = app(\App\Services\Autochecker\OllamaService::class);
+        $reflection = new \ReflectionClass($ollamaService);
+        $method = $reflection->getMethod('buildGradingSystemPrompt');
+        $method->setAccessible(true);
+
+        $prompt = $method->invoke($ollamaService, true);
+
+        $this->assertStringContainsString('evidence_quote', $prompt);
+        $this->assertStringContainsString('cite specific line numbers', $prompt);
+        $this->assertStringContainsString('FEW-SHOT EXAMPLE', $prompt);
+    }
+
+    public function test_propose_create_assessment_returns_yes_no_choice_card_and_generation_instruction()
+    {
+        $toolRegistry = app(\App\Services\Autochecker\ChatToolRegistry::class);
+
+        $output = $toolRegistry->executeTool('propose_create_assessment', [
+            'section_id' => $this->section->id,
+            'type' => 'laboratory',
+            'title' => 'Binary Search Trees Hands-on Lab',
+            'max_points' => 50,
+        ], $this->user);
+
+        $this->assertEquals('action_proposal', $output['source']['type']);
+        $this->assertNotEmpty($output['source']['choice_card']);
+        $this->assertEquals(
+            ['Yes, Add as Activity', 'No, Keep as Draft'],
+            $output['source']['choice_card']['options']
+        );
+        $this->assertStringContainsString('WRITE OUT the complete', $output['result']['instruction']);
+        $this->assertStringContainsString('Would you like to add this as an activity', $output['result']['instruction']);
     }
 }

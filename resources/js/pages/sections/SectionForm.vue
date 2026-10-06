@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Link, useForm } from '@inertiajs/vue3';
-import { Minus, Plus } from 'lucide-vue-next';
+import { Minus, Plus, Target } from 'lucide-vue-next';
 import { ref } from 'vue';
 
 type StoredSchedule = {
@@ -39,6 +39,15 @@ type SectionData = {
     subject_title: string;
     name: string;
     room: string | null;
+    grading_weights?: {
+        passing_rates?: {
+            quiz?: number;
+            activity?: number;
+            project?: number;
+            exam?: number;
+        };
+        [key: string]: any;
+    } | null;
     academic_term: TermSummary;
     schedules: StoredSchedule[];
 };
@@ -46,6 +55,12 @@ type SectionData = {
 const props = defineProps<{
     section?: SectionData;
     currentTerm?: TermSummary;
+    defaultPassingRates?: {
+        quiz?: number;
+        activity?: number;
+        project?: number;
+        exam?: number;
+    };
 }>();
 
 const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -100,7 +115,24 @@ const groupedSchedules = (schedules: StoredSchedule[]): Schedule[] => {
 const defaultInitialStart = props.currentTerm?.default_starts_at || '08:00';
 const defaultInitialEnd = props.currentTerm?.default_ends_at || calculateSuggestedEndTime(defaultInitialStart, 'lecture');
 
-const form = useForm({
+const form = useForm<{
+    subject_code: string;
+    subject_title: string;
+    name: string;
+    term: {
+        name: string;
+        school_year: string;
+        starts_on: string;
+        ends_on: string;
+    };
+    schedules: Schedule[];
+    passing_rates: {
+        quiz: number;
+        activity: number;
+        project: number;
+        exam: number;
+    };
+}>({
     subject_code: props.section?.subject_code ?? '',
     subject_title: props.section?.subject_title ?? '',
     name: props.section?.name ?? '',
@@ -121,6 +153,12 @@ const form = useForm({
                   schedule_type: 'lecture',
               },
           ],
+    passing_rates: {
+        quiz: Number(props.section?.grading_weights?.passing_rates?.quiz ?? props.defaultPassingRates?.quiz ?? 75),
+        activity: Number(props.section?.grading_weights?.passing_rates?.activity ?? props.defaultPassingRates?.activity ?? 75),
+        project: Number(props.section?.grading_weights?.passing_rates?.project ?? props.defaultPassingRates?.project ?? 75),
+        exam: Number(props.section?.grading_weights?.passing_rates?.exam ?? props.defaultPassingRates?.exam ?? 75),
+    },
 });
 
 const scheduleError = ref('');
@@ -136,7 +174,7 @@ const fieldError = (field: string): string | undefined => {
 const addSchedule = () => {
     const lastSchedule = form.schedules[form.schedules.length - 1];
     const previousRoom = lastSchedule ? lastSchedule.room : '';
-    const previousType = lastSchedule ? lastSchedule.schedule_type : 'lecture';
+    const previousType: 'lecture' | 'lab' = lastSchedule?.schedule_type === 'lab' ? 'lab' : 'lecture';
     const defaultStart = props.currentTerm?.default_starts_at || '08:00';
     const defaultEnd = props.currentTerm?.default_ends_at || calculateSuggestedEndTime(defaultStart, previousType);
 
@@ -384,6 +422,195 @@ const submit = () => {
                 </div>
             </div>
             <InputError class="mt-1 text-xs" :message="scheduleError || fieldError('schedules')" />
+        </section>
+
+        <!-- 03 Passing Benchmarks Panel -->
+        <section class="paper-card grid gap-5 p-6 md:p-8">
+            <div class="flex flex-col gap-2 border-b border-border/60 pb-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <span class="eyebrow">03 / Passing Benchmarks</span>
+                        <h2 class="mt-1 text-2xl font-medium tracking-tight">Passing percentage rates</h2>
+                    </div>
+                    <div class="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 rounded-xl px-3 py-1.5 border border-border/50">
+                        <Target class="size-3.5 text-primary" />
+                        <span>Standard benchmark: 75%</span>
+                    </div>
+                </div>
+                <p class="text-xs sm:text-sm text-muted-foreground">
+                    Set the minimum percentage score required for a student to pass each category. Submissions below this rate are flagged as deficient in student records, gradebooks, and performance analytics.
+                </p>
+            </div>
+
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <!-- Quizzes -->
+                <div class="relative flex flex-col justify-between rounded-2xl border border-border/70 bg-card/60 p-4 transition-all hover:border-primary/40">
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <Label for="pass-quiz" class="text-xs font-semibold text-foreground">Quizzes</Label>
+                            <span class="rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary font-mono">
+                                {{ form.passing_rates.quiz }}%
+                            </span>
+                        </div>
+                        <p class="mt-1 text-[11px] text-muted-foreground">Formative quizzes & unit tests</p>
+                    </div>
+
+                    <div class="mt-3">
+                        <div class="relative">
+                            <Input
+                                id="pass-quiz"
+                                v-model.number="form.passing_rates.quiz"
+                                type="number"
+                                min="0"
+                                max="100"
+                                class="h-10 rounded-xl pr-8 text-sm font-semibold font-mono"
+                            />
+                            <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">%</span>
+                        </div>
+                        <InputError class="mt-1 text-xs" :message="fieldError('passing_rates.quiz')" />
+
+                        <!-- Preset Buttons -->
+                        <div class="mt-2.5 flex items-center gap-1">
+                            <button
+                                v-for="preset in [60, 70, 75, 80]"
+                                :key="preset"
+                                type="button"
+                                class="rounded-lg px-2 py-0.5 text-[10px] font-medium transition-colors"
+                                :class="form.passing_rates.quiz === preset ? 'bg-primary text-primary-foreground font-bold' : 'bg-muted text-muted-foreground hover:bg-secondary hover:text-foreground'"
+                                @click="form.passing_rates.quiz = preset"
+                            >
+                                {{ preset }}%
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Activities -->
+                <div class="relative flex flex-col justify-between rounded-2xl border border-border/70 bg-card/60 p-4 transition-all hover:border-primary/40">
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <Label for="pass-activity" class="text-xs font-semibold text-foreground">Activities</Label>
+                            <span class="rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary font-mono">
+                                {{ form.passing_rates.activity }}%
+                            </span>
+                        </div>
+                        <p class="mt-1 text-[11px] text-muted-foreground">Classwork & group activities</p>
+                    </div>
+
+                    <div class="mt-3">
+                        <div class="relative">
+                            <Input
+                                id="pass-activity"
+                                v-model.number="form.passing_rates.activity"
+                                type="number"
+                                min="0"
+                                max="100"
+                                class="h-10 rounded-xl pr-8 text-sm font-semibold font-mono"
+                            />
+                            <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">%</span>
+                        </div>
+                        <InputError class="mt-1 text-xs" :message="fieldError('passing_rates.activity')" />
+
+                        <!-- Preset Buttons -->
+                        <div class="mt-2.5 flex items-center gap-1">
+                            <button
+                                v-for="preset in [60, 70, 75, 80]"
+                                :key="preset"
+                                type="button"
+                                class="rounded-lg px-2 py-0.5 text-[10px] font-medium transition-colors"
+                                :class="form.passing_rates.activity === preset ? 'bg-primary text-primary-foreground font-bold' : 'bg-muted text-muted-foreground hover:bg-secondary hover:text-foreground'"
+                                @click="form.passing_rates.activity = preset"
+                            >
+                                {{ preset }}%
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Projects -->
+                <div class="relative flex flex-col justify-between rounded-2xl border border-border/70 bg-card/60 p-4 transition-all hover:border-primary/40">
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <Label for="pass-project" class="text-xs font-semibold text-foreground">Projects</Label>
+                            <span class="rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary font-mono">
+                                {{ form.passing_rates.project }}%
+                            </span>
+                        </div>
+                        <p class="mt-1 text-[11px] text-muted-foreground">Major outputs & reports</p>
+                    </div>
+
+                    <div class="mt-3">
+                        <div class="relative">
+                            <Input
+                                id="pass-project"
+                                v-model.number="form.passing_rates.project"
+                                type="number"
+                                min="0"
+                                max="100"
+                                class="h-10 rounded-xl pr-8 text-sm font-semibold font-mono"
+                            />
+                            <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">%</span>
+                        </div>
+                        <InputError class="mt-1 text-xs" :message="fieldError('passing_rates.project')" />
+
+                        <!-- Preset Buttons -->
+                        <div class="mt-2.5 flex items-center gap-1">
+                            <button
+                                v-for="preset in [60, 70, 75, 80]"
+                                :key="preset"
+                                type="button"
+                                class="rounded-lg px-2 py-0.5 text-[10px] font-medium transition-colors"
+                                :class="form.passing_rates.project === preset ? 'bg-primary text-primary-foreground font-bold' : 'bg-muted text-muted-foreground hover:bg-secondary hover:text-foreground'"
+                                @click="form.passing_rates.project = preset"
+                            >
+                                {{ preset }}%
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Major Exams -->
+                <div class="relative flex flex-col justify-between rounded-2xl border border-border/70 bg-card/60 p-4 transition-all hover:border-primary/40">
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <Label for="pass-exam" class="text-xs font-semibold text-foreground">Exams</Label>
+                            <span class="rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary font-mono">
+                                {{ form.passing_rates.exam }}%
+                            </span>
+                        </div>
+                        <p class="mt-1 text-[11px] text-muted-foreground">Midterm & final term exams</p>
+                    </div>
+
+                    <div class="mt-3">
+                        <div class="relative">
+                            <Input
+                                id="pass-exam"
+                                v-model.number="form.passing_rates.exam"
+                                type="number"
+                                min="0"
+                                max="100"
+                                class="h-10 rounded-xl pr-8 text-sm font-semibold font-mono"
+                            />
+                            <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">%</span>
+                        </div>
+                        <InputError class="mt-1 text-xs" :message="fieldError('passing_rates.exam')" />
+
+                        <!-- Preset Buttons -->
+                        <div class="mt-2.5 flex items-center gap-1">
+                            <button
+                                v-for="preset in [60, 70, 75, 80]"
+                                :key="preset"
+                                type="button"
+                                class="rounded-lg px-2 py-0.5 text-[10px] font-medium transition-colors"
+                                :class="form.passing_rates.exam === preset ? 'bg-primary text-primary-foreground font-bold' : 'bg-muted text-muted-foreground hover:bg-secondary hover:text-foreground'"
+                                @click="form.passing_rates.exam = preset"
+                            >
+                                {{ preset }}%
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </section>
 
         <div class="flex items-center justify-end gap-3 border-t border-border/80 pt-6">

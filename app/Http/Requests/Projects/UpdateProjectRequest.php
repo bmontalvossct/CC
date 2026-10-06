@@ -25,6 +25,7 @@ class UpdateProjectRequest extends FormRequest
             'max_points' => ['nullable', 'numeric', 'min:0', 'max:1000'],
             'group_count' => ['nullable', 'integer', 'min:1', 'max:50'],
             'attachment' => ['nullable', 'file', 'max:51200', 'extensions:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx,ppt,pptx,txt,csv,zip,rar,7z,rtf,odt,ods,odp,svg,gif,bmp,heic,pages,numbers,key,json,sql,db,sqlite,sqlite3'],
+            'remove_attachment' => ['nullable', 'boolean'],
         ];
     }
 

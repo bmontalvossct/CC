@@ -38,6 +38,10 @@ class AutocheckerController extends AssessmentModuleController
         $models = $ping['online'] ? $this->ollamaClient->getModels() : [];
         $sandboxStatus = $this->sandboxRunner->getStatus();
 
+        if ($ping['online']) {
+            $this->ollamaClient->warm('code_grading');
+        }
+
         return response()->json([
             'ollama' => $ping,
             'models' => $models,
@@ -97,6 +101,9 @@ class AutocheckerController extends AssessmentModuleController
     public function evaluateSingle(Request $request, Section $section, Assessment $assessment): JsonResponse
     {
         $this->authorizeAssessment($section, $assessment);
+        if (! app(\App\Services\Autochecker\AiDocumentGraderService::class)->resolveFilePath($assessment->attachment_path)) {
+            return response()->json(['error' => 'Attach a rubric before checking submissions.'], 422);
+        }
 
         $validated = $request->validate([
             'run_id' => ['required', 'string'],
@@ -130,7 +137,7 @@ class AutocheckerController extends AssessmentModuleController
                 maxPoints: (float) $assessment->max_points,
                 rubricCriteria: $validated['rubric_criteria'],
                 referenceSolution: $validated['reference_solution'] ?? null,
-                assessmentInstructions: $validated['assessment_instructions'] ?? $assessment->description
+                assessmentInstructions: app(\App\Services\Autochecker\AiDocumentGraderService::class)->activityInstructions($assessment, $validated['assessment_instructions'] ?? null)
             );
 
             // Cache proposal in temporary run manifest
@@ -190,7 +197,7 @@ class AutocheckerController extends AssessmentModuleController
             'scores.*.student_id' => ['required', 'integer'],
             'scores.*.approved' => ['required', 'boolean'],
             'scores.*.score' => ['nullable', 'numeric', 'min:0', 'max:' . $assessment->max_points],
-            'scores.*.remarks' => ['nullable', 'string', 'max:500'],
+            'scores.*.remarks' => ['nullable', 'string', 'max:10000'],
             'scores.*.overwrite_confirmed' => ['nullable', 'boolean'],
             'scores.*.absence_override_confirmed' => ['nullable', 'boolean'],
         ]);
@@ -216,7 +223,7 @@ class AutocheckerController extends AssessmentModuleController
                 }
 
                 $finalScore = min($maxPoints, max(0.0, round((float) $item['score'], 2)));
-                $remarks = ! empty($item['remarks']) ? mb_substr(trim($item['remarks']), 0, 500) : null;
+                $remarks = ! empty($item['remarks']) ? trim($item['remarks']) : null;
 
                 // Check existing score overwrite
                 if (isset($existingScores[$studentId]) && $existingScores[$studentId]->score !== null) {

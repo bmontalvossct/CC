@@ -59,6 +59,14 @@ class AssessmentReportController extends AssessmentModuleController
             'project' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:100'],
             'attendance' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:100'],
             'recitation' => ['nullable', 'integer', 'min:0'],
+            'reporting_frequency' => ['sometimes', 'nullable', 'string', 'in:once_per_sem,twice_per_sem'],
+            'midterm_weight' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:100'],
+            'final_weight' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:100'],
+            'passing_rates' => ['sometimes', 'nullable', 'array'],
+            'passing_rates.quiz' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'passing_rates.activity' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'passing_rates.project' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'passing_rates.exam' => ['nullable', 'integer', 'min:0', 'max:100'],
         ]);
 
         $merged = [
@@ -71,6 +79,22 @@ class AssessmentReportController extends AssessmentModuleController
             'recitation' => array_key_exists('recitation', $data) ? (int) ($data['recitation'] ?? 0) : (int) ($current['recitation'] ?? 5),
         ];
 
+        if (isset($data['reporting_frequency']) || isset($section->grading_weights['reporting_frequency'])) {
+            $merged['reporting_frequency'] = $data['reporting_frequency'] ?? $section->grading_weights['reporting_frequency'];
+        }
+        if (isset($data['midterm_weight']) || isset($section->grading_weights['midterm_weight'])) {
+            $merged['midterm_weight'] = isset($data['midterm_weight']) && $data['midterm_weight'] !== null ? (int) $data['midterm_weight'] : (int) ($section->grading_weights['midterm_weight'] ?? 50);
+        }
+        if (isset($data['final_weight']) || isset($section->grading_weights['final_weight'])) {
+            $merged['final_weight'] = isset($data['final_weight']) && $data['final_weight'] !== null ? (int) $data['final_weight'] : (int) ($section->grading_weights['final_weight'] ?? 50);
+        }
+        if (isset($data['passing_rates'])) {
+            $currentPassing = $section->grading_weights['passing_rates'] ?? GradebookCalculationService::DEFAULT_PASSING_RATES;
+            $merged['passing_rates'] = array_merge($currentPassing, array_filter($data['passing_rates'], fn ($v) => $v !== null));
+        } elseif (isset($section->grading_weights['passing_rates'])) {
+            $merged['passing_rates'] = $section->grading_weights['passing_rates'];
+        }
+
         $baseTotal = $merged['activity'] + $merged['laboratory'] + $merged['quiz'] + $merged['exam'] + $merged['project'] + $merged['attendance'];
         $totalWithRec = $baseTotal + $merged['recitation'];
 
@@ -82,7 +106,7 @@ class AssessmentReportController extends AssessmentModuleController
 
         $section->update(['grading_weights' => $merged]);
 
-        return back()->with('success', 'Grading weights and oral recitation bonus saved.');
+        return back()->with('success', 'Grading weights, midterm weights, and reporting settings saved.');
     }
 
     public function overrideOralPoints(Request $request, Section $section): RedirectResponse

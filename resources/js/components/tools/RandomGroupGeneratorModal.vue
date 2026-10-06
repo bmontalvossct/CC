@@ -21,16 +21,28 @@ const props = defineProps<{
     open: boolean;
     students: any[];
     sectionName: string;
+    previousProjects?: Array<{
+        id: number;
+        title: string;
+        type?: string;
+        conducted_on?: string | null;
+        groups: Array<{
+            id: number;
+            name: string;
+            members: any[];
+        }>;
+    }>;
 }>();
 
 const emit = defineEmits<{
     (e: 'close'): void;
 }>();
 
-type SplitMode = 'by_group_count' | 'by_group_size';
+type SplitMode = 'by_group_count' | 'by_group_size' | 'from_previous';
 const splitMode = ref<SplitMode>('by_group_count');
 const targetGroupCount = ref(4);
 const targetGroupSize = ref(4);
+const selectedPreviousProjectId = ref<number | ''>('');
 const copied = ref(false);
 
 interface GroupItem {
@@ -45,7 +57,37 @@ const activeStudents = computed(() => {
     return (props.students || []).filter((s) => s.is_active !== false);
 });
 
+const selectedPreviousProject = computed(() => {
+    if (!selectedPreviousProjectId.value || !props.previousProjects) return null;
+    return props.previousProjects.find((p) => p.id === Number(selectedPreviousProjectId.value)) || null;
+});
+
 const generateGroups = () => {
+    if (splitMode.value === 'from_previous') {
+        if (!selectedPreviousProject.value) {
+            // Auto-select first available if not chosen
+            if (props.previousProjects && props.previousProjects.length > 0) {
+                selectedPreviousProjectId.value = props.previousProjects[0].id;
+            } else {
+                groups.value = [];
+                return;
+            }
+        }
+
+        const prev = selectedPreviousProject.value;
+        if (!prev) {
+            groups.value = [];
+            return;
+        }
+
+        groups.value = prev.groups.map((g, idx) => ({
+            id: idx + 1,
+            name: g.name || `Group ${idx + 1}`,
+            members: [...g.members],
+        }));
+        return;
+    }
+
     const pool = [...activeStudents.value];
     if (pool.length === 0) {
         groups.value = [];
@@ -85,12 +127,15 @@ watch(
     (isOpen) => {
         if (isOpen) {
             copied.value = false;
+            if (splitMode.value === 'from_previous' && !selectedPreviousProjectId.value && props.previousProjects?.length) {
+                selectedPreviousProjectId.value = props.previousProjects[0].id;
+            }
             generateGroups();
         }
     },
 );
 
-watch([splitMode, targetGroupCount, targetGroupSize], () => {
+watch([splitMode, targetGroupCount, targetGroupSize, selectedPreviousProjectId], () => {
     if (props.open) {
         generateGroups();
     }
@@ -202,7 +247,7 @@ const printGroups = () => {
             <!-- Configuration Strip -->
             <div class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/80 bg-secondary/30 p-3.5">
                 <div class="flex flex-wrap items-center gap-3">
-                    <div class="flex items-center rounded-lg bg-secondary/80 p-0.5 text-xs font-semibold">
+                    <div class="flex flex-wrap items-center rounded-lg bg-secondary/80 p-0.5 text-xs font-semibold">
                         <button
                             type="button"
                             class="rounded-md px-3 py-1.5 transition-all"
@@ -219,6 +264,16 @@ const printGroups = () => {
                         >
                             By Group Size
                         </button>
+                        <button
+                            v-if="previousProjects && previousProjects.length > 0"
+                            type="button"
+                            class="rounded-md px-3 py-1.5 transition-all flex items-center gap-1"
+                            :class="splitMode === 'from_previous' ? 'bg-card text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'"
+                            @click="splitMode = 'from_previous'"
+                        >
+                            <Copy class="size-3 text-primary" />
+                            <span>From Previous Activity</span>
+                        </button>
                     </div>
 
                     <!-- Input Controls -->
@@ -233,7 +288,7 @@ const printGroups = () => {
                         />
                     </div>
 
-                    <div v-else class="flex items-center gap-2">
+                    <div v-else-if="splitMode === 'by_group_size'" class="flex items-center gap-2">
                         <Label class="text-xs font-medium text-muted-foreground">Members per group:</Label>
                         <Input
                             v-model.number="targetGroupSize"
@@ -242,6 +297,18 @@ const printGroups = () => {
                             :max="Math.max(2, activeStudents.length)"
                             class="h-8 w-20 text-center font-mono text-xs font-bold"
                         />
+                    </div>
+
+                    <div v-else-if="splitMode === 'from_previous'" class="flex items-center gap-2">
+                        <Label class="text-xs font-medium text-muted-foreground">Activity:</Label>
+                        <select
+                            v-model="selectedPreviousProjectId"
+                            class="h-8 rounded-lg border border-input bg-card px-2.5 text-xs font-medium text-foreground focus-visible:ring-1 focus-visible:ring-primary"
+                        >
+                            <option v-for="prev in previousProjects" :key="prev.id" :value="prev.id">
+                                {{ prev.title }} ({{ prev.groups.length }} groups)
+                            </option>
+                        </select>
                     </div>
                 </div>
 

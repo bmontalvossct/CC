@@ -30,7 +30,7 @@ class AttendanceController extends Controller
 
         $sessions = AttendanceSession::query()
             ->where('section_id', $section->id)
-            ->with('records:id,attendance_session_id,student_id,status,attended_minutes')
+            ->with('records:id,attendance_session_id,student_id,status,attended_minutes,excuse_reason,points_awarded,cleared_by_letter')
             ->latest('session_date')
             ->latest('starts_at')
             ->limit(50)
@@ -46,8 +46,12 @@ class AttendanceController extends Controller
             $studentHistoryMap[$student->id] = [
                 'absent_days' => [],
                 'late_days' => [],
+                'excused_days' => [],
                 'present_count' => 0,
+                'excused_count' => 0,
+                'excused_points' => 0.0,
                 'total_sessions' => 0,
+                'uncleared_absent_count' => 0,
             ];
         }
 
@@ -66,9 +70,23 @@ class AttendanceController extends Controller
                 if (isset($studentHistoryMap[$rec->student_id])) {
                     $studentHistoryMap[$rec->student_id]['total_sessions']++;
                     if ($rec->status === AttendanceRecord::STATUS_ABSENT) {
-                        $studentHistoryMap[$rec->student_id]['absent_days'][] = $sessionInfo;
+                        $studentHistoryMap[$rec->student_id]['absent_days'][] = array_merge($sessionInfo, [
+                            'cleared_by_letter' => (bool) $rec->cleared_by_letter,
+                        ]);
+                        if (! $rec->cleared_by_letter) {
+                            $studentHistoryMap[$rec->student_id]['uncleared_absent_count']++;
+                        }
                     } elseif ($rec->status === AttendanceRecord::STATUS_LATE) {
                         $studentHistoryMap[$rec->student_id]['late_days'][] = $sessionInfo;
+                    } elseif ($rec->status === AttendanceRecord::STATUS_EXCUSED) {
+                        $studentHistoryMap[$rec->student_id]['excused_days'][] = array_merge($sessionInfo, [
+                            'excuse_reason' => $rec->excuse_reason,
+                            'points_awarded' => (bool) $rec->points_awarded,
+                        ]);
+                        $studentHistoryMap[$rec->student_id]['excused_count']++;
+                        if ($rec->points_awarded) {
+                            $studentHistoryMap[$rec->student_id]['excused_points'] += 1.0;
+                        }
                     } elseif ($rec->status === AttendanceRecord::STATUS_PRESENT) {
                         $studentHistoryMap[$rec->student_id]['present_count']++;
                     }
@@ -99,23 +117,29 @@ class AttendanceController extends Controller
                 $history = $studentHistoryMap[$student->id] ?? [
                     'absent_days' => [],
                     'late_days' => [],
+                    'excused_days' => [],
                     'present_count' => 0,
+                    'excused_count' => 0,
+                    'excused_points' => 0.0,
                     'total_sessions' => 0,
+                    'uncleared_absent_count' => 0,
                 ];
 
                 $absentCount = count($history['absent_days']);
+                $unclearedAbsentCount = $history['uncleared_absent_count'];
                 $lateCount = count($history['late_days']);
+                $excusedCount = $history['excused_count'];
                 $presentCount = $history['present_count'];
                 $totalSessions = $history['total_sessions'];
-                $earnedPoints = round(($presentCount * 1.0) + ($lateCount * 0.5), 1);
+                $earnedPoints = round(($presentCount * 1.0) + ($lateCount * 0.5) + ($history['excused_points'] * 1.0), 1);
                 $possiblePoints = (float) $totalSessions;
                 $gradeRate = $totalSessions > 0 ? round(($earnedPoints / $totalSessions) * 100, 1) : null;
-                $absencesRemaining = max(0, 3 - $absentCount);
+                $absencesRemaining = max(0, 3 - $unclearedAbsentCount);
 
                 $absenceStatus = match (true) {
-                    $absentCount > 3 => 'exceeded',
-                    $absentCount === 3 => 'limit_reached',
-                    $absentCount === 2 => 'warning',
+                    $unclearedAbsentCount > 3 => 'exceeded',
+                    $unclearedAbsentCount === 3 => 'limit_reached',
+                    $unclearedAbsentCount === 2 => 'warning',
                     default => 'good',
                 };
 
@@ -132,8 +156,11 @@ class AttendanceController extends Controller
                     'overall' => $this->summaryFromAggregate($summary, 'overall'),
                     'absent_days' => $history['absent_days'],
                     'late_days' => $history['late_days'],
+                    'excused_days' => $history['excused_days'],
                     'absent_count' => $absentCount,
+                    'uncleared_absent_count' => $unclearedAbsentCount,
                     'late_count' => $lateCount,
+                    'excused_count' => $excusedCount,
                     'present_count' => $presentCount,
                     'total_sessions' => $totalSessions,
                     'earned_points' => $earnedPoints,
@@ -191,10 +218,14 @@ class AttendanceController extends Controller
                 'present_count' => $session->records->where('status', AttendanceRecord::STATUS_PRESENT)->count(),
                 'late_count' => $session->records->where('status', AttendanceRecord::STATUS_LATE)->count(),
                 'absent_count' => $session->records->where('status', AttendanceRecord::STATUS_ABSENT)->count(),
+                'excused_count' => $session->records->where('status', AttendanceRecord::STATUS_EXCUSED)->count(),
                 'records' => $session->records->map(fn ($r) => [
                     'student_id' => $r->student_id,
                     'status' => $r->status,
                     'attended_minutes' => $r->attended_minutes,
+                    'excuse_reason' => $r->excuse_reason,
+                    'points_awarded' => (bool) $r->points_awarded,
+                    'cleared_by_letter' => (bool) $r->cleared_by_letter,
                 ]),
             ]),
         ]);
@@ -244,6 +275,10 @@ class AttendanceController extends Controller
             ->join('attendance_sessions', 'attendance_sessions.id', '=', 'attendance_records.attendance_session_id')
             ->where('attendance_sessions.section_id', $section->id)
             ->where('attendance_records.status', AttendanceRecord::STATUS_ABSENT)
+            ->where(function ($q) {
+                $q->whereNull('attendance_records.cleared_by_letter')
+                  ->orWhere('attendance_records.cleared_by_letter', false);
+            })
             ->groupBy('attendance_records.student_id')
             ->select('attendance_records.student_id', DB::raw('COUNT(*) as count'))
             ->pluck('count', 'student_id')
@@ -305,6 +340,9 @@ class AttendanceController extends Controller
                 'duration_minutes' => $attendanceSession->duration_minutes,
                 'notes' => $attendanceSession->notes,
                 'present_count' => $attendanceSession->records->where('status', AttendanceRecord::STATUS_PRESENT)->count(),
+                'late_count' => $attendanceSession->records->where('status', AttendanceRecord::STATUS_LATE)->count(),
+                'absent_count' => $attendanceSession->records->where('status', AttendanceRecord::STATUS_ABSENT)->count(),
+                'excused_count' => $attendanceSession->records->where('status', AttendanceRecord::STATUS_EXCUSED)->count(),
                 'total_count' => $attendanceSession->records->count(),
             ],
             'seats' => $seats,
@@ -425,6 +463,8 @@ class AttendanceController extends Controller
             ? "{$student->last_name}, {$firstMiddle}"
             : ($student->last_name ?: $firstMiddle);
 
+        $absentCount = (int) ($absentCounts[$student->id] ?? 0);
+
         return [
             'id' => $student->id,
             'student_number' => $student->student_number,
@@ -436,7 +476,8 @@ class AttendanceController extends Controller
             'photo_url' => $student->photo_path && Route::has('sections.students.photo')
                 ? route('sections.students.photo', [$student->section_id, $student])
                 : null,
-            'absent_count' => (int) ($absentCounts[$student->id] ?? 0),
+            'absent_count' => $absentCount,
+            'needs_letter' => $absentCount >= 3,
         ];
     }
 
@@ -446,6 +487,9 @@ class AttendanceController extends Controller
             'id' => $record->id,
             'status' => $record->status,
             'attended_minutes' => $record->attended_minutes,
+            'excuse_reason' => $record->excuse_reason,
+            'points_awarded' => (bool) $record->points_awarded,
+            'cleared_by_letter' => (bool) $record->cleared_by_letter,
         ];
     }
 }

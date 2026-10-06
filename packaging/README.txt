@@ -36,9 +36,9 @@ OPTION B: Portable Zero-Install (USB Flash Drive)
   - All your classroom data, student rosters, seating arrangements, attendance, 
     recitations, and grades are stored locally in:
       database/database.sqlite
-  - To backup your data at any time:
+  - To back up your data at any time:
     Right-click the ClassCheck icon in your Windows System Tray (near the clock)
-    and click "Backup Database Now". A timestamped backup file will be created in:
+    and click "Back Up Database Now". A timestamped backup file will be created in:
       database/backups/
   - To transfer your data to a new computer:
     Simply copy the "database/database.sqlite" file to the new computer's 
@@ -52,7 +52,7 @@ OPTION B: Portable Zero-Install (USB Flash Drive)
   - Right-click the tray icon to:
       * Open ClassCheck in Browser
       * Open Data Folder (Database)
-      * Backup Database Now
+      * Back Up Database Now
       * Restart Server
       * Exit ClassCheck cleanly
 

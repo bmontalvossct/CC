@@ -1,7 +1,13 @@
 <script setup lang="ts">
+import ActivityFileButton from '@/components/ActivityFileButton.vue';
+import DisabledReason from '@/components/DisabledReason.vue';
 import AutocheckerModal from '@/components/assessments/AutocheckerModal.vue';
+import CheckAllProgressModal, { type CheckProgressItem } from '@/components/assessments/CheckAllProgressModal.vue';
 import FilePreviewModal from '@/components/FilePreviewModal.vue';
+import RubricManagerModal from '@/components/assessments/RubricManagerModal.vue';
+import OctoSpinner from '@/components/OctoSpinner.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { useAiAssistant } from '@/composables/useAiAssistant';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
     ArrowLeft,
@@ -12,6 +18,7 @@ import {
     Keyboard,
     LoaderCircle,
     Paperclip,
+    RefreshCw,
     RotateCcw,
     Save,
     Search,
@@ -19,20 +26,28 @@ import {
     Sparkles,
     Trash2,
     TriangleAlert,
+    UploadCloud,
     UserX,
     X,
 } from 'lucide-vue-next';
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue';
 
+const { warmModel } = useAiAssistant();
+
 type Student = {
     id: number;
     student_number: string;
+    last_name?: string;
+    first_name?: string;
     full_name: string;
     seat_label: string | null;
     is_absent: boolean;
     score: string | null;
     remarks?: string | null;
     absence_override: boolean;
+    attachment_path?: string | null;
+    attachment_name?: string | null;
+    attachment_mime?: string | null;
 };
 type Assessment = {
     id: number;
@@ -42,6 +57,10 @@ type Assessment = {
     description?: string;
     conducted_on: string;
     max_points: string;
+    rubric_type?: string | null;
+    rubric_data?: any;
+    activity_file_path?: string | null;
+    activity_file_name?: string | null;
     attachment_path?: string;
     attachment_name?: string;
     attendance_session_id?: number;
@@ -50,23 +69,268 @@ type Assessment = {
 type Session = { id: number; session_date: string; starts_at: string };
 
 const props = defineProps<{
-    section: { id: number; name: string; subject_code?: string; subject_title: string };
+    section: { id: number; name: string; subject_code?: string; subject_title: string; grading_weights?: any };
     assessment: Assessment;
     students: Student[];
     summary: { graded: number; missing: number; absent: number; average: number | null };
     attendanceSessions: Session[];
 }>();
 
+const passingRatePct = computed(() => {
+    const weights = props.section?.grading_weights;
+    const rates = weights?.passing_rates;
+    return Number(rates?.[props.assessment.type] ?? 75);
+});
+
+const passingThreshold = computed(() => passingRatePct.value / 100);
+
 const showPreview = ref(false);
 const showAutochecker = ref(false);
+const showRubricManager = ref(false);
 const editing = ref(false);
 const showDeleteModal = ref(false);
 const isDeleting = ref(false);
+
+const hasRubric = computed(() => {
+    if (props.assessment.attachment_path) return true;
+    if (props.assessment.rubric_data) {
+        const data = props.assessment.rubric_data;
+        if (data.criteria && data.criteria.length > 0) return true;
+        if (data.items && data.items.length > 0) return true;
+    }
+    return false;
+});
+
+const rubricBadgeLabel = computed(() => {
+    if (props.assessment.rubric_type === 'answer_key' || props.assessment.rubric_data?.mode === 'answer_key') {
+        const count = props.assessment.rubric_data?.items?.length || 0;
+        return `Answer Key (${count})`;
+    }
+    if (props.assessment.rubric_type === 'percentage' || props.assessment.rubric_data?.mode === 'percentage') {
+        const count = props.assessment.rubric_data?.criteria?.length || 0;
+        return `Rubric (${count})`;
+    }
+    if (props.assessment.attachment_name) {
+        return 'Rubric File';
+    }
+    return 'Rubrics';
+});
+
+// Student Output Preview & Upload State
+const studentPreviewModal = ref<{
+    show: boolean;
+    studentId: number | null;
+    studentName: string;
+    fileName: string;
+    fileUrl: string;
+    downloadUrl: string;
+    reuploadUrl: string;
+    deleteUrl: string;
+}>({
+    show: false,
+    studentId: null,
+    studentName: '',
+    fileName: '',
+    fileUrl: '',
+    downloadUrl: '',
+    reuploadUrl: '',
+    deleteUrl: '',
+});
+
+const studentUploading = ref<Record<number, boolean>>({});
+const studentFileInputs = new Map<number, HTMLInputElement>();
+
+const triggerStudentUpload = (studentId: number) => {
+    const input = studentFileInputs.get(studentId);
+    if (input) {
+        input.click();
+    }
+};
+
+const handleStudentFileUpload = async (student: Student, event: Event) => {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+    if (!file) return;
+
+    studentUploading.value[student.id] = true;
+    const formData = new FormData();
+    formData.append('attachment', file);
+
+    try {
+        const response = await fetch(`/sections/${props.section.id}/assessments/${props.assessment.id}/scores/${student.id}/attachment`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '',
+            },
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            saveSuccessMessage.value = data.message || `Student output attached for ${student.full_name}.`;
+            router.reload({ only: ['students', 'summary'] });
+        } else {
+            const err = await response.json();
+            saveErrorMessage.value = err.message || 'Failed to upload student output.';
+        }
+    } catch (e: any) {
+        saveErrorMessage.value = 'Failed to upload student output. Please check the file and try again.';
+    } finally {
+        studentUploading.value[student.id] = false;
+        target.value = '';
+    }
+};
+
+const openStudentOutputPreview = (student: Student) => {
+    studentPreviewModal.value = {
+        show: true,
+        studentId: student.id,
+        studentName: student.full_name,
+        fileName: student.attachment_name || `${student.last_name || 'Student'}_Output`,
+        fileUrl: `/sections/${props.section.id}/assessments/${props.assessment.id}/scores/${student.id}/attachment`,
+        downloadUrl: `/sections/${props.section.id}/assessments/${props.assessment.id}/scores/${student.id}/attachment?download=1`,
+        reuploadUrl: `/sections/${props.section.id}/assessments/${props.assessment.id}/scores/${student.id}/attachment`,
+        deleteUrl: `/sections/${props.section.id}/assessments/${props.assessment.id}/scores/${student.id}/attachment`,
+    };
+};
+
+const aiCheckingStudentId = ref<number | null>(null);
+
+const checkingAll = ref(false);
+const checkProgress = ref(0);
+const checkFailures = ref<string[]>([]);
+const showCheckAllModal = ref(false);
+const shouldStopCheckAll = ref(false);
+const currentEvaluatingName = ref('');
+const checkProgressItems = ref<CheckProgressItem[]>([]);
+
+const checkUnavailableReason = computed(() => {
+    if (!hasRubric.value) return 'Configure a rubric (percentage rate or answer key) or attach a file in Rubrics before checking student outputs.';
+    if (checkingAll.value) return 'Check all is running. Wait for the current batch to finish.';
+    if (aiCheckingStudentId.value !== null) return 'A student output is being checked. Wait for it to finish.';
+    return '';
+});
+const attachedStudents = computed(() => props.students.filter(student => student.attachment_path));
+const runAiCheck = async (student: Student, batch = false): Promise<boolean> => {
+    if ((checkingAll.value && !batch) || !hasRubric.value || !student.attachment_path) return false;
+    if (aiCheckingStudentId.value !== null) return false;
+    aiCheckingStudentId.value = student.id;
+    saveErrorMessage.value = '';
+
+    try {
+        const response = await fetch(
+            `/sections/${props.section.id}/assessments/${props.assessment.id}/scores/${student.id}/ai-check`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '',
+                },
+            },
+        );
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            scores[student.id] = data.score;
+            remarks[student.id] = data.remarks ?? '';
+            lastSavedScores[student.id] = normalize(data.score);
+            lastSavedRemarks[student.id] = toCleanString(data.remarks ?? '');
+            student.score = String(data.score);
+            student.remarks = data.remarks;
+            saveSuccessMessage.value = data.message || `AI graded ${student.full_name}: ${data.score} pts. Score and remarks saved.`;
+            setTimeout(() => {
+                if (saveSuccessMessage.value === data.message) {
+                    saveSuccessMessage.value = '';
+                }
+            }, 6000);
+            return true;
+        } else {
+            saveErrorMessage.value = data.message || 'AI document check failed. Please check the document and try again.';
+        }
+    } catch (e: any) {
+        saveErrorMessage.value = 'AI document check failed: ' + (e?.message || 'Server error.');
+    } finally {
+        aiCheckingStudentId.value = null;
+    }
+    return false;
+};
+
+const checkAll = async () => {
+    if (checkingAll.value || aiCheckingStudentId.value !== null || !hasRubric.value || !attachedStudents.value.length) return;
+    checkingAll.value = true;
+    shouldStopCheckAll.value = false;
+    checkProgress.value = 0;
+    checkFailures.value = [];
+    showCheckAllModal.value = true;
+
+    const students = [...attachedStudents.value];
+    checkProgressItems.value = students.map((s) => ({
+        id: s.id,
+        title: s.full_name,
+        subtitle: s.student_number,
+        filename: s.attachment_name || undefined,
+        status: 'pending',
+        score: null,
+        remarks: null,
+        error: null,
+    }));
+
+    try {
+        for (let i = 0; i < students.length; i++) {
+            if (shouldStopCheckAll.value) break;
+
+            const student = students[i];
+            const item = checkProgressItems.value[i];
+            if (item) {
+                item.status = 'evaluating';
+            }
+            currentEvaluatingName.value = `${student.full_name}${student.attachment_name ? ` (${student.attachment_name})` : ''}`;
+
+            const success = await runAiCheck(student, true);
+            if (success) {
+                if (item) {
+                    item.status = 'success';
+                    item.score = scores[student.id];
+                    item.remarks = remarks[student.id];
+                }
+            } else {
+                const err = saveErrorMessage.value || 'Evaluation failed';
+                checkFailures.value.push(`${student.full_name}: ${err}`);
+                if (item) {
+                    item.status = 'failed';
+                    item.error = err;
+                }
+            }
+            checkProgress.value++;
+        }
+        const passedCount = students.length - checkFailures.value.length;
+        saveSuccessMessage.value = `Checked ${passedCount} of ${students.length} students. ${checkFailures.value.length} failed.`;
+    } finally {
+        checkingAll.value = false;
+        currentEvaluatingName.value = '';
+    }
+};
+
+const handleStopCheckAll = () => {
+    shouldStopCheckAll.value = true;
+};
 
 const handleAutocheckerApplied = () => {
     saveSuccessMessage.value = 'Autochecker scores successfully applied and saved!';
     router.reload({ only: ['students', 'summary'] });
 };
+
+onMounted(() => {
+    if (hasRubric.value || attachedStudents.value.length > 0) {
+        warmModel('code_grading');
+        warmModel('general_grading');
+    }
+});
 
 const confirmDelete = () => {
     isDeleting.value = true;
@@ -78,7 +342,29 @@ const confirmDelete = () => {
     });
 };
 
-const editForm = useForm({
+const editFileInputRef = ref<HTMLInputElement | null>(null);
+
+const openRubrics = () => {
+    showRubricManager.value = true;
+};
+
+const handleRubricSaved = () => {
+    saveSuccessMessage.value = 'Rubric configuration saved successfully!';
+    router.reload({ only: ['assessment'] });
+};
+
+const editForm = useForm<{
+    type: string;
+    assessment_number: string;
+    title: string;
+    description: string;
+    conducted_on: string;
+    max_points: number;
+    attendance_session_id: number | '';
+    attachment: File | null;
+    remove_attachment: boolean;
+    _method: string;
+}>({
     type: props.assessment.type,
     assessment_number: props.assessment.assessment_number ?? '',
     title: props.assessment.title,
@@ -86,7 +372,8 @@ const editForm = useForm({
     conducted_on: props.assessment.conducted_on.slice(0, 10),
     max_points: Number(props.assessment.max_points),
     attendance_session_id: props.assessment.attendance_session_id ?? '',
-    attachment: null as File | null,
+    attachment: null,
+    remove_attachment: false,
     _method: 'PUT',
 });
 
@@ -96,6 +383,8 @@ const submitEdit = () => {
         onSuccess: () => {
             editing.value = false;
             editForm.reset();
+            editForm.remove_attachment = false;
+            if (editFileInputRef.value) editFileInputRef.value.value = '';
         },
     });
 };
@@ -155,6 +444,94 @@ const isUnsaved = (studentId: number): boolean => {
 const hasUnsavedChanges = computed(() => {
     return props.students.some((s) => isUnsaved(s.id));
 });
+
+const isPresetActive = (studentId: number, preset: string): boolean => {
+    const text = (remarks[studentId] || '').toLowerCase();
+    const query = preset.toLowerCase();
+    return text.includes(query);
+};
+
+const getPresetClass = (studentId: number, preset: string): string => {
+    const active = isPresetActive(studentId, preset);
+    if (!active) {
+        return 'border-border/60 bg-secondary/50 text-muted-foreground hover:border-primary/50 hover:bg-primary/10 hover:text-primary';
+    }
+    if (preset.includes('Late') || preset.includes('-5')) {
+        return 'border-amber-500/70 bg-amber-500/20 text-amber-900 dark:border-amber-400/70 dark:bg-amber-400/25 dark:text-amber-100 font-semibold ring-1 ring-amber-500/40 shadow-xs';
+    }
+    if (preset.includes('Complete') || preset.includes('Outstanding')) {
+        return 'border-emerald-500/70 bg-emerald-500/20 text-emerald-900 dark:border-emerald-400/70 dark:bg-emerald-400/25 dark:text-emerald-100 font-semibold ring-1 ring-emerald-500/40 shadow-xs';
+    }
+    if (preset.includes('Needs') || preset.includes('Incomplete')) {
+        return 'border-rose-500/70 bg-rose-500/20 text-rose-900 dark:border-rose-400/70 dark:bg-rose-400/25 dark:text-rose-100 font-semibold ring-1 ring-rose-500/40 shadow-xs';
+    }
+    if (preset.includes('Bonus')) {
+        return 'border-indigo-500/70 bg-indigo-500/20 text-indigo-900 dark:border-indigo-400/70 dark:bg-indigo-400/25 dark:text-indigo-100 font-semibold ring-1 ring-indigo-500/40 shadow-xs';
+    }
+    return 'border-primary/70 bg-primary/20 text-primary font-semibold ring-1 ring-primary/40 shadow-xs';
+};
+
+const toggleStudentPreset = (studentId: number, preset: string) => {
+    const active = isPresetActive(studentId, preset);
+    const maxPoints = Number(props.assessment.max_points) || 100;
+    const currentScoreVal = scores[studentId];
+    const numScore = currentScoreVal !== '' && currentScoreVal !== null && currentScoreVal !== undefined ? Number(currentScoreVal) : null;
+    const bonusDelta = maxPoints <= 20 ? 2 : 5;
+
+    if (!active) {
+        // 1. Append to remarks
+        const current = (remarks[studentId] || '').trim();
+        if (!current) {
+            remarks[studentId] = preset;
+        } else if (!current.toLowerCase().includes(preset.toLowerCase())) {
+            remarks[studentId] = `${current}; ${preset}`;
+        }
+
+        // 2. Adjust score dynamically
+        if (preset === '-5 Late' || preset.includes('-5')) {
+            const base = numScore !== null ? numScore : maxPoints;
+            scores[studentId] = Math.max(0, Number((base - 5).toFixed(2)));
+        } else if (preset === 'Complete requirements' || preset === 'Outstanding') {
+            const isLate = isPresetActive(studentId, '-5 Late') || (remarks[studentId] || '').toLowerCase().includes('-5 late');
+            scores[studentId] = isLate ? Math.max(0, Number((maxPoints - 5).toFixed(2))) : maxPoints;
+        } else if (preset === 'Bonus points') {
+            const base = numScore !== null ? numScore : maxPoints;
+            scores[studentId] = Number((base + bonusDelta).toFixed(2));
+        } else if (preset === 'Incomplete solution') {
+            const half = Number((maxPoints * 0.5).toFixed(2));
+            if (numScore === null || numScore > half) {
+                scores[studentId] = half;
+            }
+        } else if (preset === 'Needs revision') {
+            const partial = Number((maxPoints * 0.6).toFixed(2));
+            if (numScore === null || numScore > partial) {
+                scores[studentId] = partial;
+            }
+        }
+    } else {
+        // 1. Remove from remarks
+        let rem = (remarks[studentId] || '').trim();
+        const escaped = preset.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        rem = rem.replace(new RegExp(`(^|;\\s*)${escaped}(\\s*;|$)`, 'gi'), (match, p1, p2) => (p1 && p2 ? '; ' : '')).trim();
+        rem = rem.replace(/^;\s*|;\s*$/g, '').trim();
+        remarks[studentId] = rem;
+
+        // 2. Revert score adjustment
+        if (preset === '-5 Late' || preset.includes('-5')) {
+            if (numScore !== null) {
+                scores[studentId] = Math.min(maxPoints, Number((numScore + 5).toFixed(2)));
+            }
+        } else if (preset === 'Bonus points') {
+            if (numScore !== null) {
+                scores[studentId] = Math.max(0, Number((numScore - bonusDelta).toFixed(2)));
+            }
+        }
+    }
+};
+
+const appendStudentRemark = (studentId: number, text: string) => {
+    toggleStudentPreset(studentId, text);
+};
 
 const unsavedCount = computed(() => {
     return props.students.filter((s) => isUnsaved(s.id)).length;
@@ -437,25 +814,35 @@ onUnmounted(() => {
                             }}</span>
                         </button>
 
+                        <ActivityFileButton
+                            :url="`/sections/${section.id}/assessments/${assessment.id}/activity-file`"
+                            :file-name="assessment.activity_file_name"
+                            :attached="!!assessment.activity_file_path"
+                            :activity-title="assessment.title"
+                            reload-prop="assessment"
+                        />
                         <button
-                            v-if="assessment.attachment_path"
                             type="button"
-                            class="shadow-xs group inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-primary/40 bg-primary/10 px-3 text-xs font-semibold text-primary transition-all duration-300 hover:bg-primary hover:text-white"
-                            :title="`Preview: ${assessment.attachment_name || 'Attachment'}`"
-                            @click="showPreview = true"
+                            class="shadow-xs inline-flex h-10 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-primary/40 bg-primary/10 px-4 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+                            :title="hasRubric ? 'Edit rubric / answer key: ' + rubricBadgeLabel : 'Configure rubric or upload file'"
+                            @click="openRubrics"
                         >
                             <Paperclip class="size-4 shrink-0" />
-                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-64 group-hover:opacity-100 group-hover:ml-1.5">Preview: {{ assessment.attachment_name || 'Attachment' }}</span>
+                            <span>{{ rubricBadgeLabel }}</span>
                         </button>
-                        <button
-                            type="button"
-                            title="Bulk AI Autochecker"
-                            @click="showAutochecker = true"
-                            class="shadow-xs group inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-primary/40 bg-primary/10 px-3 text-xs font-bold text-primary transition-all duration-300 hover:bg-primary hover:text-primary-foreground"
-                        >
-                            <Sparkles class="size-4 shrink-0" />
-                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">Autochecker</span>
-                        </button>
+                        <DisabledReason :reason="!hasRubric ? 'Configure a rubric or attach a file in Rubrics before using the autochecker.' : checkingAll ? 'Check all is running. Wait for the current batch to finish.' : ''">
+                            <button
+                                type="button"
+                                title="Bulk AI Autochecker"
+                                :disabled="!hasRubric || checkingAll"
+                                @mouseenter="warmModel('code_grading')"
+                                @click="showAutochecker = true"
+                                class="shadow-xs group inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-primary/40 bg-primary/10 px-3 text-xs font-bold text-primary transition-all duration-300 hover:bg-primary hover:text-primary-foreground"
+                            >
+                                <Sparkles class="size-4 shrink-0" />
+                                <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">Autochecker</span>
+                            </button>
+                        </DisabledReason>
                         <a
                             :href="`/sections/${section.id}/assessments/${assessment.id}/export`"
                             title="Export scores to CSV"
@@ -486,6 +873,25 @@ onUnmounted(() => {
                     </div>
                 </div>
             </header>
+
+            <section class="grading-toolbar" aria-label="Submission checking">
+                <div><p class="font-semibold">Student outputs</p><p class="text-sm text-muted-foreground">{{ attachedStudents.length }} attached • {{ hasRubric ? `${rubricBadgeLabel} ready to review` : 'Configure a rubric in Rubrics to enable checking.' }}</p></div>
+                <DisabledReason :reason="checkUnavailableReason || (!attachedStudents.length ? 'Attach at least one student output to enable Check all.' : '')">
+                    <button
+                        type="button"
+                        class="grading-check-button"
+                        :disabled="!hasRubric || !attachedStudents.length || checkingAll || aiCheckingStudentId !== null"
+                        @mouseenter="warmModel('code_grading'); warmModel('general_grading')"
+                        @click="checkAll"
+                    >
+                        <OctoSpinner v-if="checkingAll" size="sm" class="mr-1.5" />
+                        <Sparkles v-else class="size-4 mr-1.5 shrink-0" />
+                        {{ checkingAll ? `Octo checking ${checkProgress} / ${attachedStudents.length}` : `Check all (${attachedStudents.length})` }}
+                    </button>
+                </DisabledReason>
+                <progress v-if="checkingAll" class="w-full accent-primary" :value="checkProgress" :max="attachedStudents.length" aria-label="Checking progress" />
+                <ul v-if="checkFailures.length" class="w-full space-y-1 text-sm text-rose-600" aria-live="polite"><li v-for="failure in checkFailures" :key="failure">{{ failure }}</li></ul>
+            </section>
 
             <!-- Alerts Banner -->
             <transition
@@ -702,17 +1108,17 @@ onUnmounted(() => {
                     </button>
                 </div>
 
-                <div class="mt-4 overflow-x-auto">
-                    <table class="w-full min-w-[800px] border-collapse text-sm">
-                        <thead>
+                <div class="mt-4 overflow-auto max-h-[calc(100vh-14rem)] min-h-[380px] rounded-xl border border-border/70 bg-card shadow-2xs scrollbar-thin print:max-h-none print:overflow-visible">
+                    <table class="w-full min-w-[800px] border-separate border-spacing-0 text-sm">
+                        <thead class="sticky top-0 z-20 border-b border-border/80 bg-secondary/95 backdrop-blur-md shadow-2xs print:static print:bg-gray-100">
                             <tr
-                                class="border-b border-border/80 bg-secondary/40 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground"
+                                class="text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground"
                             >
-                                <th class="w-20 rounded-l-lg px-4 py-3">Chair</th>
-                                <th class="min-w-44 px-4 py-3">Student Name & ID</th>
-                                <th class="w-48 px-4 py-3">Score / {{ assessment.max_points }} pts</th>
-                                <th class="min-w-56 px-4 py-3">Remarks / Feedback</th>
-                                <th class="w-36 rounded-r-lg px-4 py-3">Status / Grade</th>
+                                <th class="sticky top-0 left-0 z-30 min-w-64 border-b border-border/80 bg-secondary/95 px-4 py-3 backdrop-blur-md print:static print:bg-gray-100">Student Name & ID</th>
+                                <th class="w-44 border-b border-border/80 px-4 py-3">Score / {{ assessment.max_points }} pts</th>
+                                <th class="min-w-44 border-b border-border/80 px-4 py-3">Remarks / Feedback</th>
+                                <th class="w-48 border-b border-border/80 px-4 py-3">Student Output</th>
+                                <th class="w-32 border-b border-border/80 px-4 py-3">Status / Grade</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-border/60">
@@ -752,24 +1158,24 @@ onUnmounted(() => {
                                     hasInvalidScore(student.id) ? 'bg-rose-500/5' : isUnsaved(student.id) ? 'bg-primary/5' : '',
                                 ]"
                             >
-                                <td class="px-4 py-3">
-                                    <span
-                                        class="rounded-lg border border-border/80 bg-secondary px-2.5 py-1 font-mono text-xs font-bold text-foreground"
-                                    >
-                                        {{ student.seat_label || '—' }}
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3">
-                                    <div class="flex items-center gap-2.5">
+                                <td class="sticky left-0 z-10 border-b border-r border-border/50 bg-card/95 px-4 py-3 backdrop-blur-xs print:static print:bg-white">
+                                    <div class="flex items-center gap-3">
                                         <div
-                                            class="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 font-mono text-[10px] font-bold uppercase text-primary"
+                                            class="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 font-mono text-xs font-bold uppercase text-primary"
                                         >
                                             {{ student.full_name?.split(' ')?.[0]?.[0] || 'S' }}
                                         </div>
-                                        <div>
+                                        <div class="min-w-0 flex-1">
                                             <span class="block font-semibold text-foreground">{{ student.full_name }}</span>
-                                            <div class="flex items-center gap-2">
+                                            <div class="flex items-center gap-2 flex-wrap">
                                                 <span class="font-mono text-xs text-muted-foreground">{{ student.student_number }}</span>
+                                                <span
+                                                    v-if="student.seat_label"
+                                                    class="rounded-md border border-border/60 bg-secondary/70 px-1.5 py-0.5 font-mono text-[10px] font-medium text-muted-foreground"
+                                                    title="Assigned Chair"
+                                                >
+                                                    Chair {{ student.seat_label }}
+                                                </span>
                                                 <span
                                                     v-if="student.is_absent"
                                                     class="inline-flex items-center gap-1 rounded-full border border-rose-500/20 bg-rose-500/10 px-2 py-0.5 text-[10px] font-medium text-rose-600 dark:text-rose-400"
@@ -780,7 +1186,7 @@ onUnmounted(() => {
                                         </div>
                                     </div>
                                 </td>
-                                <td class="px-4 py-3">
+                                <td class="border-b border-border/50 px-4 py-3">
                                     <div class="relative max-w-[220px]">
                                         <input
                                             :ref="
@@ -817,18 +1223,94 @@ onUnmounted(() => {
                                         <span>{{ getScoreError(student.id) }}</span>
                                     </p>
                                 </td>
-                                <td class="px-4 py-3">
-                                    <input
-                                        v-model="remarks[student.id]"
-                                        type="text"
-                                        maxlength="500"
-                                        placeholder="Add remarks, notes, or feedback..."
-                                        class="w-full rounded-xl border border-input bg-background px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/60 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-muted/40"
-                                        :disabled="student.is_absent && !includeAbsent"
-                                        :aria-label="`Remarks for ${student.full_name}`"
-                                    />
+                                <td class="border-b border-border/50 px-4 py-3">
+                                    <div class="space-y-1">
+                                        <textarea
+                                            v-model="remarks[student.id]"
+                                            rows="4" maxlength="10000"
+
+                                            placeholder="Score justification / remarks..."
+                                            class="resize-y leading-relaxed w-full rounded-xl border border-input bg-background px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/60 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-muted/40"
+                                            :disabled="student.is_absent && !includeAbsent"
+                                            :aria-label="`Remarks for ${student.full_name}`"
+                                        />
+                                        <div v-if="!student.is_absent || includeAbsent" class="flex flex-wrap items-center gap-1 pt-0.5">
+                                            <button
+                                                v-for="preset in ['Complete requirements', '-5 Late', 'Incomplete solution', 'Bonus points', 'Needs revision', 'Outstanding']"
+                                                :key="preset"
+                                                type="button"
+                                                class="inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[9px] transition-all cursor-pointer select-none"
+                                                :class="getPresetClass(student.id, preset)"
+                                                :aria-pressed="isPresetActive(student.id, preset)"
+                                                :title="isPresetActive(student.id, preset) ? `Click to remove '${preset}'` : `Click to apply '${preset}' and adjust score`"
+                                                @click="toggleStudentPreset(student.id, preset)"
+                                            >
+                                                <span class="font-bold">{{ isPresetActive(student.id, preset) ? '✓' : '+' }}</span>
+                                                <span>{{ preset }}</span>
+                                            </button>
+                                        </div>
+                                    </div>
                                 </td>
-                                <td class="px-4 py-3 text-xs font-medium">
+                                <td class="border-b border-border/50 px-4 py-3">
+                                    <!-- Hidden File Input for this student -->
+                                    <input
+                                        :ref="(el) => { if (el) studentFileInputs.set(student.id, el as HTMLInputElement); }"
+                                        type="file"
+                                        accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z,.rtf,.odt,.ods,.odp,.svg,.gif,.bmp,.heic,.pages,.numbers,.key,.json,.sql,.db,.sqlite,.sqlite3"
+                                        class="hidden"
+                                        @change="handleStudentFileUpload(student, $event)"
+                                    />
+
+                                    <!-- When attachment exists -->
+                                    <div v-if="student.attachment_path" class="flex items-center gap-1.5">
+                                        <button
+                                            type="button"
+                                            class="group inline-flex max-w-[150px] items-center gap-1.5 truncate rounded-lg border border-primary/30 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
+                                            :title="`Preview / Download: ${student.attachment_name}`"
+                                            @click="openStudentOutputPreview(student)"
+                                        >
+                                            <Paperclip class="size-3 shrink-0" />
+                                            <span class="truncate font-mono text-[11px]">{{ student.attachment_name || 'View Output' }}</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                                            title="Upload new file to replace"
+                                            @click="triggerStudentUpload(student.id)"
+                                        >
+                                            <RefreshCw class="size-3" />
+                                        </button>
+                                        <DisabledReason :reason="checkUnavailableReason">
+                                            <button
+                                                type="button"
+                                                :disabled="checkingAll || aiCheckingStudentId !== null || !hasRubric"
+                                                class="inline-flex items-center gap-1 rounded-md border border-violet-500/30 bg-violet-500/10 px-2 py-1 text-[11px] font-semibold text-violet-700 transition-all hover:bg-violet-600 hover:text-white disabled:opacity-50 dark:border-violet-400/30 dark:bg-violet-400/10 dark:text-violet-300 dark:hover:bg-violet-500 dark:hover:text-white"
+                                                :title="aiCheckingStudentId === student.id ? 'Octo AI is analyzing submission against rubrics...' : 'AI Check: Analyze document against activity rubrics and auto-score'"
+                                                @mouseenter="warmModel('code_grading'); warmModel('general_grading')"
+                                                @click="runAiCheck(student)"
+                                            >
+                                                <OctoSpinner v-if="aiCheckingStudentId === student.id" size="xs" class="mr-0.5" />
+                                                <Sparkles v-else class="size-3 shrink-0" />
+                                                <span>{{ aiCheckingStudentId === student.id ? 'Octo checking…' : 'Check' }}</span>
+                                            </button>
+                                        </DisabledReason>
+                                    </div>
+
+                                    <!-- When no attachment yet -->
+                                    <div v-else class="flex items-center">
+                                        <button
+                                            type="button"
+                                            :disabled="studentUploading[student.id]"
+                                            class="inline-flex items-center gap-1 rounded-lg border border-dashed border-border/90 bg-secondary/30 px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:bg-secondary hover:text-foreground disabled:opacity-50"
+                                            @click="triggerStudentUpload(student.id)"
+                                        >
+                                            <LoaderCircle v-if="studentUploading[student.id]" class="size-3 animate-spin" />
+                                            <UploadCloud v-else class="size-3" />
+                                            <span>{{ studentUploading[student.id] ? 'Uploading…' : 'Attach Output' }}</span>
+                                        </button>
+                                    </div>
+                                </td>
+                                <td class="border-b border-border/50 px-4 py-3 text-xs font-medium">
                                     <div
                                         v-if="hasInvalidScore(student.id)"
                                         class="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 font-mono text-xs font-bold text-rose-600 dark:text-rose-400"
@@ -840,7 +1322,7 @@ onUnmounted(() => {
                                         <span
                                             class="inline-flex items-center rounded-lg px-2 py-0.5 font-mono text-xs font-bold"
                                             :class="
-                                                Number(scores[student.id]) >= Number(assessment.max_points) * 0.75
+                                                Number(scores[student.id]) >= Number(assessment.max_points) * passingThreshold
                                                     ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                                                     : Number(scores[student.id]) >= Number(assessment.max_points) * 0.5
                                                       ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
@@ -1028,21 +1510,86 @@ onUnmounted(() => {
                         }}</small>
                     </label>
 
-                    <label class="sm:col-span-2">
-                        <span class="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground"
+                    <div class="space-y-2 sm:col-span-2">
+                        <span class="block text-xs font-medium uppercase tracking-wider text-muted-foreground"
                             >Reference File / Questions <em class="font-normal normal-case text-muted-foreground">(optional, max 50MB)</em></span
                         >
-                        <input
-                            type="file"
-                            accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z,.rtf,.odt,.ods,.odp,.svg,.json,.sql,.db,.sqlite,.sqlite3"
-                            class="block w-full text-xs text-muted-foreground file:mr-2 file:rounded-lg file:border file:border-border file:bg-secondary file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-foreground hover:file:bg-secondary/80"
-                            @change="editForm.attachment = ($event.target as HTMLInputElement).files?.[0] || null"
-                        />
-                        <span v-if="assessment.attachment_name" class="mt-1.5 block text-[10px] font-normal text-muted-foreground">
-                            Current: {{ assessment.attachment_name }}
-                        </span>
-                        <small v-if="editForm.errors.attachment" class="mt-1 block text-xs text-rose-600">{{ editForm.errors.attachment }}</small>
-                    </label>
+
+                        <!-- Existing Attachment Controls -->
+                        <div
+                            v-if="assessment.attachment_name && !editForm.remove_attachment"
+                            class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/80 bg-muted/40 p-3 text-xs"
+                        >
+                            <div class="flex items-center gap-2 min-w-0">
+                                <Paperclip class="size-4 text-primary shrink-0" />
+                                <div class="min-w-0">
+                                    <p class="font-semibold text-foreground truncate">{{ assessment.attachment_name }}</p>
+                                    <p class="text-[10px] text-muted-foreground">Current attachment</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <button
+                                    type="button"
+                                    class="inline-flex h-7 items-center gap-1 rounded-lg border border-primary/40 bg-primary/10 px-2.5 text-[11px] font-semibold text-primary hover:bg-primary hover:text-white transition-colors"
+                                    @click="editFileInputRef?.click()"
+                                >
+                                    <RefreshCw class="size-3" />
+                                    <span>Replace File</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    class="inline-flex h-7 items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 text-[11px] font-semibold text-rose-600 hover:bg-rose-600 hover:text-white transition-colors dark:text-rose-400"
+                                    @click="editForm.remove_attachment = true; editForm.attachment = null;"
+                                >
+                                    <Trash2 class="size-3" />
+                                    <span>Delete File</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Marked for Removal Banner -->
+                        <div
+                            v-else-if="assessment.attachment_name && editForm.remove_attachment"
+                            class="flex items-center justify-between rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-700 dark:text-rose-300"
+                        >
+                            <div class="flex items-center gap-2">
+                                <Trash2 class="size-4 shrink-0" />
+                                <span>Attached file <strong>{{ assessment.attachment_name }}</strong> will be removed upon save.</span>
+                            </div>
+                            <button
+                                type="button"
+                                class="rounded-lg border border-rose-500/40 bg-card px-2.5 py-1 text-[11px] font-bold text-foreground hover:bg-secondary"
+                                @click="editForm.remove_attachment = false"
+                            >
+                                Undo
+                            </button>
+                        </div>
+
+                        <!-- File Input -->
+                        <div>
+                            <input
+                                ref="editFileInputRef"
+                                type="file"
+                                accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z,.rtf,.odt,.ods,.odp,.svg,.json,.sql,.db,.sqlite,.sqlite3"
+                                class="block w-full text-xs text-muted-foreground file:mr-2 file:rounded-lg file:border file:border-border file:bg-secondary file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-foreground hover:file:bg-secondary/80"
+                                @change="
+                                    editForm.attachment = ($event.target as HTMLInputElement).files?.[0] || null;
+                                    editForm.remove_attachment = false;
+                                "
+                            />
+                            <div v-if="editForm.attachment" class="mt-1.5 flex items-center justify-between rounded-lg bg-primary/10 px-2.5 py-1 text-xs text-primary font-mono">
+                                <span>Selected replacement: {{ editForm.attachment.name }} ({{ (editForm.attachment.size / 1024 / 1024).toFixed(2) }} MB)</span>
+                                <button
+                                    type="button"
+                                    class="text-muted-foreground hover:text-foreground ml-2"
+                                    @click="editForm.attachment = null; if (editFileInputRef) editFileInputRef.value = '';"
+                                >
+                                    <X class="size-3.5" />
+                                </button>
+                            </div>
+                            <small v-if="editForm.errors.attachment" class="mt-1 block text-xs text-rose-600">{{ editForm.errors.attachment }}</small>
+                        </div>
+                    </div>
 
                     <label class="sm:col-span-2">
                         <span class="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground"
@@ -1148,15 +1695,40 @@ onUnmounted(() => {
             </div>
         </div>
 
-        <!-- Attachment Preview Modal -->
+        <!-- Assessment Guidelines Attachment Preview Modal -->
         <FilePreviewModal
             v-if="assessment.attachment_path"
             :show="showPreview"
-            :title="assessment.title"
+            :title="`Rubrics: ${assessment.title}`"
             :file-name="assessment.attachment_name"
             :file-url="`/sections/${section.id}/assessments/${assessment.id}/attachment`"
             :download-url="`/sections/${section.id}/assessments/${assessment.id}/attachment?download=1`"
+            :reupload-url="`/sections/${section.id}/assessments/${assessment.id}/attachment`"
+            :delete-url="`/sections/${section.id}/assessments/${assessment.id}/attachment`"
             @close="showPreview = false"
+            @deleted="showPreview = false"
+            @reuploaded="showPreview = false"
+        />
+
+        <!-- Student Output Preview Modal -->
+        <FilePreviewModal
+            v-if="studentPreviewModal.show"
+            :show="studentPreviewModal.show"
+            :title="`Student Output: ${studentPreviewModal.studentName}`"
+            :file-name="studentPreviewModal.fileName"
+            :file-url="studentPreviewModal.fileUrl"
+            :download-url="studentPreviewModal.downloadUrl"
+            :reupload-url="studentPreviewModal.reuploadUrl"
+            :delete-url="studentPreviewModal.deleteUrl"
+            @close="studentPreviewModal.show = false"
+            @reuploaded="
+                studentPreviewModal.show = false;
+                router.reload({ only: ['students', 'summary'] });
+            "
+            @deleted="
+                studentPreviewModal.show = false;
+                router.reload({ only: ['students', 'summary'] });
+            "
         />
 
         <!-- Autochecker Modal -->
@@ -1167,6 +1739,38 @@ onUnmounted(() => {
             :students="students"
             @close="showAutochecker = false"
             @scores-applied="handleAutocheckerApplied"
+        />
+
+        <!-- Rubric Manager Modal (Percentage Rate, Answer Key, File Upload, Octo Study) -->
+        <RubricManagerModal
+            :show="showRubricManager"
+            :section-id="section.id"
+            :activity-id="assessment.id"
+            activity-type="assessment"
+            :title="assessment.title"
+            :max-points="Number(assessment.max_points) || 100"
+            :rubric-type="assessment.rubric_type"
+            :rubric-data="assessment.rubric_data"
+            :attachment-path="assessment.attachment_path"
+            :attachment-name="assessment.attachment_name"
+            :attachment-mime="assessment.attachment_mime"
+            @close="showRubricManager = false"
+            @preview-attachment="showPreview = true"
+            @saved="handleRubricSaved"
+        />
+
+        <!-- Check All Live Progress Modal -->
+        <CheckAllProgressModal
+            :show="showCheckAllModal"
+            :is-running="checkingAll"
+            :total="attachedStudents.length"
+            :current-progress="checkProgress"
+            :current-item-name="currentEvaluatingName"
+            :items="checkProgressItems"
+            :activity-title="assessment.title"
+            :max-points="assessment.max_points"
+            @stop="handleStopCheckAll"
+            @close="showCheckAllModal = false"
         />
     </AppLayout>
 </template>

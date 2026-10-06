@@ -23,7 +23,12 @@ class UpdateAttendanceRecordRequest extends FormRequest
                 AttendanceRecord::STATUS_PRESENT,
                 AttendanceRecord::STATUS_ABSENT,
                 AttendanceRecord::STATUS_LATE,
+                AttendanceRecord::STATUS_EXCUSED,
             ])],
+            'excuse_reason' => ['nullable', 'string', 'max:255'],
+            'points_awarded' => ['nullable', 'boolean'],
+            'clear_absences' => ['nullable', 'boolean'],
+            'override_absent_limit' => ['nullable', 'boolean'],
         ];
     }
 }

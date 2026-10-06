@@ -224,6 +224,22 @@ class OllamaService
             }
         }
 
+        $summary = trim((string) ($parsed['overall_summary'] ?? 'Evaluation complete.'));
+        $lowerSummary = strtolower($summary);
+        $isOffTopic = str_contains($lowerSummary, 'off-topic')
+            || str_contains($lowerSummary, 'off topic')
+            || str_contains($lowerSummary, 'unrelated to the activity')
+            || str_contains($lowerSummary, 'unrelated document')
+            || str_contains($lowerSummary, 'does not address the required activity');
+
+        if ($isOffTopic) {
+            foreach ($criteriaScores as &$cScore) {
+                $cScore['score'] = 0.0;
+            }
+            unset($cScore);
+            $totalEarned = 0.0;
+        }
+
         $finalScore = min($maxPoints, max(0.0, round($totalEarned, 2)));
         $pct = $maxPoints > 0 ? round(($finalScore / $maxPoints) * 100, 2) : 0.0;
 
@@ -232,7 +248,7 @@ class OllamaService
             'max_points' => $maxPoints,
             'percentage' => $pct,
             'criteria_scores' => $criteriaScores,
-            'overall_summary' => trim((string) ($parsed['overall_summary'] ?? 'Evaluation complete.')),
+            'overall_summary' => $summary,
             'key_strengths' => array_values(array_filter((array) ($parsed['key_strengths'] ?? []))),
             'key_improvements' => array_values(array_filter((array) ($parsed['key_improvements'] ?? []))),
             'model' => $model,
@@ -289,10 +305,29 @@ class OllamaService
 Evaluate the student's submission rigorously, objectively, and constructively against each specified rubric criterion.
 
 RULES:
-1. Strict Criterion Grading: Award points per criterion bounded between 0 and each criterion's max points.
-2. Evidence Grounding: Cite specific code line numbers or text excerpts in "evidence_quote" to justify point deductions or praise.
-3. No Hallucinations: Do not assume code exists if it is missing.
-4. Output JSON Schema: You must return strictly valid JSON matching the requested schema.
+0. Topic Relevance Gate (Zero Tolerance for Off-Topic Work): Verify first if the submission genuinely attempts and addresses the required activity topic and task instructions. If the submission is OFF-TOPIC, IRRELEVANT, UNRELATED, OR PLACEHOLDER: You MUST award 0.00 for all criteria, set all criterion scores to 0, and state in overall_summary that the submission is off-topic. Never award points for formatting or writing quality if the submission does not address the required topic.
+1. Strict Criterion Grading: Award points per criterion strictly bounded between 0 and each criterion's max points. Never exceed max points.
+2. Evidence Grounding: You MUST cite specific line numbers or exact code/text snippets in "evidence_quote" to substantiate point deductions or praise.
+3. Zero Hallucination: Grade exclusively based on provided submission text. If a feature or logic is omitted, deduct points accordingly without inventing assumptions.
+4. Constructive Feedback: In "rationale", explain clearly why points were earned or lost. Provide actionable "improvements" for student growth.
+5. Strict JSON Output: Return ONLY valid JSON adhering strictly to the JSON schema.
+
+FEW-SHOT EXAMPLE OF EXPECTED EVALUATION FORMAT:
+{
+  "criterion_evaluations": [
+    {
+      "criterion_id": "c1_correctness",
+      "score": 18,
+      "rationale": "Loop iterates over elements correctly but misses boundary check for empty lists.",
+      "evidence_quote": "Line 14: for i in range(len(items)):",
+      "strengths": "Clear iteration and accumulator logic.",
+      "improvements": "Add guard clause: if not items: return None"
+    }
+  ],
+  "overall_summary": "Solid submission demonstrating good algorithmic structure with minor edge-case omission.",
+  "key_strengths": ["Clean formatting", "Working iteration"],
+  "key_improvements": ["Check empty input edge case"]
+}
 PROMPT;
     }
 

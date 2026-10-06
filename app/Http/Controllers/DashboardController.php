@@ -137,10 +137,25 @@ class DashboardController extends Controller
             'school_year' => ['required', 'string', 'max:20'],
             'starts_on' => ['nullable', 'date'],
             'ends_on' => ['nullable', 'date'],
+            'reporting_frequency' => ['nullable', 'string', 'in:once_per_sem,twice_per_sem'],
+            'passing_rates' => ['sometimes', 'nullable', 'array'],
+            'passing_rates.quiz' => ['nullable', 'integer', 'between:0,100'],
+            'passing_rates.activity' => ['nullable', 'integer', 'between:0,100'],
+            'passing_rates.project' => ['nullable', 'integer', 'between:0,100'],
+            'passing_rates.exam' => ['nullable', 'integer', 'between:0,100'],
         ]);
 
         // Update teacher profile name
         $user->update(['name' => $data['name']]);
+
+        if (! empty($data['passing_rates'])) {
+            cache()->put("user_{$user->id}_default_passing_rates", [
+                'quiz' => isset($data['passing_rates']['quiz']) ? (int) $data['passing_rates']['quiz'] : 75,
+                'activity' => isset($data['passing_rates']['activity']) ? (int) $data['passing_rates']['activity'] : 75,
+                'project' => isset($data['passing_rates']['project']) ? (int) $data['passing_rates']['project'] : 75,
+                'exam' => isset($data['passing_rates']['exam']) ? (int) $data['passing_rates']['exam'] : 75,
+            ], now()->addDays(30));
+        }
 
         // Ensure current Academic Term is resolved and active
         $startsOn = $data['starts_on'] ?? now()->startOfMonth()->toDateString();
@@ -165,6 +180,7 @@ class DashboardController extends Controller
                 'starts_on' => $term->starts_on?->format('Y-m-d'),
                 'ends_on' => $term->ends_on?->format('Y-m-d'),
             ],
+            'passing_rates' => $data['passing_rates'] ?? \App\Services\GradebookCalculationService::DEFAULT_PASSING_RATES,
         ]);
     }
 }

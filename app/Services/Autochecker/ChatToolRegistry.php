@@ -4,6 +4,8 @@ namespace App\Services\Autochecker;
 
 use App\Models\AttendanceRecord;
 use App\Models\CourseModule;
+use App\Models\Project;
+use App\Models\Recitation;
 use App\Models\Section;
 use App\Models\Student;
 use App\Models\User;
@@ -14,8 +16,10 @@ use Illuminate\Support\Facades\Log;
 class ChatToolRegistry
 {
     public function __construct(
-        protected GradebookCalculationService $gradebookService
+        protected GradebookCalculationService $gradebookService,
+        protected ?ModuleRagService $ragService = null,
     ) {
+        $this->ragService ??= app(ModuleRagService::class);
     }
 
     /**
@@ -114,7 +118,7 @@ class ChatToolRegistry
                 'type' => 'function',
                 'function' => [
                     'name' => 'get_course_materials',
-                    'description' => 'Retrieve ALREADY SAVED syllabus or uploaded module files for an existing class in ClassCheck. NEVER call this tool when the user is asking you to CREATE, DRAFT, GENERATE, or OUTLINE a new syllabus, lesson plan, or course material (use your own pedagogical knowledge to write the syllabus directly).',
+                    'description' => 'Retrieve ALREADY SAVED syllabus overview, module list, or uploaded module files for an existing class in ClassCheck. NEVER call this tool when the user is asking you to CREATE, DRAFT, GENERATE, or OUTLINE a new syllabus, lesson plan, or course material (use your own pedagogical knowledge to write the syllabus directly).',
                     'parameters' => [
                         'type' => 'object',
                         'properties' => [
@@ -124,6 +128,31 @@ class ChatToolRegistry
                             ],
                         ],
                         'required' => ['section_id'],
+                    ],
+                ],
+            ],
+            [
+                'type' => 'function',
+                'function' => [
+                    'name' => 'search_course_modules',
+                    'description' => 'Perform RAG semantic/keyword search across attached course modules, lecture slides (PPTX), handouts (PDF/DOCX), and syllabus notes for a section. Returns grounded passages, slide excerpts, and exact citations to answer curriculum questions or generate exams, quizzes, and rubrics strictly matching the taught course material.',
+                    'parameters' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'section_id' => [
+                                'type' => 'integer',
+                                'description' => 'The numeric database ID of the section.',
+                            ],
+                            'query' => [
+                                'type' => 'string',
+                                'description' => 'The topic, question, concept, or lesson keyword to search for in the course modules.',
+                            ],
+                            'module_id' => [
+                                'type' => 'integer',
+                                'description' => 'Optional specific module ID to narrow search to.',
+                            ],
+                        ],
+                        'required' => ['section_id', 'query'],
                     ],
                 ],
             ],
@@ -275,6 +304,107 @@ class ChatToolRegistry
                     ],
                 ],
             ],
+            [
+                'type' => 'function',
+                'function' => [
+                    'name' => 'propose_create_project_groups',
+                    'description' => 'Propose creating a new group activity, reporting, or project for a section, with options to auto-assign randomized teams, create empty groups, or clone groupings from a previous activity. Attaches an interactive confirmation card to the chat.',
+                    'parameters' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'section_id' => [
+                                'type' => 'integer',
+                                'description' => 'The numeric database ID of the section.',
+                            ],
+                            'type' => [
+                                'type' => 'string',
+                                'enum' => ['group_activity', 'reporting', 'project'],
+                                'description' => 'Type of group activity: "group_activity" (tallied in Activities), "reporting" (finals/midterm presentation), or "project" (Projects category).',
+                            ],
+                            'title' => [
+                                'type' => 'string',
+                                'description' => 'Title of the group project or activity (e.g., "Group Activity 2: Database Modeling").',
+                            ],
+                            'group_count' => [
+                                'type' => 'integer',
+                                'description' => 'Number of groups to create (e.g., 4 or 5). Defaults to 4.',
+                            ],
+                            'source_project_id' => [
+                                'type' => 'integer',
+                                'description' => 'Optional ID of a previous group activity/project in this section to clone student group assignments from.',
+                            ],
+                            'copy_names' => [
+                                'type' => 'boolean',
+                                'description' => 'Whether to copy custom group names from source project (default: true).',
+                            ],
+                            'copy_topics' => [
+                                'type' => 'boolean',
+                                'description' => 'Whether to copy presentation topics/descriptions from source project (default: false).',
+                            ],
+                            'max_points' => [
+                                'type' => 'number',
+                                'description' => 'Optional maximum points for grading.',
+                            ],
+                            'conducted_on' => [
+                                'type' => 'string',
+                                'description' => 'Scheduled date in YYYY-MM-DD format (or leave empty for today).',
+                            ],
+                            'description' => [
+                                'type' => 'string',
+                                'description' => 'Guidelines, problem statements, and instructions.',
+                            ],
+                            'confirmation_prompt' => [
+                                'type' => 'string',
+                                'description' => 'Confirmation prompt for the teacher (e.g., "Would you like me to create Group Activity 2 with 4 balanced teams?").',
+                            ],
+                        ],
+                        'required' => ['section_id', 'title'],
+                    ],
+                ],
+            ],
+            [
+                'type' => 'function',
+                'function' => [
+                    'name' => 'draft_student_intervention',
+                    'description' => 'Generate an official, individualized student academic intervention note or parent advisory letter for a struggling or at-risk student, citing exact absences, missing assessments, current standing, and actionable recovery steps.',
+                    'parameters' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'section_id' => [
+                                'type' => 'integer',
+                                'description' => 'The numeric ID of the section.',
+                            ],
+                            'student_query' => [
+                                'type' => 'string',
+                                'description' => 'Student name or student number to find the student.',
+                            ],
+                            'tone' => [
+                                'type' => 'string',
+                                'enum' => ['formal_parent_advisory', 'supportive_counseling', 'academic_warning'],
+                                'description' => 'Tone of the communication draft (default: formal_parent_advisory).',
+                            ],
+                        ],
+                        'required' => ['section_id', 'student_query'],
+                    ],
+                ],
+            ],
+            [
+                'type' => 'function',
+                'function' => [
+                    'name' => 'get_recitation_analytics',
+                    'description' => 'Retrieve recitation and oral participation statistics for a section: participation distribution, uncalled students, average scores, and attendance correlation to ensure equitable recitations.',
+                    'parameters' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'section_id' => [
+                                'type' => 'integer',
+                                'description' => 'The numeric database ID of the section.',
+                            ],
+                        ],
+                        'required' => ['section_id'],
+                    ],
+                ],
+            ],
         ];
     }
 
@@ -308,6 +438,14 @@ class ChatToolRegistry
             case 'get_course_materials':
                 return $this->handleCourseMaterials($user, (int) ($arguments['section_id'] ?? 0));
 
+            case 'search_course_modules':
+                return $this->handleSearchCourseModules(
+                    $user,
+                    (int) ($arguments['section_id'] ?? 0),
+                    (string) ($arguments['query'] ?? ''),
+                    isset($arguments['module_id']) ? (int) $arguments['module_id'] : null
+                );
+
             case 'get_help_catalog':
                 return $this->handleHelpCatalog((string) ($arguments['query'] ?? ''));
 
@@ -321,11 +459,20 @@ class ChatToolRegistry
             case 'get_at_risk_deficiencies':
                 return $this->handleAtRiskDeficiencies($user, (int) ($arguments['section_id'] ?? 0));
 
+            case 'get_recitation_analytics':
+                return $this->handleRecitationAnalytics($user, (int) ($arguments['section_id'] ?? 0));
+
+            case 'draft_student_intervention':
+                return $this->handleDraftStudentIntervention($user, $arguments);
+
             case 'ask_clarification':
                 return $this->handleAskClarification($user, $arguments);
 
             case 'propose_create_assessment':
                 return $this->handleProposeCreateAssessment($user, $arguments);
+
+            case 'propose_create_project_groups':
+                return $this->handleProposeCreateProjectGroups($user, $arguments);
 
             case 'propose_delete_assessment':
                 return $this->handleProposeDeleteAssessment($user, $arguments);
@@ -510,6 +657,17 @@ class ChatToolRegistry
                 $q->where('student_number', 'like', "%{$cleanQuery}%")
                     ->orWhere('last_name', 'like', "%{$cleanQuery}%")
                     ->orWhere('first_name', 'like', "%{$cleanQuery}%");
+
+                $parts = preg_split('/\s+/', $cleanQuery);
+                if (count($parts) >= 2) {
+                    $q->orWhere(function ($sub) use ($parts) {
+                        $sub->where('first_name', 'like', "%{$parts[0]}%")
+                            ->where('last_name', 'like', "%{$parts[1]}%");
+                    })->orWhere(function ($sub) use ($parts) {
+                        $sub->where('last_name', 'like', "%{$parts[0]}%")
+                            ->where('first_name', 'like', "%{$parts[1]}%");
+                    });
+                }
             })
             ->with(['seat', 'recitations'])
             ->first();
@@ -585,7 +743,8 @@ class ChatToolRegistry
             ->get();
 
         $modules = CourseModule::where('section_id', $section->id)
-            ->orderBy('order')
+            ->orderBy('sort_order')
+            ->orderBy('id')
             ->get();
 
         $projects = $section->projects()
@@ -609,12 +768,13 @@ class ChatToolRegistry
             ])->all(),
             'modules_and_topics' => $modules->map(fn ($m) => [
                 'id' => $m->id,
+                'module_number' => $m->module_number,
                 'title' => $m->title,
-                'week' => $m->week_number,
                 'description' => $m->description,
-                'presentation_url' => $m->presentation_url,
+                'link_url' => $m->link_url,
                 'has_file' => ! empty($m->file_path),
                 'file_name' => $m->file_name ?: ($m->file_path ? basename($m->file_path) : null),
+                'file_size' => $m->formatted_file_size,
             ])->all(),
             'projects_and_group_tasks' => $projects->map(fn ($p) => [
                 'id' => $p->id,
@@ -633,6 +793,52 @@ class ChatToolRegistry
                 'title' => "Curriculum & Activities: {$section->name}",
                 'id' => (string) $section->id,
                 'summary' => "Loaded {$assessments->count()} assessments/activities, {$modules->count()} course modules, and {$projects->count()} project tasks with attachments.",
+            ],
+        ];
+    }
+
+    protected function handleSearchCourseModules(User $user, int|string $sectionId, string $query, ?int $moduleId = null): array
+    {
+        $section = $this->authorizeSection($user, $sectionId);
+        $cleanQuery = trim($query);
+
+        if ($cleanQuery === '') {
+            throw new Exception("Search query cannot be empty.", 422);
+        }
+
+        $results = $this->ragService->search(
+            section: $section,
+            query: $cleanQuery,
+            moduleIds: $moduleId ? [$moduleId] : null,
+            limit: 5
+        );
+
+        $groundingBlock = $this->ragService->formatGroundingContext($results, 8000);
+
+        return [
+            'result' => [
+                'section_id' => $section->id,
+                'section_name' => $section->name,
+                'subject' => "{$section->subject_code} - {$section->subject_title}",
+                'query' => $cleanQuery,
+                'total_excerpts_found' => count($results),
+                'grounded_curriculum_text' => $groundingBlock ?: 'No matching course module content found for this query in the attached modules.',
+                'citations' => array_map(fn ($r) => [
+                    'citation' => $r['citation'],
+                    'module_id' => $r['module_id'],
+                    'module_number' => $r['module_number'],
+                    'module_title' => $r['module_title'],
+                    'file_name' => $r['file_name'],
+                    'relevance_score' => $r['score'],
+                ], $results),
+            ],
+            'source' => [
+                'type' => 'course_modules_rag',
+                'title' => "Module Grounding: {$cleanQuery}",
+                'id' => (string) $section->id,
+                'summary' => count($results) > 0
+                    ? "Grounded on " . count($results) . " verified passage(s) from attached course modules."
+                    : "Searched course modules for '{$cleanQuery}' (0 matches).",
             ],
         ];
     }
@@ -683,11 +889,17 @@ class ChatToolRegistry
             'confirmation_prompt' => $prompt,
         ];
 
+        $choiceCard = [
+            'question' => "Would you like to add \"{$title}\" as an activity to {$section->name}?",
+            'options' => ['Yes, Add as Activity', 'No, Keep as Draft'],
+            'is_multi_select' => false,
+        ];
+
         return [
             'result' => [
                 'status' => 'proposal_prepared',
                 'proposal' => $proposal,
-                'instruction' => "An interactive action card has been attached to the chat. Inform the teacher they can click 'Yes, Add to Class' to immediately save it, 'Edit in Form' to adjust it, or 'No' to dismiss.",
+                'instruction' => "The interactive confirmation proposal has been attached to the chat. You MUST NOW WRITE OUT the complete, high-quality, comprehensive {$type} in your answer (Title, Overview & Objectives, Detailed Hands-on Tasks / Problems, Expected Output / Deliverables, and Rubric Table). Conclude your text by asking: 'Would you like to add this as an activity to {$section->name}?' and mention they can choose Yes or No.",
             ],
             'source' => [
                 'type' => 'action_proposal',
@@ -695,6 +907,7 @@ class ChatToolRegistry
                 'id' => (string) $section->id,
                 'summary' => "Proposed creating {$type} \"{$title}\" ({$maxPoints} pts) in {$section->name}.",
                 'proposal' => $proposal,
+                'choice_card' => $choiceCard,
             ],
         ];
     }
@@ -752,15 +965,17 @@ class ChatToolRegistry
         }
         $assessments = $query->orderBy('conducted_on')->get();
         $totalStudents = $section->students()->where('is_active', true)->count();
+        $passingRates = $section->grading_weights['passing_rates'] ?? GradebookCalculationService::DEFAULT_PASSING_RATES;
 
-        $analytics = $assessments->map(function ($a) use ($totalStudents) {
+        $analytics = $assessments->map(function ($a) use ($totalStudents, $passingRates) {
+            $categoryThreshold = (float) ($passingRates[$a->type] ?? 75) / 100;
             $scores = $a->scores->pluck('score')->filter(fn ($s) => $s !== null)->values();
             $count = $scores->count();
             $avg = $count > 0 ? round($scores->average(), 2) : 0;
             $max = $count > 0 ? (float) $scores->max() : 0;
             $min = $count > 0 ? (float) $scores->min() : 0;
             $passRate = $count > 0 && (float) $a->max_points > 0
-                ? round(($scores->filter(fn ($s) => ((float) $s / (float) $a->max_points) >= 0.75)->count() / $count) * 100, 1)
+                ? round(($scores->filter(fn ($s) => ((float) $s / (float) $a->max_points) >= $categoryThreshold)->count() / $count) * 100, 1)
                 : null;
 
             return [
@@ -882,6 +1097,266 @@ class ChatToolRegistry
                 'id' => null,
                 'summary' => "Presented " . count($options) . " choices for: \"{$question}\".",
                 'choice_card' => $choiceCard,
+            ],
+        ];
+    }
+
+    /**
+     * Handle proposing creation of a group activity/reporting/project.
+     */
+    protected function handleProposeCreateProjectGroups(User $user, array $args): array
+    {
+        $sectionId = (int) ($args['section_id'] ?? 0);
+        $section = $this->authorizeSection($user, $sectionId);
+
+        $type = in_array($args['type'] ?? '', ['group_activity', 'reporting', 'project'], true) ? $args['type'] : 'group_activity';
+        $title = trim($args['title'] ?? 'New Group Activity');
+        $groupCount = max(1, min(50, (int) ($args['group_count'] ?? 4)));
+        $maxPoints = isset($args['max_points']) && is_numeric($args['max_points']) ? (float) $args['max_points'] : null;
+        $conductedOn = ! empty($args['conducted_on']) ? $args['conducted_on'] : now()->toDateString();
+        $description = $args['description'] ?? null;
+        $sourceProjectId = isset($args['source_project_id']) ? (int) $args['source_project_id'] : null;
+        $copyNames = (bool) ($args['copy_names'] ?? true);
+        $copyTopics = (bool) ($args['copy_topics'] ?? false);
+
+        $sourceProject = null;
+        if ($sourceProjectId) {
+            $sourceProject = Project::where('section_id', $section->id)->find($sourceProjectId);
+            if ($sourceProject) {
+                $groupCount = $sourceProject->groups()->count() ?: $groupCount;
+            } else {
+                $sourceProjectId = null;
+            }
+        }
+
+        $typeLabel = match ($type) {
+            'group_activity' => 'Group Activity',
+            'reporting' => 'Group Reporting',
+            'project' => 'Project',
+        };
+
+        $prompt = $args['confirmation_prompt'] ?? (
+            $sourceProject
+                ? "Would you like to create {$typeLabel} \"{$title}\" reusing groups from \"{$sourceProject->title}\"?"
+                : "Would you like to create {$typeLabel} \"{$title}\" with {$groupCount} balanced groups in {$section->name}?"
+        );
+
+        $proposal = [
+            'action' => 'create_project_groups',
+            'section_id' => $section->id,
+            'section_name' => $section->name,
+            'type' => $type,
+            'title' => $title,
+            'group_count' => $groupCount,
+            'source_project_id' => $sourceProjectId,
+            'source_project_title' => $sourceProject?->title,
+            'copy_names' => $copyNames,
+            'copy_topics' => $copyTopics,
+            'max_points' => $maxPoints,
+            'conducted_on' => $conductedOn,
+            'description' => $description,
+            'confirmation_prompt' => $prompt,
+        ];
+
+        $choiceCard = [
+            'question' => "Would you like to create {$typeLabel} \"{$title}\" with {$groupCount} groups in {$section->name}?",
+            'options' => ['Yes, Create Activity & Groups', 'No, Keep as Draft'],
+            'is_multi_select' => false,
+        ];
+
+        return [
+            'result' => [
+                'status' => 'proposal_prepared',
+                'proposal' => $proposal,
+                'instruction' => "The interactive confirmation proposal has been attached to the chat. You MUST NOW WRITE OUT the complete, detailed {$typeLabel} overview in your answer (Project Goals, Group Deliverables, Milestone Tasks, and Rubric). Conclude by asking: 'Would you like to create this group activity in {$section->name}?' and mention they can choose Yes or No.",
+            ],
+            'source' => [
+                'type' => 'action_proposal',
+                'title' => "Proposal: Create {$typeLabel} \"{$title}\"",
+                'id' => (string) $section->id,
+                'summary' => $sourceProject
+                    ? "Proposed creating {$typeLabel} \"{$title}\" reusing {$groupCount} groups from \"{$sourceProject->title}\"."
+                    : "Proposed creating {$typeLabel} \"{$title}\" with {$groupCount} randomized groups in {$section->name}.",
+                'proposal' => $proposal,
+                'choice_card' => $choiceCard,
+            ],
+        ];
+    }
+
+    /**
+     * Handle drafting formal academic intervention and parent advisories.
+     */
+    protected function handleDraftStudentIntervention(User $user, array $args): array
+    {
+        $sectionId = (int) ($args['section_id'] ?? 0);
+        $section = $this->authorizeSection($user, $sectionId);
+
+        $query = trim($args['student_query'] ?? '');
+        $tone = in_array($args['tone'] ?? '', ['formal_parent_advisory', 'supportive_counseling', 'academic_warning'], true)
+            ? $args['tone']
+            : 'formal_parent_advisory';
+
+        $detail = $this->handleStudentDetail($user, $section->id, $query);
+        $studentData = $detail['result'];
+
+        if (empty($studentData['id'])) {
+            throw new Exception("Student matching '{$query}' was not found in {$section->name}.", 404);
+        }
+
+        $fullName = $studentData['full_name'];
+        $studentNumber = $studentData['student_number'];
+        $absences = $studentData['absences'] ?? 0;
+        $scores = $studentData['scores'] ?? [];
+        $missingTasks = count(array_filter($scores, fn ($s) => $s['score'] === null));
+
+        $dateStr = now()->format('F j, Y');
+
+            $firstName = explode(' ', trim($fullName))[0] ?? 'Student';
+
+            if ($tone === 'academic_warning') {
+                $letter = <<<TEXT
+OFFICIAL ACADEMIC NOTICE / WARNING SLIP
+Date: {$dateStr}
+Student: {$fullName} ({$studentNumber})
+Course / Section: {$section->subject_code} — {$section->name}
+Instructor: {$user->name}
+
+Dear {$fullName},
+
+This notice is to officially advise you regarding your current academic and attendance standing in {$section->subject_code} ({$section->subject_title}).
+
+RECORDED DEFICIENCIES:
+• Total Recorded Absences: {$absences} session(s)
+• Unsubmitted / Missing Tasks: {$missingTasks} item(s)
+
+REQUIRED CORRECTIVE ACTION:
+1. Immediately arrange a consultation with the instructor during designated office hours.
+2. Submit any pending requirements or schedule appropriate makeup activities.
+3. Maintain prompt, regular attendance for all remaining class sessions to prevent failing standing.
+
+Respectfully,
+{$user->name}
+Faculty, ClassCheck Academic System
+TEXT;
+            } elseif ($tone === 'supportive_counseling') {
+                $letter = <<<TEXT
+STUDENT SUPPORT & ACADEMIC CHECK-IN
+Date: {$dateStr}
+Student: {$fullName} ({$studentNumber})
+Course: {$section->subject_code} — {$section->name}
+
+Hi {$firstName},
+
+I am reaching out to check in with you regarding {$section->subject_code}. I noticed that you have missed {$absences} class session(s) and currently have {$missingTasks} pending task(s).
+
+I want to make sure you have the support and resources needed to succeed in this subject. Let's find a time to sit down and create a realistic catch-up plan so you can stay on track with your goals.
+
+Warm regards,
+{$user->name}
+Instructor
+TEXT;
+            } else {
+                $letter = <<<TEXT
+OFFICIAL PARENT / GUARDIAN ACADEMIC ADVISORY
+Date: {$dateStr}
+To the Parent / Guardian of: {$fullName}
+Student Number: {$studentNumber}
+Course & Section: {$section->subject_code} — {$section->name} ({$section->subject_title})
+Faculty In-Charge: {$user->name}
+
+Dear Parent / Guardian,
+
+This advisory serves to inform you regarding the current academic and attendance progress of {$fullName} in {$section->subject_code} for the current term.
+
+SUMMARY OF ACADEMIC CONCERNS:
+• Class Attendance: Recorded {$absences} absence(s).
+• Missing Requirements: {$missingTasks} required assessment(s) currently unsubmitted.
+
+We kindly request your guidance in encouraging {$fullName} to attend all scheduled meetings promptly and coordinate with the instructor regarding makeup submissions.
+
+For questions or consultation appointments, please feel free to reach out to the department faculty office.
+
+Sincerely,
+{$user->name}
+Instructor
+TEXT;
+            }
+
+            return [
+                'result' => [
+                    'student_name' => $fullName,
+                    'student_number' => $studentNumber,
+                    'tone' => $tone,
+                    'absences' => $absences,
+                    'missing_count' => $missingTasks,
+                    'draft' => $letter,
+                    'instruction' => 'Present this complete draft clearly to the teacher formatted in a code block or quote for quick copying or printing.',
+                ],
+                'source' => [
+                    'type' => 'intervention_draft',
+                    'title' => "Intervention Draft: {$fullName}",
+                    'id' => (string) $studentData['id'],
+                    'summary' => "Drafted {$tone} letter for {$fullName} ({$absences} absences, {$missingTasks} missing tasks).",
+                ],
+            ];
+    }
+
+    /**
+     * Handle oral participation and recitation analytics.
+     */
+    protected function handleRecitationAnalytics(User $user, int $sectionId): array
+    {
+        $section = $this->authorizeSection($user, $sectionId);
+
+        $activeStudents = $section->students()->where('is_active', true)->get();
+        $totalActive = $activeStudents->count();
+
+        $recitations = Recitation::where('section_id', $section->id)->get();
+        $recitationCount = $recitations->count();
+
+        $studentRecitations = $recitations->groupBy('student_id');
+
+        $uncalledStudents = [];
+        $calledStudentStats = [];
+
+        foreach ($activeStudents as $stu) {
+            $recs = $studentRecitations->get($stu->id);
+            if (! $recs || $recs->isEmpty()) {
+                $uncalledStudents[] = [
+                    'student_number' => $stu->student_number,
+                    'full_name' => trim("{$stu->last_name}, {$stu->first_name}"),
+                ];
+            } else {
+                $avgScore = round($recs->average('score'), 1);
+                $calledStudentStats[] = [
+                    'student_number' => $stu->student_number,
+                    'full_name' => trim("{$stu->last_name}, {$stu->first_name}"),
+                    'calls_count' => $recs->count(),
+                    'average_score' => $avgScore,
+                    'last_called_date' => $recs->max('conducted_on'),
+                ];
+            }
+        }
+
+        usort($calledStudentStats, fn ($a, $b) => $a['calls_count'] <=> $b['calls_count']);
+
+        $overallAverage = $recitationCount > 0 ? round($recitations->average('score'), 1) : null;
+
+        return [
+            'result' => [
+                'section_name' => $section->name,
+                'total_active_students' => $totalActive,
+                'total_recitations_recorded' => $recitationCount,
+                'class_recitation_average' => $overallAverage,
+                'uncalled_count' => count($uncalledStudents),
+                'uncalled_students' => $uncalledStudents,
+                'called_students_summary' => array_slice($calledStudentStats, 0, 10),
+            ],
+            'source' => [
+                'type' => 'recitation_analytics',
+                'title' => "Oral Recitation Analytics: {$section->name}",
+                'id' => (string) $section->id,
+                'summary' => "Analyzed {$recitationCount} recitations across {$totalActive} active students (" . count($uncalledStudents) . " uncalled).",
             ],
         ];
     }

@@ -30,6 +30,11 @@ class StoreSectionRequest extends FormRequest
             'schedules.*.ends_at' => ['required', 'date_format:H:i', 'after:schedules.*.starts_at'],
             'schedules.*.room' => ['nullable', 'string', 'max:255'],
             'schedules.*.schedule_type' => ['nullable', 'string', 'in:lecture,lab'],
+            'passing_rates' => ['sometimes', 'nullable', 'array'],
+            'passing_rates.quiz' => ['nullable', 'integer', 'between:0,100'],
+            'passing_rates.activity' => ['nullable', 'integer', 'between:0,100'],
+            'passing_rates.project' => ['nullable', 'integer', 'between:0,100'],
+            'passing_rates.exam' => ['nullable', 'integer', 'between:0,100'],
         ];
     }
 

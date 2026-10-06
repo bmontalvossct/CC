@@ -20,6 +20,7 @@ export interface UserSectionItem {
     id: number;
     name: string;
     subject_code: string;
+    subject_title?: string;
 }
 
 export interface SharedData extends Record<string, unknown> {

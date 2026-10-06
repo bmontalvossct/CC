@@ -17,6 +17,8 @@ type Group = {
     name: string;
     topic: string | null;
     description?: string | null;
+    score?: number | string | null;
+    notes?: string | null;
     students: Student[];
 };
 

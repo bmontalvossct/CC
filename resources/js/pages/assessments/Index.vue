@@ -1,22 +1,27 @@
 <script setup lang="ts">
 import FilePreviewModal from '@/components/FilePreviewModal.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { cardHover, staggerItem, tabIndicatorTransition } from '@/lib/motion';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { motion } from 'motion-v';
 import {
     AlertCircle,
     BarChart3,
     CalendarDays,
     ClipboardCheck,
+    Copy,
     Download,
     FlaskConical,
     FolderKanban,
     LoaderCircle,
     Paperclip,
     Plus,
+    Sparkles,
     Trash2,
     Users,
     X,
 } from 'lucide-vue-next';
+import ExamGeneratorModal from '@/components/assessments/ExamGeneratorModal.vue';
 import { computed, ref, watch } from 'vue';
 
 type Assessment = {
@@ -49,25 +54,53 @@ type Project = {
 
 type Session = { id: number; session_date: string; starts_at: string };
 
+type AvailableGroupProject = {
+    id: number;
+    title: string;
+    type: 'project' | 'reporting' | 'group_activity';
+    format?: 'group' | 'individual';
+    conducted_on: string | null;
+    groups_count: number;
+    members_count: number;
+    groups: Array<{
+        id: number;
+        group_number: number;
+        name: string;
+        topic?: string | null;
+        members: Array<{ student_id: number; full_name: string }>;
+    }>;
+};
+
 const props = withDefaults(
     defineProps<{
         section: { id: number; name: string; subject_code?: string; subject_title: string };
         assessments: Assessment[];
         projects?: Project[];
+        availableGroupProjects?: AvailableGroupProject[];
         activeStudentsCount?: number;
         filter: string;
         attendanceSessions: Session[];
     }>(),
     {
         projects: () => [],
+        availableGroupProjects: () => [],
         activeStudentsCount: 0,
     },
 );
 
 const creating = ref(false);
 const creationMode = ref<'assessment' | 'group_activity' | 'project'>('assessment');
+const showExamGeneratorModal = ref(false);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const projectFileInputRef = ref<HTMLInputElement | null>(null);
+
+const projectGroupSetupMode = ref<'random' | 'previous' | 'empty'>('random');
+const projectSelectedSourceId = ref<number | ''>('');
+
+const selectedProjectSource = computed(() => {
+    if (!projectSelectedSourceId.value || !props.availableGroupProjects) return null;
+    return props.availableGroupProjects.find((p) => p.id === Number(projectSelectedSourceId.value)) || null;
+});
 
 const deleteAssessmentTarget = ref<Assessment | null>(null);
 const deleteProjectTarget = ref<Project | null>(null);
@@ -103,12 +136,16 @@ const previewTarget = ref<{
     fileName: string;
     fileUrl: string;
     downloadUrl: string;
+    reuploadUrl?: string;
+    deleteUrl?: string;
 }>({
     show: false,
     title: '',
     fileName: '',
     fileUrl: '',
     downloadUrl: '',
+    reuploadUrl: '',
+    deleteUrl: '',
 });
 
 const openAssessmentPreview = (assessment: Assessment, e?: Event) => {
@@ -122,6 +159,8 @@ const openAssessmentPreview = (assessment: Assessment, e?: Event) => {
         fileName: assessment.attachment_name || 'Attached Reference',
         fileUrl: `/sections/${props.section.id}/assessments/${assessment.id}/attachment`,
         downloadUrl: `/sections/${props.section.id}/assessments/${assessment.id}/attachment?download=1`,
+        reuploadUrl: `/sections/${props.section.id}/assessments/${assessment.id}/attachment`,
+        deleteUrl: `/sections/${props.section.id}/assessments/${assessment.id}/attachment`,
     };
 };
 
@@ -136,6 +175,8 @@ const openProjectPreview = (project: Project, e?: Event) => {
         fileName: project.attachment_name || 'Attached Reference',
         fileUrl: `/sections/${props.section.id}/projects/${project.id}/attachment`,
         downloadUrl: `/sections/${props.section.id}/projects/${project.id}/attachment?download=1`,
+        reuploadUrl: `/sections/${props.section.id}/projects/${project.id}/attachment`,
+        deleteUrl: `/sections/${props.section.id}/projects/${project.id}/attachment`,
     };
 };
 
@@ -200,6 +241,9 @@ const projectForm = useForm({
     max_points: '' as number | '',
     group_count: 4,
     randomize: true,
+    source_project_id: null as number | null,
+    copy_topics: false,
+    copy_names: true,
     attachment: null as File | null,
 });
 
@@ -261,6 +305,34 @@ const submitAssessment = () =>
             if (fileInputRef.value) fileInputRef.value.value = '';
         },
     });
+
+const submitProject = () => {
+    if (projectForm.format === 'individual') {
+        projectForm.source_project_id = null;
+    } else if (projectGroupSetupMode.value === 'previous') {
+        projectForm.source_project_id = projectSelectedSourceId.value ? Number(projectSelectedSourceId.value) : null;
+        projectForm.randomize = false;
+    } else if (projectGroupSetupMode.value === 'empty') {
+        projectForm.source_project_id = null;
+        projectForm.randomize = false;
+    } else {
+        projectForm.source_project_id = null;
+        projectForm.randomize = true;
+    }
+
+    projectForm.post(`/sections/${props.section.id}/projects`, {
+        forceFormData: true,
+        preserveScroll: true,
+        onSuccess: () => {
+            creating.value = false;
+            projectForm.reset();
+            projectForm.project_number = getNextProjectNumber(projectForm.type);
+            projectGroupSetupMode.value = 'random';
+            projectSelectedSourceId.value = '';
+            if (projectFileInputRef.value) projectFileInputRef.value.value = '';
+        },
+    });
+};
 
 </script>
 
@@ -344,6 +416,15 @@ const submitAssessment = () =>
                         >
                             <FolderKanban class="size-4 shrink-0 text-primary transition-colors group-hover:text-white" />
                             <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">New Project / Report</span>
+                        </button>
+                        <button
+                            type="button"
+                            title="Hermes Exam Generator"
+                            class="shadow-xs group inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-primary/50 bg-primary/10 px-3 text-xs font-semibold text-primary transition-all duration-300 hover:border-primary hover:bg-primary hover:text-white"
+                            @click="showExamGeneratorModal = true"
+                        >
+                            <Sparkles class="size-4 shrink-0 text-primary transition-colors group-hover:text-white" />
+                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">Generate Exam (Hermes)</span>
                         </button>
                         <button
                             type="button"
@@ -704,31 +785,179 @@ const submitAssessment = () =>
                     </label>
 
                     <template v-if="projectForm.format !== 'individual'">
-                        <label class="lg:col-span-3">
-                            <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground"
-                                >Number of Initial Groups</span
-                            >
-                            <input
-                                v-model.number="projectForm.group_count"
-                                type="number"
-                                min="1"
-                                max="50"
-                                class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
-                            />
-                            <small v-if="projectForm.errors.group_count" class="mt-1 block text-xs text-rose-600">{{
-                                projectForm.errors.group_count
-                            }}</small>
-                        </label>
+                        <div class="lg:col-span-12 rounded-2xl border border-border/80 bg-secondary/20 p-4">
+                            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border/60 pb-3">
+                                <div>
+                                    <h4 class="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                                        <Users class="size-3.5 text-primary" />
+                                        <span>Group Assignment Setup</span>
+                                    </h4>
+                                    <p class="text-[11px] text-muted-foreground mt-0.5">
+                                        Choose how students should be grouped for this activity.
+                                    </p>
+                                </div>
 
-                        <div class="flex items-center gap-3 pt-6 lg:col-span-3">
-                            <label class="flex cursor-pointer items-center gap-2">
-                                <input
-                                    v-model="projectForm.randomize"
-                                    type="checkbox"
-                                    class="size-4 rounded border-input text-primary focus:ring-primary"
-                                />
-                                <span class="text-xs font-medium text-foreground">Auto-assign active students</span>
-                            </label>
+                                <div class="flex flex-wrap items-center gap-1.5 rounded-xl bg-background/80 p-1 border border-border/60">
+                                    <button
+                                        type="button"
+                                        class="relative rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors"
+                                        :class="projectGroupSetupMode === 'random' ? 'text-white' : 'text-muted-foreground hover:text-foreground'"
+                                        @click="projectGroupSetupMode = 'random'"
+                                    >
+                                        <motion.div
+                                            v-if="projectGroupSetupMode === 'random'"
+                                            layout-id="project-group-setup-mode-tab"
+                                            class="absolute inset-0 rounded-lg bg-primary shadow-xs"
+                                            :transition="tabIndicatorTransition"
+                                        />
+                                        <span class="relative z-10">Auto-Assign (Random)</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="relative rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors flex items-center gap-1"
+                                        :class="projectGroupSetupMode === 'previous' ? 'text-white' : 'text-muted-foreground hover:text-foreground'"
+                                        @click="projectGroupSetupMode = 'previous'"
+                                    >
+                                        <motion.div
+                                            v-if="projectGroupSetupMode === 'previous'"
+                                            layout-id="project-group-setup-mode-tab"
+                                            class="absolute inset-0 rounded-lg bg-primary shadow-xs"
+                                            :transition="tabIndicatorTransition"
+                                        />
+                                        <span class="relative z-10 flex items-center gap-1">
+                                            <Copy class="size-3" />
+                                            <span>Use Previous Grouping</span>
+                                            <span
+                                                v-if="availableGroupProjects && availableGroupProjects.length > 0"
+                                                class="ml-1 rounded-full px-1.5 py-0.2 font-mono text-[9px] font-bold"
+                                                :class="projectGroupSetupMode === 'previous' ? 'bg-white/20 text-white' : 'bg-primary/10 text-primary'"
+                                            >
+                                                {{ availableGroupProjects.length }}
+                                            </span>
+                                        </span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="relative rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors"
+                                        :class="projectGroupSetupMode === 'empty' ? 'text-white' : 'text-muted-foreground hover:text-foreground'"
+                                        @click="projectGroupSetupMode = 'empty'"
+                                    >
+                                        <motion.div
+                                            v-if="projectGroupSetupMode === 'empty'"
+                                            layout-id="project-group-setup-mode-tab"
+                                            class="absolute inset-0 rounded-lg bg-primary shadow-xs"
+                                            :transition="tabIndicatorTransition"
+                                        />
+                                        <span class="relative z-10">Empty Slots</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Mode 1: Auto-assign Random -->
+                            <div v-if="projectGroupSetupMode === 'random'" class="mt-3.5 grid gap-4 sm:grid-cols-12 items-center">
+                                <label class="sm:col-span-4">
+                                    <span class="mb-1 block text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Number of Groups</span>
+                                    <input
+                                        v-model.number="projectForm.group_count"
+                                        type="number"
+                                        min="1"
+                                        max="50"
+                                        class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
+                                    />
+                                    <small v-if="projectForm.errors.group_count" class="mt-1 block text-xs text-rose-600">{{
+                                        projectForm.errors.group_count
+                                    }}</small>
+                                </label>
+                                <div class="sm:col-span-8 text-xs text-muted-foreground pt-3 sm:pt-0">
+                                    <p class="font-medium text-foreground">Fair Balanced Random Distribution</p>
+                                    <p class="text-[11px] mt-0.5">Active students in the section will be evenly distributed across {{ projectForm.group_count || 4 }} groups.</p>
+                                </div>
+                            </div>
+
+                            <!-- Mode 2: Use Grouping from Previous Activity -->
+                            <div v-else-if="projectGroupSetupMode === 'previous'" class="mt-3.5 space-y-3">
+                                <div v-if="!availableGroupProjects || availableGroupProjects.length === 0" class="rounded-xl border border-dashed border-border/80 bg-background/50 p-4 text-center text-xs text-muted-foreground">
+                                    <p class="font-medium text-foreground">No previous group activities found in this section.</p>
+                                    <p class="text-[11px] mt-0.5">Create your first group activity using Auto-Assign, and you will be able to reuse its roster for future activities.</p>
+                                </div>
+                                <div v-else class="grid gap-4 sm:grid-cols-12">
+                                    <label class="sm:col-span-6">
+                                        <span class="mb-1 block text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Select Previous Activity</span>
+                                        <select
+                                            v-model="projectSelectedSourceId"
+                                            class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
+                                        >
+                                            <option value="" disabled>Choose an activity to copy groups from...</option>
+                                            <option v-for="prev in availableGroupProjects" :key="prev.id" :value="prev.id">
+                                                {{ prev.title }} ({{ prev.groups_count }} groups · {{ prev.members_count }} students)
+                                            </option>
+                                        </select>
+                                    </label>
+
+                                    <div class="sm:col-span-6 flex flex-col justify-end gap-2 text-xs">
+                                        <label class="flex cursor-pointer items-center gap-2 font-medium text-foreground">
+                                            <input
+                                                v-model="projectForm.copy_names"
+                                                type="checkbox"
+                                                class="size-4 rounded border-border text-primary focus:ring-primary"
+                                            />
+                                            <span>Keep custom group names</span>
+                                        </label>
+                                        <label class="flex cursor-pointer items-center gap-2 font-medium text-foreground">
+                                            <input
+                                                v-model="projectForm.copy_topics"
+                                                type="checkbox"
+                                                class="size-4 rounded border-border text-primary focus:ring-primary"
+                                            />
+                                            <span>Also copy presentation topics / descriptions</span>
+                                        </label>
+                                    </div>
+
+                                    <!-- Preview Roster Box if selected -->
+                                    <div v-if="selectedProjectSource" class="sm:col-span-12 rounded-xl border border-primary/20 bg-primary/5 p-3 duration-150 animate-in fade-in">
+                                        <div class="flex items-center justify-between border-b border-primary/10 pb-2 text-xs font-semibold text-primary">
+                                            <span>Roster Preview: {{ selectedProjectSource.title }}</span>
+                                            <span>{{ selectedProjectSource.groups_count }} groups · {{ selectedProjectSource.members_count }} assigned students</span>
+                                        </div>
+                                        <div class="mt-2.5 flex flex-wrap gap-2 max-h-36 overflow-y-auto pr-1">
+                                            <div
+                                                v-for="grp in selectedProjectSource.groups"
+                                                :key="grp.id"
+                                                class="rounded-lg border border-border/80 bg-background px-2.5 py-1.5 text-[11px] shadow-2xs min-w-[140px]"
+                                            >
+                                                <div class="font-bold text-foreground">{{ grp.name }}</div>
+                                                <div class="text-[10px] text-muted-foreground mt-0.5">
+                                                    {{ grp.members.length }} members:
+                                                    <span class="truncate block text-foreground/80">
+                                                        {{ grp.members.map((m) => m.full_name).slice(0, 3).join(', ') }}{{ grp.members.length > 3 ? '...' : '' }}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Mode 3: Empty Slots -->
+                            <div v-else class="mt-3.5 grid gap-4 sm:grid-cols-12 items-center">
+                                <label class="sm:col-span-4">
+                                    <span class="mb-1 block text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Number of Empty Groups</span>
+                                    <input
+                                        v-model.number="projectForm.group_count"
+                                        type="number"
+                                        min="1"
+                                        max="50"
+                                        class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
+                                    />
+                                    <small v-if="projectForm.errors.group_count" class="mt-1 block text-xs text-rose-600">{{
+                                        projectForm.errors.group_count
+                                    }}</small>
+                                </label>
+                                <div class="sm:col-span-8 text-xs text-muted-foreground pt-3 sm:pt-0">
+                                    <p class="font-medium text-foreground">Empty Group Placeholders</p>
+                                    <p class="text-[11px] mt-0.5">{{ projectForm.group_count || 4 }} empty groups will be created. You can drag and drop or manually assign students inside the activity.</p>
+                                </div>
+                            </div>
                         </div>
                     </template>
 
@@ -785,14 +1014,20 @@ const submitAssessment = () =>
                     :key="tab"
                     :href="`/sections/${section.id}/assessments${tab === 'all' ? '' : `?type=${tab}`}`"
                     prefetch="hover"
-                    class="rounded-xl px-4 py-2 text-xs font-bold capitalize transition-all"
+                    class="relative rounded-xl px-4 py-2 text-xs font-bold capitalize transition-colors"
                     :class="
                         filter === tab
-                            ? 'shadow-xs bg-primary text-primary-foreground'
+                            ? 'text-primary-foreground'
                             : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
                     "
                 >
-                    {{ tab === 'project' ? 'Projects & Reports' : tab }}
+                    <motion.div
+                        v-if="filter === tab"
+                        layout-id="active-assessment-filter-pill"
+                        class="absolute inset-0 rounded-xl bg-primary shadow-xs"
+                        :transition="tabIndicatorTransition"
+                    />
+                    <span class="relative z-10">{{ tab === 'project' ? 'Projects & Reports' : tab }}</span>
                 </Link>
             </div>
 
@@ -821,20 +1056,27 @@ const submitAssessment = () =>
                 </div>
 
                 <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                    <Link
-                        v-for="item in filteredProjects"
+                    <motion.div
+                        v-for="(item, idx) in filteredProjects"
                         :key="item.id"
-                        :href="`/sections/${section.id}/projects/${item.id}`"
-                        prefetch="hover"
-                        class="paper-card group flex flex-col justify-between border-l-4 transition-all hover:border-primary/50 hover:shadow-lg"
-                        :class="
-                            item.type === 'group_activity'
-                                ? 'border-l-emerald-600'
-                                : item.type === 'project'
-                                  ? 'border-l-primary'
-                                  : 'border-l-amber-500'
-                        "
+                        :initial="{ opacity: 0, y: 14 }"
+                        :animate="{ opacity: 1, y: 0 }"
+                        :transition="staggerItem(idx)"
+                        :while-hover="cardHover"
+                        class="h-full"
                     >
+                        <Link
+                            :href="`/sections/${section.id}/projects/${item.id}`"
+                            prefetch="hover"
+                            class="paper-card group flex h-full flex-col justify-between border-l-4 transition-shadow hover:border-primary/50 hover:shadow-lg"
+                            :class="
+                                item.type === 'group_activity'
+                                    ? 'border-l-emerald-600'
+                                    : item.type === 'project'
+                                      ? 'border-l-primary'
+                                      : 'border-l-amber-500'
+                            "
+                        >
                         <div>
                             <div class="flex items-center justify-between">
                                 <span
@@ -898,7 +1140,8 @@ const submitAssessment = () =>
                                 <Users class="size-3 text-emerald-600 dark:text-emerald-400" /> {{ item.members_count }} members
                             </span>
                         </div>
-                    </Link>
+                        </Link>
+                    </motion.div>
                 </div>
             </div>
 
@@ -909,13 +1152,20 @@ const submitAssessment = () =>
                 </div>
 
                 <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                    <Link
-                        v-for="item in filteredAssessments"
+                    <motion.div
+                        v-for="(item, idx) in filteredAssessments"
                         :key="item.id"
-                        :href="`/sections/${section.id}/assessments/${item.id}`"
-                        prefetch="hover"
-                        class="paper-card group flex flex-col justify-between transition-all hover:border-primary/50 hover:shadow-lg"
+                        :initial="{ opacity: 0, y: 14 }"
+                        :animate="{ opacity: 1, y: 0 }"
+                        :transition="staggerItem(idx)"
+                        :while-hover="cardHover"
+                        class="h-full"
                     >
+                        <Link
+                            :href="`/sections/${section.id}/assessments/${item.id}`"
+                            prefetch="hover"
+                            class="paper-card group flex h-full flex-col justify-between transition-shadow hover:border-primary/50 hover:shadow-lg"
+                        >
                         <div>
                             <div class="flex items-center justify-between">
                                 <span
@@ -971,6 +1221,7 @@ const submitAssessment = () =>
                             </div>
                         </div>
                     </Link>
+                </motion.div>
 
                     <div
                         v-if="!filteredAssessments.length && !filteredProjects.length"
@@ -1114,7 +1365,18 @@ const submitAssessment = () =>
             :file-name="previewTarget.fileName"
             :file-url="previewTarget.fileUrl"
             :download-url="previewTarget.downloadUrl"
+            :reupload-url="previewTarget.reuploadUrl"
+            :delete-url="previewTarget.deleteUrl"
             @close="closePreview"
+            @reuploaded="closePreview"
+            @deleted="closePreview"
+        />
+
+        <!-- Hermes Exam Generator Modal -->
+        <ExamGeneratorModal
+            :open="showExamGeneratorModal"
+            :section="section"
+            @close="showExamGeneratorModal = false"
         />
     </AppLayout>
 </template>

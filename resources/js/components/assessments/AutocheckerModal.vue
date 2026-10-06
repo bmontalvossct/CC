@@ -39,6 +39,9 @@ import {
 } from 'lucide-vue-next';
 import { computed, reactive, ref, watch } from 'vue';
 import OctoSpinner from '@/components/OctoSpinner.vue';
+import { useAiAssistant } from '@/composables/useAiAssistant';
+
+const { warmModel } = useAiAssistant();
 
 type Student = {
     id: number;
@@ -56,6 +59,27 @@ type Assessment = {
     type: string;
     max_points: string | number;
     description?: string;
+    rubric_type?: 'percentage' | 'answer_key' | 'file_study' | null;
+    rubric_data?: {
+        criteria?: Array<{
+            id?: string;
+            name: string;
+            percentage: number;
+            points: number;
+            description?: string;
+        }>;
+        items?: Array<{
+            id?: string;
+            item_number: number;
+            question?: string;
+            expected_answer: string;
+            points: number;
+            case_sensitive?: boolean;
+        }>;
+        raw_text?: string;
+        summary?: string;
+        [key: string]: any;
+    } | null;
 };
 
 type RubricCriterion = {
@@ -208,12 +232,47 @@ const autoBalanceRubric = () => {
     });
 };
 
+const loadRubricFromAssessment = () => {
+    const data = props.assessment.rubric_data;
+    const type = props.assessment.rubric_type;
+
+    if (data && (type === 'percentage' || type === 'file_study') && Array.isArray(data.criteria) && data.criteria.length > 0) {
+        rubricCriteria.value = data.criteria.map((c, idx) => ({
+            id: c.id || `crit_${idx}`,
+            name: c.name || `Criterion ${idx + 1}`,
+            max_points: Number(c.points) || 0,
+            description: c.description || '',
+        }));
+        return;
+    }
+
+    if (data && type === 'answer_key' && Array.isArray(data.items) && data.items.length > 0) {
+        rubricCriteria.value = data.items.map((it, idx) => ({
+            id: it.id || `item_${it.item_number || idx + 1}`,
+            name: `Item #${it.item_number || idx + 1}: ${it.question || 'Answer Match'}`,
+            max_points: Number(it.points) || 0,
+            description: `Expected: ${it.expected_answer}${it.case_sensitive ? ' (Case-sensitive)' : ''}`,
+        }));
+        return;
+    }
+
+    // Default fallback
+    rubricCriteria.value = [
+        { id: 'crit_func', name: 'Functionality & Correctness', max_points: 0, description: 'Core requirements and logic flow' },
+        { id: 'crit_code', name: 'Code Quality & Structure', max_points: 0, description: 'Clean architecture, naming conventions' },
+        { id: 'crit_doc', name: 'Documentation & Comments', max_points: 0, description: 'Explanatory notes and documentation' },
+    ];
+    autoBalanceRubric();
+};
+
 watch(
     () => props.show,
     (show) => {
         if (show) {
+            warmModel('code_grading');
+            warmModel('general_grading');
             fetchStatus();
-            autoBalanceRubric();
+            loadRubricFromAssessment();
             assessmentInstructions.value = props.assessment.description || '';
         }
     },
@@ -509,14 +568,14 @@ const isStudentAbsent = (studentId: number | null) => {
                     <div>
                         <div class="flex items-center gap-2">
                             <h3 class="text-base font-bold tracking-tight text-foreground">
-                                Autochecker &bull; {{ assessment.title }}
+                                Octo Autochecker &bull; {{ assessment.title }}
                             </h3>
                             <span class="rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
                                 Max {{ assessment.max_points }} pts
                             </span>
                         </div>
                         <p class="text-xs text-muted-foreground">
-                            Structured Rubrics & Evidence Ledger
+                            Rubric Evidence & Grading Ledger
                         </p>
                     </div>
                 </div>
@@ -630,7 +689,7 @@ const isStudentAbsent = (studentId: number | null) => {
                     >
                         <OctoSpinner v-if="isInspecting" size="sm" />
                         <Sparkles v-else class="size-4" />
-                        <span>{{ isInspecting ? 'Parsing & Matching Students...' : 'Inspect & Continue' }}</span>
+                        <span>{{ isInspecting ? 'Octo is parsing submissions...' : 'Inspect & Continue' }}</span>
                     </button>
                 </div>
             </div>
@@ -639,7 +698,16 @@ const isStudentAbsent = (studentId: number | null) => {
             <div v-else-if="currentStep === 'rubric'" class="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6">
                 <div class="flex items-center justify-between border-b border-border/70 pb-3">
                     <div>
-                        <h4 class="text-sm font-bold text-foreground">Rubric & Task Instructions</h4>
+                        <div class="flex items-center gap-2">
+                            <h4 class="text-sm font-bold text-foreground">Rubric & Task Instructions</h4>
+                            <span
+                                v-if="assessment.rubric_type"
+                                class="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary"
+                            >
+                                <Sparkles class="size-3" />
+                                <span>Loaded from {{ assessment.rubric_type === 'percentage' ? 'Percentage Rubric' : (assessment.rubric_type === 'answer_key' ? 'Itemized Answer Key' : 'Studied Rubric') }}</span>
+                            </span>
+                        </div>
                         <p class="text-xs text-muted-foreground">
                             Configure criteria points strictly summing to {{ assessmentMax }} points.
                         </p>
@@ -742,7 +810,7 @@ const isStudentAbsent = (studentId: number | null) => {
                         @click="startBatchEvaluation"
                     >
                         <Play class="size-4" />
-                        <span>Run Ollama Autochecker ({{ items.length }} Files)</span>
+                        <span>Run Octo Autochecker ({{ items.length }} Files)</span>
                     </button>
                 </div>
             </div>
@@ -820,7 +888,7 @@ const isStudentAbsent = (studentId: number | null) => {
                                     class="inline-flex items-center text-[10px] text-primary font-bold"
                                 >
                                     <OctoSpinner size="xs" class="mr-1" />
-                                    <span>Grading</span>
+                                    <span>Octo Grading</span>
                                 </span>
                                 <span
                                     v-else-if="item.proposed_score !== null && item.proposed_score !== undefined"
@@ -879,11 +947,12 @@ const isStudentAbsent = (studentId: number | null) => {
                                 <button
                                     type="button"
                                     class="rounded-lg border border-border/80 bg-card p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary"
-                                    title="Re-evaluate with Ollama"
+                                    title="Re-evaluate with Octo"
                                     :disabled="activeItem.is_evaluating"
                                     @click="evaluateItem(activeItem)"
                                 >
-                                    <RefreshCw class="size-4" :class="activeItem.is_evaluating ? 'animate-spin' : ''" />
+                                    <OctoSpinner v-if="activeItem.is_evaluating" size="xs" />
+                                    <RefreshCw v-else class="size-4" />
                                 </button>
                             </div>
                         </div>

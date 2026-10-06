@@ -18,15 +18,21 @@ class Project extends Model
     protected $fillable = [
         'section_id',
         'type',
+        'term_period',
         'format',
         'project_number',
         'title',
         'description',
         'conducted_on',
         'max_points',
+        'rubric_type',
+        'rubric_data',
         'attachment_path',
         'attachment_name',
         'attachment_mime',
+        'activity_file_path',
+        'activity_file_name',
+        'activity_file_mime',
     ];
 
     protected function casts(): array
@@ -34,6 +40,7 @@ class Project extends Model
         return [
             'conducted_on' => 'date',
             'max_points' => 'decimal:2',
+            'rubric_data' => 'array',
         ];
     }
 

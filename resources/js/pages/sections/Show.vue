@@ -24,6 +24,7 @@ import {
     FileDown,
     FileSpreadsheet,
     FolderKanban,
+    FolderOpen,
     Layers,
     LayoutDashboard,
     LoaderCircle,
@@ -63,6 +64,7 @@ const props = defineProps<{
     };
     join_url?: string | null;
     called_today_ids?: number[];
+    previous_group_activities?: any[];
 }>();
 const page = usePage<any>();
 const isOffline = computed(() => Boolean(page.props.is_offline));
@@ -79,6 +81,34 @@ const showBulkPhotosModal = ref(false);
 const rosterSearchQuery = ref('');
 const qrDataUrl = ref('');
 const copied = ref(false);
+const isOpeningFolder = ref(false);
+const folderOpened = ref(false);
+
+const openSectionFolder = async (category?: string) => {
+    isOpeningFolder.value = true;
+    try {
+        await fetch('/system/open-file-location', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '',
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({
+                section_id: props.section.id,
+                category: category || null,
+            }),
+        });
+        folderOpened.value = true;
+        setTimeout(() => {
+            folderOpened.value = false;
+        }, 3000);
+    } catch (e) {
+        console.error('Failed to open section folder:', e);
+    } finally {
+        isOpeningFolder.value = false;
+    }
+};
 
 watch(
     () => page.props.flash?.import_results,
@@ -157,17 +187,22 @@ watch(selectedSeatId, (newVal) => {
     }
 });
 
-onMounted(async () => {
-    if (!isOffline.value && props.join_url) {
-        try {
-            qrDataUrl.value = await QRCode.toDataURL(props.join_url, {
-                width: 640,
-                margin: 2,
-                color: { dark: '#0f172a', light: '#ffffff' },
-            });
-        } catch {
-            // ignore
-        }
+const generateQrIfNeeded = async () => {
+    if (qrDataUrl.value || isOffline.value || !props.join_url) return;
+    try {
+        qrDataUrl.value = await QRCode.toDataURL(props.join_url, {
+            width: 640,
+            margin: 2,
+            color: { dark: '#0f172a', light: '#ffffff' },
+        });
+    } catch {
+        // ignore
+    }
+};
+
+watch(showQr, (open) => {
+    if (open) {
+        generateQrIfNeeded();
     }
 });
 
@@ -270,7 +305,7 @@ const unseatStudent = (student: any) => {
     );
 };
 
-const moveStudent = (student: any, seatId: string) =>
+const moveStudent = (student: any, seatId: string | number | null) =>
     router.patch(
         `/sections/${props.section.id}/students/${student.id}/seat`,
         { seat_id: seatId ? Number(seatId) : null },
@@ -396,11 +431,13 @@ const saveAisles = ({ axis, values }: { axis: 'row' | 'column'; values: number[]
 };
 
 const copyLink = async () => {
-    await navigator.clipboard.writeText(props.join_url);
-    copied.value = true;
-    setTimeout(() => {
-        copied.value = false;
-    }, 2000);
+    if (props.join_url) {
+        await navigator.clipboard.writeText(props.join_url);
+        copied.value = true;
+        setTimeout(() => {
+            copied.value = false;
+        }, 2000);
+    }
 };
 
 const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number; targetSeatId: number }) => {
@@ -452,7 +489,6 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                         <div class="flex flex-wrap items-center gap-2">
                             <Link
                                 href="/dashboard"
-                                prefetch="hover"
                                 class="shadow-xs group inline-flex h-10 items-center justify-center rounded-xl border border-primary bg-white px-3 text-sm font-medium text-primary transition-all duration-200 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                                 title="Dashboard"
                             >
@@ -462,7 +498,6 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                             <RandomStudentPicker :section-id="section.id" :students="section.students" :called-today-ids="called_today_ids" />
                             <Link
                                 :href="`/sections/${section.id}/attendance`"
-                                prefetch="hover"
                                 class="shadow-xs group inline-flex h-10 items-center justify-center rounded-xl border border-primary bg-white px-3 text-sm font-medium text-primary transition-all duration-200 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                                 title="Attendance"
                             >
@@ -471,7 +506,6 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                             </Link>
                             <Link
                                 :href="`/sections/${section.id}/assessments`"
-                                prefetch="hover"
                                 class="shadow-xs group inline-flex h-10 items-center justify-center rounded-xl border border-primary bg-white px-3 text-sm font-medium text-primary transition-all duration-200 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                                 title="Scores & Assessments"
                             >
@@ -480,7 +514,6 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                             </Link>
                             <Link
                                 :href="`/sections/${section.id}/projects`"
-                                prefetch="hover"
                                 class="shadow-xs group inline-flex h-10 items-center justify-center rounded-xl border border-primary bg-white px-3 text-sm font-medium text-primary transition-all duration-200 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                                 title="Projects & Groups"
                             >
@@ -489,7 +522,6 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                             </Link>
                             <Link
                                 :href="`/sections/${section.id}/modules`"
-                                prefetch="hover"
                                 class="shadow-xs group inline-flex h-10 items-center justify-center rounded-xl border border-primary bg-white px-3 text-sm font-medium text-primary transition-all duration-200 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                                 title="Course Modules"
                             >
@@ -498,7 +530,6 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                             </Link>
                             <Link
                                 :href="`/sections/${section.id}/recitation`"
-                                prefetch="hover"
                                 class="shadow-xs group inline-flex h-10 items-center justify-center rounded-xl border border-primary bg-white px-3 text-sm font-medium text-primary transition-all duration-200 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                                 title="Oral Participation"
                             >
@@ -514,9 +545,21 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                                 <Dices class="size-4 text-primary transition-colors group-hover:text-white" />
                                 <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 font-medium">Random Groups</span>
                             </button>
+                            <button
+                                type="button"
+                                class="shadow-xs group inline-flex h-10 items-center justify-center rounded-xl border border-primary bg-white px-3 text-sm font-medium text-primary transition-all duration-200 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                                :title="folderOpened ? 'Opened Section Folder' : 'Open Section Folder in Explorer'"
+                                :disabled="isOpeningFolder"
+                                @click="openSectionFolder()"
+                            >
+                                <Check v-if="folderOpened" class="size-4 text-emerald-600 dark:text-emerald-400" />
+                                <FolderOpen v-else class="size-4 text-primary transition-colors group-hover:text-white" />
+                                <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 font-medium">
+                                    {{ folderOpened ? 'Opened!' : 'Section Folder' }}
+                                </span>
+                            </button>
                             <Link
                                 :href="`/sections/${section.id}/edit`"
-                                prefetch="hover"
                                 class="shadow-xs group inline-flex h-10 items-center justify-center rounded-xl border border-primary bg-white px-3 text-sm font-medium text-primary transition-all duration-200 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                                 title="Edit Section Details"
                             >
@@ -618,7 +661,7 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                             </div>
                             <div class="flex flex-wrap items-center gap-2 text-xs font-medium">
                                 <span class="badge-primary">
-                                    <i class="size-2 rounded-full bg-primary" /> Assigned ({{ seatedStudents.length }})
+                                    <i class="size-2 rounded-full bg-white/80" /> Assigned ({{ seatedStudents.length }})
                                 </span>
                                 <span class="badge-muted"> <i class="size-2 rounded-full bg-border" /> Available ({{ availableSeats.length }}) </span>
                             </div>
@@ -773,6 +816,7 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                 :open="showGroupGenerator"
                 :students="section.students || []"
                 :section-name="section.name"
+                :previous-projects="previous_group_activities || []"
                 @close="showGroupGenerator = false"
             />
 

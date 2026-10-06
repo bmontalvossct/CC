@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import NotificationBell from '@/components/notifications/NotificationBell.vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { SidebarTrigger } from '@/components/ui/sidebar';
@@ -34,6 +35,9 @@ const { toggleTimer, isTimerOpen } = useClassroomTimer();
         </div>
 
         <div class="flex items-center gap-2">
+            <!-- Class Reminders Bell -->
+            <NotificationBell />
+
             <!-- Classroom Timer Button -->
             <button
                 type="button"

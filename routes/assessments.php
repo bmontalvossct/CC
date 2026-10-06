@@ -20,13 +20,27 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('sections/{section}/assessments/{assessment}/scores/batch', [AssessmentScoreController::class, 'batchUpdate'])->name('sections.assessments.scores.batch');
     Route::match(['put', 'patch'], 'sections/{section}/assessments/{assessment}/scores', [AssessmentScoreController::class, 'batchUpdate'])->name('sections.assessments.scores.bulk');
     Route::patch('sections/{section}/assessments/{assessment}/scores/{student}', [AssessmentScoreController::class, 'update'])->name('sections.assessments.scores.update');
+    Route::get('sections/{section}/assessments/{assessment}/scores/{student}/attachment', [AssessmentScoreController::class, 'streamAttachment'])->name('sections.assessments.scores.attachment');
+    Route::post('sections/{section}/assessments/{assessment}/scores/{student}/attachment', [AssessmentScoreController::class, 'uploadAttachment'])->name('sections.assessments.scores.attachment.upload');
+    Route::delete('sections/{section}/assessments/{assessment}/scores/{student}/attachment', [AssessmentScoreController::class, 'destroyAttachment'])->name('sections.assessments.scores.attachment.destroy');
+    Route::post('sections/{section}/assessments/{assessment}/scores/{student}/ai-check', [AssessmentScoreController::class, 'aiCheck'])->name('sections.assessments.scores.ai-check');
     Route::get('sections/{section}/assessments/{assessment}/attachment', AssessmentAttachmentController::class)->name('sections.assessments.attachment');
+    Route::post('sections/{section}/assessments/{assessment}/attachment', [AssessmentController::class, 'reuploadAttachment'])->name('sections.assessments.attachment.reupload');
+    Route::delete('sections/{section}/assessments/{assessment}/attachment', [AssessmentController::class, 'destroyAttachment'])->name('sections.assessments.attachment.destroy');
+    Route::post('sections/{section}/assessments/{assessment}/rubrics', [AssessmentController::class, 'saveRubric'])->name('sections.assessments.rubrics.save');
+    Route::post('sections/{section}/assessments/{assessment}/rubrics/study', [AssessmentController::class, 'studyRubric'])->name('sections.assessments.rubrics.study');
     Route::get('sections/{section}/assessments/{assessment}/export', [AssessmentExportController::class, 'assessment'])->name('sections.exports.assessment');
+
+    Route::match(['get', 'post'], 'sections/{section}/assessments/{assessment}/activity-file', [\App\Http\Controllers\Assessments\ActivityFileController::class, 'assessment'])->name('sections.assessments.activity-file');
+    Route::match(['get', 'post'], 'sections/{section}/projects/{project}/activity-file', [\App\Http\Controllers\Assessments\ActivityFileController::class, 'project'])->name('sections.projects.activity-file');
+    Route::post('sections/{section}/projects/{project}/rubrics', [ProjectController::class, 'saveRubric'])->name('sections.projects.rubrics.save');
+    Route::post('sections/{section}/projects/{project}/rubrics/study', [ProjectController::class, 'studyRubric'])->name('sections.projects.rubrics.study');
 
     // Assessment Autochecker (Bulk upload + Ollama LLM evaluator)
     Route::get('sections/{section}/assessments/{assessment}/autochecker/status', [\App\Http\Controllers\Assessments\AutocheckerController::class, 'status'])->name('sections.assessments.autochecker.status');
     Route::post('sections/{section}/assessments/{assessment}/autochecker/inspect', [\App\Http\Controllers\Assessments\AutocheckerController::class, 'inspectFiles'])->name('sections.assessments.autochecker.inspect');
     Route::post('sections/{section}/assessments/{assessment}/autochecker/evaluate', [\App\Http\Controllers\Assessments\AutocheckerController::class, 'evaluateSingle'])->name('sections.assessments.autochecker.evaluate');
+    Route::post('sections/{section}/assessments/{assessment}/evaluate', [\App\Http\Controllers\Assessments\AutocheckerController::class, 'evaluateSingle']);
     Route::post('sections/{section}/assessments/{assessment}/autochecker/run-sandbox', [\App\Http\Controllers\Assessments\AutocheckerController::class, 'runPythonSandbox'])->name('sections.assessments.autochecker.run-sandbox');
     Route::post('sections/{section}/assessments/{assessment}/autochecker/apply-scores', [\App\Http\Controllers\Assessments\AutocheckerController::class, 'applyScores'])->name('sections.assessments.autochecker.apply-scores');
 
@@ -37,14 +51,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::match(['put', 'patch'], 'sections/{section}/projects/{project}', [ProjectController::class, 'update'])->name('sections.projects.update');
     Route::delete('sections/{section}/projects/{project}', [ProjectController::class, 'destroy'])->name('sections.projects.destroy');
     Route::get('sections/{section}/projects/{project}/attachment', [ProjectController::class, 'attachment'])->name('sections.projects.attachment');
+    Route::post('sections/{section}/projects/{project}/attachment', [ProjectController::class, 'reuploadAttachment'])->name('sections.projects.attachment.reupload');
+    Route::delete('sections/{section}/projects/{project}/attachment', [ProjectController::class, 'destroyAttachment'])->name('sections.projects.attachment.destroy');
     Route::post('sections/{section}/projects/{project}/randomize', [ProjectController::class, 'randomize'])->name('sections.projects.randomize');
     Route::post('sections/{section}/projects/{project}/groups', [ProjectController::class, 'storeGroup'])->name('sections.projects.groups.store');
     Route::patch('sections/{section}/projects/{project}/groups/{group}', [ProjectController::class, 'updateGroup'])->name('sections.projects.groups.update');
     Route::delete('sections/{section}/projects/{project}/groups/{group}', [ProjectController::class, 'destroyGroup'])->name('sections.projects.groups.destroy');
+    Route::get('sections/{section}/projects/{project}/groups/{group}/attachment', [ProjectController::class, 'groupAttachment'])->name('sections.projects.groups.attachment');
+    Route::post('sections/{section}/projects/{project}/groups/{group}/attachment', [ProjectController::class, 'uploadGroupAttachment'])->name('sections.projects.groups.attachment.upload');
+    Route::delete('sections/{section}/projects/{project}/groups/{group}/attachment', [ProjectController::class, 'destroyGroupAttachment'])->name('sections.projects.groups.attachment.destroy');
+    Route::post('sections/{section}/projects/{project}/groups/{group}/ai-check', [ProjectController::class, 'aiCheckGroup'])->name('sections.projects.groups.ai-check');
     Route::post('sections/{section}/projects/{project}/groups/{group}/members', [ProjectController::class, 'addMember'])->name('sections.projects.groups.members.store');
     Route::patch('sections/{section}/projects/{project}/groups/{group}/members/{student}', [ProjectController::class, 'updateMember'])->name('sections.projects.groups.members.update');
     Route::delete('sections/{section}/projects/{project}/groups/{group}/members/{student}', [ProjectController::class, 'removeMember'])->name('sections.projects.groups.members.destroy');
+    Route::get('sections/{section}/projects/{project}/groups/{group}/members/{student}/attachment', [ProjectController::class, 'memberAttachment'])->name('sections.projects.groups.members.attachment');
+    Route::post('sections/{section}/projects/{project}/groups/{group}/members/{student}/attachment', [ProjectController::class, 'uploadMemberAttachment'])->name('sections.projects.groups.members.attachment.upload');
+    Route::delete('sections/{section}/projects/{project}/groups/{group}/members/{student}/attachment', [ProjectController::class, 'destroyMemberAttachment'])->name('sections.projects.groups.members.attachment.destroy');
+    Route::post('sections/{section}/projects/{project}/groups/{group}/members/{student}/ai-check', [ProjectController::class, 'aiCheckMember'])->name('sections.projects.groups.members.ai-check');
     Route::post('sections/{section}/projects/{project}/move-member', [ProjectController::class, 'moveMember'])->name('sections.projects.members.move');
+    Route::post('sections/{section}/projects/{project}/copy-grouping', [ProjectController::class, 'copyGrouping'])->name('sections.projects.copy-grouping');
     Route::post('sections/{section}/projects/{project}/save-all', [ProjectController::class, 'saveAll'])->name('sections.projects.save-all');
     Route::get('sections/{section}/projects/{project}/export', [ProjectController::class, 'export'])->name('sections.projects.export');
     Route::get('sections/{section}/projects/{project}/print', [ProjectController::class, 'print'])->name('sections.projects.print');
@@ -56,4 +81,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('sections/{section}/exports/roster', [AssessmentExportController::class, 'roster'])->name('sections.exports.roster');
     Route::get('sections/{section}/exports/attendance', [AssessmentExportController::class, 'attendance'])->name('sections.exports.attendance');
     Route::get('sections/{section}/exports/gradebook', [AssessmentExportController::class, 'gradebook'])->name('sections.exports.gradebook');
+
+    // Hermes-Powered Exam Generator
+    Route::get('sections/{section}/exam-generator/modules', [\App\Http\Controllers\Assessments\ExamGeneratorController::class, 'modules'])->name('sections.exam-generator.modules');
+    Route::get('sections/{section}/exam-generator/status', [\App\Http\Controllers\Assessments\ExamGeneratorController::class, 'status'])->name('sections.exam-generator.status');
+    Route::post('sections/{section}/exam-generator/generate', [\App\Http\Controllers\Assessments\ExamGeneratorController::class, 'generate'])->name('sections.exam-generator.generate');
+    Route::post('sections/{section}/exam-generator/save-assessment', [\App\Http\Controllers\Assessments\ExamGeneratorController::class, 'saveAssessment'])->name('sections.exam-generator.save-assessment');
+    Route::post('sections/{section}/exam-generator/export-docx', [\App\Http\Controllers\Assessments\ExamGeneratorController::class, 'exportDocx'])->name('sections.exam-generator.export-docx');
 });
+

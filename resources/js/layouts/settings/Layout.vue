@@ -33,6 +33,10 @@ const sidebarNavItems = computed<NavItem[]>(() => {
             href: '/settings/appearance',
         },
         {
+            title: 'Notifications',
+            href: '/settings/notifications',
+        },
+        {
             title: 'Backup & Export',
             href: '/settings/backup',
         },

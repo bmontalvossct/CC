@@ -109,9 +109,16 @@ class AssessmentExportController extends AssessmentModuleController
             'Recitation count',
             'Recitation average (/10)',
             'Oral bonus (+pts)',
-            'Base grade percent',
-            'Final grade with bonus'
+            'Midterm Grade (%)',
+            'Midterm Scale (1.00-5.00)',
+            'Final Period Grade (%)',
+            'Final Period Scale (1.00-5.00)',
+            'Semestral Final Grade (%)',
+            'Semestral Final Scale (1.00-5.00)'
         );
+
+        $gradebookData = app(\App\Services\GradebookCalculationService::class)->calculateGradebook($section);
+        $gradebookRows = collect($gradebookData['rows'])->keyBy('id');
 
         $totalProjectPossible = round($regularProjects->sum(fn ($p) => (float) ($p->max_points ?: 100)), 2);
         $totalSessions = $attendanceSessions->count();
@@ -156,7 +163,8 @@ class AssessmentExportController extends AssessmentModuleController
                 $totalSessions,
                 $studentAttendance,
                 $recitations,
-                $weights
+                $weights,
+                $gradebookRows
             ) {
                 $studentScores = $scores->get($student->id, collect())->keyBy('assessment_id');
                 $row = [$student->student_number, $student->full_name];
@@ -179,23 +187,22 @@ class AssessmentExportController extends AssessmentModuleController
 
                 // Regular Project scores
                 $projectEarned = 0.0;
-                foreach ($regularProjects as $project) {
-                    $score = $projScoresMap[$project->id] ?? null;
+                foreach ($regularProjects as $proj) {
+                    $score = $projScoresMap[$proj->id] ?? null;
                     $row[] = $score;
                     if ($score !== null) {
                         $projectEarned += (float) $score;
                     }
                 }
 
-                // Recitation summary & additional bonus points
+                // Recitation bonus computation
                 $studentRecs = $recitations->get($student->id, collect());
                 $recitationCount = $studentRecs->count();
                 $recitationAvg = $recitationCount > 0 ? round((float) $studentRecs->avg('score'), 2) : null;
                 $bonusCap = (float) ($weights['recitation'] ?? 5);
-                $earnedBonus = $recitationAvg !== null && $bonusCap > 0
-                    ? round(($recitationAvg / 10) * $bonusCap, 2)
-                    : 0.0;
+                $earnedBonus = $recitationAvg !== null && $bonusCap > 0 ? round(($recitationAvg / 10) * $bonusCap, 2) : 0.0;
 
+                // Categories breakdown (Activity, Laboratory, Quiz, Exam)
                 $categoriesPct = [];
                 foreach (Assessment::TYPES as $type) {
                     $items = $assessments->where('type', $type);
@@ -235,37 +242,24 @@ class AssessmentExportController extends AssessmentModuleController
                 // Push recitation info
                 array_push($row, $recitationCount, $recitationAvg, $earnedBonus);
 
-                // Weighted coursework score (Oral bonus is already in Activity score)
-                $weighted = 0.0;
-                $totalBaseWeight = 0;
-                if ($categoriesPct['activity'] !== null && $weights['activity'] > 0) {
-                    $weighted += $categoriesPct['activity'] * ($weights['activity'] / 100);
-                    $totalBaseWeight += $weights['activity'];
-                }
-                if (($categoriesPct['laboratory'] ?? null) !== null && ($weights['laboratory'] ?? 0) > 0) {
-                    $weighted += $categoriesPct['laboratory'] * ($weights['laboratory'] / 100);
-                    $totalBaseWeight += $weights['laboratory'];
-                }
-                if ($categoriesPct['quiz'] !== null && $weights['quiz'] > 0) {
-                    $weighted += $categoriesPct['quiz'] * ($weights['quiz'] / 100);
-                    $totalBaseWeight += $weights['quiz'];
-                }
-                if ($categoriesPct['exam'] !== null && $weights['exam'] > 0) {
-                    $weighted += $categoriesPct['exam'] * ($weights['exam'] / 100);
-                    $totalBaseWeight += $weights['exam'];
-                }
-                if ($projectPct !== null && $weights['project'] > 0) {
-                    $weighted += $projectPct * ($weights['project'] / 100);
-                    $totalBaseWeight += $weights['project'];
-                }
-                if ($attendancePct !== null && $weights['attendance'] > 0) {
-                    $weighted += $attendancePct * ($weights['attendance'] / 100);
-                    $totalBaseWeight += $weights['attendance'];
-                }
+                // Periodic and Semestral Final grades from calculation service
+                $calcRow = $gradebookRows->get($student->id);
+                $midtermPct = $calcRow['midterm']['weighted_grade'] ?? null;
+                $midtermScale = $calcRow['midterm']['scale_grade'] ?? '—';
+                $finalPeriodPct = $calcRow['final_period']['weighted_grade'] ?? null;
+                $finalPeriodScale = $calcRow['final_period']['scale_grade'] ?? '—';
+                $semestralPct = $calcRow['weighted_grade'] ?? null;
+                $semestralScale = $calcRow['scale_grade'] ?? '—';
 
-                $finalGrade = $totalBaseWeight > 0 ? min(100.0, round($weighted, 2)) : null;
-
-                array_push($row, $finalGrade, $finalGrade);
+                array_push(
+                    $row,
+                    $midtermPct !== null ? "{$midtermPct}%" : '—',
+                    $midtermScale,
+                    $finalPeriodPct !== null ? "{$finalPeriodPct}%" : '—',
+                    $finalPeriodScale,
+                    $semestralPct !== null ? "{$semestralPct}%" : '—',
+                    $semestralScale
+                );
 
                 return $row;
             });

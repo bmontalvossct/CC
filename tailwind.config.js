@@ -12,8 +12,8 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Tahoma', 'Segoe UI', 'Geneva', 'Verdana', ...defaultTheme.fontFamily.sans],
-                display: ['Tahoma', 'Segoe UI', 'Geneva', 'Verdana', ...defaultTheme.fontFamily.sans],
+                sans: ['Atkinson Hyperlegible', ...defaultTheme.fontFamily.sans],
+                display: ['Georgia', 'Cambria', 'Times New Roman', 'serif'],
             },
             fontWeight: {
                 thin: '100',

@@ -732,9 +732,9 @@ const filteredStudentSummaries = computed(() => {
                                                 :class="
                                                     (student.grade_rate ?? student.overall.rate) === null
                                                         ? 'text-muted-foreground'
-                                                        : (student.grade_rate ?? student.overall.rate) >= 90
+                                                        : Number(student.grade_rate ?? student.overall.rate) >= 90
                                                           ? 'text-emerald-700 dark:text-emerald-400'
-                                                          : (student.grade_rate ?? student.overall.rate) >= 75
+                                                          : Number(student.grade_rate ?? student.overall.rate) >= 75
                                                             ? 'text-amber-700 dark:text-amber-400'
                                                             : 'text-rose-700 dark:text-rose-400'
                                                 "

@@ -41,6 +41,44 @@ class Section extends Model
         static::creating(function (Section $section) {
             $section->enrollment_token ??= Str::random(48);
         });
+
+        static::created(function (Section $section) {
+            try {
+                app(\App\Services\SectionFolderService::class)->ensureSectionFolders($section);
+            } catch (\Throwable) {
+                // Ignore storage errors during testing or CLI
+            }
+        });
+
+        static::updated(function (Section $section) {
+            if ($section->wasChanged(['subject_code', 'name'])) {
+                try {
+                    app(\App\Services\SectionFolderService::class)->handleSectionRenamed(
+                        $section,
+                        $section->getOriginal('subject_code'),
+                        $section->getOriginal('name')
+                    );
+                } catch (\Throwable) {
+                    // Ignore storage errors
+                }
+            }
+        });
+    }
+
+    /**
+     * Ensure this section's directory and its subfolders (activities, quiz, report, project) exist.
+     */
+    public function ensureFolders(): array
+    {
+        return app(\App\Services\SectionFolderService::class)->ensureSectionFolders($this);
+    }
+
+    /**
+     * Get the standardized filesystem folder name for this section.
+     */
+    public function getFolderNameAttribute(): string
+    {
+        return app(\App\Services\SectionFolderService::class)->getFolderName($this);
     }
 
     public function user(): BelongsTo

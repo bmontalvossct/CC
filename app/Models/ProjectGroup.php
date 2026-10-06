@@ -21,6 +21,9 @@ class ProjectGroup extends Model
         'score',
         'notes',
         'order_column',
+        'attachment_path',
+        'attachment_name',
+        'attachment_mime',
     ];
 
     protected function casts(): array

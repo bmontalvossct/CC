@@ -36,6 +36,70 @@ class AssessmentWorkflowTest extends TestCase
         ]);
     }
 
+    public function test_activity_instructions_are_separate_from_rubrics_and_authorized(): void
+    {
+        Storage::fake('local');
+        $user = User::factory()->create();
+        $section = $this->section($user);
+        foreach ([Assessment::class => 'assessments', Project::class => 'projects'] as $model => $plural) {
+            $activity = $model::create([
+                'section_id' => $section->id, 'title' => 'Instructions test',
+                'type' => $plural === 'assessments' ? 'activity' : 'group_activity',
+                'conducted_on' => '2026-09-08', 'max_points' => 10,
+                'attachment_path' => 'rubrics/original.txt', 'attachment_name' => 'rubric.txt',
+            ]);
+            $url = "/sections/{$section->id}/{$plural}/{$activity->id}/activity-file";
+            $this->actingAs($user)->postJson($url, [
+                'attachment' => UploadedFile::fake()->createWithContent('instructions.txt', 'Build a calculator and include tests.'),
+            ])->assertOk()->assertJsonPath('success', true);
+            $activity->refresh();
+            $this->assertSame('rubrics/original.txt', $activity->attachment_path);
+            $this->assertSame('instructions.txt', $activity->activity_file_name);
+            Storage::disk('local')->assertExists($activity->activity_file_path);
+            $this->get($url)->assertOk();
+            $this->get($url.'?download=1')->assertDownload('instructions.txt');
+            $instructions = app(\App\Services\Autochecker\AiDocumentGraderService::class)->activityInstructions($activity);
+            $this->assertStringContainsString('Build a calculator and include tests.', $instructions);
+            $this->postJson($url, ['attachment' => UploadedFile::fake()->create('archive.zip', 1)])
+                ->assertUnprocessable()->assertJsonValidationErrors('attachment');
+            $this->actingAs(User::factory()->create())->get($url)->assertForbidden();
+            $this->postJson($url, ['attachment' => UploadedFile::fake()->create('instructions.txt', 1)])
+                ->assertForbidden();
+            $this->actingAs($user);
+        }
+    }
+
+    public function test_student_outputs_return_json_and_share_an_activity_folder_without_name_collisions(): void
+    {
+        Storage::fake('local');
+        $user = User::factory()->create();
+        $section = $this->section($user);
+        $assessment = Assessment::create([
+            'section_id' => $section->id, 'title' => 'Activity 1', 'type' => 'activity',
+            'max_points' => 10, 'assessment_number' => '1', 'conducted_on' => '2026-09-08',
+        ]);
+        $paths = [];
+        foreach (['Ada', 'Grace'] as $index => $name) {
+            $student = Student::create([
+                'section_id' => $section->id, 'student_number' => 'OUTPUT-'.$index,
+                'first_name' => $name, 'last_name' => 'Smith',
+            ]);
+            $response = $this->actingAs($user)->postJson(
+                "/sections/{$section->id}/assessments/{$assessment->id}/scores/{$student->id}/attachment",
+                ['attachment' => UploadedFile::fake()->create('output.txt', 1, 'text/plain')],
+            )->assertOk()->assertJsonPath('success', true);
+            $paths[] = $response->json('attachment_path');
+            Storage::disk('local')->assertExists(end($paths));
+            $this->actingAs($user)->postJson(
+                "/sections/{$section->id}/assessments/{$assessment->id}/scores/{$student->id}/ai-check",
+            )->assertStatus(422)->assertJsonPath('message', 'Attach a rubric before checking submissions.');
+            $this->assertNull($assessment->scores()->where('student_id', $student->id)->first()->score);
+        }
+        $this->assertSame(dirname($paths[0]), dirname($paths[1]));
+        $this->assertNotSame($paths[0], $paths[1]);
+        $this->assertStringContainsString('Section A - MATH101 - Activity 1 - student outputs', $paths[0]);
+    }
+
     public function test_teacher_can_create_an_assessment_and_matching_session_is_selected(): void
     {
         $user = User::factory()->create();
@@ -387,7 +451,7 @@ class AssessmentWorkflowTest extends TestCase
         $assessment = Assessment::where('title', 'Lab Activity 1')->firstOrFail();
         $response->assertRedirect(route('sections.assessments.show', [$section, $assessment]));
         $this->assertNotNull($assessment->attachment_path);
-        $this->assertSame('laboratory_instructions.pdf', $assessment->attachment_name);
+        $this->assertSame('Activity_details 1.pdf', $assessment->attachment_name);
         Storage::disk('local')->assertExists($assessment->attachment_path);
 
         // Can download the attachment
@@ -426,7 +490,7 @@ class AssessmentWorkflowTest extends TestCase
         $assessment->refresh();
         $this->assertSame('Activity 2 Updated', $assessment->title);
         $this->assertSame('25.00', $assessment->max_points);
-        $this->assertSame('updated_guide.pdf', $assessment->attachment_name);
+        $this->assertSame('Activity_details 2.pdf', $assessment->attachment_name);
         Storage::disk('local')->assertExists($assessment->attachment_path);
     }
 
@@ -450,7 +514,7 @@ class AssessmentWorkflowTest extends TestCase
         $quiz = Assessment::where('title', 'Quiz 1 - Algebra')->firstOrFail();
         $response->assertRedirect(route('sections.assessments.show', [$section, $quiz]));
         $this->assertSame('quiz', $quiz->type);
-        $this->assertSame('quiz_1_questions.docx', $quiz->attachment_name);
+        $this->assertSame('Quiz_details 1.docx', $quiz->attachment_name);
         Storage::disk('local')->assertExists($quiz->attachment_path);
 
         $this->actingAs($user)->get(route('sections.assessments.attachment', [$section, $quiz]))
@@ -458,7 +522,7 @@ class AssessmentWorkflowTest extends TestCase
 
         $this->actingAs($user)->get(route('sections.assessments.attachment', [$section, $quiz]).'?download=1')
             ->assertOk()
-            ->assertHeader('content-disposition', 'attachment; filename=quiz_1_questions.docx');
+            ->assertHeader('content-disposition', 'attachment; filename="Quiz_details 1.docx"');
     }
 
     public function test_teacher_can_create_exam_with_file_attachment(): void
@@ -481,7 +545,7 @@ class AssessmentWorkflowTest extends TestCase
         $exam = Assessment::where('title', 'Midterm Examination')->firstOrFail();
         $response->assertRedirect(route('sections.assessments.show', [$section, $exam]));
         $this->assertSame('exam', $exam->type);
-        $this->assertSame('midterm_exam_packet.pdf', $exam->attachment_name);
+        $this->assertSame('Exam_details 1.pdf', $exam->attachment_name);
         Storage::disk('local')->assertExists($exam->attachment_path);
 
         $this->actingAs($user)->get(route('sections.assessments.attachment', [$section, $exam]))
@@ -489,7 +553,7 @@ class AssessmentWorkflowTest extends TestCase
 
         $this->actingAs($user)->get(route('sections.assessments.attachment', [$section, $exam]).'?download=1')
             ->assertOk()
-            ->assertHeader('content-disposition', 'attachment; filename=midterm_exam_packet.pdf');
+            ->assertHeader('content-disposition', 'attachment; filename="Exam_details 1.pdf"');
     }
 
     public function test_teacher_can_create_activity_with_json_and_database_attachments(): void
@@ -511,12 +575,12 @@ class AssessmentWorkflowTest extends TestCase
 
         $response->assertRedirect();
         $lab = Assessment::where('title', 'Lab 3 - JSON Data Processing')->firstOrFail();
-        $this->assertSame('dataset.json', $lab->attachment_name);
+        $this->assertSame('Lab_details 1.json', $lab->attachment_name);
         Storage::disk('local')->assertExists($lab->attachment_path);
 
         $this->actingAs($user)->get(route('sections.assessments.attachment', [$section, $lab]).'?download=1')
             ->assertOk()
-            ->assertHeader('content-disposition', 'attachment; filename=dataset.json');
+            ->assertHeader('content-disposition', 'attachment; filename="Lab_details 1.json"');
 
         // Test SQLite DB file attachment on update
         $sqliteFile = UploadedFile::fake()->create('sample_database.sqlite', 512);
@@ -529,7 +593,7 @@ class AssessmentWorkflowTest extends TestCase
         ])->assertRedirect();
 
         $lab->refresh();
-        $this->assertSame('sample_database.sqlite', $lab->attachment_name);
+        $this->assertSame('Lab_details 1.sqlite', $lab->attachment_name);
         Storage::disk('local')->assertExists($lab->attachment_path);
     }
 

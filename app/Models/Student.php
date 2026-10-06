@@ -66,4 +66,14 @@ class Student extends Model
     {
         return $this->hasMany(Recitation::class);
     }
+
+    public function assessmentScores(): HasMany
+    {
+        return $this->hasMany(AssessmentScore::class);
+    }
+
+    public function scores(): HasMany
+    {
+        return $this->hasMany(AssessmentScore::class);
+    }
 }

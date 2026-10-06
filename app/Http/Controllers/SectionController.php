@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreSectionRequest;
 use App\Http\Requests\UpdateSectionRequest;
 use App\Models\AcademicTerm;
+use App\Models\Project;
 use App\Models\Seat;
 use App\Models\Section;
 use Illuminate\Http\RedirectResponse;
@@ -83,6 +84,9 @@ class SectionController extends Controller
                 : (string) $currentTerm->ends_on;
         }
 
+        $defaultPassingRates = cache()->get("user_{$user?->id}_default_passing_rates")
+            ?? \App\Services\GradebookCalculationService::DEFAULT_PASSING_RATES;
+
         return Inertia::render('sections/Create', [
             'currentTerm' => $currentTerm ? [
                 'id' => $currentTerm->id,
@@ -93,6 +97,7 @@ class SectionController extends Controller
                 'default_starts_at' => $currentTerm->default_starts_at ?? '08:00',
                 'default_ends_at' => $currentTerm->default_ends_at ?? '09:30',
             ] : null,
+            'defaultPassingRates' => $defaultPassingRates,
         ]);
     }
 
@@ -109,11 +114,24 @@ class SectionController extends Controller
 
         $section = DB::transaction(function () use ($data, $term, $userId) {
             $primaryRoom = $data['room'] ?? ($data['schedules'][0]['room'] ?? null);
+            $gradingWeights = null;
+            if (! empty($data['passing_rates'])) {
+                $gradingWeights = [
+                    'passing_rates' => [
+                        'quiz' => isset($data['passing_rates']['quiz']) ? (int) $data['passing_rates']['quiz'] : 75,
+                        'activity' => isset($data['passing_rates']['activity']) ? (int) $data['passing_rates']['activity'] : 75,
+                        'project' => isset($data['passing_rates']['project']) ? (int) $data['passing_rates']['project'] : 75,
+                        'exam' => isset($data['passing_rates']['exam']) ? (int) $data['passing_rates']['exam'] : 75,
+                    ],
+                ];
+            }
+
             $section = Section::create([
                 ...collect($data)->only(['subject_code', 'subject_title', 'name'])->all(),
                 'room' => $primaryRoom,
                 'user_id' => $userId,
                 'academic_term_id' => $term->id,
+                'grading_weights' => $gradingWeights,
             ]);
             $section->schedules()->createMany($data['schedules'] ?? []);
 
@@ -138,6 +156,10 @@ class SectionController extends Controller
             ->join('attendance_sessions', 'attendance_sessions.id', '=', 'attendance_records.attendance_session_id')
             ->where('attendance_sessions.section_id', $section->id)
             ->where('attendance_records.status', 'absent')
+            ->where(function ($q) {
+                $q->whereNull('attendance_records.cleared_by_letter')
+                  ->orWhere('attendance_records.cleared_by_letter', false);
+            })
             ->groupBy('attendance_records.student_id')
             ->select('attendance_records.student_id', DB::raw('COUNT(*) as count'))
             ->pluck('count', 'student_id')
@@ -176,44 +198,74 @@ class SectionController extends Controller
         $seatedCount = $section->layoutBlocks->sum(fn ($b) => $b->seats->whereNotNull('student_id')->count());
         $enrolledCount = $section->students->count();
 
-        $attendanceStats = DB::table('attendance_sessions')
-            ->leftJoin('attendance_records', 'attendance_records.attendance_session_id', '=', 'attendance_sessions.id')
-            ->where('attendance_sessions.section_id', $section->id)
-            ->selectRaw('
-                COUNT(DISTINCT attendance_sessions.id) as sessions_count,
-                COUNT(attendance_records.id) as total_records,
-                SUM(CASE WHEN attendance_records.status = "present" THEN 1 ELSE 0 END) as present_records
-            ')
-            ->first();
-
-        $sessionsCount = (int) ($attendanceStats->sessions_count ?? 0);
-        $totalRecords = (int) ($attendanceStats->total_records ?? 0);
-        $presentRecords = (int) ($attendanceStats->present_records ?? 0);
-        $attendanceRate = $totalRecords > 0 ? round(($presentRecords / $totalRecords) * 100, 1) : null;
-
-        $assessmentsCount = DB::table('assessments')->where('section_id', $section->id)->count();
-        $projectsCount = DB::table('projects')->where('section_id', $section->id)->count();
-        $modulesCount = DB::table('course_modules')->where('section_id', $section->id)->count();
-        $recitationsCount = DB::table('recitations')->where('section_id', $section->id)->count();
-
-        $stats = [
-            'enrolled_count' => $enrolledCount,
-            'seated_count' => $seatedCount,
-            'available_seats_count' => $totalSeats,
-            'attendance_rate' => $attendanceRate,
-            'meetings_count' => $sessionsCount,
-            'assessments_count' => $assessmentsCount,
-            'projects_count' => $projectsCount,
-            'modules_count' => $modulesCount,
-            'recitations_count' => $recitationsCount,
-            'called_today_count' => count($calledTodayIds),
-        ];
-
         return Inertia::render('sections/Show', [
             'section' => $section,
-            'stats' => $stats,
+            'stats' => Inertia::defer(function () use ($section, $enrolledCount, $seatedCount, $totalSeats, $calledTodayIds) {
+                $attendanceStats = DB::table('attendance_sessions')
+                    ->leftJoin('attendance_records', 'attendance_records.attendance_session_id', '=', 'attendance_sessions.id')
+                    ->where('attendance_sessions.section_id', $section->id)
+                    ->selectRaw('
+                        COUNT(DISTINCT attendance_sessions.id) as sessions_count,
+                        COUNT(attendance_records.id) as total_records,
+                        SUM(CASE WHEN attendance_records.status = "present" THEN 1 ELSE 0 END) as present_records
+                    ')
+                    ->first();
+
+                $sessionsCount = (int) ($attendanceStats->sessions_count ?? 0);
+                $totalRecords = (int) ($attendanceStats->total_records ?? 0);
+                $presentRecords = (int) ($attendanceStats->present_records ?? 0);
+                $attendanceRate = $totalRecords > 0 ? round(($presentRecords / $totalRecords) * 100, 1) : null;
+
+                $counts = DB::table('sections')
+                    ->where('sections.id', $section->id)
+                    ->selectRaw('
+                        (SELECT COUNT(*) FROM assessments WHERE assessments.section_id = ?) as assessments_count,
+                        (SELECT COUNT(*) FROM projects WHERE projects.section_id = ?) as projects_count,
+                        (SELECT COUNT(*) FROM course_modules WHERE course_modules.section_id = ?) as modules_count,
+                        (SELECT COUNT(*) FROM recitations WHERE recitations.section_id = ?) as recitations_count
+                    ', [$section->id, $section->id, $section->id, $section->id])
+                    ->first();
+
+                return [
+                    'enrolled_count' => $enrolledCount,
+                    'seated_count' => $seatedCount,
+                    'available_seats_count' => $totalSeats,
+                    'attendance_rate' => $attendanceRate,
+                    'meetings_count' => $sessionsCount,
+                    'assessments_count' => (int) ($counts->assessments_count ?? 0),
+                    'projects_count' => (int) ($counts->projects_count ?? 0),
+                    'modules_count' => (int) ($counts->modules_count ?? 0),
+                    'recitations_count' => (int) ($counts->recitations_count ?? 0),
+                    'called_today_count' => count($calledTodayIds),
+                ];
+            }),
             'join_url' => config('app.offline', false) ? null : $joinUrl,
             'called_today_ids' => $excludedStudentIds,
+            'previous_group_activities' => Inertia::defer(fn () => Project::where('section_id', $section->id)
+                ->where('format', '!=', 'individual')
+                ->has('groups')
+                ->with(['groups.members.student:id,student_number,first_name,last_name,middle_name'])
+                ->latest('conducted_on')
+                ->latest('id')
+                ->get()
+                ->map(fn ($p) => [
+                    'id' => $p->id,
+                    'title' => $p->title,
+                    'type' => $p->type,
+                    'conducted_on' => $p->conducted_on?->toDateString(),
+                    'groups' => $p->groups->map(fn ($g) => [
+                        'id' => $g->id,
+                        'name' => $g->name,
+                        'members' => $g->members->map(fn ($m) => [
+                            'id' => $m->student_id,
+                            'student_number' => $m->student?->student_number,
+                            'first_name' => $m->student?->first_name,
+                            'last_name' => $m->student?->last_name,
+                            'middle_name' => $m->student?->middle_name,
+                        ]),
+                    ]),
+                ])
+            ),
         ]);
     }
 
@@ -265,11 +317,24 @@ class SectionController extends Controller
 
         DB::transaction(function () use ($section, $data, $term) {
             $primaryRoom = $data['room'] ?? ($data['schedules'][0]['room'] ?? null);
-            $section->update([
+            $updateData = [
                 ...collect($data)->only(['subject_code', 'subject_title', 'name'])->all(),
                 'room' => $primaryRoom,
                 'academic_term_id' => $term->id,
-            ]);
+            ];
+
+            if (array_key_exists('passing_rates', $data) && is_array($data['passing_rates'])) {
+                $currentWeights = $section->grading_weights ?? [];
+                $currentWeights['passing_rates'] = [
+                    'quiz' => isset($data['passing_rates']['quiz']) ? (int) $data['passing_rates']['quiz'] : 75,
+                    'activity' => isset($data['passing_rates']['activity']) ? (int) $data['passing_rates']['activity'] : 75,
+                    'project' => isset($data['passing_rates']['project']) ? (int) $data['passing_rates']['project'] : 75,
+                    'exam' => isset($data['passing_rates']['exam']) ? (int) $data['passing_rates']['exam'] : 75,
+                ];
+                $updateData['grading_weights'] = $currentWeights;
+            }
+
+            $section->update($updateData);
             $section->schedules()->delete();
             $section->schedules()->createMany($data['schedules'] ?? []);
         });

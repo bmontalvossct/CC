@@ -12,9 +12,24 @@ return [
     */
     'ollama' => [
         'base_url' => env('OLLAMA_BASE_URL', 'http://127.0.0.1:11434'),
-        'connect_timeout' => env('OLLAMA_CONNECT_TIMEOUT', 5),
-        'timeout' => env('OLLAMA_TIMEOUT', 300),
+        'connect_timeout' => env('OLLAMA_CONNECT_TIMEOUT', 2),
+        'timeout' => env('OLLAMA_TIMEOUT', 120),
         'keep_alive' => env('OLLAMA_KEEP_ALIVE', '15m'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Google Gemini API Configuration (Cloud AI)
+    |--------------------------------------------------------------------------
+    |
+    | Used for ultra-fast exam generation, curriculum planning, and large-context
+    | pedagogical prompting directly from syllabi and lecture materials.
+    |
+    */
+    'gemini' => [
+        'api_key' => env('GEMINI_API_KEY'),
+        'model' => env('GEMINI_MODEL', 'gemini-2.5-flash'),
+        'timeout' => (int) env('GEMINI_TIMEOUT', 60),
     ],
 
     /*
@@ -29,41 +44,25 @@ return [
     */
     'profiles' => [
         'chat' => [
-            'primary_model' => env('OLLAMA_CHAT_MODEL', 'hermes3:8b'),
-            'allowed_models' => [
-                'hermes3:8b', 'hermes3', 'hermes3:latest', 'hermes3:8b-llama3.1-q4_K_M',
-                'qwen2.5:7b', 'qwen2.5:7b-instruct', 'qwen2.5:7b-instruct-q4_K_M',
-                'qwen2.5-coder:7b', 'qwen2.5-coder:7b-instruct', 'qwen2.5-coder:7b-instruct-q4_K_M',
-                'qwen2.5:14b-instruct-q4_K_M', 'qwen2.5:14b', 'qwen2.5:14b-instruct',
-                'nous-hermes2', 'hermes',
-            ],
-            'num_ctx' => 16384,
-            'num_predict' => -1,
+            'primary_model' => env('OLLAMA_CHAT_MODEL', 'qwen2.5:14b-instruct-q4_K_M'),
+            'allowed_models' => ['qwen2.5:14b-instruct-q4_K_M', 'qwen2.5:14b', 'qwen2.5:14b-instruct'],
+            'num_ctx' => 4096,
             'temperature' => 0.2,
             'top_k' => 20,
             'top_p' => 0.9,
         ],
         'code_grading' => [
             'primary_model' => env('OLLAMA_CODE_MODEL', 'qwen2.5-coder:7b'),
-            'allowed_models' => [
-                'qwen2.5-coder:7b', 'qwen2.5-coder:7b-instruct', 'qwen2.5-coder:7b-instruct-q4_K_M',
-                'hermes3:8b', 'hermes3', 'hermes3:latest',
-            ],
-            'num_ctx' => 16384,
-            'num_predict' => 4096,
+            'allowed_models' => ['qwen2.5-coder:7b', 'qwen2.5-coder:7b-instruct', 'qwen2.5-coder:7b-instruct-q4_K_M'],
+            'num_ctx' => 8192,
             'temperature' => 0.0,
             'top_k' => 20,
             'top_p' => 0.9,
         ],
         'general_grading' => [
-            'primary_model' => env('OLLAMA_GENERAL_MODEL', 'hermes3:8b'),
-            'allowed_models' => [
-                'hermes3:8b', 'hermes3', 'hermes3:latest', 'hermes3:8b-llama3.1-q4_K_M',
-                'qwen2.5:7b', 'qwen2.5:7b-instruct', 'qwen2.5:7b-instruct-q4_K_M',
-                'qwen2.5:14b-instruct-q4_K_M', 'qwen2.5:14b', 'qwen2.5:14b-instruct',
-            ],
-            'num_ctx' => 16384,
-            'num_predict' => 4096,
+            'primary_model' => env('OLLAMA_GENERAL_MODEL', 'qwen2.5:14b-instruct-q4_K_M'),
+            'allowed_models' => ['qwen2.5:14b-instruct-q4_K_M', 'qwen2.5:14b', 'qwen2.5:14b-instruct'],
+            'num_ctx' => 4096,
             'temperature' => 0.0,
             'top_k' => 20,
             'top_p' => 0.9,
@@ -94,6 +93,6 @@ return [
         'py', 'java', 'c', 'cpp', 'cs', 'js', 'jsx', 'ts', 'tsx',
         'php', 'html', 'css', 'sql', 'rb', 'go', 'rs', 'swift', 'kt',
         // Text & Documents
-        'txt', 'md', 'json', 'xml', 'csv', 'pdf',
+        'txt', 'md', 'json', 'xml', 'csv', 'pdf', 'docx', 'pptx',
     ],
 ];

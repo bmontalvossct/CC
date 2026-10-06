@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Assessments;
 
 use App\Http\Requests\Projects\StoreProjectRequest;
 use App\Http\Requests\Projects\UpdateProjectRequest;
+use App\Models\AttendanceRecord;
 use App\Models\Project;
 use App\Models\ProjectGroup;
 use App\Models\ProjectGroupMember;
@@ -33,9 +34,39 @@ class ProjectController extends AssessmentModuleController
             ->latest('id')
             ->get();
 
+        $availableGroupProjects = Project::query()
+            ->where('section_id', $section->id)
+            ->where('format', '!=', 'individual')
+            ->has('groups')
+            ->withCount(['groups', 'members'])
+            ->with(['groups.members.student:id,student_number,first_name,last_name,middle_name'])
+            ->latest('conducted_on')
+            ->latest('id')
+            ->get()
+            ->map(fn ($p) => [
+                'id' => $p->id,
+                'title' => $p->title,
+                'type' => $p->type,
+                'format' => $p->format,
+                'conducted_on' => $p->conducted_on?->toDateString(),
+                'groups_count' => $p->groups_count,
+                'members_count' => $p->members_count,
+                'groups' => $p->groups->map(fn ($g) => [
+                    'id' => $g->id,
+                    'group_number' => $g->group_number,
+                    'name' => $g->name,
+                    'topic' => $g->topic,
+                    'members' => $g->members->map(fn ($m) => [
+                        'student_id' => $m->student_id,
+                        'full_name' => $m->student ? trim("{$m->student->last_name}, {$m->student->first_name}") : 'Unknown Student',
+                    ]),
+                ]),
+            ]);
+
         return Inertia::render('projects/Index', [
             'section' => $section->only('id', 'name', 'subject_code', 'subject_title'),
             'projects' => $projects,
+            'availableGroupProjects' => $availableGroupProjects,
         ]);
     }
 
@@ -44,12 +75,23 @@ class ProjectController extends AssessmentModuleController
         $this->authorizeSection($section);
         $data = $request->validated();
 
+        $sourceProjectId = $data['source_project_id'] ?? null;
+        $copyTopics = (bool) ($data['copy_topics'] ?? false);
+        $copyNames = (bool) ($data['copy_names'] ?? true);
         $groupCount = $data['group_count'] ?? null;
         $groupSize = $data['group_size'] ?? null;
         $shouldRandomize = (bool) ($data['randomize'] ?? false);
         $format = $data['format'] ?? 'group';
 
-        unset($data['group_count'], $data['group_size'], $data['randomize'], $data['attachment']);
+        unset(
+            $data['group_count'],
+            $data['group_size'],
+            $data['randomize'],
+            $data['attachment'],
+            $data['source_project_id'],
+            $data['copy_topics'],
+            $data['copy_names']
+        );
         $data['section_id'] = $section->id;
         $data['format'] = $format;
 
@@ -67,12 +109,29 @@ class ProjectController extends AssessmentModuleController
 
         if ($request->hasFile('attachment')) {
             $file = $request->file('attachment');
-            $data['attachment_path'] = $file->store("projects/{$section->id}", 'local');
-            $data['attachment_name'] = $file->getClientOriginalName();
-            $data['attachment_mime'] = $file->getMimeType();
+            $stored = app(\App\Services\SectionFolderService::class)->storeProjectAttachment(
+                $section,
+                $file,
+                $data['type'] ?? 'project',
+                $data['project_number'] ?? null,
+                $data['title'] ?? null
+            );
+            $data['attachment_path'] = $stored['path'];
+            $data['attachment_name'] = $stored['name'];
+            $data['attachment_mime'] = $stored['mime'];
         }
 
-        $project = DB::transaction(function () use ($data, $section, $groupCount, $groupSize, $shouldRandomize, $format) {
+        $project = DB::transaction(function () use (
+            $data,
+            $section,
+            $sourceProjectId,
+            $copyTopics,
+            $copyNames,
+            $groupCount,
+            $groupSize,
+            $shouldRandomize,
+            $format
+        ) {
             $project = Project::create($data);
 
             $activeStudents = Student::query()
@@ -95,6 +154,32 @@ class ProjectController extends AssessmentModuleController
                     $group->members()->create([
                         'student_id' => $student->id,
                     ]);
+                }
+            } elseif ($sourceProjectId) {
+                $sourceProject = Project::where('section_id', $section->id)
+                    ->with(['groups.members'])
+                    ->find($sourceProjectId);
+
+                if ($sourceProject && $sourceProject->groups->isNotEmpty()) {
+                    $activeLookup = $activeStudents->keyBy('id');
+                    foreach ($sourceProject->groups as $srcGroup) {
+                        $newGroup = $project->groups()->create([
+                            'group_number' => $srcGroup->group_number,
+                            'name' => $copyNames ? $srcGroup->name : "Group {$srcGroup->group_number}",
+                            'topic' => $copyTopics ? $srcGroup->topic : null,
+                            'description' => $copyTopics ? $srcGroup->description : null,
+                            'order_column' => $srcGroup->order_column ?: $srcGroup->group_number,
+                        ]);
+
+                        foreach ($srcGroup->members as $srcMember) {
+                            if ($activeLookup->has($srcMember->student_id)) {
+                                $newGroup->members()->create([
+                                    'student_id' => $srcMember->student_id,
+                                    'role' => $srcMember->role,
+                                ]);
+                            }
+                        }
+                    }
                 }
             } elseif ($groupCount || $groupSize || $shouldRandomize) {
                 $k = $groupCount ? (int) $groupCount : null;
@@ -120,36 +205,25 @@ class ProjectController extends AssessmentModuleController
             return $project;
         });
 
-        $successMsg = match ($data['type']) {
-            'group_activity' => 'Group activity created successfully.',
-            'reporting' => $format === 'individual' ? 'Individual reporting activity created.' : 'Group reporting created successfully.',
-            default => 'Project created successfully.',
-        };
-
         return to_route('sections.projects.show', [$section, $project])
-            ->with('success', $successMsg);
+            ->with('success', ucfirst(str_replace('_', ' ', $project->type)).' created successfully.');
     }
 
     public function show(Section $section, Project $project): Response
     {
         $this->authorizeProject($section, $project);
 
-        $absencesByStudent = DB::table('attendance_records')
-            ->join('attendance_sessions', 'attendance_sessions.id', '=', 'attendance_records.attendance_session_id')
-            ->where('attendance_sessions.section_id', $section->id)
-            ->where('attendance_records.status', 'absent')
-            ->groupBy('attendance_records.student_id')
-            ->select('attendance_records.student_id', DB::raw('count(*) as count'))
-            ->pluck('count', 'student_id')
-            ->all();
-
         $students = Student::query()
             ->where('students.section_id', $section->id)
             ->where('students.is_active', true)
             ->leftJoin('seats', 'seats.student_id', '=', 'students.id')
             ->leftJoin('layout_blocks', 'layout_blocks.id', '=', 'seats.layout_block_id')
+            ->orderByRaw('CASE WHEN seats.id IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('layout_blocks.block_row')
+            ->orderBy('layout_blocks.block_column')
+            ->orderBy('seats.row_number')
+            ->orderBy('seats.column_number')
             ->orderBy('students.last_name')
-            ->orderBy('students.first_name')
             ->get([
                 'students.id', 'students.student_number', 'students.first_name', 'students.middle_name',
                 'students.last_name', 'students.photo_path', 'seats.label as seat_label',
@@ -157,10 +231,22 @@ class ProjectController extends AssessmentModuleController
 
         $studentsById = $students->keyBy('id');
 
+        // Absence count lookup
+        $absencesByStudent = AttendanceRecord::query()
+            ->join('attendance_sessions', 'attendance_sessions.id', '=', 'attendance_records.attendance_session_id')
+            ->where('attendance_sessions.section_id', $section->id)
+            ->where('attendance_records.status', 'absent')
+            ->selectRaw('student_id, count(*) as absent_count')
+            ->groupBy('student_id')
+            ->pluck('absent_count', 'student_id')
+            ->all();
+
         $groups = $project->groups()
-            ->with(['members'])
+            ->with(['members.student:id,student_number,first_name,last_name,middle_name,photo_path'])
+            ->orderBy('order_column')
+            ->orderBy('group_number')
             ->get()
-            ->map(function (ProjectGroup $group) use ($studentsById, $absencesByStudent) {
+            ->map(function ($group) use ($studentsById, $absencesByStudent) {
                 $members = $group->members->map(function ($member) use ($studentsById, $absencesByStudent) {
                     $student = $studentsById->get($member->student_id);
 
@@ -170,6 +256,9 @@ class ProjectController extends AssessmentModuleController
                         'role' => $member->role,
                         'score' => $member->score,
                         'notes' => $member->notes,
+                        'attachment_path' => $member->attachment_path,
+                        'attachment_name' => $member->attachment_name,
+                        'attachment_mime' => $member->attachment_mime,
                         'student_number' => $student?->student_number,
                         'first_name' => $student?->first_name,
                         'last_name' => $student?->last_name,
@@ -190,6 +279,9 @@ class ProjectController extends AssessmentModuleController
                     'description' => $group->description,
                     'score' => $group->score,
                     'notes' => $group->notes,
+                    'attachment_path' => $group->attachment_path,
+                    'attachment_name' => $group->attachment_name,
+                    'attachment_mime' => $group->attachment_mime,
                     'order_column' => $group->order_column,
                     'members' => $members,
                 ];
@@ -211,6 +303,36 @@ class ProjectController extends AssessmentModuleController
             ])
             ->values();
 
+        $previousProjects = Project::query()
+            ->where('section_id', $section->id)
+            ->where('id', '!=', $project->id)
+            ->where('format', '!=', 'individual')
+            ->has('groups')
+            ->withCount(['groups', 'members'])
+            ->with(['groups.members.student:id,student_number,first_name,last_name,middle_name'])
+            ->latest('conducted_on')
+            ->latest('id')
+            ->get()
+            ->map(fn ($p) => [
+                'id' => $p->id,
+                'title' => $p->title,
+                'type' => $p->type,
+                'format' => $p->format,
+                'conducted_on' => $p->conducted_on?->toDateString(),
+                'groups_count' => $p->groups_count,
+                'members_count' => $p->members_count,
+                'groups' => $p->groups->map(fn ($g) => [
+                    'id' => $g->id,
+                    'group_number' => $g->group_number,
+                    'name' => $g->name,
+                    'topic' => $g->topic,
+                    'members' => $g->members->map(fn ($m) => [
+                        'student_id' => $m->student_id,
+                        'full_name' => $m->student ? trim("{$m->student->last_name}, {$m->student->first_name}") : 'Unknown Student',
+                    ]),
+                ]),
+            ]);
+
         return Inertia::render('projects/Show', [
             'section' => $section->only('id', 'name', 'subject_code', 'subject_title'),
             'project' => [
@@ -219,6 +341,7 @@ class ProjectController extends AssessmentModuleController
             ],
             'totalStudentsCount' => $students->count(),
             'unassignedStudents' => $unassignedStudents,
+            'previousProjects' => $previousProjects,
         ]);
     }
 
@@ -227,15 +350,31 @@ class ProjectController extends AssessmentModuleController
         $this->authorizeProject($section, $project);
         $data = $request->validated();
 
-        unset($data['attachment']);
-        if ($request->hasFile('attachment')) {
+        unset($data['attachment'], $data['remove_attachment']);
+
+        if ($request->boolean('remove_attachment')) {
+            if ($project->attachment_path) {
+                Storage::disk('local')->delete($project->attachment_path);
+            }
+            $data['attachment_path'] = null;
+            $data['attachment_name'] = null;
+            $data['attachment_mime'] = null;
+        } elseif ($request->hasFile('attachment')) {
             if ($project->attachment_path) {
                 Storage::disk('local')->delete($project->attachment_path);
             }
             $file = $request->file('attachment');
-            $data['attachment_path'] = $file->store("projects/{$section->id}", 'local');
-            $data['attachment_name'] = $file->getClientOriginalName();
-            $data['attachment_mime'] = $file->getMimeType();
+            $type = $data['type'] ?? $project->type;
+            $stored = app(\App\Services\SectionFolderService::class)->storeProjectAttachment(
+                $section,
+                $file,
+                $type,
+                $data['project_number'] ?? $project->project_number,
+                $data['title'] ?? $project->title
+            );
+            $data['attachment_path'] = $stored['path'];
+            $data['attachment_name'] = $stored['name'];
+            $data['attachment_mime'] = $stored['mime'];
         }
 
         $groupCount = $data['group_count'] ?? null;
@@ -295,6 +434,276 @@ class ProjectController extends AssessmentModuleController
 
         $name = $project->attachment_name ?: basename($path);
         $mime = $project->attachment_mime ?: (\Illuminate\Support\Facades\File::mimeType($fullPath) ?: 'application/octet-stream');
+
+        if ($request->boolean('download') || $request->has('download')) {
+            return response()->download($fullPath, $name, [
+                'Content-Type' => $mime,
+            ]);
+        }
+
+        return response()->file($fullPath, [
+            'Content-Type' => $mime,
+            'Content-Disposition' => 'inline; filename="'.addslashes($name).'"',
+        ]);
+    }
+
+    public function reuploadAttachment(Request $request, Section $section, Project $project): RedirectResponse
+    {
+        $this->authorizeProject($section, $project);
+
+        $request->validate([
+            'attachment' => ['required', 'file', 'max:51200', 'extensions:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx,ppt,pptx,txt,csv,zip,rar,7z,rtf,odt,ods,odp,svg,gif,bmp,heic,pages,numbers,key,json,sql,db,sqlite,sqlite3'],
+        ], [
+            'attachment.max' => 'The attachment must not be larger than 50MB.',
+            'attachment.extensions' => 'The attachment must be a valid file type.',
+        ]);
+
+        if ($project->attachment_path) {
+            Storage::disk('local')->delete($project->attachment_path);
+        }
+
+        $file = $request->file('attachment');
+        $stored = app(\App\Services\SectionFolderService::class)->storeProjectAttachment(
+            $section,
+            $file,
+            $project->type,
+            $project->project_number,
+            $project->title
+        );
+
+        $project->update([
+            'attachment_path' => $stored['path'],
+            'attachment_name' => $stored['name'],
+            'attachment_mime' => $stored['mime'],
+        ]);
+
+        return back()->with('success', 'Attachment reuploaded successfully.');
+    }
+
+    public function destroyAttachment(Section $section, Project $project): RedirectResponse
+    {
+        $this->authorizeProject($section, $project);
+
+        if ($project->attachment_path) {
+            Storage::disk('local')->delete($project->attachment_path);
+        }
+
+        $project->update([
+            'attachment_path' => null,
+            'attachment_name' => null,
+            'attachment_mime' => null,
+        ]);
+
+        return back()->with('success', 'Attachment deleted successfully.');
+    }
+
+    public function uploadGroupAttachment(
+        Request $request,
+        Section $section,
+        Project $project,
+        ProjectGroup $group,
+    ): JsonResponse|RedirectResponse {
+        $this->authorizeProject($section, $project);
+        abort_unless((int) $group->project_id === (int) $project->id, 404);
+
+        $request->validate([
+            'attachment' => ['required', 'file', 'max:51200', 'extensions:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx,ppt,pptx,txt,csv,zip,rar,7z,rtf,odt,ods,odp,svg,gif,bmp,heic,pages,numbers,key,json,sql,db,sqlite,sqlite3'],
+        ], [
+            'attachment.max' => 'The group output file must not be larger than 50MB.',
+            'attachment.extensions' => 'The attachment must be a valid file type.',
+        ]);
+
+
+        $file = $request->file('attachment');
+        $stored = app(\App\Services\SectionFolderService::class)->storeGroupProjectOutput($section, $project, $group, $file);
+
+        $group->update([
+            'attachment_path' => $stored['path'],
+            'attachment_name' => $stored['name'],
+            'attachment_mime' => $stored['mime'],
+        ]);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Group output {$stored['name']} attached successfully.",
+                'group_id' => $group->id,
+                'attachment_path' => $group->attachment_path,
+                'attachment_name' => $group->attachment_name,
+                'attachment_mime' => $group->attachment_mime,
+            ]);
+        }
+
+        return back()->with('success', "Group output {$stored['name']} attached successfully.");
+    }
+
+    public function destroyGroupAttachment(
+        Request $request,
+        Section $section,
+        Project $project,
+        ProjectGroup $group,
+    ): JsonResponse|RedirectResponse {
+        $this->authorizeProject($section, $project);
+        abort_unless((int) $group->project_id === (int) $project->id, 404);
+
+        if ($group->attachment_path) {
+            Storage::disk('local')->delete($group->attachment_path);
+            $group->update([
+                'attachment_path' => null,
+                'attachment_name' => null,
+                'attachment_mime' => null,
+            ]);
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Group output deleted.',
+                'group_id' => $group->id,
+            ]);
+        }
+
+        return back()->with('success', 'Group output deleted.');
+    }
+
+    public function groupAttachment(
+        Request $request,
+        Section $section,
+        Project $project,
+        ProjectGroup $group,
+    ): BinaryFileResponse|\Symfony\Component\HttpFoundation\Response {
+        $this->authorizeProject($section, $project);
+        abort_unless((int) $group->project_id === (int) $project->id, 404);
+        abort_unless($group->attachment_path, 404, 'No group output attached.');
+
+        $path = $group->attachment_path;
+        $fullPath = null;
+        if (Storage::disk('local')->exists($path)) {
+            $fullPath = Storage::disk('local')->path($path);
+        } elseif (file_exists(storage_path('app/'.$path))) {
+            $fullPath = storage_path('app/'.$path);
+        }
+
+        abort_unless($fullPath && file_exists($fullPath), 404, 'Group output file not found on disk.');
+
+        $name = $group->attachment_name ?: basename($path);
+        $mime = $group->attachment_mime ?: (\Illuminate\Support\Facades\File::mimeType($fullPath) ?: 'application/octet-stream');
+
+        if ($request->boolean('download') || $request->has('download')) {
+            return response()->download($fullPath, $name, [
+                'Content-Type' => $mime,
+            ]);
+        }
+
+        return response()->file($fullPath, [
+            'Content-Type' => $mime,
+            'Content-Disposition' => 'inline; filename="'.addslashes($name).'"',
+        ]);
+    }
+
+    public function uploadMemberAttachment(
+        Request $request,
+        Section $section,
+        Project $project,
+        ProjectGroup $group,
+        Student $student,
+    ): JsonResponse|RedirectResponse {
+        $this->authorizeProject($section, $project);
+        abort_unless((int) $group->project_id === (int) $project->id, 404);
+        abort_unless((int) $student->section_id === (int) $section->id, 404);
+
+        $member = $group->members()->firstOrNew(['student_id' => $student->id]);
+
+        $request->validate([
+            'attachment' => ['required', 'file', 'max:51200', 'extensions:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx,ppt,pptx,txt,csv,zip,rar,7z,rtf,odt,ods,odp,svg,gif,bmp,heic,pages,numbers,key,json,sql,db,sqlite,sqlite3'],
+        ], [
+            'attachment.max' => 'The student output file must not be larger than 50MB.',
+            'attachment.extensions' => 'The attachment must be a valid file type.',
+        ]);
+
+
+        $file = $request->file('attachment');
+        $stored = app(\App\Services\SectionFolderService::class)->storeStudentProjectOutput($section, $project, $student, $file);
+
+        $member->fill([
+            'attachment_path' => $stored['path'],
+            'attachment_name' => $stored['name'],
+            'attachment_mime' => $stored['mime'],
+        ]);
+        $member->save();
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Student output {$stored['name']} attached successfully.",
+                'student_id' => $student->id,
+                'attachment_path' => $member->attachment_path,
+                'attachment_name' => $member->attachment_name,
+                'attachment_mime' => $member->attachment_mime,
+            ]);
+        }
+
+        return back()->with('success', "Student output {$stored['name']} attached successfully.");
+    }
+
+    public function destroyMemberAttachment(
+        Request $request,
+        Section $section,
+        Project $project,
+        ProjectGroup $group,
+        Student $student,
+    ): JsonResponse|RedirectResponse {
+        $this->authorizeProject($section, $project);
+        abort_unless((int) $group->project_id === (int) $project->id, 404);
+        abort_unless((int) $student->section_id === (int) $section->id, 404);
+
+        $member = $group->members()->where('student_id', $student->id)->first();
+        if ($member && $member->attachment_path) {
+            Storage::disk('local')->delete($member->attachment_path);
+            $member->update([
+                'attachment_path' => null,
+                'attachment_name' => null,
+                'attachment_mime' => null,
+            ]);
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Student output deleted.',
+                'student_id' => $student->id,
+            ]);
+        }
+
+        return back()->with('success', 'Student output deleted.');
+    }
+
+    public function memberAttachment(
+        Request $request,
+        Section $section,
+        Project $project,
+        ProjectGroup $group,
+        Student $student,
+    ): BinaryFileResponse|\Symfony\Component\HttpFoundation\Response {
+        $this->authorizeProject($section, $project);
+        abort_unless((int) $group->project_id === (int) $project->id, 404);
+        abort_unless((int) $student->section_id === (int) $section->id, 404);
+
+        $member = $group->members()->where('student_id', $student->id)->first();
+        abort_unless($member && $member->attachment_path, 404, 'No student output attached.');
+
+        $path = $member->attachment_path;
+        $fullPath = null;
+        if (Storage::disk('local')->exists($path)) {
+            $fullPath = Storage::disk('local')->path($path);
+        } elseif (file_exists(storage_path('app/'.$path))) {
+            $fullPath = storage_path('app/'.$path);
+        }
+
+        abort_unless($fullPath && file_exists($fullPath), 404, 'Student output file not found on disk.');
+
+        $name = $member->attachment_name ?: basename($path);
+        $mime = $member->attachment_mime ?: (\Illuminate\Support\Facades\File::mimeType($fullPath) ?: 'application/octet-stream');
 
         if ($request->boolean('download') || $request->has('download')) {
             return response()->download($fullPath, $name, [
@@ -390,7 +799,7 @@ class ProjectController extends AssessmentModuleController
             'topic' => ['nullable', 'string', 'max:2000'],
             'description' => ['nullable', 'string', 'max:5000'],
             'score' => ['nullable', 'numeric', 'min:0', 'max:1000'],
-            'notes' => ['nullable', 'string', 'max:2000'],
+            'notes' => ['nullable', 'string', 'max:10000'],
         ]);
 
         $group->update($data);
@@ -477,7 +886,7 @@ class ProjectController extends AssessmentModuleController
         $data = $request->validate([
             'score' => ['nullable', 'numeric', 'min:0', 'max:1000'],
             'role' => ['nullable', 'string', 'max:50'],
-            'notes' => ['nullable', 'string', 'max:2000'],
+            'notes' => ['nullable', 'string', 'max:10000'],
         ]);
 
         $member->update($data);
@@ -530,6 +939,57 @@ class ProjectController extends AssessmentModuleController
         return back()->with('success', "Moved {$student->first_name} to {$targetGroup->name}.");
     }
 
+    public function copyGrouping(Request $request, Section $section, Project $project): RedirectResponse
+    {
+        $this->authorizeProject($section, $project);
+
+        $data = $request->validate([
+            'source_project_id' => ['required', 'integer', 'exists:projects,id'],
+            'copy_topics' => ['nullable', 'boolean'],
+            'copy_names' => ['nullable', 'boolean'],
+        ]);
+
+        $sourceProject = Project::where('section_id', $section->id)
+            ->with(['groups.members'])
+            ->findOrFail($data['source_project_id']);
+
+        abort_if((int) $sourceProject->id === (int) $project->id, 422, 'Cannot copy grouping from the same activity.');
+
+        $activeStudents = Student::query()
+            ->where('section_id', $section->id)
+            ->where('is_active', true)
+            ->get()
+            ->keyBy('id');
+
+        $copyTopics = (bool) ($data['copy_topics'] ?? false);
+        $copyNames = (bool) ($data['copy_names'] ?? true);
+
+        DB::transaction(function () use ($project, $sourceProject, $copyTopics, $copyNames, $activeStudents) {
+            $project->groups()->delete();
+
+            foreach ($sourceProject->groups as $srcGroup) {
+                $newGroup = $project->groups()->create([
+                    'group_number' => $srcGroup->group_number,
+                    'name' => $copyNames ? $srcGroup->name : "Group {$srcGroup->group_number}",
+                    'topic' => $copyTopics ? $srcGroup->topic : null,
+                    'description' => $copyTopics ? $srcGroup->description : null,
+                    'order_column' => $srcGroup->order_column ?: $srcGroup->group_number,
+                ]);
+
+                foreach ($srcGroup->members as $srcMember) {
+                    if ($activeStudents->has($srcMember->student_id)) {
+                        $newGroup->members()->create([
+                            'student_id' => $srcMember->student_id,
+                            'role' => $srcMember->role,
+                        ]);
+                    }
+                }
+            }
+        });
+
+        return back()->with('success', "Grouping successfully copied from '{$sourceProject->title}'.");
+    }
+
     public function saveAll(Request $request, Section $section, Project $project): JsonResponse|RedirectResponse
     {
         $this->authorizeProject($section, $project);
@@ -541,12 +1001,12 @@ class ProjectController extends AssessmentModuleController
             'groups.*.description' => ['nullable', 'string', 'max:5000'],
             'groups.*.score' => ['nullable'],
             'groups.*.name' => ['nullable', 'string', 'max:100'],
-            'groups.*.notes' => ['nullable', 'string', 'max:2000'],
+            'groups.*.notes' => ['nullable', 'string', 'max:10000'],
             'members' => ['nullable', 'array'],
             'members.*.id' => ['required', 'integer'],
             'members.*.score' => ['nullable'],
             'members.*.role' => ['nullable', 'string', 'max:50'],
-            'members.*.notes' => ['nullable', 'string', 'max:2000'],
+            'members.*.notes' => ['nullable', 'string', 'max:10000'],
         ]);
 
         DB::transaction(function () use ($project, $data) {
@@ -816,5 +1276,192 @@ class ProjectController extends AssessmentModuleController
                 }
             }
         });
+    }
+
+    /**
+     * AI analyze the attached group report document against project details & rubrics.
+     */
+    public function aiCheckGroup(
+        Request $request,
+        Section $section,
+        Project $project,
+        ProjectGroup $group,
+        \App\Services\Autochecker\AiDocumentGraderService $aiGrader,
+    ): JsonResponse {
+        $this->authorizeProject($section, $project);
+        abort_unless((int) $group->project_id === (int) $project->id, 404);
+
+        if (! $group->attachment_path) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No group output attached to evaluate.',
+            ], 422);
+        }
+
+        try {
+            $result = $aiGrader->gradeProjectGroupSubmission($section, $project, $group);
+
+            $group->update([
+                'score' => $result['score'],
+                'notes' => $result['remarks'],
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "AI graded {$group->name}: {$result['score']} pts. Score and notes saved.",
+                'group_id' => $group->id,
+                'score' => $result['score'],
+                'notes' => $result['remarks'],
+                'remarks' => $result['remarks'],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    /**
+     * AI analyze an individual member's attached report document.
+     */
+    public function aiCheckMember(
+        Request $request,
+        Section $section,
+        Project $project,
+        ProjectGroup $group,
+        Student $student,
+        \App\Services\Autochecker\AiDocumentGraderService $aiGrader,
+    ): JsonResponse {
+        $this->authorizeProject($section, $project);
+        abort_unless((int) $group->project_id === (int) $project->id, 404);
+
+        $member = $group->members()->where('student_id', $student->id)->first();
+        if (! $member || ! $member->attachment_path) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No member output attached to evaluate.',
+            ], 422);
+        }
+
+        try {
+            $result = $aiGrader->gradeProjectMemberSubmission($section, $project, $group, $student);
+
+            $member->update([
+                'score' => $result['score'],
+                'notes' => $result['remarks'],
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "AI graded {$student->full_name}: {$result['score']} pts. Score and notes saved.",
+                'member_id' => $member->id,
+                'student_id' => $student->id,
+                'score' => $result['score'],
+                'notes' => $result['remarks'],
+                'remarks' => $result['remarks'],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    public function saveRubric(Request $request, Section $section, Project $project)
+    {
+        $this->authorizeProject($section, $project);
+
+        if ($request->has('rubric_data') && is_string($request->input('rubric_data'))) {
+            $decoded = json_decode($request->input('rubric_data'), true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $request->merge(['rubric_data' => $decoded]);
+            }
+        }
+
+        $validated = $request->validate([
+            'rubric_type' => ['nullable', 'string', 'in:percentage,answer_key,file,custom'],
+            'rubric_data' => ['nullable', 'array'],
+            'attachment' => ['nullable', 'file', 'max:25600'],
+            'remove_attachment' => ['nullable', 'boolean'],
+        ]);
+
+        if ($request->boolean('remove_attachment')) {
+            if ($project->attachment_path) {
+                Storage::disk('local')->delete($project->attachment_path);
+            }
+            $project->attachment_path = null;
+            $project->attachment_name = null;
+            $project->attachment_mime = null;
+        }
+
+        if ($request->hasFile('attachment')) {
+            if ($project->attachment_path) {
+                Storage::disk('local')->delete($project->attachment_path);
+            }
+            $stored = app(\App\Services\SectionFolderService::class)->storeProjectAttachment(
+                $section,
+                $request->file('attachment'),
+                $project->type ?? 'project',
+                $project->project_number ?? null,
+                $project->title ?? null
+            );
+            $project->attachment_path = $stored['path'];
+            $project->attachment_name = $stored['name'];
+            $project->attachment_mime = $stored['mime'];
+        }
+
+        $project->rubric_type = $validated['rubric_type'] ?? null;
+        $project->rubric_data = $validated['rubric_data'] ?? null;
+        $project->save();
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Rubric configuration successfully saved.',
+                'project' => $project->fresh(),
+            ]);
+        }
+
+        return back()->with('success', 'Rubric configuration successfully saved.');
+    }
+
+    public function studyRubric(Request $request, Section $section, Project $project)
+    {
+        $this->authorizeProject($section, $project);
+
+        $validated = $request->validate([
+            'raw_text' => ['nullable', 'string'],
+        ]);
+
+        $filePath = null;
+        $fileName = null;
+
+        if ($project->attachment_path) {
+            $grader = app(\App\Services\Autochecker\AiDocumentGraderService::class);
+            $filePath = $grader->resolveFilePath($project->attachment_path);
+            $fileName = $project->attachment_name;
+        }
+
+        try {
+            $grader = app(\App\Services\Autochecker\AiDocumentGraderService::class);
+            $result = $grader->studyRubricDocument(
+                filePath: $filePath,
+                fileName: $fileName,
+                maxPoints: (float) ($project->max_points ?: 100),
+                rawText: $validated['raw_text'] ?? null
+            );
+
+            return response()->json([
+                'success' => true,
+                'studied' => $result,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $e->getCode() >= 400 && $e->getCode() < 600 ? $e->getCode() : 422);
+        }
     }
 }

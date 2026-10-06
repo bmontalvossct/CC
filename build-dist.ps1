@@ -51,6 +51,7 @@ if (Test-Path $DistDir) {
 }
 New-Item -ItemType Directory -Path $PayloadDir -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $PayloadDir "bin\php\ext") -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $PayloadDir "storage\app\sections") -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $PayloadDir "storage\app\public\photos") -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $PayloadDir "storage\app\public\modules") -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $PayloadDir "storage\framework\cache\data") -Force | Out-Null

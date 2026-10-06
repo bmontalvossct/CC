@@ -1,6 +1,12 @@
 <script setup lang="ts">
+import ActivityFileButton from '@/components/ActivityFileButton.vue';
+import DisabledReason from '@/components/DisabledReason.vue';
+import CheckAllProgressModal, { type CheckProgressItem } from '@/components/assessments/CheckAllProgressModal.vue';
 import FilePreviewModal from '@/components/FilePreviewModal.vue';
+import RubricManagerModal from '@/components/assessments/RubricManagerModal.vue';
+import OctoSpinner from '@/components/OctoSpinner.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { useAiAssistant } from '@/composables/useAiAssistant';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
     AlertCircle,
@@ -8,6 +14,7 @@ import {
     BookOpen,
     CalendarDays,
     Check,
+    Copy,
     Dices,
     Download,
     Edit3,
@@ -18,10 +25,12 @@ import {
     Paperclip,
     Plus,
     Printer,
+    RefreshCw,
     Save,
     Search,
     Sparkles,
     Trash2,
+    UploadCloud,
     User,
     UserCheck,
     UserMinus,
@@ -37,6 +46,9 @@ type Member = {
     role?: string;
     score?: number;
     notes?: string;
+    attachment_path?: string | null;
+    attachment_name?: string | null;
+    attachment_mime?: string | null;
     student_number?: string;
     first_name?: string;
     last_name?: string;
@@ -56,6 +68,9 @@ type Group = {
     description: string | null;
     score: number | null;
     notes: string | null;
+    attachment_path?: string | null;
+    attachment_name?: string | null;
+    attachment_mime?: string | null;
     order_column: number;
     members: Member[];
 };
@@ -69,6 +84,10 @@ type Project = {
     description: string | null;
     conducted_on: string | null;
     max_points: string | number | null;
+    rubric_type?: string | null;
+    rubric_data?: any;
+    activity_file_path?: string | null;
+    activity_file_name?: string | null;
     attachment_path?: string;
     attachment_name?: string;
     groups: Group[];
@@ -86,15 +105,93 @@ type Student = {
     absent_count?: number;
 };
 
+type PreviousProject = {
+    id: number;
+    title: string;
+    type: 'project' | 'reporting' | 'group_activity';
+    format?: 'group' | 'individual';
+    conducted_on: string | null;
+    groups_count: number;
+    members_count: number;
+    groups: Array<{
+        id: number;
+        group_number: number;
+        name: string;
+        topic?: string | null;
+        members: Array<{ student_id: number; full_name: string }>;
+    }>;
+};
+
 const props = defineProps<{
     section: { id: number; name: string; subject_code?: string; subject_title: string };
     project: Project;
     totalStudentsCount: number;
     unassignedStudents: Student[];
+    previousProjects?: PreviousProject[];
 }>();
+
+const { warmModel } = useAiAssistant();
+
+const showRubricManager = ref(false);
+
+const hasRubric = computed(() => {
+    if (props.project.attachment_path) return true;
+    if (props.project.rubric_data) {
+        const data = props.project.rubric_data;
+        if (data.criteria && data.criteria.length > 0) return true;
+        if (data.items && data.items.length > 0) return true;
+    }
+    return false;
+});
+
+const rubricBadgeLabel = computed(() => {
+    if (props.project.rubric_type === 'answer_key' || props.project.rubric_data?.mode === 'answer_key') {
+        const count = props.project.rubric_data?.items?.length || 0;
+        return `Answer Key (${count})`;
+    }
+    if (props.project.rubric_type === 'percentage' || props.project.rubric_data?.mode === 'percentage') {
+        const count = props.project.rubric_data?.criteria?.length || 0;
+        return `Rubric (${count})`;
+    }
+    if (props.project.attachment_name) {
+        return 'Rubric File';
+    }
+    return 'Rubrics';
+});
 
 // Modals
 const showRandomizeModal = ref(false);
+const showCopyGroupingModal = ref(false);
+const copyGroupingSourceId = ref<number | ''>('');
+const copyGroupingCopyNames = ref(true);
+const copyGroupingCopyTopics = ref(false);
+const isCopyingGrouping = ref(false);
+
+const selectedCopyGroupingSource = computed(() => {
+    if (!copyGroupingSourceId.value || !props.previousProjects) return null;
+    return props.previousProjects.find((p) => p.id === Number(copyGroupingSourceId.value)) || null;
+});
+
+const submitCopyGrouping = () => {
+    if (!copyGroupingSourceId.value || isCopyingGrouping.value) return;
+    isCopyingGrouping.value = true;
+    router.post(
+        `/sections/${props.section.id}/projects/${props.project.id}/copy-grouping`,
+        {
+            source_project_id: Number(copyGroupingSourceId.value),
+            copy_names: copyGroupingCopyNames.value,
+            copy_topics: copyGroupingCopyTopics.value,
+        },
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                isCopyingGrouping.value = false;
+                showCopyGroupingModal.value = false;
+            },
+        },
+    );
+};
+
 const showEditModal = ref(false);
 const showAddGroupModal = ref(false);
 const showPreviewModal = ref(false);
@@ -132,7 +229,28 @@ const preserveTopics = ref(true);
 const randomizing = ref(false);
 
 // Edit project form
-const editForm = useForm({
+const editFileInputRef = ref<HTMLInputElement | null>(null);
+
+const openRubrics = () => {
+    showRubricManager.value = true;
+};
+
+const handleRubricSaved = () => {
+    router.reload({ only: ['project'] });
+};
+
+const editForm = useForm<{
+    type: string;
+    format: string;
+    title: string;
+    description: string;
+    conducted_on: string;
+    max_points: string | number;
+    group_count: number;
+    attachment: File | null;
+    remove_attachment: boolean;
+    _method: string;
+}>({
     type: props.project.type,
     format: props.project.format || 'group',
     title: props.project.title,
@@ -140,7 +258,8 @@ const editForm = useForm({
     conducted_on: props.project.conducted_on || '',
     max_points: props.project.max_points || '',
     group_count: props.project.groups.length || 4,
-    attachment: null as File | null,
+    attachment: null,
+    remove_attachment: false,
     _method: 'PUT',
 });
 
@@ -153,6 +272,8 @@ const openEditModal = () => {
     editForm.max_points = props.project.max_points || '';
     editForm.group_count = props.project.groups.length || 4;
     editForm.attachment = null;
+    editForm.remove_attachment = false;
+    if (editFileInputRef.value) editFileInputRef.value.value = '';
     showEditModal.value = true;
 };
 
@@ -192,6 +313,411 @@ props.project.groups.forEach((g) => {
         memberNotes.value[m.id] = m.notes || '';
     });
 });
+
+const activeMemberNoteInput = ref<number | null>(null);
+const toggleMemberNoteInput = (memberId: number) => {
+    activeMemberNoteInput.value = activeMemberNoteInput.value === memberId ? null : memberId;
+};
+
+const isGroupPresetActive = (groupId: number, preset: string): boolean => {
+    const text = (groupNotes.value[groupId] || '').toLowerCase();
+    const query = preset.toLowerCase();
+    return text.includes(query);
+};
+
+const getGroupPresetClass = (groupId: number, preset: string): string => {
+    const active = isGroupPresetActive(groupId, preset);
+    if (!active) {
+        return 'border-border/60 bg-card text-muted-foreground hover:border-primary/50 hover:bg-primary/10 hover:text-primary';
+    }
+    if (preset.includes('Late') || preset.includes('-5')) {
+        return 'border-amber-500/70 bg-amber-500/20 text-amber-900 dark:border-amber-400/70 dark:bg-amber-400/25 dark:text-amber-100 font-semibold ring-1 ring-amber-500/40 shadow-xs';
+    }
+    if (preset.includes('Complete') || preset.includes('Mastered') || preset.includes('Outstanding') || preset.includes('Excellent')) {
+        return 'border-emerald-500/70 bg-emerald-500/20 text-emerald-900 dark:border-emerald-400/70 dark:bg-emerald-400/25 dark:text-emerald-100 font-semibold ring-1 ring-emerald-500/40 shadow-xs';
+    }
+    if (preset.includes('Needs') || preset.includes('Incomplete')) {
+        return 'border-rose-500/70 bg-rose-500/20 text-rose-900 dark:border-rose-400/70 dark:bg-rose-400/25 dark:text-rose-100 font-semibold ring-1 ring-rose-500/40 shadow-xs';
+    }
+    return 'border-primary/70 bg-primary/20 text-primary font-semibold ring-1 ring-primary/40 shadow-xs';
+};
+
+const toggleGroupPreset = (group: Group, preset: string) => {
+    const active = isGroupPresetActive(group.id, preset);
+    const maxPoints = Number(props.project.max_points) || 100;
+    const currentScoreVal = groupScores.value[group.id];
+    const numScore = currentScoreVal !== '' && currentScoreVal !== null && currentScoreVal !== undefined ? Number(currentScoreVal) : null;
+
+    if (!active) {
+        // 1. Add to notes
+        const current = (groupNotes.value[group.id] || '').trim();
+        if (!current) {
+            groupNotes.value[group.id] = preset;
+        } else if (!current.toLowerCase().includes(preset.toLowerCase())) {
+            groupNotes.value[group.id] = `${current}; ${preset}`;
+        }
+
+        // 2. Adjust score dynamically
+        if (preset.includes('Late') || preset.includes('-5')) {
+            const base = numScore !== null ? numScore : maxPoints;
+            groupScores.value[group.id] = Math.max(0, Number((base - 5).toFixed(2)));
+        } else if (preset.includes('Complete') || preset.includes('Mastered') || preset.includes('Outstanding') || preset.includes('Excellent')) {
+            const isLate = isGroupPresetActive(group.id, '-5 Late') || isGroupPresetActive(group.id, '-5 Late Submission');
+            groupScores.value[group.id] = isLate ? Math.max(0, Number((maxPoints - 5).toFixed(2))) : maxPoints;
+        } else if (preset.includes('Incomplete Coverage') || preset.includes('Incomplete Deliverables')) {
+            const half = Number((maxPoints * 0.5).toFixed(2));
+            if (numScore === null || numScore > half) {
+                groupScores.value[group.id] = half;
+            }
+        } else if (preset.includes('Needs')) {
+            const partial = Number((maxPoints * 0.6).toFixed(2));
+            if (numScore === null || numScore > partial) {
+                groupScores.value[group.id] = partial;
+            }
+        }
+    } else {
+        // 1. Remove from notes
+        let rem = (groupNotes.value[group.id] || '').trim();
+        const escaped = preset.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        rem = rem.replace(new RegExp(`(^|;\\s*)${escaped}(\\s*;|$)`, 'gi'), (match, p1, p2) => (p1 && p2 ? '; ' : '')).trim();
+        rem = rem.replace(/^;\s*|;\s*$/g, '').trim();
+        groupNotes.value[group.id] = rem;
+
+        // 2. Revert score adjustment
+        if (preset.includes('Late') || preset.includes('-5')) {
+            if (numScore !== null) {
+                groupScores.value[group.id] = Math.min(maxPoints, Number((numScore + 5).toFixed(2)));
+            }
+        }
+    }
+
+    void saveGroupScore(group);
+};
+
+const appendGroupNote = (groupId: number, text: string) => {
+    const current = (groupNotes.value[groupId] || '').trim();
+    if (!current) {
+        groupNotes.value[groupId] = text;
+    } else if (!current.includes(text)) {
+        groupNotes.value[groupId] = `${current}; ${text}`;
+    }
+};
+
+const appendMemberNote = (memberId: number, text: string) => {
+    const current = (memberNotes.value[memberId] || '').trim();
+    if (!current) {
+        memberNotes.value[memberId] = text;
+    } else if (!current.includes(text)) {
+        memberNotes.value[memberId] = `${current}; ${text}`;
+    }
+};
+
+// Group Output & Member Output Preview / Upload State
+const groupPreviewModal = ref<{
+    show: boolean;
+    title: string;
+    fileName: string;
+    fileUrl: string;
+    downloadUrl: string;
+    reuploadUrl: string;
+    deleteUrl: string;
+}>({
+    show: false,
+    title: '',
+    fileName: '',
+    fileUrl: '',
+    downloadUrl: '',
+    reuploadUrl: '',
+    deleteUrl: '',
+});
+
+const groupUploading = ref<Record<number, boolean>>({});
+const groupFileInputs = new Map<number, HTMLInputElement>();
+
+const triggerGroupUpload = (groupId: number) => {
+    const input = groupFileInputs.get(groupId);
+    if (input) input.click();
+};
+
+const handleGroupFileUpload = async (group: Group, event: Event) => {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+    if (!file) return;
+
+    groupUploading.value[group.id] = true;
+    const formData = new FormData();
+    formData.append('attachment', file);
+
+    try {
+        const response = await fetch(`/sections/${props.section.id}/projects/${props.project.id}/groups/${group.id}/attachment`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '',
+            },
+        });
+
+        if (response.ok) {
+            router.reload({ only: ['project'] });
+        } else {
+            const err = await response.json();
+            alert(err.message || 'Failed to upload group output.');
+        }
+    } catch (e: any) {
+        alert('Failed to upload group output. Please check the file and try again.');
+    } finally {
+        groupUploading.value[group.id] = false;
+        target.value = '';
+    }
+};
+
+const openGroupOutputPreview = (group: Group) => {
+    groupPreviewModal.value = {
+        show: true,
+        title: `Group Output: ${group.name}`,
+        fileName: group.attachment_name || `Group ${group.group_number}_Output`,
+        fileUrl: `/sections/${props.section.id}/projects/${props.project.id}/groups/${group.id}/attachment`,
+        downloadUrl: `/sections/${props.section.id}/projects/${props.project.id}/groups/${group.id}/attachment?download=1`,
+        reuploadUrl: `/sections/${props.section.id}/projects/${props.project.id}/groups/${group.id}/attachment`,
+        deleteUrl: `/sections/${props.section.id}/projects/${props.project.id}/groups/${group.id}/attachment`,
+    };
+};
+
+const memberUploading = ref<Record<number, boolean>>({});
+const memberFileInputs = new Map<number, HTMLInputElement>();
+
+const triggerMemberUpload = (memberId: number) => {
+    const input = memberFileInputs.get(memberId);
+    if (input) input.click();
+};
+
+const handleMemberFileUpload = async (group: Group, member: Member, event: Event) => {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+    if (!file) return;
+
+    memberUploading.value[member.id] = true;
+    const formData = new FormData();
+    formData.append('attachment', file);
+
+    try {
+        const response = await fetch(
+            `/sections/${props.section.id}/projects/${props.project.id}/groups/${group.id}/members/${member.student_id}/attachment`,
+            {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '',
+                },
+            }
+        );
+
+        if (response.ok) {
+            router.reload({ only: ['project'] });
+        } else {
+            const err = await response.json();
+            alert(err.message || 'Failed to upload student output.');
+        }
+    } catch (e: any) {
+        alert('Failed to upload student output. Please check the file and try again.');
+    } finally {
+        memberUploading.value[member.id] = false;
+        target.value = '';
+    }
+};
+
+const openMemberOutputPreview = (group: Group, member: Member) => {
+    groupPreviewModal.value = {
+        show: true,
+        title: `Student Output: ${member.full_name}`,
+        fileName: member.attachment_name || `${member.last_name || 'Student'}_Output`,
+        fileUrl: `/sections/${props.section.id}/projects/${props.project.id}/groups/${group.id}/members/${member.student_id}/attachment`,
+        downloadUrl: `/sections/${props.section.id}/projects/${props.project.id}/groups/${group.id}/members/${member.student_id}/attachment?download=1`,
+        reuploadUrl: `/sections/${props.section.id}/projects/${props.project.id}/groups/${group.id}/members/${member.student_id}/attachment`,
+        deleteUrl: `/sections/${props.section.id}/projects/${props.project.id}/groups/${group.id}/members/${member.student_id}/attachment`,
+    };
+};
+
+const aiCheckingGroupId = ref<number | null>(null);
+const aiCheckingMemberId = ref<number | null>(null);
+const aiFeedbackMessage = ref<string>('');
+const aiErrorMessage = ref<string>('');
+
+const checkingAll = ref(false);
+const checkProgress = ref(0);
+const checkFailures = ref<string[]>([]);
+const showCheckAllModal = ref(false);
+const shouldStopCheckAll = ref(false);
+const currentEvaluatingName = ref('');
+const checkProgressItems = ref<CheckProgressItem[]>([]);
+
+const checkUnavailableReason = computed(() => {
+    if (!hasRubric.value) return 'Configure a rubric (percentage rate or answer key) or attach a file in Rubrics before checking outputs.';
+    if (checkingAll.value) return 'Check all is running. Wait for the current batch to finish.';
+    if (aiCheckingGroupId.value !== null || aiCheckingMemberId.value !== null) return 'An output is being checked. Wait for it to finish.';
+    return '';
+});
+const attachedOutputs = computed(() => props.project.groups.flatMap(group => [
+    ...(group.attachment_path ? [{ group, member: null as Member | null }] : []),
+    ...group.members.filter(member => member.attachment_path).map(member => ({ group, member: member as Member | null })),
+]));
+const checkAll = async () => {
+    if (checkingAll.value || aiCheckingGroupId.value !== null || aiCheckingMemberId.value !== null || !hasRubric.value || !attachedOutputs.value.length) return;
+    checkingAll.value = true;
+    shouldStopCheckAll.value = false;
+    checkProgress.value = 0;
+    checkFailures.value = [];
+    showCheckAllModal.value = true;
+
+    const outputs = [...attachedOutputs.value];
+    checkProgressItems.value = outputs.map(({ group, member }) => ({
+        id: member ? `member_${member.id}` : `group_${group.id}`,
+        title: member ? member.full_name : group.name,
+        subtitle: member ? (member.student_number || group.name) : (group.topic || undefined),
+        filename: (member ? member.attachment_name : group.attachment_name) || undefined,
+        status: 'pending',
+        score: null,
+        remarks: null,
+        error: null,
+    }));
+
+    try {
+        for (let i = 0; i < outputs.length; i++) {
+            if (shouldStopCheckAll.value) break;
+
+            const { group, member } = outputs[i];
+            const item = checkProgressItems.value[i];
+            if (item) {
+                item.status = 'evaluating';
+            }
+            const displayName = member ? member.full_name : group.name;
+            const attachName = member ? member.attachment_name : group.attachment_name;
+            currentEvaluatingName.value = `${displayName}${attachName ? ` (${attachName})` : ''}`;
+
+            const success = member ? await runAiCheckMember(group, member, true) : await runAiCheckGroup(group, true);
+            if (success) {
+                if (item) {
+                    item.status = 'success';
+                    item.score = member ? member.score : group.score;
+                    item.remarks = member ? member.notes : group.notes;
+                }
+            } else {
+                const err = aiErrorMessage.value || 'Evaluation failed';
+                checkFailures.value.push(`${displayName}: ${err}`);
+                if (item) {
+                    item.status = 'failed';
+                    item.error = err;
+                }
+            }
+            checkProgress.value++;
+        }
+        const passedCount = outputs.length - checkFailures.value.length;
+        aiFeedbackMessage.value = `Checked ${passedCount} of ${outputs.length} outputs. ${checkFailures.value.length} failed.`;
+    } finally {
+        checkingAll.value = false;
+        currentEvaluatingName.value = '';
+    }
+};
+
+const handleStopCheckAll = () => {
+    shouldStopCheckAll.value = true;
+};
+
+const runAiCheckGroup = async (group: Group, batch = false): Promise<boolean> => {
+    if ((checkingAll.value && !batch) || !hasRubric.value || !group.attachment_path) return false;
+    if (aiCheckingGroupId.value !== null || aiCheckingMemberId.value !== null) return false;
+    aiCheckingGroupId.value = group.id;
+    aiFeedbackMessage.value = '';
+    aiErrorMessage.value = '';
+
+    try {
+        const response = await fetch(
+            `/sections/${props.section.id}/projects/${props.project.id}/groups/${group.id}/ai-check`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '',
+                },
+            },
+        );
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            groupScores.value[group.id] = data.score;
+            groupNotes.value[group.id] = data.notes ?? '';
+            group.score = data.score;
+            group.notes = data.notes;
+            aiFeedbackMessage.value = data.message || `AI graded ${group.name}: ${data.score} pts. Score and notes saved.`;
+            setTimeout(() => {
+                if (aiFeedbackMessage.value === data.message) {
+                    aiFeedbackMessage.value = '';
+                }
+            }, 6000);
+            return true;
+        } else {
+            aiErrorMessage.value = data.message || 'AI document check failed for group.';
+        }
+    } catch (e: any) {
+        aiErrorMessage.value = 'AI document check failed: ' + (e?.message || 'Server error.');
+    } finally {
+        aiCheckingGroupId.value = null;
+    }
+    return false;
+};
+
+const runAiCheckMember = async (group: Group, member: Member, batch = false): Promise<boolean> => {
+    if ((checkingAll.value && !batch) || !hasRubric.value || !member.attachment_path) return false;
+    if (aiCheckingGroupId.value !== null || aiCheckingMemberId.value !== null) return false;
+    aiCheckingMemberId.value = member.id;
+    aiFeedbackMessage.value = '';
+    aiErrorMessage.value = '';
+
+    try {
+        const response = await fetch(
+            `/sections/${props.section.id}/projects/${props.project.id}/groups/${group.id}/members/${member.student_id}/ai-check`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '',
+                },
+            },
+        );
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            memberScores.value[member.id] = data.score;
+            memberNotes.value[member.id] = data.notes ?? '';
+            member.score = data.score;
+            member.notes = data.notes;
+            aiFeedbackMessage.value = data.message || `AI graded ${member.full_name}: ${data.score} pts. Score and notes saved.`;
+            setTimeout(() => {
+                if (aiFeedbackMessage.value === data.message) {
+                    aiFeedbackMessage.value = '';
+                }
+            }, 6000);
+            return true;
+        } else {
+            aiErrorMessage.value = data.message || 'AI document check failed for student.';
+        }
+    } catch (e: any) {
+        aiErrorMessage.value = 'AI document check failed: ' + (e?.message || 'Server error.');
+    } finally {
+        aiCheckingMemberId.value = null;
+    }
+    return false;
+};
 
 // Save All Topics & Scores in one unified request
 const saveAll = async () => {
@@ -271,6 +797,10 @@ const handleGlobalKeydown = (e: KeyboardEvent) => {
 
 onMounted(() => {
     window.addEventListener('keydown', handleGlobalKeydown);
+    if (hasRubric.value || attachedOutputs.value.length > 0) {
+        warmModel('code_grading');
+        warmModel('general_grading');
+    }
 });
 
 onUnmounted(() => {
@@ -852,15 +1382,21 @@ const filteredUnassigned = computed(() => {
                             }}</span>
                         </button>
 
+                        <ActivityFileButton
+                            :url="`/sections/${section.id}/projects/${project.id}/activity-file`"
+                            :file-name="project.activity_file_name"
+                            :attached="!!project.activity_file_path"
+                            :activity-title="project.title"
+                            reload-prop="project"
+                        />
                         <button
-                            v-if="project.attachment_path"
                             type="button"
-                            class="shadow-xs group inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-primary/40 bg-primary/10 px-3 text-xs font-semibold text-primary transition-all duration-300 hover:bg-primary hover:text-white"
-                            :title="`Preview: ${project.attachment_name || 'Attachment'}`"
-                            @click="showPreviewModal = true"
+                            class="shadow-xs inline-flex h-10 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-primary/40 bg-primary/10 px-4 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+                            :title="hasRubric ? 'Edit rubric / answer key: ' + rubricBadgeLabel : 'Configure rubric or upload file'"
+                            @click="openRubrics"
                         >
                             <Paperclip class="size-4 shrink-0" />
-                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-64 group-hover:opacity-100 group-hover:ml-1.5">Preview: {{ project.attachment_name || 'Attachment' }}</span>
+                            <span>{{ rubricBadgeLabel }}</span>
                         </button>
 
                         <button
@@ -871,6 +1407,16 @@ const filteredUnassigned = computed(() => {
                         >
                             <Dices class="size-4 shrink-0 text-primary transition-colors group-hover:text-white" />
                             <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">Randomize members</span>
+                        </button>
+
+                        <button
+                            v-if="project.format !== 'individual'"
+                            class="shadow-xs group inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-primary bg-white px-3 text-xs font-medium text-primary transition-all duration-300 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
+                            title="Copy grouping from previous activity"
+                            @click="showCopyGroupingModal = true"
+                        >
+                            <Copy class="size-4 shrink-0 text-primary transition-colors group-hover:text-white" />
+                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">Use previous grouping</span>
                         </button>
 
                         <button
@@ -1044,6 +1590,25 @@ const filteredUnassigned = computed(() => {
                     </div>
                 </div>
             </header>
+            <section class="grading-toolbar" aria-label="Submission checking">
+                <div><p class="font-semibold">Student & group outputs</p><p class="text-sm text-muted-foreground">{{ attachedOutputs.length }} attached • {{ hasRubric ? `${rubricBadgeLabel} ready to review` : 'Configure a rubric in Rubrics to enable checking.' }}</p></div>
+                <DisabledReason :reason="checkUnavailableReason || (!attachedOutputs.length ? 'Attach at least one student output to enable Check all.' : '')">
+                    <button
+                        type="button"
+                        class="grading-check-button"
+                        :disabled="!hasRubric || !attachedOutputs.length || checkingAll || aiCheckingGroupId !== null || aiCheckingMemberId !== null"
+                        @mouseenter="warmModel('code_grading'); warmModel('general_grading')"
+                        @click="checkAll"
+                    >
+                        <OctoSpinner v-if="checkingAll" size="sm" class="mr-1.5" />
+                        <Sparkles v-else class="size-4 mr-1.5 shrink-0" />
+                        {{ checkingAll ? `Octo checking ${checkProgress} / ${attachedOutputs.length}` : `Check all (${attachedOutputs.length})` }}
+                    </button>
+                </DisabledReason>
+                <progress v-if="checkingAll" class="w-full accent-primary" :value="checkProgress" :max="attachedOutputs.length" aria-label="Checking progress" />
+                <ul v-if="checkFailures.length" class="w-full space-y-1 text-sm text-rose-600" aria-live="polite"><li v-for="failure in checkFailures" :key="failure">{{ failure }}</li></ul>
+            </section>
+
 
             <!-- Unassigned Students Alert (For Group Mode) -->
             <div
@@ -1085,6 +1650,32 @@ const filteredUnassigned = computed(() => {
                         <span v-if="student.seat_label" class="font-mono text-[10px] text-muted-foreground">({{ student.seat_label }})</span>
                     </span>
                 </div>
+            </div>
+
+            <!-- AI Grading Status / Notification Banner -->
+            <div
+                v-if="aiFeedbackMessage"
+                class="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-xs font-semibold text-emerald-800 dark:text-emerald-300"
+            >
+                <div class="flex items-center gap-2">
+                    <Sparkles class="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                    <span>{{ aiFeedbackMessage }}</span>
+                </div>
+                <button type="button" class="text-emerald-700 hover:text-emerald-900 dark:text-emerald-300" @click="aiFeedbackMessage = ''">
+                    <X class="size-4" />
+                </button>
+            </div>
+            <div
+                v-if="aiErrorMessage"
+                class="flex items-center justify-between rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs font-semibold text-rose-800 dark:text-rose-300"
+            >
+                <div class="flex items-center gap-2">
+                    <AlertCircle class="size-4 shrink-0 text-rose-600 dark:text-rose-400" />
+                    <span>{{ aiErrorMessage }}</span>
+                </div>
+                <button type="button" class="text-rose-700 hover:text-rose-900 dark:text-rose-300" @click="aiErrorMessage = ''">
+                    <X class="size-4" />
+                </button>
             </div>
 
             <!-- ========================================== -->
@@ -1260,52 +1851,145 @@ const filteredUnassigned = computed(() => {
                                 </div>
                             </div>
 
-                            <!-- Presentation Score & Quick Actions -->
-                            <div class="flex items-center justify-end gap-3 lg:col-span-3">
-                                <div class="flex items-center gap-2 rounded-xl border border-border/80 bg-secondary/40 px-3 py-2">
-                                    <span class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Score:</span>
+                                <!-- Presentation Score & Quick Actions -->
+                                <div class="flex flex-wrap items-center justify-end gap-2 lg:col-span-3">
+                                    <!-- Output Attachment -->
                                     <input
-                                        :ref="
-                                            (el) => {
-                                                if (el) groupScoreInputs.set(group.id, el as HTMLInputElement);
-                                            }
-                                        "
-                                        v-model="groupScores[group.id]"
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        :max="project.max_points || 1000"
-                                        placeholder="—"
-                                        class="w-16 rounded-lg border px-2 py-1 text-center font-mono text-xs font-bold transition-all focus:outline-none"
-                                        :class="[
-                                            groupScores[group.id] !== '' &&
-                                            groupScores[group.id] !== null &&
-                                            groupScores[group.id] !== undefined &&
-                                            (Number(groupScores[group.id]) < 0 || Number(groupScores[group.id]) > Number(project.max_points || 100))
-                                                ? '!border-rose-500 !bg-rose-500/10 !text-rose-600 !ring-2 !ring-rose-500 dark:!text-rose-400'
-                                                : 'border-input bg-background text-foreground focus:ring-1 focus:ring-primary',
-                                        ]"
-                                        @focus="($event.target as HTMLInputElement)?.select()"
-                                        @blur="saveGroupScore(group)"
-                                        @keydown="handleGroupScoreKey($event, group)"
+                                        :ref="(el) => { if (el) groupFileInputs.set(group.id, el as HTMLInputElement); }"
+                                        type="file"
+                                        accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z,.rtf,.odt,.ods,.odp,.svg,.gif,.bmp,.heic,.pages,.numbers,.key,.json,.sql,.db,.sqlite,.sqlite3"
+                                        class="hidden"
+                                        @change="handleGroupFileUpload(group, $event)"
                                     />
-                                    <span class="font-mono text-[11px] text-muted-foreground">/ {{ project.max_points || '100' }}</span>
-                                </div>
+                                    <div v-if="group.attachment_path" class="flex items-center gap-1">
+                                        <button
+                                            type="button"
+                                            class="inline-flex max-w-[140px] items-center gap-1.5 truncate rounded-xl border border-primary/40 bg-primary/10 px-2.5 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary hover:text-white"
+                                            :title="`Preview / Download: ${group.attachment_name}`"
+                                            @click="openGroupOutputPreview(group)"
+                                        >
+                                            <Paperclip class="size-3.5 shrink-0" />
+                                            <span class="truncate font-mono text-[11px]">{{ group.attachment_name || 'Output' }}</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                                            title="Upload new file to replace"
+                                            @click="triggerGroupUpload(group.id)"
+                                        >
+                                            <RefreshCw class="size-3" />
+                                        </button>
+                                        <DisabledReason :reason="checkUnavailableReason">
+                                            <button
+                                                type="button"
+                                                :disabled="checkingAll || aiCheckingGroupId !== null || aiCheckingMemberId !== null || !hasRubric"
+                                                class="inline-flex items-center gap-1 rounded-xl border border-violet-500/30 bg-violet-500/10 px-2 py-1 text-xs font-semibold text-violet-700 transition-all hover:bg-violet-600 hover:text-white disabled:opacity-50 dark:border-violet-400/30 dark:bg-violet-400/10 dark:text-violet-300 dark:hover:bg-violet-500 dark:hover:text-white"
+                                                :title="aiCheckingGroupId === group.id ? 'Octo AI is analyzing presentation document against rubrics...' : 'AI Check: Analyze document against rubrics and auto-score'"
+                                                @mouseenter="warmModel('code_grading'); warmModel('general_grading')"
+                                                @click="runAiCheckGroup(group)"
+                                            >
+                                                <OctoSpinner v-if="aiCheckingGroupId === group.id" size="xs" class="mr-0.5" />
+                                                <Sparkles v-else class="size-3 shrink-0" />
+                                                <span>{{ aiCheckingGroupId === group.id ? 'Octo checking…' : 'Check' }}</span>
+                                            </button>
+                                        </DisabledReason>
+                                    </div>
+                                    <div v-else>
+                                        <button
+                                            type="button"
+                                            :disabled="groupUploading[group.id]"
+                                            class="inline-flex items-center gap-1 rounded-xl border border-dashed border-border/90 bg-card px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/50 hover:bg-secondary hover:text-foreground disabled:opacity-50"
+                                            @click="triggerGroupUpload(group.id)"
+                                        >
+                                            <LoaderCircle v-if="groupUploading[group.id]" class="size-3.5 animate-spin" />
+                                            <UploadCloud v-else class="size-3.5" />
+                                            <span>{{ groupUploading[group.id] ? '…' : 'Attach Output' }}</span>
+                                        </button>
+                                    </div>
 
-                                <button
-                                    type="button"
-                                    :disabled="topicSaving[group.id] || scoreSaving[group.id]"
-                                    class="inline-flex size-9 items-center justify-center rounded-xl border border-primary/40 bg-primary/10 text-primary transition-all hover:bg-primary hover:text-white"
-                                    title="Save this presenter's topic & score"
-                                    @click="
-                                        saveGroupTopic(group);
-                                        saveGroupScore(group);
-                                    "
-                                >
-                                    <Check v-if="scoreSaved[group.id] || topicSaved[group.id]" class="size-4" />
-                                    <Save v-else class="size-4" />
-                                </button>
+                                    <div class="flex items-center gap-2 rounded-xl border border-border/80 bg-secondary/40 px-3 py-2">
+                                        <span class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Score:</span>
+                                        <input
+                                            :ref="
+                                                (el) => {
+                                                    if (el) groupScoreInputs.set(group.id, el as HTMLInputElement);
+                                                }
+                                            "
+                                            v-model="groupScores[group.id]"
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            :max="project.max_points || 1000"
+                                            placeholder="—"
+                                            class="w-16 rounded-lg border px-2 py-1 text-center font-mono text-xs font-bold transition-all focus:outline-none"
+                                            :class="[
+                                                groupScores[group.id] !== '' &&
+                                                groupScores[group.id] !== null &&
+                                                groupScores[group.id] !== undefined &&
+                                                (Number(groupScores[group.id]) < 0 || Number(groupScores[group.id]) > Number(project.max_points || 100))
+                                                    ? '!border-rose-500 !bg-rose-500/10 !text-rose-600 !ring-2 !ring-rose-500 dark:!text-rose-400'
+                                                    : 'border-input bg-background text-foreground focus:ring-1 focus:ring-primary',
+                                            ]"
+                                            @focus="($event.target as HTMLInputElement)?.select()"
+                                            @blur="saveGroupScore(group)"
+                                            @keydown="handleGroupScoreKey($event, group)"
+                                        />
+                                        <span class="font-mono text-[11px] text-muted-foreground">/ {{ project.max_points || '100' }}</span>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        :disabled="topicSaving[group.id] || scoreSaving[group.id]"
+                                        class="inline-flex size-9 items-center justify-center rounded-xl border border-primary/40 bg-primary/10 text-primary transition-all hover:bg-primary hover:text-white"
+                                        title="Save this presenter's topic & score"
+                                        @click="
+                                            saveGroupTopic(group);
+                                            saveGroupScore(group);
+                                        "
+                                    >
+                                        <Check v-if="scoreSaved[group.id] || topicSaved[group.id]" class="size-4" />
+                                        <Save v-else class="size-4" />
+                                    </button>
+                                </div>
+                        </div>
+
+                        <!-- Remarks / Score Justification Row -->
+                        <div class="border-t border-border/60 bg-secondary/20 px-5 py-2.5">
+                            <div class="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[11px] font-bold text-muted-foreground flex items-center gap-1">
+                                        <FileText class="size-3 text-primary" />
+                                        Score Remarks & Justification:
+                                    </span>
+                                    <span v-if="groupNotes[group.id]" class="rounded bg-emerald-500/15 px-1.5 py-0.2 text-[9px] font-bold text-emerald-700 dark:text-emerald-300 font-mono">
+                                        Justified
+                                    </span>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-1">
+                                    <span class="text-[10px] text-muted-foreground">Quick:</span>
+                                    <button
+                                        v-for="preset in ['Mastered Topic & Q&A', 'Clear Delivery', '-5 Late', 'Incomplete Coverage', 'Needs More Depth', 'Excellent Effort']"
+                                        :key="preset"
+                                        type="button"
+                                        class="inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] transition-all cursor-pointer select-none"
+                                        :class="getGroupPresetClass(group.id, preset)"
+                                        :aria-pressed="isGroupPresetActive(group.id, preset)"
+                                        :title="isGroupPresetActive(group.id, preset) ? `Click to remove '${preset}'` : `Click to apply '${preset}' and adjust score`"
+                                        @click="toggleGroupPreset(group, preset)"
+                                    >
+                                        <span class="font-bold">{{ isGroupPresetActive(group.id, preset) ? '✓' : '+' }}</span>
+                                        <span>{{ preset }}</span>
+                                    </button>
+                                </div>
                             </div>
+                            <textarea
+                                v-model="groupNotes[group.id]"
+                                rows="4" maxlength="10000"
+                                placeholder="Add remarks or justification for this score (e.g. Mastered topic, clear Q&A, minus 5 for late submission)..."
+                                class="resize-y leading-relaxed mt-1.5 w-full rounded-lg border border-border/80 bg-background px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/50 transition-all focus-visible:ring-2 focus-visible:ring-primary"
+                                @blur="saveGroupScore(group)"
+                                @keydown.ctrl.enter="saveGroupScore(group)"
+                            />
                         </div>
                     </div>
                 </div>
@@ -1496,7 +2180,63 @@ const filteredUnassigned = computed(() => {
                                 </div>
                             </div>
 
-                            <div class="flex items-center gap-2">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <!-- Hidden File Input for Group Output -->
+                                <input
+                                    :ref="(el) => { if (el) groupFileInputs.set(group.id, el as HTMLInputElement); }"
+                                    type="file"
+                                    accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z,.rtf,.odt,.ods,.odp,.svg,.gif,.bmp,.heic,.pages,.numbers,.key,.json,.sql,.db,.sqlite,.sqlite3"
+                                    class="hidden"
+                                    @change="handleGroupFileUpload(group, $event)"
+                                />
+
+                                <!-- Group Output Badge / Button -->
+                                <div v-if="group.attachment_path" class="flex items-center gap-1">
+                                    <button
+                                        type="button"
+                                        class="inline-flex max-w-[150px] items-center gap-1.5 truncate rounded-lg border border-primary/40 bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary transition-colors hover:bg-primary hover:text-white"
+                                        :title="`Preview / Download: ${group.attachment_name}`"
+                                        @click="openGroupOutputPreview(group)"
+                                    >
+                                        <Paperclip class="size-3.5 shrink-0" />
+                                        <span class="truncate font-mono text-[11px]">{{ group.attachment_name || 'Group Output' }}</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                                        title="Upload new file to replace"
+                                        @click="triggerGroupUpload(group.id)"
+                                    >
+                                        <RefreshCw class="size-3" />
+                                    </button>
+                                    <DisabledReason :reason="checkUnavailableReason">
+                                        <button
+                                            type="button"
+                                            :disabled="checkingAll || aiCheckingGroupId !== null || aiCheckingMemberId !== null || !hasRubric"
+                                            class="inline-flex items-center gap-1 rounded-lg border border-violet-500/30 bg-violet-500/10 px-2 py-1 text-xs font-semibold text-violet-700 transition-all hover:bg-violet-600 hover:text-white disabled:opacity-50 dark:border-violet-400/30 dark:bg-violet-400/10 dark:text-violet-300 dark:hover:bg-violet-500 dark:hover:text-white"
+                                            :title="aiCheckingGroupId === group.id ? 'Octo AI is analyzing group document against rubrics...' : 'AI Check: Analyze document against rubrics and auto-score'"
+                                            @mouseenter="warmModel('code_grading'); warmModel('general_grading')"
+                                            @click="runAiCheckGroup(group)"
+                                        >
+                                            <OctoSpinner v-if="aiCheckingGroupId === group.id" size="xs" class="mr-0.5" />
+                                            <Sparkles v-else class="size-3 shrink-0" />
+                                            <span>{{ aiCheckingGroupId === group.id ? 'Octo checking…' : 'Check' }}</span>
+                                        </button>
+                                    </DisabledReason>
+                                </div>
+                                <div v-else>
+                                    <button
+                                        type="button"
+                                        :disabled="groupUploading[group.id]"
+                                        class="inline-flex items-center gap-1 rounded-lg border border-dashed border-border/90 bg-card px-2.5 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/50 hover:bg-secondary hover:text-foreground disabled:opacity-50"
+                                        @click="triggerGroupUpload(group.id)"
+                                    >
+                                        <LoaderCircle v-if="groupUploading[group.id]" class="size-3.5 animate-spin" />
+                                        <UploadCloud v-else class="size-3.5" />
+                                        <span>{{ groupUploading[group.id] ? 'Uploading…' : 'Attach Group Output' }}</span>
+                                    </button>
+                                </div>
+
                                 <button
                                     class="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-secondary"
                                     @click="openAddMemberModal(group)"
@@ -1535,119 +2275,203 @@ const filteredUnassigned = computed(() => {
                                 </div>
 
                                 <div v-else class="space-y-2">
-                                    <div
-                                        v-for="(member, idx) in group.members"
-                                        :key="member.id"
-                                        class="group/member flex items-center justify-between rounded-xl border p-2.5 text-xs transition-all hover:bg-secondary/40"
-                                        :class="[
-                                            isMemberMatch(member)
-                                                ? 'border-primary bg-primary/10 ring-1 ring-primary/40'
-                                                : 'border-border/70 bg-background/60',
-                                        ]"
-                                    >
-                                        <div class="flex min-w-0 items-center gap-2.5">
-                                            <span class="w-4 text-right font-mono text-[10px] font-bold text-muted-foreground/70">
-                                                {{ idx + 1 }}.
-                                            </span>
-                                            <div
-                                                class="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold uppercase text-primary"
-                                            >
-                                                {{ member.last_name?.[0] || member.first_name?.[0] || 'S' }}{{ member.last_name ? (member.first_name?.[0] || '') : '' }}
-                                            </div>
-                                            <div class="min-w-0">
-                                                <div class="flex items-center gap-1.5">
-                                                    <p class="truncate font-semibold text-foreground">
-                                                        {{ member.full_name }}
-                                                    </p>
-                                                    <span
-                                                        v-if="isMemberMatch(member)"
-                                                        class="rounded bg-primary/20 px-1.5 py-0.5 font-mono text-[9px] font-bold text-primary"
-                                                    >
-                                                        Match
-                                                    </span>
+                                    <template v-for="(member, idx) in group.members" :key="member.id">
+                                        <div
+                                            class="group/member flex items-center justify-between rounded-xl border p-2.5 text-xs transition-all hover:bg-secondary/40"
+                                            :class="[
+                                                isMemberMatch(member)
+                                                    ? 'border-primary bg-primary/10 ring-1 ring-primary/40'
+                                                    : 'border-border/70 bg-background/60',
+                                            ]"
+                                        >
+                                            <div class="flex min-w-0 items-center gap-2.5">
+                                                <span class="w-4 text-right font-mono text-[10px] font-bold text-muted-foreground/70">
+                                                    {{ idx + 1 }}.
+                                                </span>
+                                                <div
+                                                    class="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold uppercase text-primary"
+                                                >
+                                                    {{ member.last_name?.[0] || member.first_name?.[0] || 'S' }}{{ member.last_name ? (member.first_name?.[0] || '') : '' }}
                                                 </div>
-                                                <p class="flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
-                                                    <span>{{ member.student_number }}</span>
-                                                    <span v-if="member.seat_label" class="font-medium text-primary">· {{ member.seat_label }}</span>
-                                                </p>
+                                                <div class="min-w-0">
+                                                    <div class="flex items-center gap-1.5">
+                                                        <p class="truncate font-semibold text-foreground">
+                                                            {{ member.full_name }}
+                                                        </p>
+                                                        <span
+                                                            v-if="isMemberMatch(member)"
+                                                            class="rounded bg-primary/20 px-1.5 py-0.5 font-mono text-[9px] font-bold text-primary"
+                                                        >
+                                                            Match
+                                                        </span>
+                                                    </div>
+                                                    <p class="flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
+                                                        <span>{{ member.student_number }}</span>
+                                                        <span v-if="member.seat_label" class="font-medium text-primary">· {{ member.seat_label }}</span>
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div class="flex items-center gap-1.5 opacity-80 group-hover/member:opacity-100">
+                                                <!-- Individual Student Score Override -->
+                                                <div
+                                                    class="flex items-center gap-1"
+                                                    title="Individual student score override (defaults to group score if left empty)"
+                                                >
+                                                    <span class="font-mono text-[9px] text-muted-foreground">Ind:</span>
+                                                    <input
+                                                        :ref="
+                                                            (el) => {
+                                                                if (el) memberScoreInputs.set(member.id, el as HTMLInputElement);
+                                                            }
+                                                        "
+                                                        v-model="memberScores[member.id]"
+                                                        type="number"
+                                                        step="0.01"
+                                                        min="0"
+                                                        :max="project.max_points || 1000"
+                                                        :placeholder="
+                                                            groupScores[group.id] !== '' && groupScores[group.id] !== undefined
+                                                                ? String(groupScores[group.id])
+                                                                : '—'
+                                                        "
+                                                        class="w-14 rounded-lg border px-1.5 py-0.5 text-center font-mono text-[11px] font-medium transition-all focus:outline-none"
+                                                        :class="[
+                                                            memberScores[member.id] !== '' &&
+                                                            memberScores[member.id] !== null &&
+                                                            memberScores[member.id] !== undefined &&
+                                                            (Number(memberScores[member.id]) < 0 ||
+                                                                Number(memberScores[member.id]) > Number(project.max_points || 100))
+                                                                ? '!border-rose-500 !bg-rose-500/10 !text-rose-600 !ring-2 !ring-rose-500 dark:!text-rose-400'
+                                                                : 'border-input bg-card text-foreground focus:ring-1 focus:ring-primary',
+                                                        ]"
+                                                        @focus="($event.target as HTMLInputElement)?.select()"
+                                                        @blur="saveMemberScore(group, member)"
+                                                        @keydown="handleMemberScoreKey($event, member, group)"
+                                                    />
+                                                    <span
+                                                        v-if="memberSaved[member.id]"
+                                                        class="text-[8px] font-semibold text-emerald-600 dark:text-emerald-400"
+                                                        >✓</span
+                                                    >
+                                                </div>
+
+                                                <!-- Member Remarks Button -->
+                                                <button
+                                                    type="button"
+                                                    class="rounded-md p-1 text-[10px] transition-colors"
+                                                    :class="
+                                                        memberNotes[member.id] && memberNotes[member.id].trim().length > 0
+                                                            ? 'bg-primary/20 text-primary font-bold'
+                                                            : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                                                    "
+                                                    :title="memberNotes[member.id] ? `Remarks: ${memberNotes[member.id]}` : 'Add member justification / remarks'"
+                                                    @click="toggleMemberNoteInput(member.id)"
+                                                >
+                                                    <FileText class="size-3" />
+                                                </button>
+
+                                                <!-- Member Output Attachment -->
+                                                <input
+                                                    :ref="(el) => { if (el) memberFileInputs.set(member.id, el as HTMLInputElement); }"
+                                                    type="file"
+                                                    accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z,.rtf,.odt,.ods,.odp,.svg,.gif,.bmp,.heic,.pages,.numbers,.key,.json,.sql,.db,.sqlite,.sqlite3"
+                                                    class="hidden"
+                                                    @change="handleMemberFileUpload(group, member, $event)"
+                                                />
+                                                <button
+                                                    v-if="member.attachment_path"
+                                                    type="button"
+                                                    class="inline-flex max-w-[80px] items-center gap-1 truncate rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
+                                                    :title="`Preview Output: ${member.attachment_name}`"
+                                                    @click="openMemberOutputPreview(group, member)"
+                                                >
+                                                    <Paperclip class="size-2.5 shrink-0" />
+                                                    <span class="truncate">{{ member.attachment_name }}</span>
+                                                </button>
+                                                <DisabledReason :reason="checkUnavailableReason" v-if="member.attachment_path">
+                                                    <button
+                                                        type="button"
+                                                        :disabled="checkingAll || aiCheckingGroupId !== null || aiCheckingMemberId !== null || !hasRubric"
+                                                        class="inline-flex items-center gap-0.5 rounded-md border border-violet-500/30 bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700 transition-all hover:bg-violet-600 hover:text-white disabled:opacity-50 dark:border-violet-400/30 dark:bg-violet-400/10 dark:text-violet-300 dark:hover:bg-violet-500 dark:hover:text-white"
+                                                        :title="aiCheckingMemberId === member.id ? 'Octo AI is analyzing student output against rubrics...' : 'AI Check: Analyze document against rubrics and auto-score'"
+                                                        @mouseenter="warmModel('code_grading'); warmModel('general_grading')"
+                                                        @click="runAiCheckMember(group, member)"
+                                                    >
+                                                        <OctoSpinner v-if="aiCheckingMemberId === member.id" size="xs" class="mr-0.5" />
+                                                        <Sparkles v-else class="size-2.5 shrink-0" />
+                                                        <span>{{ aiCheckingMemberId === member.id ? '…' : 'Check' }}</span>
+                                                    </button>
+                                                </DisabledReason>
+                                                <button
+                                                    v-else
+                                                    type="button"
+                                                    :disabled="memberUploading[member.id]"
+                                                    class="rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                                                    title="Attach student output"
+                                                    @click="triggerMemberUpload(member.id)"
+                                                >
+                                                    <LoaderCircle v-if="memberUploading[member.id]" class="size-3 animate-spin" />
+                                                    <UploadCloud v-else class="size-3" />
+                                                </button>
+
+                                                <!-- Quick Move to Another Group Selector -->
+                                                <select
+                                                    v-if="project.groups.length > 1"
+                                                    class="h-7 rounded-lg border border-input bg-card px-2 text-[11px] font-medium text-muted-foreground focus:ring-1 focus:ring-primary"
+                                                    title="Move to another group"
+                                                    @change="moveStudent(member.student_id, Number(($event.target as HTMLSelectElement).value))"
+                                                >
+                                                    <option value="" disabled selected>Move to…</option>
+                                                    <option
+                                                        v-for="otherGroup in project.groups.filter((g) => g.id !== group.id)"
+                                                        :key="otherGroup.id"
+                                                        :value="otherGroup.id"
+                                                    >
+                                                        {{ otherGroup.name }}
+                                                    </option>
+                                                </select>
+
+                                                <!-- Remove Member -->
+                                                <button
+                                                    class="rounded-lg p-1 text-muted-foreground transition-colors hover:bg-rose-500/10 hover:text-rose-600"
+                                                    title="Remove from group"
+                                                    @click="removeStudentFromGroup(member, group)"
+                                                >
+                                                    <UserMinus class="size-3.5" />
+                                                </button>
                                             </div>
                                         </div>
 
-                                        <div class="flex items-center gap-1.5 opacity-80 group-hover/member:opacity-100">
-                                            <!-- Individual Student Score Override -->
-                                            <div
-                                                class="flex items-center gap-1"
-                                                title="Individual student score override (defaults to group score if left empty)"
-                                            >
-                                                <span class="font-mono text-[9px] text-muted-foreground">Ind:</span>
-                                                <input
-                                                    :ref="
-                                                        (el) => {
-                                                            if (el) memberScoreInputs.set(member.id, el as HTMLInputElement);
-                                                        }
-                                                    "
-                                                    v-model="memberScores[member.id]"
-                                                    type="number"
-                                                    step="0.01"
-                                                    min="0"
-                                                    :max="project.max_points || 1000"
-                                                    :placeholder="
-                                                        groupScores[group.id] !== '' && groupScores[group.id] !== undefined
-                                                            ? String(groupScores[group.id])
-                                                            : '—'
-                                                    "
-                                                    class="w-14 rounded-lg border px-1.5 py-0.5 text-center font-mono text-[11px] font-medium transition-all focus:outline-none"
-                                                    :class="[
-                                                        memberScores[member.id] !== '' &&
-                                                        memberScores[member.id] !== null &&
-                                                        memberScores[member.id] !== undefined &&
-                                                        (Number(memberScores[member.id]) < 0 ||
-                                                            Number(memberScores[member.id]) > Number(project.max_points || 100))
-                                                            ? '!border-rose-500 !bg-rose-500/10 !text-rose-600 !ring-2 !ring-rose-500 dark:!text-rose-400'
-                                                            : 'border-input bg-card text-foreground focus:ring-1 focus:ring-primary',
-                                                    ]"
-                                                    @focus="($event.target as HTMLInputElement)?.select()"
-                                                    @blur="saveMemberScore(group, member)"
-                                                    @keydown="handleMemberScoreKey($event, member, group)"
-                                                />
-                                                <span
-                                                    v-if="memberSaved[member.id]"
-                                                    class="text-[8px] font-semibold text-emerald-600 dark:text-emerald-400"
-                                                    >✓</span
-                                                >
-                                            </div>
-
-                                            <!-- Quick Move to Another Group Selector -->
-                                            <select
-                                                v-if="project.groups.length > 1"
-                                                class="h-7 rounded-lg border border-input bg-card px-2 text-[11px] font-medium text-muted-foreground focus:ring-1 focus:ring-primary"
-                                                title="Move to another group"
-                                                @change="moveStudent(member.student_id, Number(($event.target as HTMLSelectElement).value))"
-                                            >
-                                                <option value="" disabled selected>Move to…</option>
-                                                <option
-                                                    v-for="otherGroup in project.groups.filter((g) => g.id !== group.id)"
-                                                    :key="otherGroup.id"
-                                                    :value="otherGroup.id"
-                                                >
-                                                    {{ otherGroup.name }}
-                                                </option>
-                                            </select>
-
-                                            <!-- Remove Member -->
+                                        <!-- Member Justification Inline Input -->
+                                        <div
+                                            v-if="activeMemberNoteInput === member.id || (memberNotes[member.id] && memberNotes[member.id].trim().length > 0)"
+                                            class="flex items-center gap-1.5 rounded-lg border border-border/70 bg-secondary/30 px-2.5 py-1 text-xs"
+                                        >
+                                            <span class="text-[9px] font-bold text-muted-foreground uppercase">Note:</span>
+                                            <textarea
+                                                v-model="memberNotes[member.id]"
+                                                rows="4" maxlength="10000"
+                                                placeholder="Member justification (e.g. Lead presenter, full UI contribution, minus 5 for late)..."
+                                                class="resize-y leading-relaxed min-h-28 flex-1 rounded border border-border/80 bg-background px-2 text-[11px] text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-1 focus-visible:ring-primary"
+                                                @blur="saveMemberScore(group, member)"
+                                                @keydown.ctrl.enter="saveMemberScore(group, member)"
+                                            />
                                             <button
-                                                class="rounded-lg p-1 text-muted-foreground transition-colors hover:bg-rose-500/10 hover:text-rose-600"
-                                                title="Remove from group"
-                                                @click="removeStudentFromGroup(member, group)"
+                                                v-if="memberNotes[member.id]"
+                                                type="button"
+                                                class="rounded p-0.5 text-muted-foreground hover:bg-rose-500/10 hover:text-rose-600"
+                                                title="Clear remarks"
+                                                @click="memberNotes[member.id] = ''; saveMemberScore(group, member)"
                                             >
-                                                <UserMinus class="size-3.5" />
+                                                <X class="size-3" />
                                             </button>
                                         </div>
-                                    </div>
+                                    </template>
                                 </div>
                             </div>
 
-                            <!-- RIGHT COLUMN: Topic Assignment -->
+                            <!-- RIGHT COLUMN: Topic Assignment & Group Justification -->
                             <div
                                 class="flex flex-col justify-between border-t border-border/60 pt-4 lg:col-span-6 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0"
                             >
@@ -1752,6 +2576,42 @@ const filteredUnassigned = computed(() => {
                                                     @blur="saveGroupTopic(group)"
                                                 />
                                             </label>
+                                        </div>
+                                    </div>
+
+                                    <!-- Group Score Remarks & Justification -->
+                                    <div class="mt-4 border-t border-border/70 pt-3 space-y-1.5">
+                                        <div class="flex items-center justify-between">
+                                            <label class="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                                <FileText class="size-3.5 text-primary" />
+                                                Group Score Remarks & Justification:
+                                            </label>
+                                            <span v-if="groupNotes[group.id]" class="rounded bg-emerald-500/15 px-1.5 py-0.2 font-mono text-[9px] font-bold text-emerald-700 dark:text-emerald-300">
+                                                Justified
+                                            </span>
+                                        </div>
+                                        <textarea
+                                            v-model="groupNotes[group.id]"
+                                            rows="4" maxlength="10000"
+                                            class="w-full rounded-xl border border-input bg-background p-2.5 text-xs font-medium leading-relaxed transition-all placeholder:text-muted-foreground/50 focus-visible:ring-2 focus-visible:ring-primary"
+                                            placeholder="Score justification for this group (e.g. Complete features, clean code, outstanding teamwork, minus 5 for late submission)..."
+                                            @blur="saveGroupScore(group)"
+                                        />
+                                        <div class="flex flex-wrap items-center gap-1">
+                                            <span class="text-[10px] text-muted-foreground">Quick:</span>
+                                            <button
+                                                v-for="preset in ['Complete Requirements', 'Clean Code & Docs', '-5 Late Submission', 'Incomplete Deliverables', 'Outstanding Teamwork', 'Needs Revision']"
+                                                :key="preset"
+                                                type="button"
+                                                class="inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] transition-all cursor-pointer select-none"
+                                                :class="getGroupPresetClass(group.id, preset)"
+                                                :aria-pressed="isGroupPresetActive(group.id, preset)"
+                                                :title="isGroupPresetActive(group.id, preset) ? `Click to remove '${preset}'` : `Click to apply '${preset}' and adjust score`"
+                                                @click="toggleGroupPreset(group, preset)"
+                                            >
+                                                <span class="font-bold">{{ isGroupPresetActive(group.id, preset) ? '✓' : '+' }}</span>
+                                                <span>{{ preset }}</span>
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -2223,34 +3083,89 @@ const filteredUnassigned = computed(() => {
                         }}</small>
                     </label>
 
-                    <label class="block">
-                        <span class="text-xs font-bold uppercase tracking-wider text-muted-foreground"
+                    <div class="space-y-2">
+                        <span class="block text-xs font-bold uppercase tracking-wider text-muted-foreground"
                             >Attachment / Reference Guidelines
                             <em class="font-normal normal-case text-muted-foreground">(optional, max 50MB)</em></span
                         >
+
+                        <!-- Existing Attachment Controls -->
                         <div
-                            v-if="project.attachment_name && !editForm.attachment"
-                            class="mb-2 flex items-center justify-between rounded-xl border border-border/80 bg-muted/40 p-2.5 text-xs"
+                            v-if="project.attachment_name && !editForm.remove_attachment"
+                            class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/80 bg-muted/40 p-3 text-xs"
                         >
-                            <span class="flex items-center gap-1.5 font-medium text-foreground">
-                                <Paperclip class="size-3.5 text-primary" />
-                                Current: {{ project.attachment_name }}
-                            </span>
-                            <span class="text-[10px] text-muted-foreground">Upload new file below to replace</span>
+                            <div class="flex items-center gap-2 min-w-0">
+                                <Paperclip class="size-4 text-primary shrink-0" />
+                                <div class="min-w-0">
+                                    <p class="font-semibold text-foreground truncate">{{ project.attachment_name }}</p>
+                                    <p class="text-[10px] text-muted-foreground">Current guidelines attachment</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <button
+                                    type="button"
+                                    class="inline-flex h-7 items-center gap-1 rounded-lg border border-primary/40 bg-primary/10 px-2.5 text-[11px] font-semibold text-primary hover:bg-primary hover:text-white transition-colors"
+                                    @click="editFileInputRef?.click()"
+                                >
+                                    <RefreshCw class="size-3" />
+                                    <span>Replace File</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    class="inline-flex h-7 items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 text-[11px] font-semibold text-rose-600 hover:bg-rose-600 hover:text-white transition-colors dark:text-rose-400"
+                                    @click="editForm.remove_attachment = true; editForm.attachment = null;"
+                                >
+                                    <Trash2 class="size-3" />
+                                    <span>Delete File</span>
+                                </button>
+                            </div>
                         </div>
-                        <input
-                            type="file"
-                            accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z,.rtf,.odt,.ods,.odp,.svg,.json,.sql,.db,.sqlite,.sqlite3"
-                            class="mt-1 block w-full text-xs text-muted-foreground file:mr-2 file:rounded-lg file:border file:border-border file:bg-secondary file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-foreground hover:file:bg-secondary/80"
-                            @change="editForm.attachment = ($event.target as HTMLInputElement).files?.[0] || null"
-                        />
-                        <span v-if="editForm.attachment" class="mt-1 block font-mono text-[10px] text-primary">
-                            Selected: {{ editForm.attachment.name }} ({{ (editForm.attachment.size / 1024 / 1024).toFixed(2) }} MB)
-                        </span>
-                        <small v-if="editForm.errors.attachment" class="mt-1 block text-xs font-semibold text-rose-600">{{
-                            editForm.errors.attachment
-                        }}</small>
-                    </label>
+
+                        <!-- Marked for Removal Banner -->
+                        <div
+                            v-else-if="project.attachment_name && editForm.remove_attachment"
+                            class="flex items-center justify-between rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-700 dark:text-rose-300"
+                        >
+                            <div class="flex items-center gap-2">
+                                <Trash2 class="size-4 shrink-0" />
+                                <span>Attached file <strong>{{ project.attachment_name }}</strong> will be removed upon save.</span>
+                            </div>
+                            <button
+                                type="button"
+                                class="rounded-lg border border-rose-500/40 bg-card px-2.5 py-1 text-[11px] font-bold text-foreground hover:bg-secondary"
+                                @click="editForm.remove_attachment = false"
+                            >
+                                Undo
+                            </button>
+                        </div>
+
+                        <!-- File Input -->
+                        <div>
+                            <input
+                                ref="editFileInputRef"
+                                type="file"
+                                accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z,.rtf,.odt,.ods,.odp,.svg,.json,.sql,.db,.sqlite,.sqlite3"
+                                class="mt-1 block w-full text-xs text-muted-foreground file:mr-2 file:rounded-lg file:border file:border-border file:bg-secondary file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-foreground hover:file:bg-secondary/80"
+                                @change="
+                                    editForm.attachment = ($event.target as HTMLInputElement).files?.[0] || null;
+                                    editForm.remove_attachment = false;
+                                "
+                            />
+                            <div v-if="editForm.attachment" class="mt-1.5 flex items-center justify-between rounded-lg bg-primary/10 px-2.5 py-1 text-xs text-primary font-mono">
+                                <span>Selected replacement: {{ editForm.attachment.name }} ({{ (editForm.attachment.size / 1024 / 1024).toFixed(2) }} MB)</span>
+                                <button
+                                    type="button"
+                                    class="text-muted-foreground hover:text-foreground ml-2"
+                                    @click="editForm.attachment = null; if (editFileInputRef) editFileInputRef.value = '';"
+                                >
+                                    <X class="size-3.5" />
+                                </button>
+                            </div>
+                            <small v-if="editForm.errors.attachment" class="mt-1 block text-xs font-semibold text-rose-600">{{
+                                editForm.errors.attachment
+                            }}</small>
+                        </div>
+                    </div>
 
                     <div class="flex flex-wrap items-center justify-between gap-3 border-t border-border/80 pt-3">
                         <button
@@ -2343,15 +3258,192 @@ const filteredUnassigned = computed(() => {
             </div>
         </div>
 
-        <!-- Attachment Preview Modal -->
+        <!-- Attachment Guidelines Preview Modal -->
         <FilePreviewModal
             v-if="project.attachment_path"
             :show="showPreviewModal"
-            :title="project.title"
+            :title="`Rubrics: ${project.title}`"
             :file-name="project.attachment_name"
             :file-url="`/sections/${section.id}/projects/${project.id}/attachment`"
             :download-url="`/sections/${section.id}/projects/${project.id}/attachment?download=1`"
+            :reupload-url="`/sections/${section.id}/projects/${project.id}/attachment`"
+            :delete-url="`/sections/${section.id}/projects/${project.id}/attachment`"
             @close="showPreviewModal = false"
+            @deleted="showPreviewModal = false"
+            @reuploaded="showPreviewModal = false"
+        />
+
+        <!-- Group / Member Output Preview Modal -->
+        <FilePreviewModal
+            v-if="groupPreviewModal.show"
+            :show="groupPreviewModal.show"
+            :title="groupPreviewModal.title"
+            :file-name="groupPreviewModal.fileName"
+            :file-url="groupPreviewModal.fileUrl"
+            :download-url="groupPreviewModal.downloadUrl"
+            :reupload-url="groupPreviewModal.reuploadUrl"
+            :delete-url="groupPreviewModal.deleteUrl"
+            @close="groupPreviewModal.show = false"
+            @deleted="
+                groupPreviewModal.show = false;
+                router.reload({ only: ['project'] });
+            "
+            @reuploaded="
+                groupPreviewModal.show = false;
+                router.reload({ only: ['project'] });
+            "
+        />
+
+        <!-- Copy Grouping Modal -->
+        <div
+            v-if="showCopyGroupingModal"
+            v-modal-focus
+            class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-zinc-950/70 p-4 backdrop-blur-md duration-200 animate-in fade-in"
+        >
+            <div
+                class="paper-card relative w-full max-w-xl border-border/90 p-6 shadow-2xl duration-200 animate-in zoom-in-95"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Copy Grouping from Previous Activity"
+            >
+                <div class="flex items-center justify-between border-b border-border/80 pb-4">
+                    <div class="flex items-center gap-2.5">
+                        <div class="grid size-9 place-items-center rounded-xl bg-primary/10 text-primary">
+                            <Copy class="size-5" />
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-foreground">Copy Grouping from Previous Activity</h3>
+                            <p class="text-xs text-muted-foreground">Reuse group rosters and student assignments from an earlier activity.</p>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        class="rounded-lg p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                        @click="showCopyGroupingModal = false"
+                    >
+                        <X class="size-4" />
+                    </button>
+                </div>
+
+                <div v-if="!previousProjects || previousProjects.length === 0" class="mt-6 rounded-xl border border-dashed border-border/80 bg-secondary/20 p-6 text-center text-xs text-muted-foreground">
+                    <Users class="mx-auto size-8 text-muted-foreground/60 mb-2" />
+                    <p class="font-bold text-foreground">No other group activities found in this section</p>
+                    <p class="text-[11px] mt-1">Once you have created other activities with groups in this section, you will be able to copy their groupings here.</p>
+                </div>
+
+                <form v-else class="mt-5 space-y-4" @submit.prevent="submitCopyGrouping">
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-muted-foreground">Source Activity</label>
+                        <select
+                            v-model="copyGroupingSourceId"
+                            required
+                            class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
+                        >
+                            <option value="" disabled>Choose an activity to copy groupings from...</option>
+                            <option v-for="prev in previousProjects" :key="prev.id" :value="prev.id">
+                                {{ prev.title }} ({{ prev.groups_count }} groups · {{ prev.members_count }} students · {{ formatDate(prev.conducted_on) }})
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- Selected source preview -->
+                    <div v-if="selectedCopyGroupingSource" class="rounded-xl border border-primary/20 bg-primary/5 p-3.5 text-xs">
+                        <div class="flex items-center justify-between font-bold text-primary border-b border-primary/10 pb-2">
+                            <span>{{ selectedCopyGroupingSource.title }}</span>
+                            <span class="font-mono text-[11px]">{{ selectedCopyGroupingSource.groups_count }} groups · {{ selectedCopyGroupingSource.members_count }} students</span>
+                        </div>
+                        <div class="mt-2.5 grid gap-2 sm:grid-cols-2 max-h-44 overflow-y-auto pr-1">
+                            <div
+                                v-for="grp in selectedCopyGroupingSource.groups"
+                                :key="grp.id"
+                                class="rounded-lg border border-border/70 bg-card p-2 shadow-2xs"
+                            >
+                                <div class="font-bold text-foreground text-[11px]">{{ grp.name }}</div>
+                                <div class="text-[10px] text-muted-foreground mt-0.5">
+                                    {{ grp.members.length }} members:
+                                    <span class="truncate block text-foreground/80 font-medium">
+                                        {{ grp.members.map((m) => m.full_name).join(', ') || 'No members' }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2 rounded-xl border border-border/80 bg-secondary/20 p-3.5 text-xs">
+                        <label class="flex cursor-pointer items-center gap-2 font-medium text-foreground">
+                            <input
+                                v-model="copyGroupingCopyNames"
+                                type="checkbox"
+                                class="size-4 rounded border-border text-primary focus:ring-primary"
+                            />
+                            <span>Keep custom group names (e.g. "Team Alpha")</span>
+                        </label>
+                        <label class="flex cursor-pointer items-center gap-2 font-medium text-foreground">
+                            <input
+                                v-model="copyGroupingCopyTopics"
+                                type="checkbox"
+                                class="size-4 rounded border-border text-primary focus:ring-primary"
+                            />
+                            <span>Copy presentation topics & descriptions</span>
+                        </label>
+                    </div>
+
+                    <div class="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-[11px] leading-relaxed text-amber-800 dark:text-amber-300">
+                        <strong>Note:</strong> This will replace current group member assignments with the assignments from the selected activity. Any students not present in the selected activity will become unassigned.
+                    </div>
+
+                    <div class="flex items-center justify-end gap-3 pt-2 border-t border-border/80">
+                        <button
+                            type="button"
+                            class="rounded-xl border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground hover:bg-secondary"
+                            :disabled="isCopyingGrouping"
+                            @click="showCopyGroupingModal = false"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            :disabled="!copyGroupingSourceId || isCopyingGrouping"
+                            class="ink-button !rounded-xl text-xs font-bold"
+                        >
+                            <LoaderCircle v-if="isCopyingGrouping" class="size-3.5 animate-spin mr-1.5" />
+                            <span>{{ isCopyingGrouping ? 'Applying Grouping…' : 'Apply Previous Grouping' }}</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Rubric Manager Modal (Percentage Rate, Answer Key, File Upload, Octo Study) -->
+        <RubricManagerModal
+            :show="showRubricManager"
+            :section-id="section.id"
+            :activity-id="project.id"
+            activity-type="project"
+            :title="project.title"
+            :max-points="Number(project.max_points) || 100"
+            :rubric-type="project.rubric_type"
+            :rubric-data="project.rubric_data"
+            :attachment-path="project.attachment_path"
+            :attachment-name="project.attachment_name"
+            :attachment-mime="project.attachment_mime"
+            @close="showRubricManager = false"
+            @preview-attachment="showPreviewModal = true"
+            @saved="handleRubricSaved"
+        />
+
+        <!-- Check All Live Progress Modal -->
+        <CheckAllProgressModal
+            :show="showCheckAllModal"
+            :is-running="checkingAll"
+            :total="attachedOutputs.length"
+            :current-progress="checkProgress"
+            :current-item-name="currentEvaluatingName"
+            :items="checkProgressItems"
+            :activity-title="project.title"
+            :max-points="project.max_points"
+            @stop="handleStopCheckAll"
+            @close="showCheckAllModal = false"
         />
     </AppLayout>
 </template>
