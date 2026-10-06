@@ -42,7 +42,11 @@ const { toggleTimer, isTimerOpen } = useClassroomTimer();
             <button
                 type="button"
                 class="inline-flex size-9 items-center justify-center rounded-xl border transition-colors"
-                :class="isTimerOpen ? 'border-primary bg-primary/10 text-primary' : 'border-border/80 bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground'"
+                :class="
+                    isTimerOpen
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border/80 bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground'
+                "
                 title="Classroom Timer & Stopwatch"
                 @click="toggleTimer"
             >

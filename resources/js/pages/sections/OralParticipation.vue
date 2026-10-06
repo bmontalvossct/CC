@@ -685,7 +685,7 @@ const ratingLabel = (val: number) => {
                                                                 ? 'min-h-[3.75rem] rounded-lg p-1 sm:min-h-[4.25rem]'
                                                                 : 'min-h-[3rem] rounded-md p-0.5 sm:min-h-[3.5rem]',
                                                         studentSearchQuery && isStudentSearchMatch(studentMap.get(Number(seat.student_id)))
-                                                            ? '!ring-4 !ring-amber-400 !ring-offset-2 z-30 scale-105 shadow-xl animate-pulse'
+                                                            ? 'z-30 scale-105 animate-pulse shadow-xl !ring-4 !ring-amber-400 !ring-offset-2'
                                                             : studentSearchQuery
                                                               ? 'opacity-35'
                                                               : '',
@@ -942,7 +942,7 @@ const ratingLabel = (val: number) => {
                                 class="group relative flex flex-col items-center justify-center rounded-2xl border p-3 text-center transition-all hover:scale-[1.02]"
                                 :class="[
                                     studentSearchQuery && isStudentSearchMatch(student)
-                                        ? '!ring-4 !ring-amber-400 !ring-offset-2 z-30 scale-105 shadow-xl animate-pulse'
+                                        ? 'z-30 scale-105 animate-pulse shadow-xl !ring-4 !ring-amber-400 !ring-offset-2'
                                         : studentSearchQuery
                                           ? 'opacity-35'
                                           : '',

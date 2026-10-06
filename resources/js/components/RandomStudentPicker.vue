@@ -80,7 +80,10 @@ const close = () => {
             @click="pickRandom"
         >
             <Dices class="size-4 text-primary transition-colors group-hover:text-white" />
-            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 font-medium">Pick student</span>
+            <span
+                class="max-w-0 overflow-hidden whitespace-nowrap font-medium opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100"
+                >Pick student</span
+            >
         </button>
 
         <!-- Random Picker Modal -->

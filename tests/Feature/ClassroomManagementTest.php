@@ -8,6 +8,7 @@ use App\Models\Student;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ClassroomManagementTest extends TestCase
@@ -473,7 +474,7 @@ class ClassroomManagementTest extends TestCase
 
     public function test_teacher_can_update_and_remove_student_photo(): void
     {
-        \Illuminate\Support\Facades\Storage::fake('local');
+        Storage::fake('local');
         $user = User::factory()->create();
         $section = $this->section($user);
 
@@ -492,7 +493,7 @@ class ClassroomManagementTest extends TestCase
         $response->assertRedirect();
         $student->refresh();
         $this->assertNotNull($student->photo_path);
-        \Illuminate\Support\Facades\Storage::disk('local')->assertExists($student->photo_path);
+        Storage::disk('local')->assertExists($student->photo_path);
 
         $oldPath = $student->photo_path;
         $response = $this->actingAs($user)->patch(route('sections.students.update', [$section, $student]), [
@@ -503,6 +504,6 @@ class ClassroomManagementTest extends TestCase
         $response->assertRedirect();
         $student->refresh();
         $this->assertNull($student->photo_path);
-        \Illuminate\Support\Facades\Storage::disk('local')->assertMissing($oldPath);
+        Storage::disk('local')->assertMissing($oldPath);
     }
 }

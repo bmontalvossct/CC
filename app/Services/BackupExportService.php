@@ -4,21 +4,13 @@ namespace App\Services;
 
 use App\Models\AcademicTerm;
 use App\Models\Assessment;
-use App\Models\AssessmentScore;
-use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
-use App\Models\CourseModule;
-use App\Models\LayoutBlock;
-use App\Models\Project;
-use App\Models\ProjectGroup;
 use App\Models\Recitation;
-use App\Models\Seat;
 use App\Models\Section;
-use App\Models\SectionSchedule;
-use App\Models\Student;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class BackupExportService
@@ -248,7 +240,7 @@ class BackupExportService
      */
     public function restoreUserData(User $user, array $backupData, bool $cleanReplace = false): array
     {
-        if (!isset($backupData['meta']['app']) || $backupData['meta']['app'] !== 'ClassCheck') {
+        if (! isset($backupData['meta']['app']) || $backupData['meta']['app'] !== 'ClassCheck') {
             throw new \InvalidArgumentException('Invalid backup archive. File must be a valid ClassCheck export.');
         }
 
@@ -306,7 +298,7 @@ class BackupExportService
                     'enrollment_token' => $secData['enrollment_token'] ?? null,
                     'is_enrollment_open' => $secData['is_enrollment_open'] ?? true,
                     'grading_weights' => $secData['grading_weights'] ?? null,
-                    'archived_at' => !empty($secData['archived_at']) ? $secData['archived_at'] : null,
+                    'archived_at' => ! empty($secData['archived_at']) ? $secData['archived_at'] : null,
                 ]);
                 $stats['sections_imported']++;
 
@@ -318,12 +310,12 @@ class BackupExportService
                 // Students
                 foreach ($secData['students'] ?? [] as $stData) {
                     $photoPath = $stData['photo_path'] ?? null;
-                    if (!empty($stData['photo_base64'])) {
+                    if (! empty($stData['photo_base64'])) {
                         try {
                             if (preg_match('/^data:image\/(\w+);base64,(.+)$/', $stData['photo_base64'], $matches)) {
                                 $ext = $matches[1] === 'jpeg' ? 'jpg' : $matches[1];
                                 $decoded = base64_decode($matches[2]);
-                                $photoPath = 'classcheck/students/'.\Illuminate\Support\Str::random(40).'.'.$ext;
+                                $photoPath = 'classcheck/students/'.Str::random(40).'.'.$ext;
                                 Storage::disk('local')->put($photoPath, $decoded);
                             }
                         } catch (\Throwable $e) {
@@ -359,7 +351,7 @@ class BackupExportService
 
                     foreach ($blockData['seats'] ?? [] as $seatData) {
                         $newStudentId = null;
-                        if (!empty($seatData['student_id']) && isset($studentMap[$seatData['student_id']])) {
+                        if (! empty($seatData['student_id']) && isset($studentMap[$seatData['student_id']])) {
                             $newStudentId = $studentMap[$seatData['student_id']];
                         }
 
@@ -384,7 +376,7 @@ class BackupExportService
                     $stats['attendance_sessions_imported']++;
 
                     foreach ($sessData['records'] ?? [] as $recData) {
-                        if (!empty($recData['student_id']) && isset($studentMap[$recData['student_id']])) {
+                        if (! empty($recData['student_id']) && isset($studentMap[$recData['student_id']])) {
                             $session->records()->create([
                                 'student_id' => $studentMap[$recData['student_id']],
                                 'status' => $recData['status'],
@@ -397,7 +389,7 @@ class BackupExportService
 
                 // Recitations
                 foreach ($secData['recitations'] ?? [] as $recData) {
-                    if (!empty($recData['student_id']) && isset($studentMap[$recData['student_id']])) {
+                    if (! empty($recData['student_id']) && isset($studentMap[$recData['student_id']])) {
                         $section->recitations()->create([
                             'student_id' => $studentMap[$recData['student_id']],
                             'score' => $recData['score'],
@@ -423,7 +415,7 @@ class BackupExportService
                     $stats['assessments_imported']++;
 
                     foreach ($assData['scores'] ?? [] as $scData) {
-                        if (!empty($scData['student_id']) && isset($studentMap[$scData['student_id']])) {
+                        if (! empty($scData['student_id']) && isset($studentMap[$scData['student_id']])) {
                             $assessment->scores()->create([
                                 'student_id' => $studentMap[$scData['student_id']],
                                 'score' => $scData['score'],
@@ -440,11 +432,11 @@ class BackupExportService
                         'project_number' => $prjData['project_number'] ?? 1,
                         'format' => $prjData['format'] ?? 'group',
                         'max_score' => $prjData['max_score'] ?? 100,
-                        'due_at' => !empty($prjData['due_at']) ? $prjData['due_at'] : null,
+                        'due_at' => ! empty($prjData['due_at']) ? $prjData['due_at'] : null,
                     ]);
 
                     foreach ($prjData['groups'] ?? [] as $grpData) {
-                        $newLeaderId = !empty($grpData['leader_student_id']) && isset($studentMap[$grpData['leader_student_id']])
+                        $newLeaderId = ! empty($grpData['leader_student_id']) && isset($studentMap[$grpData['leader_student_id']])
                             ? $studentMap[$grpData['leader_student_id']]
                             : null;
 
@@ -471,7 +463,7 @@ class BackupExportService
                 // Course Modules
                 foreach ($secData['course_modules'] ?? [] as $modIdx => $modData) {
                     $section->courseModules()->create([
-                        'module_number' => !empty($modData['module_number']) ? $modData['module_number'] : ('M'.($modIdx + 1)),
+                        'module_number' => ! empty($modData['module_number']) ? $modData['module_number'] : ('M'.($modIdx + 1)),
                         'title' => $modData['title'] ?? ('Module '.($modIdx + 1)),
                         'description' => $modData['description'] ?? null,
                         'link_url' => $modData['link_url'] ?? $modData['url'] ?? null,
@@ -500,7 +492,7 @@ class BackupExportService
         $tables = $tablesStmt->fetchAll(\PDO::FETCH_COLUMN);
 
         $hasRequired = in_array('sections', $tables) || in_array('students', $tables) || in_array('academic_terms', $tables);
-        if (!$hasRequired) {
+        if (! $hasRequired) {
             throw new \InvalidArgumentException('The uploaded SQLite file is not a valid ClassCheck database.');
         }
 

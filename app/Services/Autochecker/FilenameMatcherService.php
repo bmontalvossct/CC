@@ -10,8 +10,8 @@ class FilenameMatcherService
     /**
      * Match a collection of filenames against section students.
      *
-     * @param Collection<int, Student> $students
-     * @param array<int, string> $filenames
+     * @param  Collection<int, Student>  $students
+     * @param  array<int, string>  $filenames
      * @return array<string, array{student_id: int|null, student_number: string|null, student_name: string|null, confidence: float, match_type: string, reason: string}>
      */
     public function matchMultiple(Collection $students, array $filenames): array
@@ -27,8 +27,7 @@ class FilenameMatcherService
     /**
      * Match a single filename against students.
      *
-     * @param Collection<int, Student> $students
-     * @param string $filename
+     * @param  Collection<int, Student>  $students
      * @return array{student_id: int|null, student_number: string|null, student_name: string|null, confidence: float, match_type: string, reason: string}
      */
     public function matchSingle(Collection $students, string $filename): array
@@ -88,6 +87,7 @@ class FilenameMatcherService
         // 3. Unique Last Name match
         if (count($candidates) === 1) {
             $matched = $candidates[0];
+
             return [
                 'student_id' => $matched->id,
                 'student_number' => $matched->student_number,
@@ -114,6 +114,7 @@ class FilenameMatcherService
 
         if ($bestMatch !== null) {
             $conf = round($highestSim / 100, 2);
+
             return [
                 'student_id' => $bestMatch->id,
                 'student_number' => $bestMatch->student_number,
@@ -137,6 +138,7 @@ class FilenameMatcherService
     private function normalizeText(string $text): string
     {
         $text = strtolower($text);
+
         return preg_replace('/[^a-z0-9]/', ' ', $text) ?? '';
     }
 
@@ -147,7 +149,7 @@ class FilenameMatcherService
         }
 
         // Match whole word or direct substring
-        return (bool) preg_match('/\b' . preg_quote($needle, '/') . '\b/i', $haystack)
+        return (bool) preg_match('/\b'.preg_quote($needle, '/').'\b/i', $haystack)
             || str_contains($haystack, $needle);
     }
 }

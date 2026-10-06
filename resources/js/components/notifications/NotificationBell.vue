@@ -1,26 +1,9 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useClassReminders } from '@/composables/useClassReminders';
 import { Link } from '@inertiajs/vue3';
-import {
-    AlertCircle,
-    Bell,
-    BellOff,
-    BellRing,
-    CheckCircle2,
-    Clock,
-    ExternalLink,
-    MapPin,
-    Settings,
-    Volume2,
-    VolumeX,
-} from 'lucide-vue-next';
+import { AlertCircle, Bell, BellOff, BellRing, CheckCircle2, Clock, ExternalLink, MapPin, Settings, Volume2, VolumeX } from 'lucide-vue-next';
 
 const {
     isSupported,
@@ -44,7 +27,7 @@ const {
         <DropdownMenuTrigger as-child>
             <button
                 type="button"
-                class="relative inline-flex size-9 items-center justify-center rounded-xl border transition-colors focus:outline-hidden"
+                class="focus:outline-hidden relative inline-flex size-9 items-center justify-center rounded-xl border transition-colors"
                 :class="[
                     urgentClass
                         ? 'border-amber-500/80 bg-amber-500/10 text-amber-600 dark:text-amber-400'
@@ -60,22 +43,19 @@ const {
                 <Bell v-else class="size-4" />
 
                 <!-- Pulse dot when a class is due in <= 20 minutes -->
-                <span
-                    v-if="urgentClass"
-                    class="absolute -top-0.5 -right-0.5 flex size-2.5"
-                >
+                <span v-if="urgentClass" class="absolute -right-0.5 -top-0.5 flex size-2.5">
                     <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75"></span>
                     <span class="relative inline-flex size-2.5 rounded-full bg-amber-500"></span>
                 </span>
                 <!-- Blue dot if active today -->
                 <span
                     v-else-if="enabled && todayClasses.length > 0 && permission === 'granted'"
-                    class="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-primary"
+                    class="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-primary"
                 ></span>
             </button>
         </DropdownMenuTrigger>
 
-        <DropdownMenuContent class="w-80 p-0 rounded-2xl border border-border/80 bg-popover shadow-xl" align="end" :side-offset="8">
+        <DropdownMenuContent class="w-80 rounded-2xl border border-border/80 bg-popover p-0 shadow-xl" align="end" :side-offset="8">
             <!-- Header -->
             <div class="flex items-center justify-between border-b border-border/70 p-3.5">
                 <div class="flex items-center gap-2">
@@ -111,24 +91,15 @@ const {
             </div>
 
             <!-- Permission prompt banner if not yet granted -->
-            <div
-                v-if="isSupported && permission !== 'granted' && permission !== 'denied'"
-                class="border-b border-amber-500/20 bg-amber-500/10 p-3"
-            >
+            <div v-if="isSupported && permission !== 'granted' && permission !== 'denied'" class="border-b border-amber-500/20 bg-amber-500/10 p-3">
                 <div class="flex items-start gap-2">
                     <AlertCircle class="mt-0.5 size-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
                     <div class="space-y-1">
-                        <p class="text-[11px] font-medium text-amber-900 dark:text-amber-200">
-                            Allow Windows desktop notifications
-                        </p>
+                        <p class="text-[11px] font-medium text-amber-900 dark:text-amber-200">Allow Windows desktop notifications</p>
                         <p class="text-[10px] text-amber-700/80 dark:text-amber-300/80">
                             Enable notifications to receive status toasts 20 minutes before each class.
                         </p>
-                        <Button
-                            size="sm"
-                            class="mt-1 h-6 rounded-md px-2 text-[10px] font-medium"
-                            @click="requestNotificationPermission"
-                        >
+                        <Button size="sm" class="mt-1 h-6 rounded-md px-2 text-[10px] font-medium" @click="requestNotificationPermission">
                             Enable Notifications
                         </Button>
                     </div>
@@ -138,16 +109,16 @@ const {
             <!-- Next / Urgent Class Banner -->
             <div v-if="urgentClass" class="border-b border-amber-500/20 bg-amber-500/5 p-3">
                 <div class="flex items-center justify-between">
-                    <span class="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                    <span
+                        class="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400"
+                    >
                         <Clock class="size-3" />
                         Class in {{ urgentClass.minutes_until_start }}m
                     </span>
-                    <span class="text-[10px] font-mono text-muted-foreground">{{ urgentClass.starts_at_formatted }}</span>
+                    <span class="font-mono text-[10px] text-muted-foreground">{{ urgentClass.starts_at_formatted }}</span>
                 </div>
                 <div class="mt-1 flex items-baseline justify-between">
-                    <p class="text-xs font-semibold text-foreground">
-                        {{ urgentClass.subject_code }} · {{ urgentClass.section_name }}
-                    </p>
+                    <p class="text-xs font-semibold text-foreground">{{ urgentClass.subject_code }} · {{ urgentClass.section_name }}</p>
                     <span class="flex items-center gap-1 text-[10px] text-muted-foreground">
                         <MapPin class="size-2.5" />
                         {{ urgentClass.room }}
@@ -173,9 +144,7 @@ const {
                     <span>Starts {{ nextUpcomingClass.starts_at_formatted }}</span>
                 </div>
                 <div class="mt-1 flex items-baseline justify-between">
-                    <p class="text-xs font-medium text-foreground">
-                        {{ nextUpcomingClass.subject_code }} · {{ nextUpcomingClass.section_name }}
-                    </p>
+                    <p class="text-xs font-medium text-foreground">{{ nextUpcomingClass.subject_code }} · {{ nextUpcomingClass.section_name }}</p>
                     <span class="flex items-center gap-1 text-[10px] text-muted-foreground">
                         <MapPin class="size-2.5" />
                         {{ nextUpcomingClass.room }}
@@ -230,7 +199,7 @@ const {
             <div class="flex items-center justify-between bg-muted/30 p-2 text-xs">
                 <button
                     type="button"
-                    class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                    class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     :disabled="testSent"
                     @click="sendTestNotification"
                 >

@@ -32,7 +32,7 @@ export interface TodayRemindersResponse {
 // Global reactive state shared across all components
 const isSupported = ref(typeof window !== 'undefined' && 'Notification' in window);
 const permission = ref<'granted' | 'denied' | 'default' | 'unsupported'>(
-    typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'unsupported'
+    typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'unsupported',
 );
 
 const enabled = ref(true);

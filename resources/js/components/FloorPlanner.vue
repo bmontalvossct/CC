@@ -199,7 +199,7 @@ watch(
 
         <!-- Room Presets Strip -->
         <div class="mt-4">
-            <div class="mb-1.5 flex items-center justify-between text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+            <div class="mb-1.5 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 <span>Layout Presets</span>
                 <span class="text-[10px] font-normal text-muted-foreground">Click to apply</span>
             </div>

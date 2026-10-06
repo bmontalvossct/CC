@@ -11,7 +11,6 @@ use App\Models\Student;
 use App\Models\User;
 use App\Services\GradebookCalculationService;
 use Exception;
-use Illuminate\Support\Facades\Log;
 
 class ChatToolRegistry
 {
@@ -37,7 +36,7 @@ class ChatToolRegistry
                     'description' => 'Retrieve summary of all handled classes, enrolled student counts, and active academic terms for the authenticated teacher.',
                     'parameters' => [
                         'type' => 'object',
-                        'properties' => new \stdClass(),
+                        'properties' => new \stdClass,
                         'required' => [],
                     ],
                 ],
@@ -411,10 +410,9 @@ class ChatToolRegistry
     /**
      * Execute a tool call on behalf of the authenticated user.
      *
-     * @param string $toolName
-     * @param array<string, mixed> $arguments
-     * @param User $user
+     * @param  array<string, mixed>  $arguments
      * @return array{result: mixed, source: array{type: string, title: string, id: ?string, summary: string}}
+     *
      * @throws Exception
      */
     public function executeTool(string $toolName, array $arguments, User $user): array
@@ -648,7 +646,7 @@ class ChatToolRegistry
         $cleanQuery = trim($query);
 
         if (empty($cleanQuery)) {
-            throw new Exception("Student search query cannot be empty.", 422);
+            throw new Exception('Student search query cannot be empty.', 422);
         }
 
         $student = Student::where('section_id', $section->id)
@@ -803,7 +801,7 @@ class ChatToolRegistry
         $cleanQuery = trim($query);
 
         if ($cleanQuery === '') {
-            throw new Exception("Search query cannot be empty.", 422);
+            throw new Exception('Search query cannot be empty.', 422);
         }
 
         $results = $this->ragService->search(
@@ -837,7 +835,7 @@ class ChatToolRegistry
                 'title' => "Module Grounding: {$cleanQuery}",
                 'id' => (string) $section->id,
                 'summary' => count($results) > 0
-                    ? "Grounded on " . count($results) . " verified passage(s) from attached course modules."
+                    ? 'Grounded on '.count($results).' verified passage(s) from attached course modules.'
                     : "Searched course modules for '{$cleanQuery}' (0 matches).",
             ],
         ];
@@ -861,8 +859,7 @@ class ChatToolRegistry
     /**
      * Handle proposing creation of an activity/assessment.
      *
-     * @param User $user
-     * @param array<string, mixed> $args
+     * @param  array<string, mixed>  $args
      * @return array{result: mixed, source: array<string, mixed>}
      */
     protected function handleProposeCreateAssessment(User $user, array $args): array
@@ -915,8 +912,7 @@ class ChatToolRegistry
     /**
      * Handle proposing deletion of an assessment.
      *
-     * @param User $user
-     * @param array<string, mixed> $args
+     * @param  array<string, mixed>  $args
      * @return array{result: mixed, source: array<string, mixed>}
      */
     protected function handleProposeDeleteAssessment(User $user, array $args): array
@@ -1005,7 +1001,7 @@ class ChatToolRegistry
                 'type' => 'assessment_analytics',
                 'title' => "Assessment Performance Analytics: {$section->name}",
                 'id' => (string) $section->id,
-                'summary' => "Statistical analytics for " . count($analytics) . " assessments in {$section->name}.",
+                'summary' => 'Statistical analytics for '.count($analytics)." assessments in {$section->name}.",
             ],
         ];
     }
@@ -1059,7 +1055,7 @@ class ChatToolRegistry
                 'type' => 'deficiencies',
                 'title' => "At-Risk & Student Deficiencies: {$section->name}",
                 'id' => (string) $section->id,
-                'summary' => count($atRiskStudents) . " students identified with academic or attendance concerns.",
+                'summary' => count($atRiskStudents).' students identified with academic or attendance concerns.',
             ],
         ];
     }
@@ -1095,7 +1091,7 @@ class ChatToolRegistry
                 'type' => 'clarification',
                 'title' => 'Decision Choice Options',
                 'id' => null,
-                'summary' => "Presented " . count($options) . " choices for: \"{$question}\".",
+                'summary' => 'Presented '.count($options)." choices for: \"{$question}\".",
                 'choice_card' => $choiceCard,
             ],
         ];
@@ -1211,10 +1207,10 @@ class ChatToolRegistry
 
         $dateStr = now()->format('F j, Y');
 
-            $firstName = explode(' ', trim($fullName))[0] ?? 'Student';
+        $firstName = explode(' ', trim($fullName))[0] ?? 'Student';
 
-            if ($tone === 'academic_warning') {
-                $letter = <<<TEXT
+        if ($tone === 'academic_warning') {
+            $letter = <<<TEXT
 OFFICIAL ACADEMIC NOTICE / WARNING SLIP
 Date: {$dateStr}
 Student: {$fullName} ({$studentNumber})
@@ -1238,8 +1234,8 @@ Respectfully,
 {$user->name}
 Faculty, ClassCheck Academic System
 TEXT;
-            } elseif ($tone === 'supportive_counseling') {
-                $letter = <<<TEXT
+        } elseif ($tone === 'supportive_counseling') {
+            $letter = <<<TEXT
 STUDENT SUPPORT & ACADEMIC CHECK-IN
 Date: {$dateStr}
 Student: {$fullName} ({$studentNumber})
@@ -1255,8 +1251,8 @@ Warm regards,
 {$user->name}
 Instructor
 TEXT;
-            } else {
-                $letter = <<<TEXT
+        } else {
+            $letter = <<<TEXT
 OFFICIAL PARENT / GUARDIAN ACADEMIC ADVISORY
 Date: {$dateStr}
 To the Parent / Guardian of: {$fullName}
@@ -1280,25 +1276,25 @@ Sincerely,
 {$user->name}
 Instructor
 TEXT;
-            }
+        }
 
-            return [
-                'result' => [
-                    'student_name' => $fullName,
-                    'student_number' => $studentNumber,
-                    'tone' => $tone,
-                    'absences' => $absences,
-                    'missing_count' => $missingTasks,
-                    'draft' => $letter,
-                    'instruction' => 'Present this complete draft clearly to the teacher formatted in a code block or quote for quick copying or printing.',
-                ],
-                'source' => [
-                    'type' => 'intervention_draft',
-                    'title' => "Intervention Draft: {$fullName}",
-                    'id' => (string) $studentData['id'],
-                    'summary' => "Drafted {$tone} letter for {$fullName} ({$absences} absences, {$missingTasks} missing tasks).",
-                ],
-            ];
+        return [
+            'result' => [
+                'student_name' => $fullName,
+                'student_number' => $studentNumber,
+                'tone' => $tone,
+                'absences' => $absences,
+                'missing_count' => $missingTasks,
+                'draft' => $letter,
+                'instruction' => 'Present this complete draft clearly to the teacher formatted in a code block or quote for quick copying or printing.',
+            ],
+            'source' => [
+                'type' => 'intervention_draft',
+                'title' => "Intervention Draft: {$fullName}",
+                'id' => (string) $studentData['id'],
+                'summary' => "Drafted {$tone} letter for {$fullName} ({$absences} absences, {$missingTasks} missing tasks).",
+            ],
+        ];
     }
 
     /**
@@ -1356,7 +1352,7 @@ TEXT;
                 'type' => 'recitation_analytics',
                 'title' => "Oral Recitation Analytics: {$section->name}",
                 'id' => (string) $section->id,
-                'summary' => "Analyzed {$recitationCount} recitations across {$totalActive} active students (" . count($uncalledStudents) . " uncalled).",
+                'summary' => "Analyzed {$recitationCount} recitations across {$totalActive} active students (".count($uncalledStudents).' uncalled).',
             ],
         ];
     }

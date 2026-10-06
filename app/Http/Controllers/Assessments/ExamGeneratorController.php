@@ -20,8 +20,7 @@ class ExamGeneratorController extends AssessmentModuleController
     public function __construct(
         protected ExamGeneratorService $examGeneratorService,
         protected ExamDocxExportService $examDocxExportService,
-    ) {
-    }
+    ) {}
 
     /**
      * Get the available course modules for this section with file and metadata indicators.
@@ -149,7 +148,7 @@ class ExamGeneratorController extends AssessmentModuleController
                 $generator = $this->examGeneratorService->streamGenerateExam($section, $selectedModules, $config);
 
                 foreach ($generator as $event) {
-                    echo json_encode($event, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n";
+                    echo json_encode($event, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)."\n";
                     if (ob_get_level() > 0) {
                         @ob_flush();
                     }
@@ -158,8 +157,8 @@ class ExamGeneratorController extends AssessmentModuleController
             } catch (Exception $e) {
                 echo json_encode([
                     'type' => 'error',
-                    'message' => 'Hermes generation error: ' . $e->getMessage(),
-                ]) . "\n";
+                    'message' => 'Hermes generation error: '.$e->getMessage(),
+                ])."\n";
                 if (ob_get_level() > 0) {
                     @ob_flush();
                 }
@@ -193,7 +192,7 @@ class ExamGeneratorController extends AssessmentModuleController
 
         $termPeriod = $validated['term_period'] ?? 'midterm';
         $existingExamsCount = $section->assessments()->where('type', 'exam')->count();
-        $assessmentNumber = 'Exam ' . ($existingExamsCount + 1);
+        $assessmentNumber = 'Exam '.($existingExamsCount + 1);
 
         // Prepare rubric data
         $rubricData = $validated['structured_rubric'] ?? [];
@@ -210,7 +209,7 @@ class ExamGeneratorController extends AssessmentModuleController
             'term_period' => $termPeriod,
             'assessment_number' => $assessmentNumber,
             'title' => trim($validated['title']),
-            'description' => "Hermes-generated examination with structured questionnaire and answer key.",
+            'description' => 'Hermes-generated examination with structured questionnaire and answer key.',
             'conducted_on' => $validated['conducted_on'] ?? now()->toDateString(),
             'max_points' => $validated['max_points'],
             'rubric_type' => 'answer_key',
@@ -223,9 +222,9 @@ class ExamGeneratorController extends AssessmentModuleController
         $mdFileName = "{$slug}-questionnaire.md";
         $mdFilePath = "{$folderPath}/{$mdFileName}";
 
-        $examDocumentContent = "# " . $assessment->title . "\n\n" . trim($validated['exam_content']);
+        $examDocumentContent = '# '.$assessment->title."\n\n".trim($validated['exam_content']);
         if (! empty($validated['answer_key'])) {
-            $examDocumentContent .= "\n\n---\n\n## Answer Key & Grading Rubric\n\n" . trim($validated['answer_key']);
+            $examDocumentContent .= "\n\n---\n\n## Answer Key & Grading Rubric\n\n".trim($validated['answer_key']);
         }
 
         Storage::disk('local')->put($mdFilePath, $examDocumentContent);
@@ -256,8 +255,6 @@ class ExamGeneratorController extends AssessmentModuleController
             'activity_file_name' => $mdFileName,
             'activity_file_mime' => 'text/markdown',
         ]);
-
-
 
         return response()->json([
             'success' => true,
@@ -318,9 +315,8 @@ class ExamGeneratorController extends AssessmentModuleController
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to generate Word document: ' . $e->getMessage(),
+                'message' => 'Failed to generate Word document: '.$e->getMessage(),
             ], 500);
         }
     }
 }
-

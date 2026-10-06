@@ -9,18 +9,13 @@ class OllamaService
 {
     public function __construct(
         protected OllamaClient $ollamaClient
-    ) {
-    }
+    ) {}
 
     /**
      * Evaluate a student submission against a verified structured rubric.
      *
-     * @param string $content Code or text with line numbers
-     * @param string $filename
-     * @param float $maxPoints
-     * @param array<int, array{id: string, name: string, max_points: float, description?: string}> $rubricCriteria
-     * @param string|null $referenceSolution
-     * @param string|null $assessmentInstructions
+     * @param  string  $content  Code or text with line numbers
+     * @param  array<int, array{id: string, name: string, max_points: float, description?: string}>  $rubricCriteria
      * @return array{
      *     score: ?float,
      *     max_points: float,
@@ -90,14 +85,14 @@ class OllamaService
                 $parsed = json_decode($rawContent, true);
 
                 if (! is_array($parsed) || ! isset($parsed['criterion_evaluations'])) {
-                    throw new Exception("Ollama returned invalid JSON schema structure.");
+                    throw new Exception('Ollama returned invalid JSON schema structure.');
                 }
 
                 // 5. Backend-enforced score computation and boundary validation
                 return $this->processAndEnforceScores($parsed, $rubricCriteria, $maxPoints, $model, $rawContent);
             } catch (Exception $e) {
                 $lastError = $e->getMessage();
-                Log::warning("Grading evaluation attempt {$attempt} failed: " . $lastError);
+                Log::warning("Grading evaluation attempt {$attempt} failed: ".$lastError);
 
                 if ($attempt === 1) {
                     // Inject repair message
@@ -127,14 +122,14 @@ class OllamaService
     /**
      * Validate that rubric criterion totals equal the assessment maximum within 0.01.
      *
-     * @param array<int, array{id: string, name: string, max_points: float}> $rubricCriteria
-     * @param float $assessmentMaxPoints
+     * @param  array<int, array{id: string, name: string, max_points: float}>  $rubricCriteria
+     *
      * @throws Exception
      */
     public function validateRubric(array $rubricCriteria, float $assessmentMaxPoints): void
     {
         if (empty($rubricCriteria)) {
-            throw new Exception("Rubric must contain at least one criterion.", 422);
+            throw new Exception('Rubric must contain at least one criterion.', 422);
         }
 
         $rubricSum = 0.0;
@@ -145,7 +140,7 @@ class OllamaService
             $points = (float) ($criterion['max_points'] ?? 0);
 
             if (empty($id)) {
-                throw new Exception("Each rubric criterion must have a unique ID.", 422);
+                throw new Exception('Each rubric criterion must have a unique ID.', 422);
             }
 
             if (in_array($id, $seenIds, true)) {
@@ -297,8 +292,8 @@ class OllamaService
     protected function buildGradingSystemPrompt(bool $isCode): string
     {
         $domainContext = $isCode
-            ? "You are an expert programming instructor and code evaluator."
-            : "You are an expert academic instructor and evaluator.";
+            ? 'You are an expert programming instructor and code evaluator.'
+            : 'You are an expert academic instructor and evaluator.';
 
         return <<<PROMPT
 {$domainContext}
@@ -341,7 +336,7 @@ PROMPT;
     ): string {
         $rubricText = "RUBRIC CRITERIA (Total: {$maxPoints} pts):\n";
         foreach ($rubricCriteria as $c) {
-            $rubricText .= "- ID: \"{$c['id']}\" | Name: {$c['name']} (Max: {$c['max_points']} pts): " . ($c['description'] ?? 'Standard grading') . "\n";
+            $rubricText .= "- ID: \"{$c['id']}\" | Name: {$c['name']} (Max: {$c['max_points']} pts): ".($c['description'] ?? 'Standard grading')."\n";
         }
 
         $instructionsText = $assessmentInstructions ? "\nTASK INSTRUCTIONS:\n{$assessmentInstructions}\n" : '';

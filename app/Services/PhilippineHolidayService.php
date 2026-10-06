@@ -139,7 +139,7 @@ class PhilippineHolidayService
             'name' => "New Year's Eve / Last Day of the Year",
             'filipino_name' => 'Bisperas ng Bagong Taon',
             'type' => 'special_non_working',
-            'description' => "Special Non-Working Day · Year-end holiday",
+            'description' => 'Special Non-Working Day · Year-end holiday',
         ];
 
         // Holy Week (Easter-based movable holidays)

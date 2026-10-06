@@ -326,7 +326,7 @@ class StudentController extends Controller
         ]);
 
         $zipFile = $request->file('photos_zip');
-        $zip = new \ZipArchive();
+        $zip = new \ZipArchive;
 
         if ($zip->open($zipFile->getRealPath()) !== true) {
             throw ValidationException::withMessages([

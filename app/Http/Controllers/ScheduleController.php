@@ -58,7 +58,7 @@ class ScheduleController extends Controller
             ->whereBetween('session_date', [$gridStart->format('Y-m-d'), $gridEnd->format('Y-m-d')])
             ->with(['records'])
             ->get()
-            ->groupBy(fn (AttendanceSession $session) => $session->section_id . '_' . $session->session_date->format('Y-m-d'));
+            ->groupBy(fn (AttendanceSession $session) => $session->section_id.'_'.$session->session_date->format('Y-m-d'));
 
         // Fetch Philippine Holidays for the range
         $holidays = PhilippineHolidayService::getHolidaysInRange($gridStart, $gridEnd);
@@ -96,7 +96,7 @@ class ScheduleController extends Controller
                 // Check section schedules for this weekday
                 foreach ($section->schedules as $schedule) {
                     if ($schedule->day_of_week === $isoWeekday) {
-                        $key = $section->id . '_' . $dateStr;
+                        $key = $section->id.'_'.$dateStr;
                         $session = $attendanceSessions->get($key)?->first();
 
                         // If the date is a Philippine holiday, do not include scheduled subjects unless a class was conducted
@@ -111,10 +111,15 @@ class ScheduleController extends Controller
 
                         if ($session) {
                             foreach ($session->records as $record) {
-                                if ($record->status === 'present') $presentCount++;
-                                elseif ($record->status === 'late') $lateCount++;
-                                elseif ($record->status === 'excused') $excusedCount++;
-                                elseif ($record->status === 'absent') $absentCount++;
+                                if ($record->status === 'present') {
+                                    $presentCount++;
+                                } elseif ($record->status === 'late') {
+                                    $lateCount++;
+                                } elseif ($record->status === 'excused') {
+                                    $excusedCount++;
+                                } elseif ($record->status === 'absent') {
+                                    $absentCount++;
+                                }
                             }
                         }
 

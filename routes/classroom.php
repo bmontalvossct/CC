@@ -6,6 +6,7 @@ use App\Http\Controllers\PublicJoinController;
 use App\Http\Controllers\RecitationController;
 use App\Http\Controllers\SectionController;
 use App\Http\Controllers\StudentController;
+use App\Http\Controllers\SystemActionController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -43,7 +44,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('sections/{section}/modules/{courseModule}', [CourseModuleController::class, 'destroy'])->name('sections.modules.destroy');
     Route::get('sections/{section}/modules/{courseModule}/download', [CourseModuleController::class, 'download'])->name('sections.modules.download');
     Route::post('sections/{section}/modules/reorder', [CourseModuleController::class, 'reorder'])->name('sections.modules.reorder');
-    Route::post('system/open-file-location', [\App\Http\Controllers\SystemActionController::class, 'openFileLocation'])->name('system.open-file-location');
+    Route::post('system/open-file-location', [SystemActionController::class, 'openFileLocation'])->name('system.open-file-location');
 });
 
 Route::get('join/{token}', [PublicJoinController::class, 'show'])->name('join.show');

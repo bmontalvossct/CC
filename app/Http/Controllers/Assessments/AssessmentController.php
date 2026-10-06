@@ -9,6 +9,8 @@ use App\Models\AttendanceSession;
 use App\Models\Project;
 use App\Models\Section;
 use App\Models\Student;
+use App\Services\Autochecker\AiDocumentGraderService;
+use App\Services\SectionFolderService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -117,7 +119,7 @@ class AssessmentController extends AssessmentModuleController
 
         if ($request->hasFile('attachment')) {
             $file = $request->file('attachment');
-            $stored = app(\App\Services\SectionFolderService::class)->storeAssessmentAttachment(
+            $stored = app(SectionFolderService::class)->storeAssessmentAttachment(
                 $section,
                 $file,
                 $data['type'] ?? 'activity',
@@ -222,7 +224,7 @@ class AssessmentController extends AssessmentModuleController
             }
             $file = $request->file('attachment');
             $type = $data['type'] ?? $assessment->type;
-            $stored = app(\App\Services\SectionFolderService::class)->storeAssessmentAttachment(
+            $stored = app(SectionFolderService::class)->storeAssessmentAttachment(
                 $section,
                 $file,
                 $type,
@@ -255,7 +257,7 @@ class AssessmentController extends AssessmentModuleController
         }
 
         $file = $request->file('attachment');
-        $stored = app(\App\Services\SectionFolderService::class)->storeAssessmentAttachment(
+        $stored = app(SectionFolderService::class)->storeAssessmentAttachment(
             $section,
             $file,
             $assessment->type,
@@ -331,7 +333,7 @@ class AssessmentController extends AssessmentModuleController
             if ($assessment->attachment_path) {
                 Storage::disk('local')->delete($assessment->attachment_path);
             }
-            $stored = app(\App\Services\SectionFolderService::class)->storeAssessmentAttachment(
+            $stored = app(SectionFolderService::class)->storeAssessmentAttachment(
                 $section,
                 $request->file('attachment'),
                 $assessment->type ?? 'activity',
@@ -370,13 +372,13 @@ class AssessmentController extends AssessmentModuleController
         $fileName = null;
 
         if ($assessment->attachment_path) {
-            $grader = app(\App\Services\Autochecker\AiDocumentGraderService::class);
+            $grader = app(AiDocumentGraderService::class);
             $filePath = $grader->resolveFilePath($assessment->attachment_path);
             $fileName = $assessment->attachment_name;
         }
 
         try {
-            $grader = app(\App\Services\Autochecker\AiDocumentGraderService::class);
+            $grader = app(AiDocumentGraderService::class);
             $result = $grader->studyRubricDocument(
                 filePath: $filePath,
                 fileName: $fileName,

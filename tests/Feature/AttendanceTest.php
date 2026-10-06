@@ -555,4 +555,3 @@ class AttendanceTest extends TestCase
         );
     }
 }
-

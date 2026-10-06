@@ -65,11 +65,7 @@ const speedClasses = computed(() => {
                 <img
                     src="/images/octo-spinner.png"
                     alt="Loading..."
-                    :class="[
-                        'aspect-square object-contain animate-spin select-none transition-all dark:invert',
-                        sizeClasses,
-                        speedClasses,
-                    ]"
+                    :class="['aspect-square animate-spin select-none object-contain transition-all dark:invert', sizeClasses, speedClasses]"
                 />
             </div>
             <span v-if="label" class="text-sm font-semibold tracking-tight text-foreground">{{ label }}</span>
@@ -77,15 +73,11 @@ const speedClasses = computed(() => {
     </div>
 
     <!-- Inline Spinner Mode -->
-    <div v-else class="inline-flex items-center gap-2 select-none" role="status" aria-live="polite">
+    <div v-else class="inline-flex select-none items-center gap-2" role="status" aria-live="polite">
         <img
             src="/images/octo-spinner.png"
             alt="Loading..."
-            :class="[
-                'aspect-square shrink-0 object-contain animate-spin dark:invert',
-                sizeClasses,
-                speedClasses,
-            ]"
+            :class="['aspect-square shrink-0 animate-spin object-contain dark:invert', sizeClasses, speedClasses]"
         />
         <span v-if="showLabel && label" class="text-xs font-medium text-muted-foreground">{{ label }}</span>
         <span v-else-if="label" class="sr-only">{{ label }}</span>

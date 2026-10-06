@@ -3,16 +3,7 @@ import InputError from '@/components/InputError.vue';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
 import { Button } from '@/components/ui/button';
 import { useForm } from '@inertiajs/vue3';
-import {
-    Camera,
-    CheckCircle2,
-    FileArchive,
-    FolderArchive,
-    Info,
-    Upload,
-    UploadCloud,
-    X,
-} from 'lucide-vue-next';
+import { Camera, FileArchive, Info, Upload, UploadCloud, X } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
 
 const props = defineProps<{
@@ -74,7 +65,7 @@ watch(
 <template>
     <div
         v-if="open"
-        class="fixed inset-0 z-50 grid place-items-center bg-zinc-950/70 p-4 sm:p-6 backdrop-blur-xs duration-200 animate-in fade-in print:hidden"
+        class="backdrop-blur-xs fixed inset-0 z-50 grid place-items-center bg-zinc-950/70 p-4 duration-200 animate-in fade-in sm:p-6 print:hidden"
     >
         <div
             class="paper-card relative flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden border border-border/80 bg-card p-6 shadow-2xl duration-200 animate-in zoom-in-95"
@@ -90,9 +81,7 @@ watch(
                     </span>
                     <div>
                         <h2 class="text-lg font-bold tracking-tight text-foreground">Bulk Student Photos ZIP</h2>
-                        <p class="text-xs text-muted-foreground">
-                            Upload a ZIP archive to match photos across the class roster
-                        </p>
+                        <p class="text-xs text-muted-foreground">Upload a ZIP archive to match photos across the class roster</p>
                     </div>
                 </div>
 
@@ -112,9 +101,13 @@ watch(
             <form class="mt-4 space-y-4" @submit.prevent="submitPhotos">
                 <!-- Dropzone -->
                 <div
-                    class="relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-6 text-center transition-all cursor-pointer"
+                    class="relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-6 text-center transition-all"
                     :class="[
-                        isDragging ? 'border-primary bg-primary/10' : form.photos_zip ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-border hover:border-primary/50 hover:bg-secondary/20',
+                        isDragging
+                            ? 'border-primary bg-primary/10'
+                            : form.photos_zip
+                              ? 'border-emerald-500/50 bg-emerald-500/5'
+                              : 'border-border hover:border-primary/50 hover:bg-secondary/20',
                     ]"
                     @dragover.prevent="isDragging = true"
                     @dragleave.prevent="isDragging = false"
@@ -134,8 +127,10 @@ watch(
                             <FileArchive class="size-6" />
                         </span>
                         <div>
-                            <div class="font-bold text-sm text-foreground">{{ form.photos_zip.name }}</div>
-                            <div class="text-xs text-muted-foreground">{{ (form.photos_zip.size / (1024 * 1024)).toFixed(2) }} MB · Ready to upload</div>
+                            <div class="text-sm font-bold text-foreground">{{ form.photos_zip.name }}</div>
+                            <div class="text-xs text-muted-foreground">
+                                {{ (form.photos_zip.size / (1024 * 1024)).toFixed(2) }} MB · Ready to upload
+                            </div>
                         </div>
                     </div>
 
@@ -144,7 +139,7 @@ watch(
                             <UploadCloud class="size-6" />
                         </span>
                         <div>
-                            <div class="font-semibold text-sm text-foreground">Click or drop photos.zip here</div>
+                            <div class="text-sm font-semibold text-foreground">Click or drop photos.zip here</div>
                             <div class="text-xs text-muted-foreground">Supports .zip archives up to 50MB</div>
                         </div>
                     </div>
@@ -153,40 +148,31 @@ watch(
                 <InputError :message="form.errors.photos_zip" />
 
                 <!-- Guidelines Notice Card -->
-                <div class="rounded-xl border border-border/70 bg-secondary/30 p-3.5 text-xs text-muted-foreground space-y-2">
+                <div class="space-y-2 rounded-xl border border-border/70 bg-secondary/30 p-3.5 text-xs text-muted-foreground">
                     <div class="flex items-center gap-1.5 font-semibold text-foreground">
                         <Info class="size-3.5 text-primary" />
                         <span>How filenames are matched:</span>
                     </div>
-                    <ul class="list-disc pl-4 space-y-1 text-[11px] leading-relaxed">
+                    <ul class="list-disc space-y-1 pl-4 text-[11px] leading-relaxed">
                         <li>
-                            <strong class="text-foreground">By Student ID (Recommended):</strong> E.g. <code class="rounded bg-secondary px-1 py-0.5 font-mono">2023-0101.jpg</code> or <code class="rounded bg-secondary px-1 py-0.5 font-mono">20230101.png</code>.
+                            <strong class="text-foreground">By Student ID (Recommended):</strong> E.g.
+                            <code class="rounded bg-secondary px-1 py-0.5 font-mono">2023-0101.jpg</code> or
+                            <code class="rounded bg-secondary px-1 py-0.5 font-mono">20230101.png</code>.
                         </li>
                         <li>
-                            <strong class="text-foreground">By Student Name:</strong> E.g. <code class="rounded bg-secondary px-1 py-0.5 font-mono">dela_cruz_juan.jpg</code> or <code class="rounded bg-secondary px-1 py-0.5 font-mono">cruz.jpg</code>.
+                            <strong class="text-foreground">By Student Name:</strong> E.g.
+                            <code class="rounded bg-secondary px-1 py-0.5 font-mono">dela_cruz_juan.jpg</code> or
+                            <code class="rounded bg-secondary px-1 py-0.5 font-mono">cruz.jpg</code>.
                         </li>
-                        <li>
-                            <strong class="text-foreground">Supported Formats:</strong> JPG, JPEG, PNG, and WEBP.
-                        </li>
+                        <li><strong class="text-foreground">Supported Formats:</strong> JPG, JPEG, PNG, and WEBP.</li>
                     </ul>
                 </div>
 
                 <!-- Footer Buttons -->
                 <div class="flex items-center justify-end gap-2 border-t border-border/70 pt-4">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        class="h-9 rounded-xl px-4 text-xs font-medium"
-                        @click="emit('close')"
-                    >
-                        Cancel
-                    </Button>
+                    <Button type="button" variant="outline" class="h-9 rounded-xl px-4 text-xs font-medium" @click="emit('close')"> Cancel </Button>
 
-                    <Button
-                        type="submit"
-                        class="ink-button !h-9 !px-4 text-xs font-semibold"
-                        :disabled="!form.photos_zip || form.processing"
-                    >
+                    <Button type="submit" class="ink-button !h-9 !px-4 text-xs font-semibold" :disabled="!form.photos_zip || form.processing">
                         <LoadingSpinner v-if="form.processing" size="sm" />
                         <Upload v-else class="mr-1.5 size-3.5" />
                         <span>{{ form.processing ? 'Extracting & Matching Photos...' : 'Upload & Match Photos' }}</span>

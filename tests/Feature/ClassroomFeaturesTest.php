@@ -116,7 +116,7 @@ class ClassroomFeaturesTest extends TestCase
 
         // Create temporary zip archive
         $zipPath = tempnam(sys_get_temp_dir(), 'test_zip_');
-        $zip = new \ZipArchive();
+        $zip = new \ZipArchive;
         $zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
 
         // Add 1x1 dummy image data
@@ -172,7 +172,7 @@ class ClassroomFeaturesTest extends TestCase
         ]);
 
         $zipPath = tempnam(sys_get_temp_dir(), 'test_zip_');
-        $zip = new \ZipArchive();
+        $zip = new \ZipArchive;
         $zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
         $zip->addFromString('dummy.jpg', 'fake image');
         $zip->close();

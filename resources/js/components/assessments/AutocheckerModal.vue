@@ -1,45 +1,27 @@
 <script setup lang="ts">
+import OctoSpinner from '@/components/OctoSpinner.vue';
+import { useAiAssistant } from '@/composables/useAiAssistant';
 import {
     AlertCircle,
     AlertTriangle,
-    ArrowRight,
-    Bot,
     Check,
     CheckCircle2,
-    ChevronDown,
     ChevronRight,
-    Code2,
-    Copy,
-    Cpu,
-    ExternalLink,
     FileCode2,
     FileText,
     FolderArchive,
-    HelpCircle,
-    ListFilter,
-    Loader2,
-    Minus,
-    PenLine,
     Play,
     Plus,
     RefreshCw,
     Save,
-    Search,
     ShieldAlert,
-    ShieldCheck,
-    Sliders,
     Sparkles,
     Square,
     Trash2,
     Upload,
-    User,
-    Wand2,
     X,
-    Zap,
 } from 'lucide-vue-next';
-import { computed, reactive, ref, watch } from 'vue';
-import OctoSpinner from '@/components/OctoSpinner.vue';
-import { useAiAssistant } from '@/composables/useAiAssistant';
+import { computed, ref, watch } from 'vue';
 
 const { warmModel } = useAiAssistant();
 
@@ -185,27 +167,18 @@ const assessmentInstructions = ref('');
 
 // Computed Metrics
 const assessmentMax = computed(() => Number(props.assessment.max_points) || 100);
-const rubricTotal = computed(() =>
-    rubricCriteria.value.reduce((sum, c) => sum + (Number(c.max_points) || 0), 0),
-);
-const isRubricBalanced = computed(
-    () => Math.abs(rubricTotal.value - assessmentMax.value) <= 0.01,
-);
+const rubricTotal = computed(() => rubricCriteria.value.reduce((sum, c) => sum + (Number(c.max_points) || 0), 0));
+const isRubricBalanced = computed(() => Math.abs(rubricTotal.value - assessmentMax.value) <= 0.01);
 
-const matchedItems = computed(() => items.value.filter((i) => i.student_id !== null));
 const evaluatedItems = computed(() => items.value.filter((i) => i.evaluated));
 const approvedItems = computed(() => items.value.filter((i) => i.approved && i.proposed_score !== null));
 
-const activeItem = computed(
-    () => items.value.find((i) => i.item_id === selectedItemId.value) || items.value[0] || null,
-);
+const activeItem = computed(() => items.value.find((i) => i.item_id === selectedItemId.value) || items.value[0] || null);
 
 // Fetch Autochecker status on open
 const fetchStatus = async () => {
     try {
-        const res = await fetch(
-            `/sections/${props.sectionId}/assessments/${props.assessment.id}/autochecker/status`,
-        );
+        const res = await fetch(`/sections/${props.sectionId}/assessments/${props.assessment.id}/autochecker/status`);
         if (res.ok) {
             const data = await res.json();
             isOllamaOnline.value = Boolean(data.ollama?.online);
@@ -326,17 +299,14 @@ const inspectUploads = async () => {
 
     try {
         const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
-        const res = await fetch(
-            `/sections/${props.sectionId}/assessments/${props.assessment.id}/autochecker/inspect`,
-            {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': csrfToken,
-                    Accept: 'application/json',
-                },
-                body: formData,
+        const res = await fetch(`/sections/${props.sectionId}/assessments/${props.assessment.id}/autochecker/inspect`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                Accept: 'application/json',
             },
-        );
+            body: formData,
+        });
 
         const data = await res.json();
         if (!res.ok) {
@@ -390,24 +360,21 @@ const evaluateItem = async (item: SubmissionItem): Promise<boolean> => {
 
     try {
         const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
-        const res = await fetch(
-            `/sections/${props.sectionId}/assessments/${props.assessment.id}/autochecker/evaluate`,
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                    Accept: 'application/json',
-                },
-                body: JSON.stringify({
-                    run_id: runId.value,
-                    item_id: item.item_id,
-                    rubric_criteria: rubricCriteria.value,
-                    reference_solution: referenceSolution.value || null,
-                    assessment_instructions: assessmentInstructions.value || null,
-                }),
+        const res = await fetch(`/sections/${props.sectionId}/assessments/${props.assessment.id}/autochecker/evaluate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                Accept: 'application/json',
             },
-        );
+            body: JSON.stringify({
+                run_id: runId.value,
+                item_id: item.item_id,
+                rubric_criteria: rubricCriteria.value,
+                reference_solution: referenceSolution.value || null,
+                assessment_instructions: assessmentInstructions.value || null,
+            }),
+        });
 
         const data = await res.json();
         if (!res.ok) {
@@ -503,21 +470,18 @@ const applyApprovedScores = async () => {
 
     try {
         const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
-        const res = await fetch(
-            `/sections/${props.sectionId}/assessments/${props.assessment.id}/autochecker/apply-scores`,
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                    Accept: 'application/json',
-                },
-                body: JSON.stringify({
-                    run_id: runId.value,
-                    scores: payloadScores,
-                }),
+        const res = await fetch(`/sections/${props.sectionId}/assessments/${props.assessment.id}/autochecker/apply-scores`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                Accept: 'application/json',
             },
-        );
+            body: JSON.stringify({
+                run_id: runId.value,
+                scores: payloadScores,
+            }),
+        });
 
         const data = await res.json();
         if (!res.ok) {
@@ -553,30 +517,28 @@ const isStudentAbsent = (studentId: number | null) => {
 <template>
     <div
         v-if="show"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 sm:p-6 backdrop-blur-xs"
+        class="backdrop-blur-xs fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 sm:p-6"
         role="dialog"
         aria-modal="true"
         aria-label="Bulk Activity Autochecker"
     >
-        <div class="paper-card relative flex h-[94vh] max-h-[920px] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-border/90 bg-card shadow-2xl">
+        <div
+            class="paper-card relative flex h-[94vh] max-h-[920px] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-border/90 bg-card shadow-2xl"
+        >
             <!-- Modal Header -->
             <div class="flex items-center justify-between border-b border-border/80 bg-secondary/30 px-6 py-4">
                 <div class="flex items-center gap-3">
-                    <div class="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary shadow-xs">
+                    <div class="shadow-xs flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
                         <Sparkles class="size-5" />
                     </div>
                     <div>
                         <div class="flex items-center gap-2">
-                            <h3 class="text-base font-bold tracking-tight text-foreground">
-                                Octo Autochecker &bull; {{ assessment.title }}
-                            </h3>
+                            <h3 class="text-base font-bold tracking-tight text-foreground">Octo Autochecker &bull; {{ assessment.title }}</h3>
                             <span class="rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
                                 Max {{ assessment.max_points }} pts
                             </span>
                         </div>
-                        <p class="text-xs text-muted-foreground">
-                            Rubric Evidence & Grading Ledger
-                        </p>
+                        <p class="text-xs text-muted-foreground">Rubric Evidence & Grading Ledger</p>
                     </div>
                 </div>
 
@@ -586,7 +548,11 @@ const isStudentAbsent = (studentId: number | null) => {
                         <button
                             type="button"
                             class="rounded px-2 py-0.5 transition-colors"
-                            :class="currentStep === 'upload' ? 'bg-primary text-primary-foreground font-bold' : 'text-muted-foreground hover:text-foreground'"
+                            :class="
+                                currentStep === 'upload'
+                                    ? 'bg-primary font-bold text-primary-foreground'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            "
                             @click="currentStep = 'upload'"
                         >
                             1. Upload
@@ -595,7 +561,11 @@ const isStudentAbsent = (studentId: number | null) => {
                         <button
                             type="button"
                             class="rounded px-2 py-0.5 transition-colors"
-                            :class="currentStep === 'rubric' ? 'bg-primary text-primary-foreground font-bold' : 'text-muted-foreground hover:text-foreground'"
+                            :class="
+                                currentStep === 'rubric'
+                                    ? 'bg-primary font-bold text-primary-foreground'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            "
                             @click="currentStep = 'rubric'"
                         >
                             2. Rubric
@@ -604,7 +574,11 @@ const isStudentAbsent = (studentId: number | null) => {
                         <button
                             type="button"
                             class="rounded px-2 py-0.5 transition-colors"
-                            :class="currentStep === 'evaluation' ? 'bg-primary text-primary-foreground font-bold' : 'text-muted-foreground hover:text-foreground'"
+                            :class="
+                                currentStep === 'evaluation'
+                                    ? 'bg-primary font-bold text-primary-foreground'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            "
                             @click="currentStep = 'evaluation'"
                         >
                             3. Ledger & Sync
@@ -613,7 +587,7 @@ const isStudentAbsent = (studentId: number | null) => {
 
                     <button
                         type="button"
-                        class="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                        class="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                         @click="emit('close')"
                     >
                         <X class="size-5" />
@@ -622,7 +596,10 @@ const isStudentAbsent = (studentId: number | null) => {
             </div>
 
             <!-- Error Banner -->
-            <div v-if="errorMessage" class="flex items-center justify-between border-b border-rose-500/30 bg-rose-500/10 px-6 py-2.5 text-xs font-semibold text-rose-700 dark:text-rose-300">
+            <div
+                v-if="errorMessage"
+                class="flex items-center justify-between border-b border-rose-500/30 bg-rose-500/10 px-6 py-2.5 text-xs font-semibold text-rose-700 dark:text-rose-300"
+            >
                 <div class="flex items-center gap-2">
                     <AlertCircle class="size-4 shrink-0" />
                     <span>{{ errorMessage }}</span>
@@ -633,33 +610,41 @@ const isStudentAbsent = (studentId: number | null) => {
             </div>
 
             <!-- Success Banner -->
-            <div v-if="saveSuccessMessage" class="flex items-center gap-2 border-b border-emerald-500/30 bg-emerald-500/10 px-6 py-2.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+            <div
+                v-if="saveSuccessMessage"
+                class="flex items-center gap-2 border-b border-emerald-500/30 bg-emerald-500/10 px-6 py-2.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300"
+            >
                 <CheckCircle2 class="size-4 shrink-0" />
                 <span>{{ saveSuccessMessage }}</span>
             </div>
 
             <!-- STEP 1: Upload Submissions -->
-            <div v-if="currentStep === 'upload'" class="flex-1 overflow-y-auto p-6 sm:p-8 flex flex-col items-center justify-center text-center">
+            <div v-if="currentStep === 'upload'" class="flex flex-1 flex-col items-center justify-center overflow-y-auto p-6 text-center sm:p-8">
                 <div
-                    class="w-full max-w-2xl rounded-2xl border-2 border-dashed border-border/90 bg-secondary/15 p-8 transition-colors hover:border-primary/50 cursor-pointer"
+                    class="w-full max-w-2xl cursor-pointer rounded-2xl border-2 border-dashed border-border/90 bg-secondary/15 p-8 transition-colors hover:border-primary/50"
                     @dragover.prevent
                     @drop="handleDrop"
                 >
-                    <div class="mx-auto flex size-16 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-4">
+                    <div class="mx-auto mb-4 flex size-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                         <Upload class="size-8" />
                     </div>
                     <h4 class="text-base font-bold text-foreground">Upload Student Submissions</h4>
-                    <p class="mt-1 text-xs text-muted-foreground max-w-md mx-auto">
-                        Drag and drop up to 20 source code files (<code class="text-primary">.py, .java, .cpp, .js, .pdf</code>) or a single batch <code class="text-primary">.zip</code> archive.
+                    <p class="mx-auto mt-1 max-w-md text-xs text-muted-foreground">
+                        Drag and drop up to 20 source code files (<code class="text-primary">.py, .java, .cpp, .js, .pdf</code>) or a single batch
+                        <code class="text-primary">.zip</code> archive.
                     </p>
 
-                    <div class="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
-                        <label class="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground shadow-xs hover:bg-primary/90 transition-transform active:scale-95">
+                    <div class="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                        <label
+                            class="shadow-xs inline-flex cursor-pointer items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground transition-transform hover:bg-primary/90 active:scale-95"
+                        >
                             <FileCode2 class="size-4" />
                             <span>Select Direct Files (Max 20)</span>
                             <input type="file" multiple class="hidden" @change="handleFilesSelect" />
                         </label>
-                        <label class="cursor-pointer inline-flex items-center gap-2 rounded-xl border border-border/80 bg-card px-4 py-2.5 text-xs font-bold text-foreground shadow-xs hover:bg-secondary transition-colors">
+                        <label
+                            class="shadow-xs inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border/80 bg-card px-4 py-2.5 text-xs font-bold text-foreground transition-colors hover:bg-secondary"
+                        >
                             <FolderArchive class="size-4 text-amber-500" />
                             <span>Select ZIP Archive</span>
                             <input type="file" accept=".zip" class="hidden" @change="handleFilesSelect" />
@@ -668,10 +653,14 @@ const isStudentAbsent = (studentId: number | null) => {
 
                     <!-- Selected Files Preview -->
                     <div v-if="uploadedFiles.length > 0 || uploadedZip" class="mt-6 rounded-xl border border-border/80 bg-card p-3 text-left">
-                        <div class="text-xs font-bold text-foreground mb-1">
-                            {{ uploadedZip ? `Selected Archive: ${uploadedZip.name} (${(uploadedZip.size / (1024 * 1024)).toFixed(2)} MB)` : `${uploadedFiles.length} file(s) ready for extraction` }}
+                        <div class="mb-1 text-xs font-bold text-foreground">
+                            {{
+                                uploadedZip
+                                    ? `Selected Archive: ${uploadedZip.name} (${(uploadedZip.size / (1024 * 1024)).toFixed(2)} MB)`
+                                    : `${uploadedFiles.length} file(s) ready for extraction`
+                            }}
                         </div>
-                        <ul v-if="uploadedFiles.length > 0" class="max-h-32 overflow-y-auto text-[11px] text-muted-foreground space-y-0.5">
+                        <ul v-if="uploadedFiles.length > 0" class="max-h-32 space-y-0.5 overflow-y-auto text-[11px] text-muted-foreground">
                             <li v-for="(f, i) in uploadedFiles" :key="i" class="flex items-center gap-1.5">
                                 <FileText class="size-3 text-primary" />
                                 <span>{{ f.name }}</span>
@@ -683,7 +672,7 @@ const isStudentAbsent = (studentId: number | null) => {
                 <div class="mt-6 flex items-center gap-3">
                     <button
                         type="button"
-                        class="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-xs font-bold text-primary-foreground shadow-xs hover:bg-primary/90 disabled:opacity-50 transition-all"
+                        class="shadow-xs inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-xs font-bold text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50"
                         :disabled="isInspecting || (uploadedFiles.length === 0 && !uploadedZip)"
                         @click="inspectUploads"
                     >
@@ -695,7 +684,7 @@ const isStudentAbsent = (studentId: number | null) => {
             </div>
 
             <!-- STEP 2: Strict Rubric Builder -->
-            <div v-else-if="currentStep === 'rubric'" class="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6">
+            <div v-else-if="currentStep === 'rubric'" class="flex-1 space-y-6 overflow-y-auto p-6 sm:p-8">
                 <div class="flex items-center justify-between border-b border-border/70 pb-3">
                     <div>
                         <div class="flex items-center gap-2">
@@ -705,17 +694,28 @@ const isStudentAbsent = (studentId: number | null) => {
                                 class="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary"
                             >
                                 <Sparkles class="size-3" />
-                                <span>Loaded from {{ assessment.rubric_type === 'percentage' ? 'Percentage Rubric' : (assessment.rubric_type === 'answer_key' ? 'Itemized Answer Key' : 'Studied Rubric') }}</span>
+                                <span
+                                    >Loaded from
+                                    {{
+                                        assessment.rubric_type === 'percentage'
+                                            ? 'Percentage Rubric'
+                                            : assessment.rubric_type === 'answer_key'
+                                              ? 'Itemized Answer Key'
+                                              : 'Studied Rubric'
+                                    }}</span
+                                >
                             </span>
                         </div>
-                        <p class="text-xs text-muted-foreground">
-                            Configure criteria points strictly summing to {{ assessmentMax }} points.
-                        </p>
+                        <p class="text-xs text-muted-foreground">Configure criteria points strictly summing to {{ assessmentMax }} points.</p>
                     </div>
                     <div class="flex items-center gap-2">
                         <span
                             class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold"
-                            :class="isRubricBalanced ? 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-700 border border-rose-500/30'"
+                            :class="
+                                isRubricBalanced
+                                    ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-700'
+                                    : 'border border-rose-500/30 bg-rose-500/10 text-rose-700'
+                            "
                         >
                             <Check v-if="isRubricBalanced" class="size-3.5" />
                             <AlertCircle v-else class="size-3.5" />
@@ -723,7 +723,7 @@ const isStudentAbsent = (studentId: number | null) => {
                         </span>
                         <button
                             type="button"
-                            class="rounded-lg border border-border/80 bg-secondary/40 px-3 py-1 text-xs font-bold text-foreground hover:bg-secondary transition-colors"
+                            class="rounded-lg border border-border/80 bg-secondary/40 px-3 py-1 text-xs font-bold text-foreground transition-colors hover:bg-secondary"
                             @click="autoBalanceRubric"
                         >
                             Auto-Balance (100%)
@@ -736,9 +736,9 @@ const isStudentAbsent = (studentId: number | null) => {
                     <div
                         v-for="(crit, idx) in rubricCriteria"
                         :key="crit.id"
-                        class="flex flex-col sm:flex-row items-start sm:items-center gap-3 rounded-xl border border-border/80 bg-card p-3.5 shadow-2xs"
+                        class="shadow-2xs flex flex-col items-start gap-3 rounded-xl border border-border/80 bg-card p-3.5 sm:flex-row sm:items-center"
                     >
-                        <div class="flex-1 space-y-1 w-full">
+                        <div class="w-full flex-1 space-y-1">
                             <input
                                 v-model="crit.name"
                                 type="text"
@@ -760,12 +760,12 @@ const isStudentAbsent = (studentId: number | null) => {
                                     type="number"
                                     min="0.1"
                                     step="0.5"
-                                    class="w-20 rounded-lg border border-border/80 bg-secondary/20 px-2 py-1 text-xs font-bold text-center text-foreground focus:border-primary focus:outline-none"
+                                    class="w-20 rounded-lg border border-border/80 bg-secondary/20 px-2 py-1 text-center text-xs font-bold text-foreground focus:border-primary focus:outline-none"
                                 />
                             </div>
                             <button
                                 type="button"
-                                class="rounded-lg p-1.5 text-muted-foreground hover:bg-rose-500/10 hover:text-rose-600 transition-colors"
+                                class="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-rose-500/10 hover:text-rose-600"
                                 :disabled="rubricCriteria.length <= 1"
                                 @click="removeCriterion(idx)"
                             >
@@ -776,7 +776,7 @@ const isStudentAbsent = (studentId: number | null) => {
 
                     <button
                         type="button"
-                        class="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-border/80 bg-secondary/20 px-4 py-2 text-xs font-bold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+                        class="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-border/80 bg-secondary/20 px-4 py-2 text-xs font-bold text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
                         @click="addCriterion"
                     >
                         <Plus class="size-3.5" /> Add Criterion
@@ -790,7 +790,7 @@ const isStudentAbsent = (studentId: number | null) => {
                         v-model="referenceSolution"
                         rows="3"
                         placeholder="Paste sample code, correct algorithms, or ideal output expectations..."
-                        class="w-full rounded-xl border border-border/80 bg-card p-3 text-xs text-foreground focus:border-primary focus:outline-none font-mono"
+                        class="w-full rounded-xl border border-border/80 bg-card p-3 font-mono text-xs text-foreground focus:border-primary focus:outline-none"
                     />
                 </div>
 
@@ -805,7 +805,7 @@ const isStudentAbsent = (studentId: number | null) => {
                     </button>
                     <button
                         type="button"
-                        class="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2 text-xs font-bold text-primary-foreground shadow-xs hover:bg-primary/90 disabled:opacity-50"
+                        class="shadow-xs inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2 text-xs font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                         :disabled="!isRubricBalanced"
                         @click="startBatchEvaluation"
                     >
@@ -818,13 +818,11 @@ const isStudentAbsent = (studentId: number | null) => {
             <!-- STEP 3: Master-Detail Evidence Ledger -->
             <div v-else-if="currentStep === 'evaluation'" class="flex flex-1 overflow-hidden">
                 <!-- Master Submissions Sidebar (Left) -->
-                <div class="w-80 border-r border-border/80 bg-secondary/15 flex flex-col overflow-hidden shrink-0">
+                <div class="flex w-80 shrink-0 flex-col overflow-hidden border-r border-border/80 bg-secondary/15">
                     <!-- Ledger Header & Queue Control -->
-                    <div class="border-b border-border/70 p-3 space-y-2">
+                    <div class="space-y-2 border-b border-border/70 p-3">
                         <div class="flex items-center justify-between">
-                            <span class="text-xs font-bold text-foreground">
-                                Submissions ({{ evaluatedItems.length }}/{{ items.length }})
-                            </span>
+                            <span class="text-xs font-bold text-foreground"> Submissions ({{ evaluatedItems.length }}/{{ items.length }}) </span>
                             <button
                                 v-if="isQueueRunning"
                                 type="button"
@@ -844,97 +842,91 @@ const isStudentAbsent = (studentId: number | null) => {
                         </div>
 
                         <!-- Progress Bar -->
-                        <div class="w-full bg-secondary rounded-full h-1.5 overflow-hidden">
+                        <div class="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
                             <div
-                                class="bg-primary h-full transition-all duration-300"
+                                class="h-full bg-primary transition-all duration-300"
                                 :style="{ width: `${items.length > 0 ? (evaluatedItems.length / items.length) * 100 : 0}%` }"
                             />
                         </div>
 
                         <div class="flex items-center justify-between text-[11px]">
-                            <button
-                                type="button"
-                                class="text-primary font-semibold hover:underline"
-                                @click="approveAllGraded"
-                            >
+                            <button type="button" class="font-semibold text-primary hover:underline" @click="approveAllGraded">
                                 Approve All Graded
                             </button>
-                            <span class="text-muted-foreground">
-                                {{ approvedItems.length }} Approved
-                            </span>
+                            <span class="text-muted-foreground"> {{ approvedItems.length }} Approved </span>
                         </div>
                     </div>
 
                     <!-- Items List -->
-                    <div class="flex-1 overflow-y-auto p-2 space-y-1.5">
+                    <div class="flex-1 space-y-1.5 overflow-y-auto p-2">
                         <div
                             v-for="item in items"
                             :key="item.item_id"
                             class="cursor-pointer rounded-xl border p-2.5 text-xs transition-all"
                             :class="[
                                 selectedItemId === item.item_id
-                                    ? 'border-primary bg-card shadow-xs font-medium'
-                                    : 'border-transparent bg-card/60 hover:bg-card hover:border-border/60',
+                                    ? 'shadow-xs border-primary bg-card font-medium'
+                                    : 'border-transparent bg-card/60 hover:border-border/60 hover:bg-card',
                                 item.eval_error ? 'border-rose-500/40 bg-rose-500/5' : '',
                             ]"
                             @click="selectedItemId = item.item_id"
                         >
                             <div class="flex items-start justify-between gap-1">
-                                <div class="font-bold text-foreground truncate">
+                                <div class="truncate font-bold text-foreground">
                                     {{ item.student_name || item.filename }}
                                 </div>
-                                <span
-                                    v-if="item.is_evaluating"
-                                    class="inline-flex items-center text-[10px] text-primary font-bold"
-                                >
+                                <span v-if="item.is_evaluating" class="inline-flex items-center text-[10px] font-bold text-primary">
                                     <OctoSpinner size="xs" class="mr-1" />
                                     <span>Octo Grading</span>
                                 </span>
                                 <span
                                     v-else-if="item.proposed_score !== null && item.proposed_score !== undefined"
-                                    class="rounded px-1.5 py-0.2 font-mono font-bold text-[10px]"
-                                    :class="item.approved ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'"
+                                    class="py-0.2 rounded px-1.5 font-mono text-[10px] font-bold"
+                                    :class="
+                                        item.approved
+                                            ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                                            : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                                    "
                                 >
                                     {{ item.proposed_score }} pts
                                 </span>
-                                <span v-else-if="item.eval_error" class="text-[10px] text-rose-600 font-bold">
-                                    Error
-                                </span>
+                                <span v-else-if="item.eval_error" class="text-[10px] font-bold text-rose-600"> Error </span>
                             </div>
 
                             <div class="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
                                 <span>{{ item.filename }}</span>
-                                <span v-if="item.approved" class="text-emerald-600 font-bold flex items-center gap-0.5">
+                                <span v-if="item.approved" class="flex items-center gap-0.5 font-bold text-emerald-600">
                                     <Check class="size-3" /> Approved
                                 </span>
-                                <span v-else-if="item.evaluated" class="text-amber-600 font-bold">
-                                    Draft
-                                </span>
+                                <span v-else-if="item.evaluated" class="font-bold text-amber-600"> Draft </span>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Detail Panel (Right) -->
-                <div v-if="activeItem" class="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5 bg-card">
+                <div v-if="activeItem" class="flex-1 space-y-5 overflow-y-auto bg-card p-5 sm:p-6">
                     <!-- Student & File Header Card -->
-                    <div class="rounded-2xl border border-border/80 bg-secondary/20 p-4 space-y-3">
+                    <div class="space-y-3 rounded-2xl border border-border/80 bg-secondary/20 p-4">
                         <div class="flex flex-wrap items-center justify-between gap-2">
                             <div>
-                                <h4 class="text-sm font-bold text-foreground flex items-center gap-2">
+                                <h4 class="flex items-center gap-2 text-sm font-bold text-foreground">
                                     <span>{{ activeItem.student_name || 'Unmatched Submission' }}</span>
-                                    <span v-if="activeItem.student_number" class="text-xs font-mono font-normal text-muted-foreground">
+                                    <span v-if="activeItem.student_number" class="font-mono text-xs font-normal text-muted-foreground">
                                         ({{ activeItem.student_number }})
                                     </span>
                                 </h4>
-                                <p class="text-[11px] text-muted-foreground mt-0.5">
-                                    File: <span class="font-mono text-foreground">{{ activeItem.filename }}</span> &bull; SHA256: <span class="font-mono">{{ activeItem.sha256.substring(0, 10) }}...</span>
+                                <p class="mt-0.5 text-[11px] text-muted-foreground">
+                                    File: <span class="font-mono text-foreground">{{ activeItem.filename }}</span> &bull; SHA256:
+                                    <span class="font-mono">{{ activeItem.sha256.substring(0, 10) }}...</span>
                                 </p>
                             </div>
 
                             <!-- Approval Action Checkbox -->
                             <div class="flex items-center gap-3">
-                                <label class="inline-flex items-center gap-2 rounded-xl border border-border/80 bg-card px-3 py-1.5 text-xs font-bold cursor-pointer select-none">
+                                <label
+                                    class="inline-flex cursor-pointer select-none items-center gap-2 rounded-xl border border-border/80 bg-card px-3 py-1.5 text-xs font-bold"
+                                >
                                     <input
                                         v-model="activeItem.approved"
                                         type="checkbox"
@@ -946,7 +938,7 @@ const isStudentAbsent = (studentId: number | null) => {
 
                                 <button
                                     type="button"
-                                    class="rounded-lg border border-border/80 bg-card p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary"
+                                    class="rounded-lg border border-border/80 bg-card p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
                                     title="Re-evaluate with Octo"
                                     :disabled="activeItem.is_evaluating"
                                     @click="evaluateItem(activeItem)"
@@ -958,23 +950,31 @@ const isStudentAbsent = (studentId: number | null) => {
                         </div>
 
                         <!-- Warnings (Existing score / Absent) -->
-                        <div v-if="getExistingScore(activeItem.student_id) !== null" class="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-800 dark:text-amber-200 flex items-center justify-between">
+                        <div
+                            v-if="getExistingScore(activeItem.student_id) !== null"
+                            class="flex items-center justify-between rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-800 dark:text-amber-200"
+                        >
                             <div class="flex items-center gap-2">
                                 <AlertTriangle class="size-4 shrink-0" />
-                                <span>Existing score recorded: <strong>{{ getExistingScore(activeItem.student_id) }} pts</strong>.</span>
+                                <span
+                                    >Existing score recorded: <strong>{{ getExistingScore(activeItem.student_id) }} pts</strong>.</span
+                                >
                             </div>
-                            <label class="inline-flex items-center gap-1.5 cursor-pointer font-bold">
+                            <label class="inline-flex cursor-pointer items-center gap-1.5 font-bold">
                                 <input v-model="activeItem.overwrite_confirmed" type="checkbox" class="rounded text-amber-600" />
                                 <span>Confirm Overwrite</span>
                             </label>
                         </div>
 
-                        <div v-if="isStudentAbsent(activeItem.student_id)" class="rounded-lg border border-rose-500/30 bg-rose-500/10 p-2 text-xs text-rose-800 dark:text-rose-200 flex items-center justify-between">
+                        <div
+                            v-if="isStudentAbsent(activeItem.student_id)"
+                            class="flex items-center justify-between rounded-lg border border-rose-500/30 bg-rose-500/10 p-2 text-xs text-rose-800 dark:text-rose-200"
+                        >
                             <div class="flex items-center gap-2">
                                 <ShieldAlert class="size-4 shrink-0" />
                                 <span>Student was marked <strong>ABSENT</strong> for this session.</span>
                             </div>
-                            <label class="inline-flex items-center gap-1.5 cursor-pointer font-bold">
+                            <label class="inline-flex cursor-pointer items-center gap-1.5 font-bold">
                                 <input v-model="activeItem.absence_override_confirmed" type="checkbox" class="rounded text-rose-600" />
                                 <span>Confirm Absence Override</span>
                             </label>
@@ -984,9 +984,7 @@ const isStudentAbsent = (studentId: number | null) => {
                     <!-- Evaluation Proposal Matrix -->
                     <div v-if="activeItem.evaluated" class="space-y-4">
                         <div class="flex items-center justify-between border-b border-border/70 pb-2">
-                            <h5 class="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                                Rubric Breakdown & Evidence Quotes
-                            </h5>
+                            <h5 class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Rubric Breakdown & Evidence Quotes</h5>
                             <div class="flex items-center gap-2">
                                 <span class="text-xs text-muted-foreground">Proposed Final Score:</span>
                                 <input
@@ -1006,16 +1004,19 @@ const isStudentAbsent = (studentId: number | null) => {
                             <div
                                 v-for="(crit, cId) in activeItem.criteria_scores"
                                 :key="cId"
-                                class="rounded-xl border border-border/80 bg-card p-3.5 space-y-1.5 text-xs shadow-2xs"
+                                class="shadow-2xs space-y-1.5 rounded-xl border border-border/80 bg-card p-3.5 text-xs"
                             >
                                 <div class="flex items-center justify-between">
                                     <span class="font-bold text-foreground">{{ crit.name }}</span>
                                     <span class="font-mono font-bold text-primary">{{ crit.score }} / {{ crit.max_points }} pts</span>
                                 </div>
-                                <p class="text-muted-foreground text-[11px] leading-relaxed">
+                                <p class="text-[11px] leading-relaxed text-muted-foreground">
                                     {{ crit.rationale }}
                                 </p>
-                                <div v-if="crit.evidence_quote" class="rounded-md border border-border/60 bg-secondary/30 p-2 font-mono text-[10px] text-foreground whitespace-pre-wrap">
+                                <div
+                                    v-if="crit.evidence_quote"
+                                    class="whitespace-pre-wrap rounded-md border border-border/60 bg-secondary/30 p-2 font-mono text-[10px] text-foreground"
+                                >
                                     &ldquo;{{ crit.evidence_quote }}&rdquo;
                                 </div>
                             </div>
@@ -1038,10 +1039,12 @@ const isStudentAbsent = (studentId: number | null) => {
                             <span>Code / Submission Evidence Preview (First 25 Lines)</span>
                             <span>{{ activeItem.line_count }} total lines</span>
                         </div>
-                        <div class="rounded-xl border border-border/80 bg-zinc-950 p-3 font-mono text-[11px] text-zinc-200 overflow-x-auto max-h-60 overflow-y-auto">
+                        <div
+                            class="max-h-60 overflow-x-auto overflow-y-auto rounded-xl border border-border/80 bg-zinc-950 p-3 font-mono text-[11px] text-zinc-200"
+                        >
                             <div v-for="line in activeItem.preview_lines" :key="line.line" class="flex gap-3 leading-relaxed">
-                                <span class="text-zinc-500 select-none w-6 text-right">{{ line.line }}</span>
-                                <span class="text-zinc-100 whitespace-pre">{{ line.content }}</span>
+                                <span class="w-6 select-none text-right text-zinc-500">{{ line.line }}</span>
+                                <span class="whitespace-pre text-zinc-100">{{ line.content }}</span>
                             </div>
                         </div>
                     </div>
@@ -1051,9 +1054,7 @@ const isStudentAbsent = (studentId: number | null) => {
             <!-- Modal Footer Controls -->
             <div class="flex items-center justify-between border-t border-border/80 bg-secondary/30 px-6 py-3.5">
                 <div class="flex items-center gap-2">
-                    <span class="text-xs text-muted-foreground">
-                        {{ approvedItems.length }} / {{ items.length }} student grades approved
-                    </span>
+                    <span class="text-xs text-muted-foreground"> {{ approvedItems.length }} / {{ items.length }} student grades approved </span>
                 </div>
 
                 <div class="flex items-center gap-3">
@@ -1066,7 +1067,7 @@ const isStudentAbsent = (studentId: number | null) => {
                     </button>
                     <button
                         type="button"
-                        class="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2 text-xs font-bold text-primary-foreground shadow-xs hover:bg-primary/90 disabled:opacity-50 transition-all"
+                        class="shadow-xs inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2 text-xs font-bold text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50"
                         :disabled="isSavingScores || approvedItems.length === 0"
                         @click="applyApprovedScores"
                     >

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureOfflineUserAuthenticated;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RecordRequestPerformance;
 use Illuminate\Foundation\Application;
@@ -20,7 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->append(RecordRequestPerformance::class);
 
         $middleware->web(prepend: [
-            \App\Http\Middleware\EnsureOfflineUserAuthenticated::class,
+            EnsureOfflineUserAuthenticated::class,
         ], append: [
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,

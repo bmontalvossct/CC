@@ -2,19 +2,7 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Check,
-    Clipboard,
-    Copy,
-    Dices,
-    Printer,
-    RefreshCw,
-    Shuffle,
-    Sparkles,
-    UserCheck,
-    Users,
-    X,
-} from 'lucide-vue-next';
+import { Check, Copy, Dices, Printer, Shuffle, X } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 
 const props = defineProps<{
@@ -210,7 +198,7 @@ const printGroups = () => {
 <template>
     <div
         v-if="open"
-        class="fixed inset-0 z-50 grid place-items-center bg-zinc-950/70 p-4 sm:p-6 backdrop-blur-xs duration-200 animate-in fade-in print:hidden"
+        class="backdrop-blur-xs fixed inset-0 z-50 grid place-items-center bg-zinc-950/70 p-4 duration-200 animate-in fade-in sm:p-6 print:hidden"
     >
         <div
             class="paper-card relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden border border-border/80 bg-card p-6 shadow-2xl duration-200 animate-in zoom-in-95"
@@ -226,9 +214,7 @@ const printGroups = () => {
                     </span>
                     <div>
                         <h2 class="text-lg font-bold tracking-tight text-foreground">Random Group Generator</h2>
-                        <p class="text-xs text-muted-foreground">
-                            {{ sectionName }} · {{ activeStudents.length }} enrolled students
-                        </p>
+                        <p class="text-xs text-muted-foreground">{{ sectionName }} · {{ activeStudents.length }} enrolled students</p>
                     </div>
                 </div>
 
@@ -251,7 +237,9 @@ const printGroups = () => {
                         <button
                             type="button"
                             class="rounded-md px-3 py-1.5 transition-all"
-                            :class="splitMode === 'by_group_count' ? 'bg-card text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'"
+                            :class="
+                                splitMode === 'by_group_count' ? 'shadow-xs bg-card text-foreground' : 'text-muted-foreground hover:text-foreground'
+                            "
                             @click="splitMode = 'by_group_count'"
                         >
                             By Number of Groups
@@ -259,7 +247,9 @@ const printGroups = () => {
                         <button
                             type="button"
                             class="rounded-md px-3 py-1.5 transition-all"
-                            :class="splitMode === 'by_group_size' ? 'bg-card text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'"
+                            :class="
+                                splitMode === 'by_group_size' ? 'shadow-xs bg-card text-foreground' : 'text-muted-foreground hover:text-foreground'
+                            "
                             @click="splitMode = 'by_group_size'"
                         >
                             By Group Size
@@ -267,8 +257,10 @@ const printGroups = () => {
                         <button
                             v-if="previousProjects && previousProjects.length > 0"
                             type="button"
-                            class="rounded-md px-3 py-1.5 transition-all flex items-center gap-1"
-                            :class="splitMode === 'from_previous' ? 'bg-card text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'"
+                            class="flex items-center gap-1 rounded-md px-3 py-1.5 transition-all"
+                            :class="
+                                splitMode === 'from_previous' ? 'shadow-xs bg-card text-foreground' : 'text-muted-foreground hover:text-foreground'
+                            "
                             @click="splitMode = 'from_previous'"
                         >
                             <Copy class="size-3 text-primary" />
@@ -313,12 +305,7 @@ const printGroups = () => {
                 </div>
 
                 <div class="flex items-center gap-2">
-                    <Button
-                        type="button"
-                        class="ink-button !h-8 !px-3 text-xs font-semibold"
-                        title="Re-shuffle all groups"
-                        @click="generateGroups"
-                    >
+                    <Button type="button" class="ink-button !h-8 !px-3 text-xs font-semibold" title="Re-shuffle all groups" @click="generateGroups">
                         <Shuffle class="mr-1.5 size-3.5" />
                         <span>Re-shuffle</span>
                     </Button>
@@ -331,10 +318,10 @@ const printGroups = () => {
                     <div
                         v-for="group in groups"
                         :key="group.id"
-                        class="rounded-xl border border-border/80 bg-card p-3.5 shadow-xs transition-all hover:border-primary/50"
+                        class="shadow-xs rounded-xl border border-border/80 bg-card p-3.5 transition-all hover:border-primary/50"
                     >
                         <div class="flex items-center justify-between border-b border-border/70 pb-2">
-                            <span class="font-bold text-foreground text-xs">{{ group.name }}</span>
+                            <span class="text-xs font-bold text-foreground">{{ group.name }}</span>
                             <span class="rounded-md bg-secondary px-2 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground">
                                 {{ group.members.length }} members
                             </span>
@@ -346,11 +333,14 @@ const printGroups = () => {
                                 :key="student.id"
                                 class="flex items-center gap-2 rounded-lg bg-secondary/30 px-2 py-1 text-xs"
                             >
-                                <span class="grid size-5 shrink-0 place-items-center rounded-full bg-secondary font-mono text-[9px] font-bold text-muted-foreground">
+                                <span
+                                    class="grid size-5 shrink-0 place-items-center rounded-full bg-secondary font-mono text-[9px] font-bold text-muted-foreground"
+                                >
                                     {{ sIdx + 1 }}
                                 </span>
                                 <div class="min-w-0 flex-1 truncate">
-                                    <span class="font-semibold text-foreground">{{ student.last_name }}</span>,
+                                    <span class="font-semibold text-foreground">{{ student.last_name }}</span
+                                    >,
                                     <span class="text-muted-foreground">{{ student.first_name }}</span>
                                 </div>
                             </div>
@@ -361,37 +351,21 @@ const printGroups = () => {
 
             <!-- Footer Actions -->
             <div class="mt-4 flex items-center justify-between border-t border-border/70 pt-4">
-                <div class="text-xs text-muted-foreground">
-                    {{ groups.length }} teams formed · Balanced by class size
-                </div>
+                <div class="text-xs text-muted-foreground">{{ groups.length }} teams formed · Balanced by class size</div>
 
                 <div class="flex items-center gap-2">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        class="h-9 rounded-xl px-3 text-xs font-medium"
-                        @click="copyGroupsToClipboard"
-                    >
+                    <Button type="button" variant="outline" class="h-9 rounded-xl px-3 text-xs font-medium" @click="copyGroupsToClipboard">
                         <Check v-if="copied" class="mr-1.5 size-3.5 text-emerald-500" />
                         <Copy v-else class="mr-1.5 size-3.5" />
                         <span>{{ copied ? 'Copied to Clipboard!' : 'Copy Roster' }}</span>
                     </Button>
 
-                    <Button
-                        type="button"
-                        variant="outline"
-                        class="h-9 rounded-xl px-3 text-xs font-medium"
-                        @click="printGroups"
-                    >
+                    <Button type="button" variant="outline" class="h-9 rounded-xl px-3 text-xs font-medium" @click="printGroups">
                         <Printer class="mr-1.5 size-3.5" />
                         <span>Print Sheet</span>
                     </Button>
 
-                    <Button
-                        type="button"
-                        class="ink-button !h-9 !px-4 text-xs font-semibold"
-                        @click="emit('close')"
-                    >
+                    <Button type="button" class="ink-button !h-9 !px-4 text-xs font-semibold" @click="emit('close')">
                         <span>Done</span>
                     </Button>
                 </div>

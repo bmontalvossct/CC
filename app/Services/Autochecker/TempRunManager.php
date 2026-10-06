@@ -7,13 +7,14 @@ use Exception;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Log;
 use ZipArchive;
 
 class TempRunManager
 {
     protected string $storageBase;
+
     protected FilenameMatcherService $matcherService;
+
     protected FileContentExtractorService $extractorService;
 
     public function __construct(
@@ -32,12 +33,10 @@ class TempRunManager
     /**
      * Create an opaque temporary run from uploaded files or ZIP archive.
      *
-     * @param int $userId
-     * @param int $assessmentId
-     * @param Collection<int, Student> $students
-     * @param array<int, UploadedFile>|null $files
-     * @param UploadedFile|null $zipFile
+     * @param  Collection<int, Student>  $students
+     * @param  array<int, UploadedFile>|null  $files
      * @return array{run_id: string, items: array<int, array<string, mixed>>, total_files: int, matched_count: int}
+     *
      * @throws Exception
      */
     public function createRun(
@@ -53,7 +52,7 @@ class TempRunManager
         $runDir = "{$this->storageBase}/{$runId}";
 
         if (! @mkdir($runDir, 0755, true)) {
-            throw new Exception("Unable to initialize temporary storage run directory.", 500);
+            throw new Exception('Unable to initialize temporary storage run directory.', 500);
         }
 
         $limits = config('autochecker.limits', [
@@ -75,11 +74,11 @@ class TempRunManager
         // 1. Handle uploaded ZIP file if present
         if ($zipFile && $zipFile->isValid()) {
             $zipPath = $zipFile->getRealPath();
-            $zip = new ZipArchive();
+            $zip = new ZipArchive;
 
             if ($zip->open($zipPath) !== true) {
                 $this->deleteRun($runId);
-                throw new Exception("Invalid or corrupt ZIP archive uploaded.", 422);
+                throw new Exception('Invalid or corrupt ZIP archive uploaded.', 422);
             }
 
             $numFiles = $zip->numFiles;
@@ -102,14 +101,14 @@ class TempRunManager
                 if (($entrySize / 1024) > $maxEntryKb) {
                     $zip->close();
                     $this->deleteRun($runId);
-                    throw new Exception("File '{$entryName}' inside ZIP exceeds max allowed size of " . round($maxEntryKb / 1024) . " MB.", 422);
+                    throw new Exception("File '{$entryName}' inside ZIP exceeds max allowed size of ".round($maxEntryKb / 1024).' MB.', 422);
                 }
 
                 $totalExpandedBytes += $entrySize;
                 if (($totalExpandedBytes / 1024) > $maxExpandedKb) {
                     $zip->close();
                     $this->deleteRun($runId);
-                    throw new Exception("Total expanded ZIP archive size exceeds maximum limit of " . round($maxExpandedKb / 1024) . " MB.", 422);
+                    throw new Exception('Total expanded ZIP archive size exceeds maximum limit of '.round($maxExpandedKb / 1024).' MB.', 422);
                 }
 
                 $filename = basename($entryName);
@@ -119,7 +118,7 @@ class TempRunManager
                     continue;
                 }
 
-                $itemId = 'item_' . (count($items) + 1);
+                $itemId = 'item_'.(count($items) + 1);
                 $targetPath = "{$runDir}/{$itemId}_{$filename}";
 
                 $content = $zip->getFromIndex($i);
@@ -181,10 +180,10 @@ class TempRunManager
                 $size = $file->getSize();
                 if (($size / 1024) > $maxEntryKb) {
                     $this->deleteRun($runId);
-                    throw new Exception("File '{$filename}' exceeds max size of " . round($maxEntryKb / 1024) . " MB.", 422);
+                    throw new Exception("File '{$filename}' exceeds max size of ".round($maxEntryKb / 1024).' MB.', 422);
                 }
 
-                $itemId = 'item_' . (count($items) + 1);
+                $itemId = 'item_'.(count($items) + 1);
                 $targetPath = "{$runDir}/{$itemId}_{$filename}";
 
                 $file->move($runDir, basename($targetPath));
@@ -220,7 +219,7 @@ class TempRunManager
 
         if (empty($items)) {
             $this->deleteRun($runId);
-            throw new Exception("No valid or supported submission files found in the upload.", 422);
+            throw new Exception('No valid or supported submission files found in the upload.', 422);
         }
 
         $manifest = [
@@ -238,6 +237,7 @@ class TempRunManager
         $frontendItems = array_map(function ($item) {
             $copy = $item;
             unset($copy['file_path']);
+
             return $copy;
         }, array_values($items));
 

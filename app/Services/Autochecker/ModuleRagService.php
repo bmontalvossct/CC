@@ -34,8 +34,7 @@ class ModuleRagService
 
     public function __construct(
         protected FileContentExtractorService $extractor
-    ) {
-    }
+    ) {}
 
     /**
      * Resolve the absolute filesystem path for a stored relative file path.
@@ -50,12 +49,12 @@ class ModuleRagService
             return Storage::disk('local')->path($path);
         }
 
-        if (file_exists(storage_path('app/' . $path))) {
-            return storage_path('app/' . $path);
+        if (file_exists(storage_path('app/'.$path))) {
+            return storage_path('app/'.$path);
         }
 
-        if (file_exists(storage_path('app/private/' . $path))) {
-            return storage_path('app/private/' . $path);
+        if (file_exists(storage_path('app/private/'.$path))) {
+            return storage_path('app/private/'.$path);
         }
 
         if (file_exists($path)) {
@@ -86,12 +85,12 @@ class ModuleRagService
 
             // 2. Module syllabus/overview description
             if (! empty(trim($module->description ?? ''))) {
-                $sections[] = "Description & Topics:\n" . trim($module->description);
+                $sections[] = "Description & Topics:\n".trim($module->description);
             }
 
             // 3. Presentation link URL if present
             if (! empty(trim($module->link_url ?? ''))) {
-                $sections[] = "Presentation Link: " . trim($module->link_url);
+                $sections[] = 'Presentation Link: '.trim($module->link_url);
             }
 
             // 4. File content extraction (PDF, DOCX, PPTX, TXT, code, etc.)
@@ -100,10 +99,10 @@ class ModuleRagService
                     $extraction = $this->extractor->extract($resolvedPath, $module->file_name);
                     $content = trim($extraction['content'] ?? '');
                     if ($content !== '') {
-                        $sections[] = "--- Handout / Slides Content ({$module->file_name}) ---\n" . $content;
+                        $sections[] = "--- Handout / Slides Content ({$module->file_name}) ---\n".$content;
                     }
                 } catch (Exception $e) {
-                    Log::warning("ModuleRagService failed extracting file for module #{$module->id}: " . $e->getMessage());
+                    Log::warning("ModuleRagService failed extracting file for module #{$module->id}: ".$e->getMessage());
                 }
             }
 
@@ -154,8 +153,8 @@ class ModuleRagService
                         continue;
                     }
 
-                    if (mb_strlen($currentGroup . "\n\n" . $trimmed) <= $chunkSize) {
-                        $currentGroup = $currentGroup !== '' ? $currentGroup . "\n\n" . $trimmed : $trimmed;
+                    if (mb_strlen($currentGroup."\n\n".$trimmed) <= $chunkSize) {
+                        $currentGroup = $currentGroup !== '' ? $currentGroup."\n\n".$trimmed : $trimmed;
                     } else {
                         if ($currentGroup !== '') {
                             $rawPassages[] = $currentGroup;
@@ -189,14 +188,14 @@ class ModuleRagService
                         $sentBuffer = '';
 
                         foreach ($sentences as $sentence) {
-                            if (mb_strlen($sentBuffer . ' ' . $sentence) <= $chunkSize) {
-                                $sentBuffer = $sentBuffer !== '' ? $sentBuffer . ' ' . $sentence : $sentence;
+                            if (mb_strlen($sentBuffer.' '.$sentence) <= $chunkSize) {
+                                $sentBuffer = $sentBuffer !== '' ? $sentBuffer.' '.$sentence : $sentence;
                             } else {
                                 if ($sentBuffer !== '') {
                                     $rawPassages[] = $sentBuffer;
                                     // Retain overlap from end of previous buffer
                                     $tail = mb_substr($sentBuffer, max(0, mb_strlen($sentBuffer) - $overlap));
-                                    $sentBuffer = $tail . ' ' . $sentence;
+                                    $sentBuffer = $tail.' '.$sentence;
                                 } else {
                                     $rawPassages[] = mb_substr($sentence, 0, $chunkSize);
                                     $sentBuffer = '';
@@ -207,13 +206,13 @@ class ModuleRagService
                         if ($sentBuffer !== '') {
                             $rawPassages[] = $sentBuffer;
                         }
-                    } elseif (mb_strlen($currentBuffer . "\n\n" . $pTrimmed) <= $chunkSize) {
-                        $currentBuffer = $currentBuffer !== '' ? $currentBuffer . "\n\n" . $pTrimmed : $pTrimmed;
+                    } elseif (mb_strlen($currentBuffer."\n\n".$pTrimmed) <= $chunkSize) {
+                        $currentBuffer = $currentBuffer !== '' ? $currentBuffer."\n\n".$pTrimmed : $pTrimmed;
                     } else {
                         if ($currentBuffer !== '') {
                             $rawPassages[] = $currentBuffer;
                             $tail = mb_substr($currentBuffer, max(0, mb_strlen($currentBuffer) - $overlap));
-                            $currentBuffer = $tail . "\n\n" . $pTrimmed;
+                            $currentBuffer = $tail."\n\n".$pTrimmed;
                         } else {
                             $currentBuffer = $pTrimmed;
                         }
@@ -234,7 +233,7 @@ class ModuleRagService
                 }
 
                 $chunks[] = [
-                    'id' => "mod_{$module->id}_c" . ($idx + 1),
+                    'id' => "mod_{$module->id}_c".($idx + 1),
                     'module_id' => $module->id,
                     'module_number' => $module->module_number,
                     'module_title' => $module->title,
@@ -252,10 +251,7 @@ class ModuleRagService
     /**
      * Search across section modules using BM25 ranking algorithm with title boosting.
      *
-     * @param Section|int $section
-     * @param string $query
-     * @param array<int>|null $moduleIds
-     * @param int $limit
+     * @param  array<int>|null  $moduleIds
      * @return array<int, array{
      *     chunk_id: string,
      *     module_id: int,
@@ -353,7 +349,7 @@ class ModuleRagService
             }
 
             // Title and Module Number Boost
-            $titleTokens = $this->tokenize($doc['module_title'] . ' ' . $doc['module_number']);
+            $titleTokens = $this->tokenize($doc['module_title'].' '.$doc['module_number']);
             foreach ($queryTokens as $term) {
                 if (isset($titleTokens[$term])) {
                     $score += 1.5;
@@ -367,7 +363,7 @@ class ModuleRagService
             }
 
             if ($score > 0.05) {
-                $citation = "[{$doc['module_number']}: {$doc['module_title']}" . ($doc['file_name'] ? " ({$doc['file_name']})" : "") . " - Excerpt #{$doc['chunk_index']}]";
+                $citation = "[{$doc['module_number']}: {$doc['module_title']}".($doc['file_name'] ? " ({$doc['file_name']})" : '')." - Excerpt #{$doc['chunk_index']}]";
 
                 $scored[] = [
                     'chunk_id' => $doc['id'],
@@ -399,9 +395,9 @@ class ModuleRagService
         }
 
         $lines = [];
-        $lines[] = "=== GROUNDED COURSE MODULE CURRICULUM (RAG CONTEXT) ===";
-        $lines[] = "AUTHORITY RULE: Ground your output strictly on the official syllabus, slide handouts, and definitions taught in these course modules. Do not contradict or hallucinate outside this material.";
-        $lines[] = "";
+        $lines[] = '=== GROUNDED COURSE MODULE CURRICULUM (RAG CONTEXT) ===';
+        $lines[] = 'AUTHORITY RULE: Ground your output strictly on the official syllabus, slide handouts, and definitions taught in these course modules. Do not contradict or hallucinate outside this material.';
+        $lines[] = '';
 
         $accumulatedChars = 0;
 
@@ -414,7 +410,7 @@ class ModuleRagService
 
             if ($accumulatedChars + $entryLen > $maxTotalChars) {
                 $allowed = max(200, $maxTotalChars - $accumulatedChars - 50);
-                $entry = "--- {$citation} ---\n" . mb_substr($content, 0, $allowed) . "... [excerpt continues]\n";
+                $entry = "--- {$citation} ---\n".mb_substr($content, 0, $allowed)."... [excerpt continues]\n";
                 $lines[] = $entry;
                 break;
             }
@@ -429,9 +425,7 @@ class ModuleRagService
     /**
      * Retrieve and synthesize rich curriculum grounding for exam/quiz generation from selected modules.
      *
-     * @param Collection<int, CourseModule> $modules
-     * @param string $queryContext
-     * @param int $maxTotalChars
+     * @param  Collection<int, CourseModule>  $modules
      * @return array<int, array{
      *     id: int,
      *     module_number: string,
@@ -456,7 +450,7 @@ class ModuleRagService
 
             // 1. Include syllabus / topics description
             if (! empty(trim($module->description ?? ''))) {
-                $excerpt .= "Syllabus Objectives & Topics:\n" . trim($module->description) . "\n\n";
+                $excerpt .= "Syllabus Objectives & Topics:\n".trim($module->description)."\n\n";
             }
 
             // 2. Perform RAG query on this specific module's content if it has file or text
@@ -472,19 +466,19 @@ class ModuleRagService
                 if (! empty($chunks)) {
                     $excerpt .= "[Key Lecture & Handout Excerpts ({$fileName})]:\n";
                     foreach ($chunks as $c) {
-                        $excerpt .= "- " . trim($c['content']) . "\n\n";
+                        $excerpt .= '- '.trim($c['content'])."\n\n";
                     }
                 } else {
                     // Fallback to initial content if search had low match
                     $full = $this->extractModuleText($module);
                     $cleaned = preg_replace('/\s+/', ' ', $full) ?? $full;
-                    $excerpt .= "[Handout Content ({$fileName})]:\n" . mb_substr($cleaned, 0, 2500) . "\n";
+                    $excerpt .= "[Handout Content ({$fileName})]:\n".mb_substr($cleaned, 0, 2500)."\n";
                 }
             }
 
             // Keep within per-module budget
             if (mb_strlen($excerpt) > $perModuleBudget) {
-                $excerpt = mb_substr($excerpt, 0, $perModuleBudget) . "... [content continues]";
+                $excerpt = mb_substr($excerpt, 0, $perModuleBudget).'... [content continues]';
             }
 
             $curriculum[] = [

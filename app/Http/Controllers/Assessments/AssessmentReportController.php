@@ -2,11 +2,7 @@
 
 namespace App\Http\Controllers\Assessments;
 
-use App\Models\Assessment;
-use App\Models\AssessmentScore;
 use App\Models\AttendanceRecord;
-use App\Models\AttendanceSession;
-use App\Models\Project;
 use App\Models\Recitation;
 use App\Models\Section;
 use App\Models\Student;
@@ -14,7 +10,6 @@ use App\Services\GradebookCalculationService;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -23,8 +18,7 @@ class AssessmentReportController extends AssessmentModuleController
 {
     public function __construct(
         protected GradebookCalculationService $gradebookService
-    ) {
-    }
+    ) {}
 
     public function gradebook(Section $section): Response
     {

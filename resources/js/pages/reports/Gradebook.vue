@@ -10,20 +10,15 @@ import {
     ArrowUp,
     ArrowUpDown,
     Calendar,
-    CheckCircle2,
     Download,
     FileSpreadsheet,
-    HelpCircle,
-    Layers,
     LayoutGrid,
-    ListOrdered,
     Mic,
     Presentation,
     Printer,
     RotateCcw,
     Save,
     Settings,
-    Sparkles,
     Trophy,
     Wand2,
     X,
@@ -125,7 +120,9 @@ const props = withDefaults(
 const page = usePage<any>();
 const types = ['activity', 'laboratory', 'quiz', 'exam'] as const;
 const activeTypes = computed(() => {
-    return types.filter((t) => t !== 'laboratory' || (props.categorySummary.laboratory?.count ?? 0) > 0 || (props.gradingWeights.laboratory ?? 0) > 0);
+    return types.filter(
+        (t) => t !== 'laboratory' || (props.categorySummary.laboratory?.count ?? 0) > 0 || (props.gradingWeights.laboratory ?? 0) > 0,
+    );
 });
 const showWeightsEditor = ref(false);
 const activePeriodTab = ref<'all' | 'midterm' | 'final'>('all');
@@ -150,16 +147,16 @@ const toggleSort = (colKey: string) => {
 };
 
 const getScaleNumeric = (g: string): number => {
-    if (g === '1.00') return 1.00;
+    if (g === '1.00') return 1.0;
     if (g === '1.25') return 1.25;
-    if (g === '1.50') return 1.50;
+    if (g === '1.50') return 1.5;
     if (g === '1.75') return 1.75;
-    if (g === '2.00') return 2.00;
+    if (g === '2.00') return 2.0;
     if (g === '2.25') return 2.25;
-    if (g === '2.50') return 2.50;
+    if (g === '2.50') return 2.5;
     if (g === '2.75') return 2.75;
-    if (g === '3.00') return 3.00;
-    if (g === '5.00' || g === 'INC') return 5.00;
+    if (g === '3.00') return 3.0;
+    if (g === '5.00' || g === 'INC') return 5.0;
     return 99; // uncomputed / missing
 };
 
@@ -176,9 +173,7 @@ const getSortValue = (row: Row, key: string): number | string => {
             : -999999;
     }
     if (key === 'quiz') {
-        return row.categories.quiz?.percentage !== null && row.categories.quiz?.percentage !== undefined
-            ? row.categories.quiz.percentage
-            : -999999;
+        return row.categories.quiz?.percentage !== null && row.categories.quiz?.percentage !== undefined ? row.categories.quiz.percentage : -999999;
     }
     if (key === 'laboratory') {
         return row.categories.laboratory?.percentage !== null && row.categories.laboratory?.percentage !== undefined
@@ -186,27 +181,19 @@ const getSortValue = (row: Row, key: string): number | string => {
             : -999999;
     }
     if (key === 'exam') {
-        return row.categories.exam?.percentage !== null && row.categories.exam?.percentage !== undefined
-            ? row.categories.exam.percentage
-            : -999999;
+        return row.categories.exam?.percentage !== null && row.categories.exam?.percentage !== undefined ? row.categories.exam.percentage : -999999;
     }
     if (key === 'project') {
-        return row.projectSummary?.percentage !== null && row.projectSummary?.percentage !== undefined
-            ? row.projectSummary.percentage
-            : -999999;
+        return row.projectSummary?.percentage !== null && row.projectSummary?.percentage !== undefined ? row.projectSummary.percentage : -999999;
     }
     if (key === 'attendance') {
-        return row.attendance?.percentage !== null && row.attendance?.percentage !== undefined
-            ? row.attendance.percentage
-            : -999999;
+        return row.attendance?.percentage !== null && row.attendance?.percentage !== undefined ? row.attendance.percentage : -999999;
     }
     if (key === 'recitation') {
         return row.recitation?.bonus_points ?? 0;
     }
     if (key === 'midterm') {
-        return row.midterm?.weighted_grade !== null && row.midterm?.weighted_grade !== undefined
-            ? row.midterm.weighted_grade
-            : -999999;
+        return row.midterm?.weighted_grade !== null && row.midterm?.weighted_grade !== undefined ? row.midterm.weighted_grade : -999999;
     }
     if (key === 'final_period') {
         return row.final_period?.weighted_grade !== null && row.final_period?.weighted_grade !== undefined
@@ -214,9 +201,7 @@ const getSortValue = (row: Row, key: string): number | string => {
             : -999999;
     }
     if (key === 'weighted_grade') {
-        return row.weighted_grade !== null && row.weighted_grade !== undefined
-            ? row.weighted_grade
-            : -999999;
+        return row.weighted_grade !== null && row.weighted_grade !== undefined ? row.weighted_grade : -999999;
     }
     if (key === 'scale_grade') {
         return getScaleNumeric(row.scale_grade);
@@ -494,22 +479,6 @@ const saveWeights = () => {
     });
 };
 
-// Philippine college grading scale: percentage → 1.00–5.00
-const percentToGrade = (pct: number | null): string => {
-    if (pct === null) return '—';
-    const val = Math.round(pct * 100) / 100;
-    if (val >= 97.0) return '1.00';
-    if (val >= 94.0) return '1.25';
-    if (val >= 91.0) return '1.50';
-    if (val >= 88.0) return '1.75';
-    if (val >= 85.0) return '2.00';
-    if (val >= 82.0) return '2.25';
-    if (val >= 79.0) return '2.50';
-    if (val >= 76.0) return '2.75';
-    if (val >= 75.0) return '3.00';
-    return '5.00';
-};
-
 const isFailing = (grade: string) => {
     if (grade === '—') return false;
     const n = parseFloat(grade);
@@ -519,21 +488,6 @@ const isFailing = (grade: string) => {
 const gradeDisplay = (grade: string) => {
     if (grade === '—' || !grade) return '—';
     return grade;
-};
-
-const round = (val: number, decimals: number) => {
-    const factor = Math.pow(10, decimals);
-    return Math.round(val * factor) / factor;
-};
-
-// Grade color helper
-const gradeClass = (grade: string) => {
-    if (grade === '—') return 'text-muted-foreground';
-    if (isFailing(grade)) return 'text-rose-600 dark:text-rose-400';
-    const n = parseFloat(grade);
-    if (n <= 1.5) return 'text-emerald-600 dark:text-emerald-400';
-    if (n <= 2.5) return 'text-primary';
-    return 'text-amber-600 dark:text-amber-400';
 };
 
 // High contrast grade badge background helper (dark solid color with white text)
@@ -587,7 +541,9 @@ onMounted(() => {
                             <button
                                 type="button"
                                 class="rounded-lg px-3 py-1 text-xs font-semibold transition-colors"
-                                :class="activePeriodTab === 'all' ? 'bg-card text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'"
+                                :class="
+                                    activePeriodTab === 'all' ? 'shadow-xs bg-card text-foreground' : 'text-muted-foreground hover:text-foreground'
+                                "
                                 @click="activePeriodTab = 'all'"
                             >
                                 All / Semestral
@@ -595,16 +551,20 @@ onMounted(() => {
                             <button
                                 type="button"
                                 class="flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-semibold transition-colors"
-                                :class="activePeriodTab === 'midterm' ? 'bg-card text-primary shadow-xs' : 'text-muted-foreground hover:text-foreground'"
+                                :class="
+                                    activePeriodTab === 'midterm' ? 'shadow-xs bg-card text-primary' : 'text-muted-foreground hover:text-foreground'
+                                "
                                 @click="activePeriodTab = 'midterm'"
                             >
                                 <span>Midterm Period</span>
-                                <span v-if="midtermExam" class="rounded bg-primary/10 px-1 py-0.2 font-mono text-[9px] text-primary">Exam</span>
+                                <span v-if="midtermExam" class="py-0.2 rounded bg-primary/10 px-1 font-mono text-[9px] text-primary">Exam</span>
                             </button>
                             <button
                                 type="button"
                                 class="rounded-lg px-3 py-1 text-xs font-semibold transition-colors"
-                                :class="activePeriodTab === 'final' ? 'bg-card text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'"
+                                :class="
+                                    activePeriodTab === 'final' ? 'shadow-xs bg-card text-foreground' : 'text-muted-foreground hover:text-foreground'
+                                "
                                 @click="activePeriodTab = 'final'"
                             >
                                 Final Period
@@ -688,7 +648,7 @@ onMounted(() => {
                                     class="rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all"
                                     :class="
                                         weightsForm.reporting_frequency === 'once_per_sem'
-                                            ? 'border-teal-500 bg-teal-600 text-white shadow-xs'
+                                            ? 'shadow-xs border-teal-500 bg-teal-600 text-white'
                                             : 'border-border bg-card text-foreground hover:bg-secondary'
                                     "
                                     @click="weightsForm.reporting_frequency = 'once_per_sem'"
@@ -700,7 +660,7 @@ onMounted(() => {
                                     class="rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all"
                                     :class="
                                         weightsForm.reporting_frequency === 'twice_per_sem'
-                                            ? 'border-teal-500 bg-teal-600 text-white shadow-xs'
+                                            ? 'shadow-xs border-teal-500 bg-teal-600 text-white'
                                             : 'border-border bg-card text-foreground hover:bg-secondary'
                                     "
                                     @click="weightsForm.reporting_frequency = 'twice_per_sem'"
@@ -965,16 +925,21 @@ onMounted(() => {
                         </div>
                         <div v-if="midtermExam" class="flex items-center gap-1.5 text-xs text-muted-foreground print:text-black">
                             <Calendar class="size-3.5 text-primary" />
-                            <span>Midterm Exam: <strong>{{ midtermExam.title }}</strong></span>
+                            <span
+                                >Midterm Exam: <strong>{{ midtermExam.title }}</strong></span
+                            >
                             <span v-if="midtermExam.conducted_on" class="font-mono text-[11px]">({{ midtermExam.conducted_on }})</span>
                         </div>
                     </div>
 
                     <h1 class="mt-2 text-2xl font-medium tracking-tight sm:text-3xl print:text-xl">{{ section.subject_title }}</h1>
                     <p class="mt-1 text-xs text-muted-foreground print:text-black">
-                        Weighted gradebook with Midterm Grade, Final Period Grade, and Semestral Grade (1.0–5.0). Core: Activities {{ gradingWeights.activity }}%, Quizzes
-                        {{ gradingWeights.quiz }}%, Major Exams {{ gradingWeights.exam }}%, Project / Reporting {{ gradingWeights.project }}%,
-                        Attendance {{ gradingWeights.attendance }}% · Oral Recitation: +{{ gradingWeights.recitation ?? 5 }} bonus pts.
+                        Weighted gradebook with Midterm Grade, Final Period Grade, and Semestral Grade (1.0–5.0). Core: Activities
+                        {{ gradingWeights.activity }}%, Quizzes {{ gradingWeights.quiz }}%, Major Exams {{ gradingWeights.exam }}%, Project /
+                        Reporting {{ gradingWeights.project }}%, Attendance {{ gradingWeights.attendance }}% · Oral Recitation: +{{
+                            gradingWeights.recitation ?? 5
+                        }}
+                        bonus pts.
                     </p>
                 </header>
 
@@ -1017,27 +982,27 @@ onMounted(() => {
 
                     <!-- Oral Participation Summary Card -->
                     <div class="paper-card border-amber-500/30 bg-amber-500/5 p-4 print:rounded-none print:border print:border-black print:bg-white">
-                                        <span class="font-mono text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
-                                            Oral Bonus · +{{ gradingWeights.recitation ?? 5 }} pts
-                                        </span>
-                                        <p class="mt-2 text-xl font-bold tracking-tight text-amber-700 dark:text-amber-400">Added to Activities</p>
-                                        <p class="mt-0.5 text-[11px] font-normal text-muted-foreground">Max denominator not increased</p>
-                                    </div>
-                                </section>
+                        <span class="font-mono text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                            Oral Bonus · +{{ gradingWeights.recitation ?? 5 }} pts
+                        </span>
+                        <p class="mt-2 text-xl font-bold tracking-tight text-amber-700 dark:text-amber-400">Added to Activities</p>
+                        <p class="mt-0.5 text-[11px] font-normal text-muted-foreground">Max denominator not increased</p>
+                    </div>
+                </section>
 
                 <!-- Responsive Gradebook Table -->
                 <div class="paper-card overflow-hidden p-0 shadow-sm print:rounded-none print:border print:border-black print:shadow-none">
                     <!-- View Mode Switcher Header -->
                     <div class="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 bg-secondary/30 px-4 py-3 print:hidden">
                         <div class="flex flex-wrap items-center gap-2">
-                            <span class="text-xs font-semibold text-muted-foreground mr-1">View Mode:</span>
-                            <div class="inline-flex rounded-xl border border-border/80 bg-card p-0.5 shadow-2xs">
+                            <span class="mr-1 text-xs font-semibold text-muted-foreground">View Mode:</span>
+                            <div class="shadow-2xs inline-flex rounded-xl border border-border/80 bg-card p-0.5">
                                 <button
                                     type="button"
                                     class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all"
                                     :class="
                                         viewMode === 'summary'
-                                            ? 'bg-primary text-primary-foreground shadow-xs'
+                                            ? 'shadow-xs bg-primary text-primary-foreground'
                                             : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
                                     "
                                     @click="viewMode = 'summary'"
@@ -1050,7 +1015,7 @@ onMounted(() => {
                                     class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all"
                                     :class="
                                         viewMode === 'detailed'
-                                            ? 'bg-primary text-primary-foreground shadow-xs'
+                                            ? 'shadow-xs bg-primary text-primary-foreground'
                                             : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
                                     "
                                     @click="viewMode = 'detailed'"
@@ -1065,9 +1030,12 @@ onMounted(() => {
                             <button
                                 v-if="sortColumn !== 'student' || sortDirection !== 'asc'"
                                 type="button"
-                                class="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2.5 py-1 text-[11px] font-medium text-foreground shadow-2xs transition-colors hover:bg-secondary"
+                                class="shadow-2xs inline-flex items-center gap-1 rounded-md border border-border bg-card px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-secondary"
                                 title="Reset sorting back to student alphabetical order"
-                                @click="sortColumn = 'student'; sortDirection = 'asc'"
+                                @click="
+                                    sortColumn = 'student';
+                                    sortDirection = 'asc';
+                                "
                             >
                                 <RotateCcw class="size-3 text-muted-foreground" />
                                 <span>Reset Sort</span>
@@ -1079,23 +1047,32 @@ onMounted(() => {
                         </div>
                     </div>
 
-                    <div class="overflow-auto max-h-[calc(100vh-14rem)] min-h-[420px] scrollbar-thin print:max-h-none print:overflow-visible">
-                        <table class="w-full text-left text-xs border-separate border-spacing-0">
+                    <div class="scrollbar-thin max-h-[calc(100vh-14rem)] min-h-[420px] overflow-auto print:max-h-none print:overflow-visible">
+                        <table class="w-full border-separate border-spacing-0 text-left text-xs">
                             <thead
-                                class="sticky top-0 z-20 border-b border-border/80 bg-secondary/95 text-[11px] uppercase tracking-wider text-muted-foreground shadow-2xs backdrop-blur-md print:static print:bg-gray-100 print:text-black"
+                                class="shadow-2xs sticky top-0 z-20 border-b border-border/80 bg-secondary/95 text-[11px] uppercase tracking-wider text-muted-foreground backdrop-blur-md print:static print:bg-gray-100 print:text-black"
                             >
                                 <!-- SUMMARY VIEW HEADER -->
                                 <tr v-if="viewMode === 'summary'">
                                     <th
-                                        class="group/th sticky top-0 left-0 z-30 min-w-52 cursor-pointer select-none border-b border-r border-border/80 bg-card/95 px-4 py-3 shadow-xs backdrop-blur-md transition-colors hover:bg-secondary/80 print:static print:bg-gray-100"
+                                        class="group/th shadow-xs sticky left-0 top-0 z-30 min-w-52 cursor-pointer select-none border-b border-r border-border/80 bg-card/95 px-4 py-3 backdrop-blur-md transition-colors hover:bg-secondary/80 print:static print:bg-gray-100"
                                         :title="`Click to sort by Student (${sortColumn === 'student' ? (sortDirection === 'asc' ? 'A to Z' : 'Z to A') : 'click to sort'})`"
                                         @click="toggleSort('student')"
                                     >
                                         <div class="flex items-center justify-between gap-1">
                                             <span class="font-bold text-foreground">Student</span>
-                                            <ArrowUp v-if="sortColumn === 'student' && sortDirection === 'asc'" class="size-3.5 text-primary shrink-0" />
-                                            <ArrowDown v-else-if="sortColumn === 'student' && sortDirection === 'desc'" class="size-3.5 text-primary shrink-0" />
-                                            <ArrowUpDown v-else class="size-3.5 text-muted-foreground/40 opacity-0 group-hover/th:opacity-100 shrink-0 transition-opacity" />
+                                            <ArrowUp
+                                                v-if="sortColumn === 'student' && sortDirection === 'asc'"
+                                                class="size-3.5 shrink-0 text-primary"
+                                            />
+                                            <ArrowDown
+                                                v-else-if="sortColumn === 'student' && sortDirection === 'desc'"
+                                                class="size-3.5 shrink-0 text-primary"
+                                            />
+                                            <ArrowUpDown
+                                                v-else
+                                                class="size-3.5 shrink-0 text-muted-foreground/40 opacity-0 transition-opacity group-hover/th:opacity-100"
+                                            />
                                         </div>
                                         <span class="block text-[9px] font-normal lowercase text-muted-foreground print:hidden">
                                             (click student to view log)
@@ -1109,12 +1086,23 @@ onMounted(() => {
                                         @click="toggleSort('activity')"
                                     >
                                         <div class="flex items-center justify-center gap-1">
-                                            <span class="font-mono text-[9px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                                            <span
+                                                class="font-mono text-[9px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400"
+                                            >
                                                 Activities
                                             </span>
-                                            <ArrowUp v-if="sortColumn === 'activity' && sortDirection === 'asc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowDown v-else-if="sortColumn === 'activity' && sortDirection === 'desc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowUpDown v-else class="size-3 text-muted-foreground/40 opacity-0 group-hover/th:opacity-100 shrink-0 transition-opacity" />
+                                            <ArrowUp
+                                                v-if="sortColumn === 'activity' && sortDirection === 'asc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowDown
+                                                v-else-if="sortColumn === 'activity' && sortDirection === 'desc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowUpDown
+                                                v-else
+                                                class="size-3 shrink-0 text-muted-foreground/40 opacity-0 transition-opacity group-hover/th:opacity-100"
+                                            />
                                         </div>
                                         <span class="mt-0.5 block font-medium text-foreground">
                                             {{ categorySummary.activity?.possible ?? 0 }} pts max
@@ -1132,9 +1120,15 @@ onMounted(() => {
                                             <span class="font-mono text-[9px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
                                                 Quizzes
                                             </span>
-                                            <ArrowUp v-if="sortColumn === 'quiz' && sortDirection === 'asc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowDown v-else-if="sortColumn === 'quiz' && sortDirection === 'desc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowUpDown v-else class="size-3 text-muted-foreground/40 opacity-0 group-hover/th:opacity-100 shrink-0 transition-opacity" />
+                                            <ArrowUp v-if="sortColumn === 'quiz' && sortDirection === 'asc'" class="size-3 shrink-0 text-primary" />
+                                            <ArrowDown
+                                                v-else-if="sortColumn === 'quiz' && sortDirection === 'desc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowUpDown
+                                                v-else
+                                                class="size-3 shrink-0 text-muted-foreground/40 opacity-0 transition-opacity group-hover/th:opacity-100"
+                                            />
                                         </div>
                                         <span class="mt-0.5 block font-medium text-foreground">
                                             {{ categorySummary.quiz?.possible ?? 0 }} pts max
@@ -1153,9 +1147,18 @@ onMounted(() => {
                                             <span class="font-mono text-[9px] font-bold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
                                                 Laboratory
                                             </span>
-                                            <ArrowUp v-if="sortColumn === 'laboratory' && sortDirection === 'asc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowDown v-else-if="sortColumn === 'laboratory' && sortDirection === 'desc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowUpDown v-else class="size-3 text-muted-foreground/40 opacity-0 group-hover/th:opacity-100 shrink-0 transition-opacity" />
+                                            <ArrowUp
+                                                v-if="sortColumn === 'laboratory' && sortDirection === 'asc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowDown
+                                                v-else-if="sortColumn === 'laboratory' && sortDirection === 'desc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowUpDown
+                                                v-else
+                                                class="size-3 shrink-0 text-muted-foreground/40 opacity-0 transition-opacity group-hover/th:opacity-100"
+                                            />
                                         </div>
                                         <span class="mt-0.5 block font-medium text-foreground">
                                             {{ categorySummary.laboratory?.possible ?? 0 }} pts max
@@ -1170,12 +1173,20 @@ onMounted(() => {
                                         @click="toggleSort('exam')"
                                     >
                                         <div class="flex items-center justify-center gap-1">
-                                            <span class="font-mono text-[9px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">
+                                            <span
+                                                class="font-mono text-[9px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400"
+                                            >
                                                 Major Exams
                                             </span>
-                                            <ArrowUp v-if="sortColumn === 'exam' && sortDirection === 'asc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowDown v-else-if="sortColumn === 'exam' && sortDirection === 'desc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowUpDown v-else class="size-3 text-muted-foreground/40 opacity-0 group-hover/th:opacity-100 shrink-0 transition-opacity" />
+                                            <ArrowUp v-if="sortColumn === 'exam' && sortDirection === 'asc'" class="size-3 shrink-0 text-primary" />
+                                            <ArrowDown
+                                                v-else-if="sortColumn === 'exam' && sortDirection === 'desc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowUpDown
+                                                v-else
+                                                class="size-3 shrink-0 text-muted-foreground/40 opacity-0 transition-opacity group-hover/th:opacity-100"
+                                            />
                                         </div>
                                         <span class="mt-0.5 block font-medium text-foreground">
                                             {{ categorySummary.exam?.possible ?? 0 }} pts max
@@ -1193,42 +1204,67 @@ onMounted(() => {
                                             <span class="font-mono text-[9px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">
                                                 Project / Report
                                             </span>
-                                            <ArrowUp v-if="sortColumn === 'project' && sortDirection === 'asc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowDown v-else-if="sortColumn === 'project' && sortDirection === 'desc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowUpDown v-else class="size-3 text-muted-foreground/40 opacity-0 group-hover/th:opacity-100 shrink-0 transition-opacity" />
+                                            <ArrowUp
+                                                v-if="sortColumn === 'project' && sortDirection === 'asc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowDown
+                                                v-else-if="sortColumn === 'project' && sortDirection === 'desc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowUpDown
+                                                v-else
+                                                class="size-3 shrink-0 text-muted-foreground/40 opacity-0 transition-opacity group-hover/th:opacity-100"
+                                            />
                                         </div>
-                                        <span class="mt-0.5 block font-medium text-foreground">
-                                            {{ projectSummary?.possible ?? 0 }} pts max
-                                        </span>
+                                        <span class="mt-0.5 block font-medium text-foreground"> {{ projectSummary?.possible ?? 0 }} pts max </span>
                                         <span class="font-mono text-[10px] text-muted-foreground">{{ gradingWeights.project }}% weight</span>
                                     </th>
 
                                     <!-- Attendance Column -->
                                     <th
-                                        class="group/th sticky top-0 z-20 min-w-24 cursor-pointer select-none border-b border-l border-border bg-secondary/95 px-2.5 py-3 text-center font-medium text-cyan-600 dark:text-cyan-400 backdrop-blur-md transition-colors hover:bg-secondary"
+                                        class="group/th sticky top-0 z-20 min-w-24 cursor-pointer select-none border-b border-l border-border bg-secondary/95 px-2.5 py-3 text-center font-medium text-cyan-600 backdrop-blur-md transition-colors hover:bg-secondary dark:text-cyan-400"
                                         :title="`Click to sort by Attendance (${sortColumn === 'attendance' ? sortDirection : 'click to sort'})`"
                                         @click="toggleSort('attendance')"
                                     >
                                         <div class="flex items-center justify-center gap-1">
                                             <span class="font-mono text-[9px] uppercase tracking-wider">Attendance</span>
-                                            <ArrowUp v-if="sortColumn === 'attendance' && sortDirection === 'asc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowDown v-else-if="sortColumn === 'attendance' && sortDirection === 'desc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowUpDown v-else class="size-3 text-muted-foreground/40 opacity-0 group-hover/th:opacity-100 shrink-0 transition-opacity" />
+                                            <ArrowUp
+                                                v-if="sortColumn === 'attendance' && sortDirection === 'asc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowDown
+                                                v-else-if="sortColumn === 'attendance' && sortDirection === 'desc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowUpDown
+                                                v-else
+                                                class="size-3 shrink-0 text-muted-foreground/40 opacity-0 transition-opacity group-hover/th:opacity-100"
+                                            />
                                         </div>
                                         <span class="mt-0.5 block font-medium text-foreground">{{ gradingWeights.attendance }}%</span>
                                     </th>
 
                                     <!-- Oral Recitation Bonus Column -->
                                     <th
-                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l-2 border-amber-500/40 bg-amber-500/15 px-2.5 py-3 text-center font-bold text-amber-700 dark:text-amber-400 backdrop-blur-md transition-colors hover:bg-amber-500/25"
+                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l-2 border-amber-500/40 bg-amber-500/15 px-2.5 py-3 text-center font-bold text-amber-700 backdrop-blur-md transition-colors hover:bg-amber-500/25 dark:text-amber-400"
                                         :title="`Click to sort by Oral Bonus (${sortColumn === 'recitation' ? sortDirection : 'click to sort'})`"
                                         @click="toggleSort('recitation')"
                                     >
                                         <div class="flex items-center justify-center gap-1">
                                             <span>Oral Bonus</span>
-                                            <ArrowUp v-if="sortColumn === 'recitation' && sortDirection === 'asc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowDown v-else-if="sortColumn === 'recitation' && sortDirection === 'desc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowUpDown v-else class="size-3 text-muted-foreground/40 opacity-0 group-hover/th:opacity-100 shrink-0 transition-opacity" />
+                                            <ArrowUp
+                                                v-if="sortColumn === 'recitation' && sortDirection === 'asc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowDown
+                                                v-else-if="sortColumn === 'recitation' && sortDirection === 'desc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowUpDown
+                                                v-else
+                                                class="size-3 shrink-0 text-muted-foreground/40 opacity-0 transition-opacity group-hover/th:opacity-100"
+                                            />
                                         </div>
                                         <span class="block text-[9px] font-normal text-amber-600 dark:text-amber-300">
                                             +{{ gradingWeights.recitation ?? 5 }} pts → Activities
@@ -1237,36 +1273,50 @@ onMounted(() => {
 
                                     <!-- Midterm Grade Column -->
                                     <th
-                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l-2 border-purple-500/40 bg-purple-500/15 px-3 py-3 text-center font-bold text-purple-900 dark:text-purple-300 backdrop-blur-md transition-colors hover:bg-purple-500/25"
+                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l-2 border-purple-500/40 bg-purple-500/15 px-3 py-3 text-center font-bold text-purple-900 backdrop-blur-md transition-colors hover:bg-purple-500/25 dark:text-purple-300"
                                         :title="`Click to sort by Midterm Grade (${sortColumn === 'midterm' ? sortDirection : 'click to sort'})`"
                                         @click="toggleSort('midterm')"
                                     >
                                         <div class="flex items-center justify-center gap-1">
                                             <span>Midterm Grade</span>
-                                            <ArrowUp v-if="sortColumn === 'midterm' && sortDirection === 'asc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowDown v-else-if="sortColumn === 'midterm' && sortDirection === 'desc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowUpDown v-else class="size-3 text-muted-foreground/40 opacity-0 group-hover/th:opacity-100 shrink-0 transition-opacity" />
+                                            <ArrowUp
+                                                v-if="sortColumn === 'midterm' && sortDirection === 'asc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowDown
+                                                v-else-if="sortColumn === 'midterm' && sortDirection === 'desc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowUpDown
+                                                v-else
+                                                class="size-3 shrink-0 text-muted-foreground/40 opacity-0 transition-opacity group-hover/th:opacity-100"
+                                            />
                                         </div>
-                                        <span class="block text-[9px] font-normal text-purple-700 dark:text-purple-400">
-                                            Tasks & Exam (50%)
-                                        </span>
+                                        <span class="block text-[9px] font-normal text-purple-700 dark:text-purple-400"> Tasks & Exam (50%) </span>
                                     </th>
 
                                     <!-- Final Period Grade Column -->
                                     <th
-                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l-2 border-indigo-500/40 bg-indigo-500/15 px-3 py-3 text-center font-bold text-indigo-900 dark:text-indigo-300 backdrop-blur-md transition-colors hover:bg-indigo-500/25"
+                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l-2 border-indigo-500/40 bg-indigo-500/15 px-3 py-3 text-center font-bold text-indigo-900 backdrop-blur-md transition-colors hover:bg-indigo-500/25 dark:text-indigo-300"
                                         :title="`Click to sort by Final Period (${sortColumn === 'final_period' ? sortDirection : 'click to sort'})`"
                                         @click="toggleSort('final_period')"
                                     >
                                         <div class="flex items-center justify-center gap-1">
                                             <span>Final Period</span>
-                                            <ArrowUp v-if="sortColumn === 'final_period' && sortDirection === 'asc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowDown v-else-if="sortColumn === 'final_period' && sortDirection === 'desc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowUpDown v-else class="size-3 text-muted-foreground/40 opacity-0 group-hover/th:opacity-100 shrink-0 transition-opacity" />
+                                            <ArrowUp
+                                                v-if="sortColumn === 'final_period' && sortDirection === 'asc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowDown
+                                                v-else-if="sortColumn === 'final_period' && sortDirection === 'desc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowUpDown
+                                                v-else
+                                                class="size-3 shrink-0 text-muted-foreground/40 opacity-0 transition-opacity group-hover/th:opacity-100"
+                                            />
                                         </div>
-                                        <span class="block text-[9px] font-normal text-indigo-700 dark:text-indigo-400">
-                                            Tasks & Reports (50%)
-                                        </span>
+                                        <span class="block text-[9px] font-normal text-indigo-700 dark:text-indigo-400"> Tasks & Reports (50%) </span>
                                     </th>
 
                                     <!-- Semestral Final Grade Column -->
@@ -1277,13 +1327,20 @@ onMounted(() => {
                                     >
                                         <div class="flex items-center justify-center gap-1">
                                             <span>Semestral %</span>
-                                            <ArrowUp v-if="sortColumn === 'weighted_grade' && sortDirection === 'asc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowDown v-else-if="sortColumn === 'weighted_grade' && sortDirection === 'desc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowUpDown v-else class="size-3 text-muted-foreground/40 opacity-0 group-hover/th:opacity-100 shrink-0 transition-opacity" />
+                                            <ArrowUp
+                                                v-if="sortColumn === 'weighted_grade' && sortDirection === 'asc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowDown
+                                                v-else-if="sortColumn === 'weighted_grade' && sortDirection === 'desc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowUpDown
+                                                v-else
+                                                class="size-3 shrink-0 text-muted-foreground/40 opacity-0 transition-opacity group-hover/th:opacity-100"
+                                            />
                                         </div>
-                                        <span class="block text-[9px] font-normal text-muted-foreground">
-                                            Combined Grade
-                                        </span>
+                                        <span class="block text-[9px] font-normal text-muted-foreground"> Combined Grade </span>
                                     </th>
 
                                     <!-- Rating Column -->
@@ -1294,9 +1351,18 @@ onMounted(() => {
                                     >
                                         <div class="flex items-center justify-center gap-1">
                                             <span>Rating</span>
-                                            <ArrowUp v-if="sortColumn === 'scale_grade' && sortDirection === 'asc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowDown v-else-if="sortColumn === 'scale_grade' && sortDirection === 'desc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowUpDown v-else class="size-3 text-muted-foreground/40 opacity-0 group-hover/th:opacity-100 shrink-0 transition-opacity" />
+                                            <ArrowUp
+                                                v-if="sortColumn === 'scale_grade' && sortDirection === 'asc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowDown
+                                                v-else-if="sortColumn === 'scale_grade' && sortDirection === 'desc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowUpDown
+                                                v-else
+                                                class="size-3 shrink-0 text-muted-foreground/40 opacity-0 transition-opacity group-hover/th:opacity-100"
+                                            />
                                         </div>
                                     </th>
                                 </tr>
@@ -1304,15 +1370,24 @@ onMounted(() => {
                                 <!-- DETAILED RAW VIEW HEADER -->
                                 <tr v-else>
                                     <th
-                                        class="group/th sticky top-0 left-0 z-30 min-w-52 cursor-pointer select-none border-b border-r border-border/80 bg-card/95 px-4 py-3 shadow-xs backdrop-blur-md transition-colors hover:bg-secondary/80 print:static print:bg-gray-100"
+                                        class="group/th shadow-xs sticky left-0 top-0 z-30 min-w-52 cursor-pointer select-none border-b border-r border-border/80 bg-card/95 px-4 py-3 backdrop-blur-md transition-colors hover:bg-secondary/80 print:static print:bg-gray-100"
                                         :title="`Click to sort by Student (${sortColumn === 'student' ? sortDirection : 'click to sort'})`"
                                         @click="toggleSort('student')"
                                     >
                                         <div class="flex items-center justify-between gap-1">
                                             <span class="font-bold text-foreground">Student</span>
-                                            <ArrowUp v-if="sortColumn === 'student' && sortDirection === 'asc'" class="size-3.5 text-primary shrink-0" />
-                                            <ArrowDown v-else-if="sortColumn === 'student' && sortDirection === 'desc'" class="size-3.5 text-primary shrink-0" />
-                                            <ArrowUpDown v-else class="size-3.5 text-muted-foreground/40 opacity-0 group-hover/th:opacity-100 shrink-0 transition-opacity" />
+                                            <ArrowUp
+                                                v-if="sortColumn === 'student' && sortDirection === 'asc'"
+                                                class="size-3.5 shrink-0 text-primary"
+                                            />
+                                            <ArrowDown
+                                                v-else-if="sortColumn === 'student' && sortDirection === 'desc'"
+                                                class="size-3.5 shrink-0 text-primary"
+                                            />
+                                            <ArrowUpDown
+                                                v-else
+                                                class="size-3.5 shrink-0 text-muted-foreground/40 opacity-0 transition-opacity group-hover/th:opacity-100"
+                                            />
                                         </div>
                                         <span class="block text-[9px] font-normal lowercase text-muted-foreground print:hidden">
                                             (click student to view tasks)
@@ -1340,11 +1415,22 @@ onMounted(() => {
                                                 "
                                             >
                                                 {{ item.type === 'laboratory' ? 'Lab' : item.type }}
-                                                <span v-if="item.computed_period" class="ml-1 opacity-70">({{ item.computed_period === 'midterm' ? 'Mid' : 'Fin' }})</span>
+                                                <span v-if="item.computed_period" class="ml-1 opacity-70"
+                                                    >({{ item.computed_period === 'midterm' ? 'Mid' : 'Fin' }})</span
+                                                >
                                             </span>
-                                            <ArrowUp v-if="sortColumn === `assessment-${item.id}` && sortDirection === 'asc'" class="size-2.5 text-primary shrink-0" />
-                                            <ArrowDown v-else-if="sortColumn === `assessment-${item.id}` && sortDirection === 'desc'" class="size-2.5 text-primary shrink-0" />
-                                            <ArrowUpDown v-else class="size-2.5 text-muted-foreground/30 opacity-0 group-hover/th:opacity-100 shrink-0 transition-opacity" />
+                                            <ArrowUp
+                                                v-if="sortColumn === `assessment-${item.id}` && sortDirection === 'asc'"
+                                                class="size-2.5 shrink-0 text-primary"
+                                            />
+                                            <ArrowDown
+                                                v-else-if="sortColumn === `assessment-${item.id}` && sortDirection === 'desc'"
+                                                class="size-2.5 shrink-0 text-primary"
+                                            />
+                                            <ArrowUpDown
+                                                v-else
+                                                class="size-2.5 shrink-0 text-muted-foreground/30 opacity-0 transition-opacity group-hover/th:opacity-100"
+                                            />
                                         </div>
                                         <span class="mx-auto mt-0.5 block max-w-24 truncate font-medium text-foreground">{{ item.title }}</span>
                                         <span class="font-mono text-[10px] text-muted-foreground">/ {{ item.max_points }}</span>
@@ -1362,11 +1448,22 @@ onMounted(() => {
                                                 class="block font-mono text-[9px] font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-400"
                                             >
                                                 Group Act
-                                                <span v-if="item.computed_period" class="ml-1 opacity-70">({{ item.computed_period === 'midterm' ? 'Mid' : 'Fin' }})</span>
+                                                <span v-if="item.computed_period" class="ml-1 opacity-70"
+                                                    >({{ item.computed_period === 'midterm' ? 'Mid' : 'Fin' }})</span
+                                                >
                                             </span>
-                                            <ArrowUp v-if="sortColumn === `gact-${item.id}` && sortDirection === 'asc'" class="size-2.5 text-primary shrink-0" />
-                                            <ArrowDown v-else-if="sortColumn === `gact-${item.id}` && sortDirection === 'desc'" class="size-2.5 text-primary shrink-0" />
-                                            <ArrowUpDown v-else class="size-2.5 text-muted-foreground/30 opacity-0 group-hover/th:opacity-100 shrink-0 transition-opacity" />
+                                            <ArrowUp
+                                                v-if="sortColumn === `gact-${item.id}` && sortDirection === 'asc'"
+                                                class="size-2.5 shrink-0 text-primary"
+                                            />
+                                            <ArrowDown
+                                                v-else-if="sortColumn === `gact-${item.id}` && sortDirection === 'desc'"
+                                                class="size-2.5 shrink-0 text-primary"
+                                            />
+                                            <ArrowUpDown
+                                                v-else
+                                                class="size-2.5 shrink-0 text-muted-foreground/30 opacity-0 transition-opacity group-hover/th:opacity-100"
+                                            />
                                         </div>
                                         <span class="mx-auto mt-0.5 block max-w-28 truncate font-medium text-foreground">{{ item.title }}</span>
                                         <span class="font-mono text-[10px] text-muted-foreground">/ {{ item.max_points }}</span>
@@ -1384,12 +1481,27 @@ onMounted(() => {
                                                 class="block font-mono text-[9px] font-medium uppercase tracking-wider text-teal-600 dark:text-teal-400"
                                             >
                                                 {{ item.type === 'project' ? 'Project' : 'Report' }}
-                                                <span v-if="item.type === 'reporting' && reportingFrequency === 'once_per_sem'" class="ml-1 opacity-80">(Finals)</span>
-                                                <span v-else-if="item.computed_period" class="ml-1 opacity-70">({{ item.computed_period === 'midterm' ? 'Mid' : 'Fin' }})</span>
+                                                <span
+                                                    v-if="item.type === 'reporting' && reportingFrequency === 'once_per_sem'"
+                                                    class="ml-1 opacity-80"
+                                                    >(Finals)</span
+                                                >
+                                                <span v-else-if="item.computed_period" class="ml-1 opacity-70"
+                                                    >({{ item.computed_period === 'midterm' ? 'Mid' : 'Fin' }})</span
+                                                >
                                             </span>
-                                            <ArrowUp v-if="sortColumn === `project-${item.id}` && sortDirection === 'asc'" class="size-2.5 text-primary shrink-0" />
-                                            <ArrowDown v-else-if="sortColumn === `project-${item.id}` && sortDirection === 'desc'" class="size-2.5 text-primary shrink-0" />
-                                            <ArrowUpDown v-else class="size-2.5 text-muted-foreground/30 opacity-0 group-hover/th:opacity-100 shrink-0 transition-opacity" />
+                                            <ArrowUp
+                                                v-if="sortColumn === `project-${item.id}` && sortDirection === 'asc'"
+                                                class="size-2.5 shrink-0 text-primary"
+                                            />
+                                            <ArrowDown
+                                                v-else-if="sortColumn === `project-${item.id}` && sortDirection === 'desc'"
+                                                class="size-2.5 shrink-0 text-primary"
+                                            />
+                                            <ArrowUpDown
+                                                v-else
+                                                class="size-2.5 shrink-0 text-muted-foreground/30 opacity-0 transition-opacity group-hover/th:opacity-100"
+                                            />
                                         </div>
                                         <span class="mx-auto mt-0.5 block max-w-28 truncate font-medium text-foreground">{{ item.title }}</span>
                                         <span class="font-mono text-[10px] text-muted-foreground">/ {{ item.max_points }}</span>
@@ -1415,11 +1527,25 @@ onMounted(() => {
                                                             : 'text-emerald-600 dark:text-emerald-400'
                                                 "
                                             >
-                                                {{ type === 'laboratory' ? 'Lab Total' : type === 'exam' ? 'Exams Total' : type === 'activity' ? 'Activities Total' : 'Quizzes Total' }}
+                                                {{
+                                                    type === 'laboratory'
+                                                        ? 'Lab Total'
+                                                        : type === 'exam'
+                                                          ? 'Exams Total'
+                                                          : type === 'activity'
+                                                            ? 'Activities Total'
+                                                            : 'Quizzes Total'
+                                                }}
                                             </span>
-                                            <ArrowUp v-if="sortColumn === type && sortDirection === 'asc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowDown v-else-if="sortColumn === type && sortDirection === 'desc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowUpDown v-else class="size-3 text-muted-foreground/40 opacity-0 group-hover/th:opacity-100 shrink-0 transition-opacity" />
+                                            <ArrowUp v-if="sortColumn === type && sortDirection === 'asc'" class="size-3 shrink-0 text-primary" />
+                                            <ArrowDown
+                                                v-else-if="sortColumn === type && sortDirection === 'desc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowUpDown
+                                                v-else
+                                                class="size-3 shrink-0 text-muted-foreground/40 opacity-0 transition-opacity group-hover/th:opacity-100"
+                                            />
                                         </div>
                                         <span class="mt-0.5 block font-mono text-[10px] text-muted-foreground">
                                             / {{ categorySummary[type]?.possible ?? 0 }} ({{ gradingWeights[type] }}%)
@@ -1432,12 +1558,23 @@ onMounted(() => {
                                         @click="toggleSort('project')"
                                     >
                                         <div class="flex items-center justify-center gap-1">
-                                            <span class="block font-mono text-[9px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">
+                                            <span
+                                                class="block font-mono text-[9px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400"
+                                            >
                                                 Proj Total
                                             </span>
-                                            <ArrowUp v-if="sortColumn === 'project' && sortDirection === 'asc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowDown v-else-if="sortColumn === 'project' && sortDirection === 'desc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowUpDown v-else class="size-3 text-muted-foreground/40 opacity-0 group-hover/th:opacity-100 shrink-0 transition-opacity" />
+                                            <ArrowUp
+                                                v-if="sortColumn === 'project' && sortDirection === 'asc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowDown
+                                                v-else-if="sortColumn === 'project' && sortDirection === 'desc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowUpDown
+                                                v-else
+                                                class="size-3 shrink-0 text-muted-foreground/40 opacity-0 transition-opacity group-hover/th:opacity-100"
+                                            />
                                         </div>
                                         <span class="mt-0.5 block font-mono text-[10px] text-muted-foreground">
                                             / {{ projectSummary?.possible ?? 0 }} ({{ gradingWeights.project }}%)
@@ -1445,54 +1582,90 @@ onMounted(() => {
                                     </th>
                                     <!-- Attendance % -->
                                     <th
-                                        class="group/th sticky top-0 z-20 min-w-20 cursor-pointer select-none border-b border-l-2 border-border bg-secondary/95 px-2.5 py-3 text-center font-medium text-cyan-600 dark:text-cyan-400 backdrop-blur-md transition-colors hover:bg-secondary"
+                                        class="group/th sticky top-0 z-20 min-w-20 cursor-pointer select-none border-b border-l-2 border-border bg-secondary/95 px-2.5 py-3 text-center font-medium text-cyan-600 backdrop-blur-md transition-colors hover:bg-secondary dark:text-cyan-400"
                                         :title="`Click to sort by Attendance`"
                                         @click="toggleSort('attendance')"
                                     >
                                         <div class="flex items-center justify-center gap-1">
                                             <span>Att %</span>
-                                            <ArrowUp v-if="sortColumn === 'attendance' && sortDirection === 'asc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowDown v-else-if="sortColumn === 'attendance' && sortDirection === 'desc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowUpDown v-else class="size-3 text-muted-foreground/40 opacity-0 group-hover/th:opacity-100 shrink-0 transition-opacity" />
+                                            <ArrowUp
+                                                v-if="sortColumn === 'attendance' && sortDirection === 'asc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowDown
+                                                v-else-if="sortColumn === 'attendance' && sortDirection === 'desc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowUpDown
+                                                v-else
+                                                class="size-3 shrink-0 text-muted-foreground/40 opacity-0 transition-opacity group-hover/th:opacity-100"
+                                            />
                                         </div>
                                     </th>
                                     <!-- Oral Recitation Bonus Column -->
                                     <th
-                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l-2 border-amber-500/40 bg-amber-500/15 px-2.5 py-3 text-center font-bold text-amber-700 dark:text-amber-400 backdrop-blur-md transition-colors hover:bg-amber-500/25"
+                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l-2 border-amber-500/40 bg-amber-500/15 px-2.5 py-3 text-center font-bold text-amber-700 backdrop-blur-md transition-colors hover:bg-amber-500/25 dark:text-amber-400"
                                         :title="`Click to sort by Oral Bonus`"
                                         @click="toggleSort('recitation')"
                                     >
                                         <div class="flex items-center justify-center gap-1">
                                             <span>Oral Bonus</span>
-                                            <ArrowUp v-if="sortColumn === 'recitation' && sortDirection === 'asc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowDown v-else-if="sortColumn === 'recitation' && sortDirection === 'desc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowUpDown v-else class="size-3 text-muted-foreground/40 opacity-0 group-hover/th:opacity-100 shrink-0 transition-opacity" />
+                                            <ArrowUp
+                                                v-if="sortColumn === 'recitation' && sortDirection === 'asc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowDown
+                                                v-else-if="sortColumn === 'recitation' && sortDirection === 'desc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowUpDown
+                                                v-else
+                                                class="size-3 shrink-0 text-muted-foreground/40 opacity-0 transition-opacity group-hover/th:opacity-100"
+                                            />
                                         </div>
                                     </th>
                                     <!-- Midterm Grade Column -->
                                     <th
-                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l-2 border-purple-500/40 bg-purple-500/15 px-3 py-3 text-center font-bold text-purple-900 dark:text-purple-300 backdrop-blur-md transition-colors hover:bg-purple-500/25"
+                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l-2 border-purple-500/40 bg-purple-500/15 px-3 py-3 text-center font-bold text-purple-900 backdrop-blur-md transition-colors hover:bg-purple-500/25 dark:text-purple-300"
                                         :title="`Click to sort by Midterm Grade`"
                                         @click="toggleSort('midterm')"
                                     >
                                         <div class="flex items-center justify-center gap-1">
                                             <span>Midterm Grade</span>
-                                            <ArrowUp v-if="sortColumn === 'midterm' && sortDirection === 'asc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowDown v-else-if="sortColumn === 'midterm' && sortDirection === 'desc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowUpDown v-else class="size-3 text-muted-foreground/40 opacity-0 group-hover/th:opacity-100 shrink-0 transition-opacity" />
+                                            <ArrowUp
+                                                v-if="sortColumn === 'midterm' && sortDirection === 'asc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowDown
+                                                v-else-if="sortColumn === 'midterm' && sortDirection === 'desc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowUpDown
+                                                v-else
+                                                class="size-3 shrink-0 text-muted-foreground/40 opacity-0 transition-opacity group-hover/th:opacity-100"
+                                            />
                                         </div>
                                     </th>
                                     <!-- Final Period Grade Column -->
                                     <th
-                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l-2 border-indigo-500/40 bg-indigo-500/15 px-3 py-3 text-center font-bold text-indigo-900 dark:text-indigo-300 backdrop-blur-md transition-colors hover:bg-indigo-500/25"
+                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l-2 border-indigo-500/40 bg-indigo-500/15 px-3 py-3 text-center font-bold text-indigo-900 backdrop-blur-md transition-colors hover:bg-indigo-500/25 dark:text-indigo-300"
                                         :title="`Click to sort by Final Period Grade`"
                                         @click="toggleSort('final_period')"
                                     >
                                         <div class="flex items-center justify-center gap-1">
                                             <span>Final Period</span>
-                                            <ArrowUp v-if="sortColumn === 'final_period' && sortDirection === 'asc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowDown v-else-if="sortColumn === 'final_period' && sortDirection === 'desc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowUpDown v-else class="size-3 text-muted-foreground/40 opacity-0 group-hover/th:opacity-100 shrink-0 transition-opacity" />
+                                            <ArrowUp
+                                                v-if="sortColumn === 'final_period' && sortDirection === 'asc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowDown
+                                                v-else-if="sortColumn === 'final_period' && sortDirection === 'desc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowUpDown
+                                                v-else
+                                                class="size-3 shrink-0 text-muted-foreground/40 opacity-0 transition-opacity group-hover/th:opacity-100"
+                                            />
                                         </div>
                                     </th>
                                     <!-- Semestral Final Grade Column -->
@@ -1503,9 +1676,18 @@ onMounted(() => {
                                     >
                                         <div class="flex items-center justify-center gap-1">
                                             <span>Semestral %</span>
-                                            <ArrowUp v-if="sortColumn === 'weighted_grade' && sortDirection === 'asc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowDown v-else-if="sortColumn === 'weighted_grade' && sortDirection === 'desc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowUpDown v-else class="size-3 text-muted-foreground/40 opacity-0 group-hover/th:opacity-100 shrink-0 transition-opacity" />
+                                            <ArrowUp
+                                                v-if="sortColumn === 'weighted_grade' && sortDirection === 'asc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowDown
+                                                v-else-if="sortColumn === 'weighted_grade' && sortDirection === 'desc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowUpDown
+                                                v-else
+                                                class="size-3 shrink-0 text-muted-foreground/40 opacity-0 transition-opacity group-hover/th:opacity-100"
+                                            />
                                         </div>
                                     </th>
                                     <th
@@ -1515,9 +1697,18 @@ onMounted(() => {
                                     >
                                         <div class="flex items-center justify-center gap-1">
                                             <span>Rating</span>
-                                            <ArrowUp v-if="sortColumn === 'scale_grade' && sortDirection === 'asc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowDown v-else-if="sortColumn === 'scale_grade' && sortDirection === 'desc'" class="size-3 text-primary shrink-0" />
-                                            <ArrowUpDown v-else class="size-3 text-muted-foreground/40 opacity-0 group-hover/th:opacity-100 shrink-0 transition-opacity" />
+                                            <ArrowUp
+                                                v-if="sortColumn === 'scale_grade' && sortDirection === 'asc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowDown
+                                                v-else-if="sortColumn === 'scale_grade' && sortDirection === 'desc'"
+                                                class="size-3 shrink-0 text-primary"
+                                            />
+                                            <ArrowUpDown
+                                                v-else
+                                                class="size-3 shrink-0 text-muted-foreground/40 opacity-0 transition-opacity group-hover/th:opacity-100"
+                                            />
                                         </div>
                                     </th>
                                 </tr>
@@ -1527,7 +1718,7 @@ onMounted(() => {
                                     <!-- SUMMARY VIEW BODY -->
                                     <template v-if="viewMode === 'summary'">
                                         <td
-                                            class="backdrop-blur-xs group/student sticky left-0 z-10 cursor-pointer border-r border-b border-border/50 bg-card/95 px-4 py-3 transition-colors hover:bg-secondary/80 print:static print:bg-white"
+                                            class="backdrop-blur-xs group/student sticky left-0 z-10 cursor-pointer border-b border-r border-border/50 bg-card/95 px-4 py-3 transition-colors hover:bg-secondary/80 print:static print:bg-white"
                                             title="Click to view detailed activity logs and student standing"
                                             @click="openStudentModal(row, 'activity_log')"
                                         >
@@ -1542,7 +1733,7 @@ onMounted(() => {
                                                 </div>
                                                 <span
                                                     v-if="hasDeficiencies(row)"
-                                                    class="shrink-0 rounded-full border border-rose-800 bg-rose-700 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-2xs print:hidden"
+                                                    class="shadow-2xs shrink-0 rounded-full border border-rose-800 bg-rose-700 px-1.5 py-0.5 text-[9px] font-bold text-white print:hidden"
                                                     title="Has missing or failing items"
                                                 >
                                                     {{ countDeficiencies(row) }} def
@@ -1551,13 +1742,17 @@ onMounted(() => {
                                         </td>
 
                                         <!-- Activities Summary Cell -->
-                                        <td class="border-b border-l border-border/60 bg-secondary/10 px-3 py-3 text-center font-mono whitespace-nowrap">
+                                        <td
+                                            class="whitespace-nowrap border-b border-l border-border/60 bg-secondary/10 px-3 py-3 text-center font-mono"
+                                        >
                                             <div class="inline-flex items-baseline justify-center gap-1">
                                                 <span class="text-xs font-bold text-foreground">
                                                     {{ row.categories.activity?.earned ?? 0 }} / {{ row.categories.activity?.possible ?? 0 }}
                                                 </span>
                                                 <span class="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                                                    ({{ row.categories.activity?.percentage !== null ? `${row.categories.activity.percentage}%` : '—' }})
+                                                    ({{
+                                                        row.categories.activity?.percentage !== null ? `${row.categories.activity.percentage}%` : '—'
+                                                    }})
                                                 </span>
                                             </div>
                                             <span
@@ -1569,7 +1764,9 @@ onMounted(() => {
                                         </td>
 
                                         <!-- Quizzes Summary Cell -->
-                                        <td class="border-b border-l border-border/60 bg-secondary/10 px-3 py-3 text-center font-mono whitespace-nowrap">
+                                        <td
+                                            class="whitespace-nowrap border-b border-l border-border/60 bg-secondary/10 px-3 py-3 text-center font-mono"
+                                        >
                                             <div class="inline-flex items-baseline justify-center gap-1">
                                                 <span class="text-xs font-bold text-foreground">
                                                     {{ row.categories.quiz?.earned ?? 0 }} / {{ row.categories.quiz?.possible ?? 0 }}
@@ -1583,20 +1780,26 @@ onMounted(() => {
                                         <!-- Laboratory Summary Cell (if present) -->
                                         <td
                                             v-if="(categorySummary.laboratory?.count ?? 0) > 0 || (gradingWeights.laboratory ?? 0) > 0"
-                                            class="border-b border-l border-border/60 bg-secondary/10 px-3 py-3 text-center font-mono whitespace-nowrap"
+                                            class="whitespace-nowrap border-b border-l border-border/60 bg-secondary/10 px-3 py-3 text-center font-mono"
                                         >
                                             <div class="inline-flex items-baseline justify-center gap-1">
                                                 <span class="text-xs font-bold text-foreground">
                                                     {{ row.categories.laboratory?.earned ?? 0 }} / {{ row.categories.laboratory?.possible ?? 0 }}
                                                 </span>
                                                 <span class="text-xs font-semibold text-cyan-700 dark:text-cyan-400">
-                                                    ({{ row.categories.laboratory?.percentage !== null ? `${row.categories.laboratory.percentage}%` : '—' }})
+                                                    ({{
+                                                        row.categories.laboratory?.percentage !== null
+                                                            ? `${row.categories.laboratory.percentage}%`
+                                                            : '—'
+                                                    }})
                                                 </span>
                                             </div>
                                         </td>
 
                                         <!-- Major Exams Summary Cell -->
-                                        <td class="border-b border-l border-border/60 bg-secondary/10 px-3 py-3 text-center font-mono whitespace-nowrap">
+                                        <td
+                                            class="whitespace-nowrap border-b border-l border-border/60 bg-secondary/10 px-3 py-3 text-center font-mono"
+                                        >
                                             <div class="inline-flex items-baseline justify-center gap-1">
                                                 <span class="text-xs font-bold text-foreground">
                                                     {{ row.categories.exam?.earned ?? 0 }} / {{ row.categories.exam?.possible ?? 0 }}
@@ -1608,7 +1811,9 @@ onMounted(() => {
                                         </td>
 
                                         <!-- Project / Reporting Cell -->
-                                        <td class="border-b border-l border-teal-500/20 bg-teal-500/5 px-3 py-3 text-center font-mono whitespace-nowrap">
+                                        <td
+                                            class="whitespace-nowrap border-b border-l border-teal-500/20 bg-teal-500/5 px-3 py-3 text-center font-mono"
+                                        >
                                             <div class="inline-flex items-baseline justify-center gap-1">
                                                 <span class="text-xs font-bold text-foreground">
                                                     {{ row.projectSummary?.earned ?? 0 }} / {{ row.projectSummary?.possible ?? 0 }}
@@ -1630,9 +1835,13 @@ onMounted(() => {
                                         </td>
 
                                         <!-- Oral Recitation Bonus Cell -->
-                                        <td class="group/oral relative border-b border-l-2 border-amber-500/30 bg-amber-500/5 px-2.5 py-3 text-center font-mono">
+                                        <td
+                                            class="group/oral relative border-b border-l-2 border-amber-500/30 bg-amber-500/5 px-2.5 py-3 text-center font-mono"
+                                        >
                                             <template v-if="row.recitation && row.recitation.count > 0 && row.recitation.avg_score !== null">
-                                                <span class="inline-flex items-center gap-1 rounded-full bg-emerald-700 px-2.5 py-0.5 text-xs font-bold text-white shadow-2xs">
+                                                <span
+                                                    class="shadow-2xs inline-flex items-center gap-1 rounded-full bg-emerald-700 px-2.5 py-0.5 text-xs font-bold text-white"
+                                                >
                                                     +{{ row.recitation.bonus_points ?? 0 }} pts
                                                 </span>
                                                 <span class="mt-0.5 block text-[9px] text-muted-foreground">
@@ -1644,7 +1853,7 @@ onMounted(() => {
                                             <button
                                                 v-if="!printMode"
                                                 type="button"
-                                                class="mt-1 inline-flex items-center gap-1 rounded border border-border bg-card px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground opacity-0 transition-opacity hover:text-foreground hover:bg-secondary group-hover/oral:opacity-100 print:hidden"
+                                                class="mt-1 inline-flex items-center gap-1 rounded border border-border bg-card px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground opacity-0 transition-opacity hover:bg-secondary hover:text-foreground group-hover/oral:opacity-100 print:hidden"
                                                 title="Override oral points for this student"
                                                 @click.stop="openOralOverrideModal(row)"
                                             >
@@ -1659,7 +1868,10 @@ onMounted(() => {
                                                 <span class="block text-xs font-bold text-purple-900 dark:text-purple-300">
                                                     {{ row.midterm.weighted_grade }}%
                                                 </span>
-                                                <span class="mt-0.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-bold shadow-2xs" :class="gradeBadgeBg(row.midterm.scale_grade)">
+                                                <span
+                                                    class="shadow-2xs mt-0.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-bold"
+                                                    :class="gradeBadgeBg(row.midterm.scale_grade)"
+                                                >
                                                     {{ row.midterm.scale_grade }}
                                                 </span>
                                             </div>
@@ -1672,7 +1884,10 @@ onMounted(() => {
                                                 <span class="block text-xs font-bold text-indigo-900 dark:text-indigo-300">
                                                     {{ row.final_period.weighted_grade }}%
                                                 </span>
-                                                <span class="mt-0.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-bold shadow-2xs" :class="gradeBadgeBg(row.final_period.scale_grade)">
+                                                <span
+                                                    class="shadow-2xs mt-0.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-bold"
+                                                    :class="gradeBadgeBg(row.final_period.scale_grade)"
+                                                >
                                                     {{ row.final_period.scale_grade }}
                                                 </span>
                                             </div>
@@ -1680,14 +1895,16 @@ onMounted(() => {
                                         </td>
 
                                         <!-- Semestral Final % -->
-                                        <td class="border-b border-l-2 border-primary/30 bg-primary/10 px-3 py-3 text-center font-mono text-sm font-bold text-foreground">
+                                        <td
+                                            class="border-b border-l-2 border-primary/30 bg-primary/10 px-3 py-3 text-center font-mono text-sm font-bold text-foreground"
+                                        >
                                             <span>{{ row.weighted_grade !== null ? `${row.weighted_grade}%` : '—' }}</span>
                                         </td>
 
                                         <!-- Rating -->
                                         <td class="border-b border-l-2 border-primary/30 bg-primary/10 px-3 py-3 text-center">
                                             <span
-                                                class="inline-flex min-w-[52px] items-center justify-center rounded-full border px-2.5 py-1 text-xs font-bold shadow-xs"
+                                                class="shadow-xs inline-flex min-w-[52px] items-center justify-center rounded-full border px-2.5 py-1 text-xs font-bold"
                                                 :class="gradeBadgeBg(row.scale_grade)"
                                             >
                                                 {{ gradeDisplay(row.scale_grade) }}
@@ -1698,7 +1915,7 @@ onMounted(() => {
                                     <!-- DETAILED RAW VIEW BODY -->
                                     <template v-else>
                                         <td
-                                            class="backdrop-blur-xs group/student sticky left-0 z-10 cursor-pointer border-r border-b border-border/50 bg-card/95 px-4 py-3 transition-colors hover:bg-secondary/80 print:static print:bg-white"
+                                            class="backdrop-blur-xs group/student sticky left-0 z-10 cursor-pointer border-b border-r border-border/50 bg-card/95 px-4 py-3 transition-colors hover:bg-secondary/80 print:static print:bg-white"
                                             title="Click to view failing or uncomplied activities and projects"
                                             @click="openStudentModal(row, 'activity_log')"
                                         >
@@ -1713,7 +1930,7 @@ onMounted(() => {
                                                 </div>
                                                 <span
                                                     v-if="hasDeficiencies(row)"
-                                                    class="shrink-0 rounded-full border border-rose-800 bg-rose-700 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-2xs print:hidden"
+                                                    class="shadow-2xs shrink-0 rounded-full border border-rose-800 bg-rose-700 px-1.5 py-0.5 text-[9px] font-bold text-white print:hidden"
                                                     title="Has missing or failing items"
                                                 >
                                                     {{ countDeficiencies(row) }} def
@@ -1756,7 +1973,9 @@ onMounted(() => {
                                             :key="`score-proj-${item.id}`"
                                             class="border-b border-l border-teal-500/20 bg-teal-500/5 px-3 py-3 text-center font-mono text-xs"
                                             :class="row.project_scores[item.id] === null ? 'text-muted-foreground/60' : 'font-medium text-foreground'"
-                                            :title="row.project_notes?.[item.id] ? `Remarks / Justification: ${row.project_notes[item.id]}` : undefined"
+                                            :title="
+                                                row.project_notes?.[item.id] ? `Remarks / Justification: ${row.project_notes[item.id]}` : undefined
+                                            "
                                         >
                                             <div class="relative inline-flex items-center justify-center gap-0.5">
                                                 <span>{{
@@ -1775,7 +1994,7 @@ onMounted(() => {
                                         <td
                                             v-for="type in activeTypes"
                                             :key="`subtotal-${type}`"
-                                            class="border-b border-l-2 border-border bg-secondary/15 px-3 py-3 text-center font-mono whitespace-nowrap"
+                                            class="whitespace-nowrap border-b border-l-2 border-border bg-secondary/15 px-3 py-3 text-center font-mono"
                                         >
                                             <div class="inline-flex items-baseline justify-center gap-1">
                                                 <span class="text-xs font-bold text-foreground">
@@ -1809,9 +2028,7 @@ onMounted(() => {
                                             </span>
                                         </td>
                                         <!-- Project total with % in () beside overall score -->
-                                        <td
-                                            class="border-b border-l-2 border-border bg-teal-500/5 px-3 py-3 text-center font-mono whitespace-nowrap"
-                                        >
+                                        <td class="whitespace-nowrap border-b border-l-2 border-border bg-teal-500/5 px-3 py-3 text-center font-mono">
                                             <div class="inline-flex items-baseline justify-center gap-1">
                                                 <span class="text-xs font-bold text-foreground">
                                                     {{ row.projectSummary?.earned ?? 0 }} / {{ row.projectSummary?.possible ?? 0 }}
@@ -1828,10 +2045,12 @@ onMounted(() => {
                                             {{ row.attendance?.percentage !== null ? `${row.attendance.percentage}%` : '—' }}
                                         </td>
                                         <!-- Recitation Bonus Points Cell -->
-                                        <td class="group/oral relative border-b border-l-2 border-amber-500/30 bg-amber-500/5 px-2.5 py-3 text-center font-mono">
+                                        <td
+                                            class="group/oral relative border-b border-l-2 border-amber-500/30 bg-amber-500/5 px-2.5 py-3 text-center font-mono"
+                                        >
                                             <template v-if="row.recitation && row.recitation.count > 0 && row.recitation.avg_score !== null">
                                                 <span
-                                                    class="inline-flex items-center gap-1 rounded-full bg-emerald-700 px-2.5 py-0.5 text-xs font-bold text-white shadow-2xs"
+                                                    class="shadow-2xs inline-flex items-center gap-1 rounded-full bg-emerald-700 px-2.5 py-0.5 text-xs font-bold text-white"
                                                 >
                                                     +{{ row.recitation.bonus_points ?? 0 }} pts
                                                 </span>
@@ -1844,7 +2063,7 @@ onMounted(() => {
                                             <button
                                                 v-if="!printMode"
                                                 type="button"
-                                                class="mt-1 inline-flex items-center gap-1 rounded border border-border bg-card px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground opacity-0 transition-opacity hover:text-foreground hover:bg-secondary group-hover/oral:opacity-100 print:hidden"
+                                                class="mt-1 inline-flex items-center gap-1 rounded border border-border bg-card px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground opacity-0 transition-opacity hover:bg-secondary hover:text-foreground group-hover/oral:opacity-100 print:hidden"
                                                 title="Override oral points for this student"
                                                 @click.stop="openOralOverrideModal(row)"
                                             >
@@ -1859,8 +2078,10 @@ onMounted(() => {
                                                 <span class="block text-xs font-bold text-purple-900 dark:text-purple-300">
                                                     {{ row.midterm.weighted_grade }}%
                                                 </span>
-                                                <span class="mt-0.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-bold shadow-2xs"
-                                                    :class="gradeBadgeBg(row.midterm.scale_grade)">
+                                                <span
+                                                    class="shadow-2xs mt-0.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-bold"
+                                                    :class="gradeBadgeBg(row.midterm.scale_grade)"
+                                                >
                                                     {{ row.midterm.scale_grade }}
                                                 </span>
                                             </div>
@@ -1873,8 +2094,10 @@ onMounted(() => {
                                                 <span class="block text-xs font-bold text-indigo-900 dark:text-indigo-300">
                                                     {{ row.final_period.weighted_grade }}%
                                                 </span>
-                                                <span class="mt-0.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-bold shadow-2xs"
-                                                    :class="gradeBadgeBg(row.final_period.scale_grade)">
+                                                <span
+                                                    class="shadow-2xs mt-0.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-bold"
+                                                    :class="gradeBadgeBg(row.final_period.scale_grade)"
+                                                >
                                                     {{ row.final_period.scale_grade }}
                                                 </span>
                                             </div>
@@ -1889,7 +2112,7 @@ onMounted(() => {
                                         </td>
                                         <td class="border-b border-l-2 border-primary/30 bg-primary/10 px-3 py-3 text-center">
                                             <span
-                                                class="inline-flex min-w-[52px] items-center justify-center rounded-full border px-2.5 py-1 text-xs font-bold shadow-xs"
+                                                class="shadow-xs inline-flex min-w-[52px] items-center justify-center rounded-full border px-2.5 py-1 text-xs font-bold"
                                                 :class="gradeBadgeBg(row.scale_grade)"
                                             >
                                                 {{ gradeDisplay(row.scale_grade) }}
@@ -1899,7 +2122,15 @@ onMounted(() => {
                                 </tr>
                                 <tr v-if="!rows.length">
                                     <td
-                                        :colspan="viewMode === 'summary' ? 12 : 7 + filteredAssessments.length + filteredGroupActivities.length + filteredProjects.length + activeTypes.length"
+                                        :colspan="
+                                            viewMode === 'summary'
+                                                ? 12
+                                                : 7 +
+                                                  filteredAssessments.length +
+                                                  filteredGroupActivities.length +
+                                                  filteredProjects.length +
+                                                  activeTypes.length
+                                        "
                                         class="py-12 text-center text-xs text-muted-foreground"
                                     >
                                         No students are enrolled in this section.
@@ -1911,7 +2142,7 @@ onMounted(() => {
                 </div>
 
                 <!-- Grading Scale Legend & Calculation Guide -->
-                <div class="paper-card mt-6 p-5 print:rounded-none print:border print:border-black print:bg-white space-y-4">
+                <div class="paper-card mt-6 space-y-4 p-5 print:rounded-none print:border print:border-black print:bg-white">
                     <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <h3 class="text-xs font-bold uppercase tracking-wider text-muted-foreground">College Grading Scale & Period Computation</h3>
                         <span class="font-mono text-[11px] text-muted-foreground">
@@ -1934,22 +2165,20 @@ onMounted(() => {
                                 { grade: 'INC', range: 'Below 75%' },
                             ]"
                             :key="entry.grade"
-                            class="rounded-lg border px-2 py-2 shadow-2xs transition-colors"
-                            :class="entry.grade === 'INC' ? 'border-rose-800 bg-rose-700 text-white' : 'border-border/60 bg-secondary/30 text-foreground'"
+                            class="shadow-2xs rounded-lg border px-2 py-2 transition-colors"
+                            :class="
+                                entry.grade === 'INC' ? 'border-rose-800 bg-rose-700 text-white' : 'border-border/60 bg-secondary/30 text-foreground'
+                            "
                         >
-                            <span
-                                class="block font-medium"
-                                :class="entry.grade === 'INC' ? 'text-white' : 'text-foreground'"
-                                >{{ entry.grade }}</span
-                            >
+                            <span class="block font-medium" :class="entry.grade === 'INC' ? 'text-white' : 'text-foreground'">{{ entry.grade }}</span>
                             <span :class="entry.grade === 'INC' ? 'text-rose-100' : 'text-muted-foreground'">{{ entry.range }}</span>
                         </div>
                     </div>
                 </div>
 
                 <p class="mt-4 text-[11px] text-muted-foreground print:text-[8px]">
-                    Note: Activities, quizzes, and attendance up to the Midterm Exam compute the Midterm Grade. Subsequent tasks and reports compute the Final Period Grade.
-                    Oral recitations award bonus points directly to activities without increasing max possible points.
+                    Note: Activities, quizzes, and attendance up to the Midterm Exam compute the Midterm Grade. Subsequent tasks and reports compute
+                    the Final Period Grade. Oral recitations award bonus points directly to activities without increasing max possible points.
                 </p>
             </div>
         </main>

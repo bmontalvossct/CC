@@ -1,28 +1,9 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
-import {
-    Bell,
-    BellOff,
-    CheckCircle2,
-    ChevronDown,
-    ChevronUp,
-    Clock,
-    Flag,
-    Maximize2,
-    Minimize2,
-    Pause,
-    Play,
-    Plus,
-    RotateCcw,
-    Sparkles,
-    Timer as TimerIcon,
-    Volume2,
-    VolumeX,
-    X,
-} from 'lucide-vue-next';
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { Clock, Flag, Maximize2, Minimize2, Pause, Play, Plus, RotateCcw, Timer as TimerIcon, Volume2, VolumeX, X } from 'lucide-vue-next';
+import { computed, onBeforeUnmount, ref } from 'vue';
 
-const props = withDefaults(
+withDefaults(
     defineProps<{
         modelValue?: boolean;
     }>(),
@@ -196,10 +177,8 @@ const resetStopwatch = () => {
 const recordLap = () => {
     if (stopwatchElapsedSeconds.value === 0) return;
     const currentFormatted = formatStopwatch(stopwatchElapsedSeconds.value);
-    const prevElapsed = stopwatchLaps.value.length > 0
-        ? stopwatchLaps.value.reduce((_, lap) => stopwatchElapsedSeconds.value, 0)
-        : 0;
-    
+    const prevElapsed = 0;
+
     stopwatchLaps.value.unshift({
         lapNumber: stopwatchLaps.value.length + 1,
         time: currentFormatted,
@@ -252,7 +231,7 @@ const closeWidget = () => {
                     variant="ghost"
                     size="icon"
                     class="size-7 rounded-full text-foreground hover:bg-secondary"
-                    :title="activeMode === 'timer' ? (isTimerRunning ? 'Pause' : 'Start') : (isStopwatchRunning ? 'Pause' : 'Start')"
+                    :title="activeMode === 'timer' ? (isTimerRunning ? 'Pause' : 'Start') : isStopwatchRunning ? 'Pause' : 'Start'"
                     @click="activeMode === 'timer' ? toggleTimer() : toggleStopwatch()"
                 >
                     <Pause v-if="activeMode === 'timer' ? isTimerRunning : isStopwatchRunning" class="size-3.5" />
@@ -287,7 +266,7 @@ const closeWidget = () => {
         <div
             v-else
             class="paper-card relative overflow-hidden border border-border/90 bg-card p-5 shadow-2xl duration-200 animate-in fade-in zoom-in-95"
-            :class="isTimerExpired ? 'ring-2 ring-rose-500/80 bg-rose-500/5' : ''"
+            :class="isTimerExpired ? 'bg-rose-500/5 ring-2 ring-rose-500/80' : ''"
         >
             <!-- Header Bar -->
             <div class="flex items-center justify-between border-b border-border/70 pb-3">
@@ -296,7 +275,7 @@ const closeWidget = () => {
                     <button
                         type="button"
                         class="flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold transition-all"
-                        :class="activeMode === 'timer' ? 'bg-card text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'"
+                        :class="activeMode === 'timer' ? 'shadow-xs bg-card text-foreground' : 'text-muted-foreground hover:text-foreground'"
                         @click="activeMode = 'timer'"
                     >
                         <TimerIcon class="size-3.5" />
@@ -305,7 +284,7 @@ const closeWidget = () => {
                     <button
                         type="button"
                         class="flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold transition-all"
-                        :class="activeMode === 'stopwatch' ? 'bg-card text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'"
+                        :class="activeMode === 'stopwatch' ? 'shadow-xs bg-card text-foreground' : 'text-muted-foreground hover:text-foreground'"
                         @click="activeMode = 'stopwatch'"
                     >
                         <Clock class="size-3.5" />
@@ -357,28 +336,25 @@ const closeWidget = () => {
                 <div class="text-center">
                     <div
                         class="font-mono text-5xl font-black tracking-tight text-foreground transition-colors sm:text-6xl"
-                        :class="isTimerExpired ? 'text-rose-500 animate-pulse' : isTimerRunning ? 'text-primary' : 'text-foreground'"
+                        :class="isTimerExpired ? 'animate-pulse text-rose-500' : isTimerRunning ? 'text-primary' : 'text-foreground'"
                     >
                         {{ formatTime(timerRemainingSeconds) }}
                     </div>
                     <div class="mt-1 text-xs font-medium text-muted-foreground">
-                        <span v-if="isTimerExpired" class="font-bold text-rose-500 uppercase tracking-wider">Time's Up!</span>
+                        <span v-if="isTimerExpired" class="font-bold uppercase tracking-wider text-rose-500">Time's Up!</span>
                         <span v-else-if="isTimerRunning">Counting down...</span>
                         <span v-else>Set duration below</span>
                     </div>
 
                     <!-- Subtle Progress Bar -->
                     <div class="mx-auto mt-3 h-1.5 w-48 overflow-hidden rounded-full bg-secondary">
-                        <div
-                            class="h-full bg-primary transition-all duration-300"
-                            :style="{ width: `${100 - timerProgress}%` }"
-                        />
+                        <div class="h-full bg-primary transition-all duration-300" :style="{ width: `${100 - timerProgress}%` }" />
                     </div>
                 </div>
 
                 <!-- Quick Presets Grid -->
                 <div>
-                    <div class="mb-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Presets</div>
+                    <div class="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Presets</div>
                     <div class="grid grid-cols-4 gap-1.5">
                         <button
                             v-for="preset in presets"
@@ -388,7 +364,7 @@ const closeWidget = () => {
                             :class="[
                                 timerDurationSeconds === preset.seconds && !isTimerRunning
                                     ? 'border-primary bg-primary/10 text-primary'
-                                    : 'border-border/70 bg-secondary/30 text-foreground hover:bg-secondary hover:border-border',
+                                    : 'border-border/70 bg-secondary/30 text-foreground hover:border-border hover:bg-secondary',
                             ]"
                             @click="selectPreset(preset.seconds)"
                         >
@@ -401,8 +377,8 @@ const closeWidget = () => {
                 <div class="flex items-center gap-2 border-t border-border/70 pt-3">
                     <Button
                         type="button"
-                        class="ink-button flex-1 !h-10 text-xs font-bold"
-                        :class="isTimerRunning ? '!bg-amber-600 hover:!bg-amber-700 text-white' : ''"
+                        class="ink-button !h-10 flex-1 text-xs font-bold"
+                        :class="isTimerRunning ? '!bg-amber-600 text-white hover:!bg-amber-700' : ''"
                         @click="toggleTimer"
                     >
                         <Pause v-if="isTimerRunning" class="mr-1.5 size-4" />
@@ -446,12 +422,11 @@ const closeWidget = () => {
                 </div>
 
                 <!-- Laps Record List -->
-                <div v-if="stopwatchLaps.length > 0" class="max-h-28 space-y-1 overflow-y-auto rounded-lg border border-border/70 bg-secondary/20 p-2 text-xs">
-                    <div
-                        v-for="lap in stopwatchLaps"
-                        :key="lap.lapNumber"
-                        class="flex items-center justify-between font-mono text-[11px]"
-                    >
+                <div
+                    v-if="stopwatchLaps.length > 0"
+                    class="max-h-28 space-y-1 overflow-y-auto rounded-lg border border-border/70 bg-secondary/20 p-2 text-xs"
+                >
+                    <div v-for="lap in stopwatchLaps" :key="lap.lapNumber" class="flex items-center justify-between font-mono text-[11px]">
                         <span class="text-muted-foreground">Lap {{ lap.lapNumber }}</span>
                         <span class="font-semibold text-foreground">{{ lap.time }}</span>
                     </div>
@@ -461,8 +436,8 @@ const closeWidget = () => {
                 <div class="flex items-center gap-2 border-t border-border/70 pt-3">
                     <Button
                         type="button"
-                        class="ink-button flex-1 !h-10 text-xs font-bold"
-                        :class="isStopwatchRunning ? '!bg-amber-600 hover:!bg-amber-700 text-white' : ''"
+                        class="ink-button !h-10 flex-1 text-xs font-bold"
+                        :class="isStopwatchRunning ? '!bg-amber-600 text-white hover:!bg-amber-700' : ''"
                         @click="toggleStopwatch"
                     >
                         <Pause v-if="isStopwatchRunning" class="mr-1.5 size-4" />

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\CourseModule;
 use App\Models\Section;
+use App\Services\Autochecker\ModuleRagService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -147,7 +148,7 @@ class CourseModuleController extends Controller
         }
 
         $courseModule->update($updateData);
-        app(\App\Services\Autochecker\ModuleRagService::class)->clearModuleCache($courseModule);
+        app(ModuleRagService::class)->clearModuleCache($courseModule);
 
         return back()->with('success', "{$courseModule->module_number} updated successfully.");
     }
@@ -157,7 +158,7 @@ class CourseModuleController extends Controller
         $this->authorizeSection($request, $section);
         abort_unless((int) $courseModule->section_id === (int) $section->id, 404);
 
-        app(\App\Services\Autochecker\ModuleRagService::class)->clearModuleCache($courseModule);
+        app(ModuleRagService::class)->clearModuleCache($courseModule);
 
         if (! empty($courseModule->file_path) && Storage::disk('local')->exists($courseModule->file_path)) {
             Storage::disk('local')->delete($courseModule->file_path);

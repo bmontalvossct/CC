@@ -6,13 +6,15 @@ use Exception;
 use Generator;
 use GuzzleHttp\Client as GuzzleClient;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 class GeminiClient
 {
     protected ?string $apiKey;
+
     protected string $model;
+
     protected int $timeout;
+
     protected string $baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
 
     public function __construct()
@@ -92,9 +94,7 @@ class GeminiClient
     /**
      * Generate content synchronously.
      *
-     * @param string $systemPrompt
-     * @param string $userPrompt
-     * @param array<string, mixed> $extraOptions
+     * @param  array<string, mixed>  $extraOptions
      * @return array{text: string, finish_reason: ?string, usage: array}
      */
     public function generateContent(string $systemPrompt, string $userPrompt, array $extraOptions = []): array
@@ -154,9 +154,7 @@ class GeminiClient
     /**
      * Stream exam or text generation via Gemini SSE stream endpoint.
      *
-     * @param string $systemPrompt
-     * @param string $userPrompt
-     * @param array<string, mixed> $extraOptions
+     * @param  array<string, mixed>  $extraOptions
      * @return Generator<int, array{text?: string, done?: bool, finish_reason?: string, usage?: array}>
      */
     public function streamGenerateContent(string $systemPrompt, string $userPrompt, array $extraOptions = []): Generator
@@ -251,8 +249,7 @@ class GeminiClient
     /**
      * Stream multi-turn chat messages through Gemini.
      *
-     * @param array<int, array{role: string, content: string}> $messages
-     * @param string|null $systemPrompt
+     * @param  array<int, array{role: string, content: string}>  $messages
      * @return Generator<int, array{text?: string, done?: bool, finish_reason?: string}>
      */
     public function streamChat(array $messages, ?string $systemPrompt = null): Generator

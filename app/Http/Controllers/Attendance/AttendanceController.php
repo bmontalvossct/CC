@@ -57,7 +57,7 @@ class AttendanceController extends Controller
 
         foreach ($sessions as $session) {
             $dateStr = $session->session_date->toDateString();
-            $timeStr = \Carbon\Carbon::parse($session->starts_at)->format('g:i A').' – '.\Carbon\Carbon::parse($session->ends_at)->format('g:i A');
+            $timeStr = Carbon::parse($session->starts_at)->format('g:i A').' – '.Carbon::parse($session->ends_at)->format('g:i A');
             $sessionInfo = [
                 'session_id' => $session->id,
                 'date' => $dateStr,
@@ -201,6 +201,7 @@ class AttendanceController extends Controller
                 return collect($daysMap)->values()->map(function ($item) {
                     $totalMarks = $item['present'] + $item['absent'] + $item['late'];
                     $rate = $totalMarks > 0 ? round((($item['present'] + ($item['late'] * 0.5)) / $totalMarks) * 100, 1) : null;
+
                     return array_merge($item, [
                         'total_marks' => $totalMarks,
                         'attendance_rate' => $rate,
@@ -277,7 +278,7 @@ class AttendanceController extends Controller
             ->where('attendance_records.status', AttendanceRecord::STATUS_ABSENT)
             ->where(function ($q) {
                 $q->whereNull('attendance_records.cleared_by_letter')
-                  ->orWhere('attendance_records.cleared_by_letter', false);
+                    ->orWhere('attendance_records.cleared_by_letter', false);
             })
             ->groupBy('attendance_records.student_id')
             ->select('attendance_records.student_id', DB::raw('COUNT(*) as count'))

@@ -58,7 +58,7 @@ class AcademicTerm extends Model
 
         $now = now();
         $startYear = $now->month >= 6 ? $now->year : $now->year - 1;
-        $schoolYear = "{$startYear}-" . ($startYear + 1);
+        $schoolYear = "{$startYear}-".($startYear + 1);
 
         $defaultTerm = static::create([
             'user_id' => $userId,

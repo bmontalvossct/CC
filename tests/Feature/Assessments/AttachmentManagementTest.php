@@ -17,6 +17,7 @@ class AttachmentManagementTest extends TestCase
     use RefreshDatabase;
 
     private User $user;
+
     private Section $section;
 
     protected function setUp(): void
@@ -46,7 +47,7 @@ class AttachmentManagementTest extends TestCase
     public function test_teacher_can_reupload_activity_attachment(): void
     {
         $initialFile = UploadedFile::fake()->create('activity_instructions.pdf', 100, 'application/pdf');
-        
+
         $response = $this->actingAs($this->user)->post("/sections/{$this->section->id}/assessments", [
             'type' => 'activity',
             'title' => 'Laboratory Activity 1',

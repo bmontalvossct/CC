@@ -2,9 +2,11 @@
 
 namespace Tests\Unit;
 
+use App\Models\Assessment;
 use App\Services\Autochecker\AiDocumentGraderService;
 use App\Services\Autochecker\FileContentExtractorService;
 use App\Services\Autochecker\OllamaClient;
+use Illuminate\Support\Facades\Storage;
 use Mockery;
 use Tests\TestCase;
 
@@ -15,7 +17,9 @@ class AiDocumentGraderSafetyTest extends TestCase
         $client = Mockery::mock(OllamaClient::class);
         $client->shouldReceive('ping')->andReturn(['online' => $online]);
         $client->shouldReceive('chat')->andReturn(['message' => ['content' => json_encode(['score' => 8, 'remarks' => $feedback])]]);
-        return new class($client, Mockery::mock(FileContentExtractorService::class)) extends AiDocumentGraderService {
+
+        return new class($client, Mockery::mock(FileContentExtractorService::class)) extends AiDocumentGraderService
+        {
             public function evaluate(?string $rubric): array
             {
                 return $this->evaluateDocument('Student evidence', 'output.txt', 'Activity 1', 'activity', 10, rubricContent: $rubric);
@@ -25,7 +29,7 @@ class AiDocumentGraderSafetyTest extends TestCase
 
     public function test_missing_activity_file_stops_checking(): void
     {
-        $activity = new \App\Models\Assessment;
+        $activity = new Assessment;
         $activity->activity_file_path = 'missing-instructions-'.uniqid().'.txt';
         $activity->activity_file_name = 'instructions.txt';
         $this->expectExceptionMessage('The activity instructions file could not be read.');
@@ -34,9 +38,9 @@ class AiDocumentGraderSafetyTest extends TestCase
 
     public function test_activity_file_is_included_in_the_grading_prompt(): void
     {
-        \Illuminate\Support\Facades\Storage::fake('local');
-        \Illuminate\Support\Facades\Storage::disk('local')->put('instructions.txt', 'Implement addition and subtraction.');
-        $activity = new \App\Models\Assessment;
+        Storage::fake('local');
+        Storage::disk('local')->put('instructions.txt', 'Implement addition and subtraction.');
+        $activity = new Assessment;
         $activity->activity_file_path = 'instructions.txt';
         $activity->activity_file_name = 'instructions.txt';
         $client = Mockery::mock(OllamaClient::class);
@@ -44,7 +48,8 @@ class AiDocumentGraderSafetyTest extends TestCase
         $client->shouldReceive('chat')->once()->withArgs(function ($profile, $messages) {
             return str_contains($messages[1]['content'], 'Implement addition and subtraction.');
         })->andReturn(['message' => ['content' => '{"score":8,"remarks":"Addition works; subtraction needs correction."}']]);
-        $grader = new class($client, new FileContentExtractorService) extends AiDocumentGraderService {
+        $grader = new class($client, new FileContentExtractorService) extends AiDocumentGraderService
+        {
             public function checkInstructions($activity): array
             {
                 return $this->evaluateDocument('Student evidence', 'output.txt', 'Activity', 'activity', 10,
@@ -101,7 +106,8 @@ class AiDocumentGraderSafetyTest extends TestCase
             ],
         ]);
 
-        $grader = new class($client, Mockery::mock(FileContentExtractorService::class)) extends AiDocumentGraderService {
+        $grader = new class($client, Mockery::mock(FileContentExtractorService::class)) extends AiDocumentGraderService
+        {
             public function evaluate(): array
             {
                 return $this->evaluateDocument('Basketball rules and history...', 'essay.txt', 'Activity 1: Python Loop', 'activity', 20, rubricContent: 'Correctness: 20 pts');
@@ -128,7 +134,8 @@ class AiDocumentGraderSafetyTest extends TestCase
             ],
         ]);
 
-        $grader = new class($client, Mockery::mock(FileContentExtractorService::class)) extends AiDocumentGraderService {
+        $grader = new class($client, Mockery::mock(FileContentExtractorService::class)) extends AiDocumentGraderService
+        {
             public function evaluate(): array
             {
                 return $this->evaluateDocument('Irrelevant text', 'doc.txt', 'Activity 1', 'activity', 20, rubricContent: 'Rubric: 20 pts');
@@ -158,7 +165,8 @@ class AiDocumentGraderSafetyTest extends TestCase
             ],
         ]);
 
-        $grader = new class($client, Mockery::mock(FileContentExtractorService::class)) extends AiDocumentGraderService {
+        $grader = new class($client, Mockery::mock(FileContentExtractorService::class)) extends AiDocumentGraderService
+        {
             public function evaluate(): array
             {
                 return $this->evaluateDocument('Code content', 'main.py', 'Activity 1', 'activity', 20, rubricContent: 'Logic 10, Formatting 10');
@@ -183,11 +191,13 @@ class AiDocumentGraderSafetyTest extends TestCase
             ],
         ]);
 
-        $grader = new class($client, Mockery::mock(FileContentExtractorService::class)) extends AiDocumentGraderService {
+        $grader = new class($client, Mockery::mock(FileContentExtractorService::class)) extends AiDocumentGraderService
+        {
             public function evaluate(): array
             {
                 // Create a 25,000 character document (exceeds the old 12,000 limit)
                 $longSubmission = str_repeat("Detailed analysis and experimental evaluation step by step.\n", 400);
+
                 return $this->evaluateDocument($longSubmission, 'report.docx', 'Activity 1', 'activity', 20, rubricContent: 'Analysis: 20 pts');
             }
         };
@@ -197,4 +207,3 @@ class AiDocumentGraderSafetyTest extends TestCase
         $this->assertStringContainsString('Comprehensive long report', $result['remarks']);
     }
 }
-

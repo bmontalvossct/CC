@@ -432,23 +432,28 @@ const submit = () => {
                         <span class="eyebrow">03 / Passing Benchmarks</span>
                         <h2 class="mt-1 text-2xl font-medium tracking-tight">Passing percentage rates</h2>
                     </div>
-                    <div class="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 rounded-xl px-3 py-1.5 border border-border/50">
+                    <div
+                        class="hidden items-center gap-1.5 rounded-xl border border-border/50 bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground sm:flex"
+                    >
                         <Target class="size-3.5 text-primary" />
                         <span>Standard benchmark: 75%</span>
                     </div>
                 </div>
-                <p class="text-xs sm:text-sm text-muted-foreground">
-                    Set the minimum percentage score required for a student to pass each category. Submissions below this rate are flagged as deficient in student records, gradebooks, and performance analytics.
+                <p class="text-xs text-muted-foreground sm:text-sm">
+                    Set the minimum percentage score required for a student to pass each category. Submissions below this rate are flagged as
+                    deficient in student records, gradebooks, and performance analytics.
                 </p>
             </div>
 
             <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <!-- Quizzes -->
-                <div class="relative flex flex-col justify-between rounded-2xl border border-border/70 bg-card/60 p-4 transition-all hover:border-primary/40">
+                <div
+                    class="relative flex flex-col justify-between rounded-2xl border border-border/70 bg-card/60 p-4 transition-all hover:border-primary/40"
+                >
                     <div>
                         <div class="flex items-center justify-between">
                             <Label for="pass-quiz" class="text-xs font-semibold text-foreground">Quizzes</Label>
-                            <span class="rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary font-mono">
+                            <span class="rounded-md bg-primary/10 px-2 py-0.5 font-mono text-[11px] font-bold text-primary">
                                 {{ form.passing_rates.quiz }}%
                             </span>
                         </div>
@@ -463,9 +468,11 @@ const submit = () => {
                                 type="number"
                                 min="0"
                                 max="100"
-                                class="h-10 rounded-xl pr-8 text-sm font-semibold font-mono"
+                                class="h-10 rounded-xl pr-8 font-mono text-sm font-semibold"
                             />
-                            <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">%</span>
+                            <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground"
+                                >%</span
+                            >
                         </div>
                         <InputError class="mt-1 text-xs" :message="fieldError('passing_rates.quiz')" />
 
@@ -476,7 +483,11 @@ const submit = () => {
                                 :key="preset"
                                 type="button"
                                 class="rounded-lg px-2 py-0.5 text-[10px] font-medium transition-colors"
-                                :class="form.passing_rates.quiz === preset ? 'bg-primary text-primary-foreground font-bold' : 'bg-muted text-muted-foreground hover:bg-secondary hover:text-foreground'"
+                                :class="
+                                    form.passing_rates.quiz === preset
+                                        ? 'bg-primary font-bold text-primary-foreground'
+                                        : 'bg-muted text-muted-foreground hover:bg-secondary hover:text-foreground'
+                                "
                                 @click="form.passing_rates.quiz = preset"
                             >
                                 {{ preset }}%
@@ -486,11 +497,13 @@ const submit = () => {
                 </div>
 
                 <!-- Activities -->
-                <div class="relative flex flex-col justify-between rounded-2xl border border-border/70 bg-card/60 p-4 transition-all hover:border-primary/40">
+                <div
+                    class="relative flex flex-col justify-between rounded-2xl border border-border/70 bg-card/60 p-4 transition-all hover:border-primary/40"
+                >
                     <div>
                         <div class="flex items-center justify-between">
                             <Label for="pass-activity" class="text-xs font-semibold text-foreground">Activities</Label>
-                            <span class="rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary font-mono">
+                            <span class="rounded-md bg-primary/10 px-2 py-0.5 font-mono text-[11px] font-bold text-primary">
                                 {{ form.passing_rates.activity }}%
                             </span>
                         </div>
@@ -505,9 +518,11 @@ const submit = () => {
                                 type="number"
                                 min="0"
                                 max="100"
-                                class="h-10 rounded-xl pr-8 text-sm font-semibold font-mono"
+                                class="h-10 rounded-xl pr-8 font-mono text-sm font-semibold"
                             />
-                            <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">%</span>
+                            <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground"
+                                >%</span
+                            >
                         </div>
                         <InputError class="mt-1 text-xs" :message="fieldError('passing_rates.activity')" />
 
@@ -518,7 +533,11 @@ const submit = () => {
                                 :key="preset"
                                 type="button"
                                 class="rounded-lg px-2 py-0.5 text-[10px] font-medium transition-colors"
-                                :class="form.passing_rates.activity === preset ? 'bg-primary text-primary-foreground font-bold' : 'bg-muted text-muted-foreground hover:bg-secondary hover:text-foreground'"
+                                :class="
+                                    form.passing_rates.activity === preset
+                                        ? 'bg-primary font-bold text-primary-foreground'
+                                        : 'bg-muted text-muted-foreground hover:bg-secondary hover:text-foreground'
+                                "
                                 @click="form.passing_rates.activity = preset"
                             >
                                 {{ preset }}%
@@ -528,11 +547,13 @@ const submit = () => {
                 </div>
 
                 <!-- Projects -->
-                <div class="relative flex flex-col justify-between rounded-2xl border border-border/70 bg-card/60 p-4 transition-all hover:border-primary/40">
+                <div
+                    class="relative flex flex-col justify-between rounded-2xl border border-border/70 bg-card/60 p-4 transition-all hover:border-primary/40"
+                >
                     <div>
                         <div class="flex items-center justify-between">
                             <Label for="pass-project" class="text-xs font-semibold text-foreground">Projects</Label>
-                            <span class="rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary font-mono">
+                            <span class="rounded-md bg-primary/10 px-2 py-0.5 font-mono text-[11px] font-bold text-primary">
                                 {{ form.passing_rates.project }}%
                             </span>
                         </div>
@@ -547,9 +568,11 @@ const submit = () => {
                                 type="number"
                                 min="0"
                                 max="100"
-                                class="h-10 rounded-xl pr-8 text-sm font-semibold font-mono"
+                                class="h-10 rounded-xl pr-8 font-mono text-sm font-semibold"
                             />
-                            <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">%</span>
+                            <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground"
+                                >%</span
+                            >
                         </div>
                         <InputError class="mt-1 text-xs" :message="fieldError('passing_rates.project')" />
 
@@ -560,7 +583,11 @@ const submit = () => {
                                 :key="preset"
                                 type="button"
                                 class="rounded-lg px-2 py-0.5 text-[10px] font-medium transition-colors"
-                                :class="form.passing_rates.project === preset ? 'bg-primary text-primary-foreground font-bold' : 'bg-muted text-muted-foreground hover:bg-secondary hover:text-foreground'"
+                                :class="
+                                    form.passing_rates.project === preset
+                                        ? 'bg-primary font-bold text-primary-foreground'
+                                        : 'bg-muted text-muted-foreground hover:bg-secondary hover:text-foreground'
+                                "
                                 @click="form.passing_rates.project = preset"
                             >
                                 {{ preset }}%
@@ -570,11 +597,13 @@ const submit = () => {
                 </div>
 
                 <!-- Major Exams -->
-                <div class="relative flex flex-col justify-between rounded-2xl border border-border/70 bg-card/60 p-4 transition-all hover:border-primary/40">
+                <div
+                    class="relative flex flex-col justify-between rounded-2xl border border-border/70 bg-card/60 p-4 transition-all hover:border-primary/40"
+                >
                     <div>
                         <div class="flex items-center justify-between">
                             <Label for="pass-exam" class="text-xs font-semibold text-foreground">Exams</Label>
-                            <span class="rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary font-mono">
+                            <span class="rounded-md bg-primary/10 px-2 py-0.5 font-mono text-[11px] font-bold text-primary">
                                 {{ form.passing_rates.exam }}%
                             </span>
                         </div>
@@ -589,9 +618,11 @@ const submit = () => {
                                 type="number"
                                 min="0"
                                 max="100"
-                                class="h-10 rounded-xl pr-8 text-sm font-semibold font-mono"
+                                class="h-10 rounded-xl pr-8 font-mono text-sm font-semibold"
                             />
-                            <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">%</span>
+                            <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground"
+                                >%</span
+                            >
                         </div>
                         <InputError class="mt-1 text-xs" :message="fieldError('passing_rates.exam')" />
 
@@ -602,7 +633,11 @@ const submit = () => {
                                 :key="preset"
                                 type="button"
                                 class="rounded-lg px-2 py-0.5 text-[10px] font-medium transition-colors"
-                                :class="form.passing_rates.exam === preset ? 'bg-primary text-primary-foreground font-bold' : 'bg-muted text-muted-foreground hover:bg-secondary hover:text-foreground'"
+                                :class="
+                                    form.passing_rates.exam === preset
+                                        ? 'bg-primary font-bold text-primary-foreground'
+                                        : 'bg-muted text-muted-foreground hover:bg-secondary hover:text-foreground'
+                                "
                                 @click="form.passing_rates.exam = preset"
                             >
                                 {{ preset }}%

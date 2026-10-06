@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ExamGeneratorModal from '@/components/assessments/ExamGeneratorModal.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +8,6 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { cardHover, modalBackdropVariants, modalContentVariants, staggerItem, tabIndicatorTransition } from '@/lib/motion';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { AnimatePresence, motion } from 'motion-v';
 import {
     ArrowLeft,
     Check,
@@ -26,7 +26,7 @@ import {
     Trash2,
     X,
 } from 'lucide-vue-next';
-import ExamGeneratorModal from '@/components/assessments/ExamGeneratorModal.vue';
+import { AnimatePresence, motion } from 'motion-v';
 import { computed, ref } from 'vue';
 
 type CourseModule = {
@@ -282,10 +282,10 @@ const getFileTypeBadge = (fileName: string | null, mime: string | null) => {
                     <div class="flex flex-wrap items-center gap-3">
                         <Button
                             variant="outline"
-                            class="!h-10 !rounded-xl border-primary/40 bg-primary/5 text-primary hover:bg-primary/10 font-semibold"
+                            class="!h-10 !rounded-xl border-primary/40 bg-primary/5 font-semibold text-primary hover:bg-primary/10"
                             @click="showExamGeneratorModal = true"
                         >
-                            <Sparkles class="size-4 mr-1.5" />
+                            <Sparkles class="mr-1.5 size-4" />
                             <span>Generate Exam (Hermes)</span>
                         </Button>
                         <Button class="ink-button !h-10 !rounded-xl" @click="openCreateModal">
@@ -346,7 +346,7 @@ const getFileTypeBadge = (fileName: string | null, mime: string | null) => {
                                 <motion.div
                                     v-if="filterType === 'all'"
                                     layout-id="modules-active-filter-pill"
-                                    class="absolute inset-0 rounded-lg bg-primary shadow-xs"
+                                    class="shadow-xs absolute inset-0 rounded-lg bg-primary"
                                     :transition="tabIndicatorTransition"
                                 />
                                 <span class="relative z-10">All ({{ modules.length }})</span>
@@ -360,7 +360,7 @@ const getFileTypeBadge = (fileName: string | null, mime: string | null) => {
                                 <motion.div
                                     v-if="filterType === 'files'"
                                     layout-id="modules-active-filter-pill"
-                                    class="absolute inset-0 rounded-lg bg-emerald-700 shadow-xs"
+                                    class="shadow-xs absolute inset-0 rounded-lg bg-emerald-700"
                                     :transition="tabIndicatorTransition"
                                 />
                                 <span class="relative z-10">Files ({{ totalFilesCount }})</span>
@@ -374,7 +374,7 @@ const getFileTypeBadge = (fileName: string | null, mime: string | null) => {
                                 <motion.div
                                     v-if="filterType === 'links'"
                                     layout-id="modules-active-filter-pill"
-                                    class="absolute inset-0 rounded-lg bg-blue-700 shadow-xs"
+                                    class="shadow-xs absolute inset-0 rounded-lg bg-blue-700"
                                     :transition="tabIndicatorTransition"
                                 />
                                 <span class="relative z-10">Links ({{ totalLinksCount }})</span>
@@ -545,173 +545,173 @@ const getFileTypeBadge = (fileName: string | null, mime: string | null) => {
                             <span class="eyebrow">{{ editingModule ? 'Edit Content' : 'Course Material' }}</span>
                             <h2 class="text-xl font-bold text-foreground">{{ editingModule ? 'Edit Course Module' : 'Add Course Module' }}</h2>
                         </div>
-                    <button
-                        type="button"
-                        class="grid size-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-                        @click="closeModal"
-                    >
-                        <X class="size-4.5" />
-                    </button>
-                </div>
-
-                <form class="mt-5 space-y-4" @submit.prevent="submitForm">
-                    <!-- Module Number & Title Row -->
-                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                        <div class="sm:col-span-1">
-                            <Label for="module_number" class="text-xs font-semibold">Module # / Code</Label>
-                            <Input
-                                id="module_number"
-                                v-model="form.module_number"
-                                required
-                                placeholder="e.g. Module 1"
-                                class="mt-1 h-10 rounded-xl text-sm"
-                            />
-                            <InputError class="mt-1 text-xs" :message="form.errors.module_number" />
-                        </div>
-                        <div class="sm:col-span-2">
-                            <Label for="title" class="text-xs font-semibold">Module Title</Label>
-                            <Input
-                                id="title"
-                                v-model="form.title"
-                                required
-                                placeholder="e.g. Introduction to Cloud Computing"
-                                class="mt-1 h-10 rounded-xl text-sm"
-                            />
-                            <InputError class="mt-1 text-xs" :message="form.errors.title" />
-                        </div>
-                    </div>
-
-                    <!-- Presentation Link URL -->
-                    <div>
-                        <Label for="link_url" class="text-xs font-semibold">
-                            Presentation Link <span class="font-normal text-muted-foreground">(Google Slides, Canva, Loom, etc.)</span>
-                        </Label>
-                        <div class="relative mt-1">
-                            <Link2 class="absolute left-3 top-3 size-4 text-muted-foreground" />
-                            <Input
-                                id="link_url"
-                                v-model="form.link_url"
-                                type="url"
-                                placeholder="https://docs.google.com/presentation/d/..."
-                                class="h-10 rounded-xl pl-9 text-sm"
-                            />
-                        </div>
-                        <InputError class="mt-1 text-xs" :message="form.errors.link_url" />
-                    </div>
-
-                    <!-- File Upload Zone (Max 50 MB) -->
-                    <div>
-                        <div class="flex items-center justify-between">
-                            <Label class="text-xs font-semibold">
-                                Presentation File Upload <span class="font-normal text-muted-foreground">(Max 50 MB)</span>
-                            </Label>
-                            <span class="font-mono text-[11px] font-semibold text-primary">Up to 50 MB</span>
-                        </div>
-
-                        <!-- If current module already has a file -->
-                        <div
-                            v-if="editingModule?.has_file && !form.remove_file && !selectedFile"
-                            class="mt-2 flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs"
+                        <button
+                            type="button"
+                            class="grid size-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                            @click="closeModal"
                         >
-                            <div class="flex items-center gap-2">
-                                <Presentation class="size-4 text-emerald-700 dark:text-emerald-400" />
-                                <div>
-                                    <p class="font-semibold text-emerald-950 dark:text-emerald-100">{{ editingModule.file_name }}</p>
-                                    <p class="text-[11px] text-emerald-800/80 dark:text-emerald-300/80">
-                                        Current file · {{ editingModule.formatted_file_size }}
-                                    </p>
-                                </div>
+                            <X class="size-4.5" />
+                        </button>
+                    </div>
+
+                    <form class="mt-5 space-y-4" @submit.prevent="submitForm">
+                        <!-- Module Number & Title Row -->
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                            <div class="sm:col-span-1">
+                                <Label for="module_number" class="text-xs font-semibold">Module # / Code</Label>
+                                <Input
+                                    id="module_number"
+                                    v-model="form.module_number"
+                                    required
+                                    placeholder="e.g. Module 1"
+                                    class="mt-1 h-10 rounded-xl text-sm"
+                                />
+                                <InputError class="mt-1 text-xs" :message="form.errors.module_number" />
                             </div>
-                            <button
-                                type="button"
-                                class="rounded-lg px-2 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-500/10 dark:text-rose-400"
-                                @click="form.remove_file = true"
-                            >
-                                Replace / Remove
-                            </button>
+                            <div class="sm:col-span-2">
+                                <Label for="title" class="text-xs font-semibold">Module Title</Label>
+                                <Input
+                                    id="title"
+                                    v-model="form.title"
+                                    required
+                                    placeholder="e.g. Introduction to Cloud Computing"
+                                    class="mt-1 h-10 rounded-xl text-sm"
+                                />
+                                <InputError class="mt-1 text-xs" :message="form.errors.title" />
+                            </div>
                         </div>
 
-                        <!-- Dropzone input -->
-                        <div
-                            v-if="!editingModule?.has_file || form.remove_file || selectedFile"
-                            class="mt-2 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-5 text-center transition-colors"
-                            :class="
-                                isDragOver
-                                    ? 'border-primary bg-primary/10'
-                                    : 'border-border/80 bg-secondary/20 hover:border-primary/50 hover:bg-secondary/40'
-                            "
-                            @click="fileInputRef?.click()"
-                            @dragover.prevent="isDragOver = true"
-                            @dragleave.prevent="isDragOver = false"
-                            @drop.prevent="handleDrop"
-                        >
-                            <input
-                                ref="fileInputRef"
-                                type="file"
-                                class="hidden"
-                                accept=".pdf,.ppt,.pptx,.key,.odp,.zip,.rar,.mp4,.doc,.docx,.xls,.xlsx,.txt,.csv,.json,.sql,.db,.sqlite,.sqlite3"
-                                @change="handleFileSelect"
-                            />
+                        <!-- Presentation Link URL -->
+                        <div>
+                            <Label for="link_url" class="text-xs font-semibold">
+                                Presentation Link <span class="font-normal text-muted-foreground">(Google Slides, Canva, Loom, etc.)</span>
+                            </Label>
+                            <div class="relative mt-1">
+                                <Link2 class="absolute left-3 top-3 size-4 text-muted-foreground" />
+                                <Input
+                                    id="link_url"
+                                    v-model="form.link_url"
+                                    type="url"
+                                    placeholder="https://docs.google.com/presentation/d/..."
+                                    class="h-10 rounded-xl pl-9 text-sm"
+                                />
+                            </div>
+                            <InputError class="mt-1 text-xs" :message="form.errors.link_url" />
+                        </div>
 
-                            <div v-if="selectedFile" class="flex items-center gap-2.5">
-                                <Presentation class="size-5 text-primary" />
-                                <div class="text-left">
-                                    <p class="font-bold text-foreground">{{ selectedFile.name }}</p>
-                                    <p class="text-xs text-muted-foreground">{{ (selectedFile.size / (1024 * 1024)).toFixed(2) }} MB</p>
+                        <!-- File Upload Zone (Max 50 MB) -->
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <Label class="text-xs font-semibold">
+                                    Presentation File Upload <span class="font-normal text-muted-foreground">(Max 50 MB)</span>
+                                </Label>
+                                <span class="font-mono text-[11px] font-semibold text-primary">Up to 50 MB</span>
+                            </div>
+
+                            <!-- If current module already has a file -->
+                            <div
+                                v-if="editingModule?.has_file && !form.remove_file && !selectedFile"
+                                class="mt-2 flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs"
+                            >
+                                <div class="flex items-center gap-2">
+                                    <Presentation class="size-4 text-emerald-700 dark:text-emerald-400" />
+                                    <div>
+                                        <p class="font-semibold text-emerald-950 dark:text-emerald-100">{{ editingModule.file_name }}</p>
+                                        <p class="text-[11px] text-emerald-800/80 dark:text-emerald-300/80">
+                                            Current file · {{ editingModule.formatted_file_size }}
+                                        </p>
+                                    </div>
                                 </div>
                                 <button
                                     type="button"
-                                    class="ml-2 rounded-full p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
-                                    @click.stop="removeSelectedFile"
+                                    class="rounded-lg px-2 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-500/10 dark:text-rose-400"
+                                    @click="form.remove_file = true"
                                 >
-                                    <X class="size-4" />
+                                    Replace / Remove
                                 </button>
                             </div>
 
-                            <div v-else class="space-y-1">
-                                <FileUp class="mx-auto size-7 text-muted-foreground" />
-                                <p class="text-xs font-semibold text-foreground">Click to browse or drag & drop presentation file</p>
-                                <p class="text-[11px] text-muted-foreground">PDF, PPT, PPTX, KEY, ZIP, MP4 (Max 50 MB)</p>
+                            <!-- Dropzone input -->
+                            <div
+                                v-if="!editingModule?.has_file || form.remove_file || selectedFile"
+                                class="mt-2 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-5 text-center transition-colors"
+                                :class="
+                                    isDragOver
+                                        ? 'border-primary bg-primary/10'
+                                        : 'border-border/80 bg-secondary/20 hover:border-primary/50 hover:bg-secondary/40'
+                                "
+                                @click="fileInputRef?.click()"
+                                @dragover.prevent="isDragOver = true"
+                                @dragleave.prevent="isDragOver = false"
+                                @drop.prevent="handleDrop"
+                            >
+                                <input
+                                    ref="fileInputRef"
+                                    type="file"
+                                    class="hidden"
+                                    accept=".pdf,.ppt,.pptx,.key,.odp,.zip,.rar,.mp4,.doc,.docx,.xls,.xlsx,.txt,.csv,.json,.sql,.db,.sqlite,.sqlite3"
+                                    @change="handleFileSelect"
+                                />
+
+                                <div v-if="selectedFile" class="flex items-center gap-2.5">
+                                    <Presentation class="size-5 text-primary" />
+                                    <div class="text-left">
+                                        <p class="font-bold text-foreground">{{ selectedFile.name }}</p>
+                                        <p class="text-xs text-muted-foreground">{{ (selectedFile.size / (1024 * 1024)).toFixed(2) }} MB</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        class="ml-2 rounded-full p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                                        @click.stop="removeSelectedFile"
+                                    >
+                                        <X class="size-4" />
+                                    </button>
+                                </div>
+
+                                <div v-else class="space-y-1">
+                                    <FileUp class="mx-auto size-7 text-muted-foreground" />
+                                    <p class="text-xs font-semibold text-foreground">Click to browse or drag & drop presentation file</p>
+                                    <p class="text-[11px] text-muted-foreground">PDF, PPT, PPTX, KEY, ZIP, MP4 (Max 50 MB)</p>
+                                </div>
                             </div>
+                            <InputError class="mt-1 text-xs" :message="form.errors.file" />
                         </div>
-                        <InputError class="mt-1 text-xs" :message="form.errors.file" />
-                    </div>
 
-                    <!-- Description / Summary Notes -->
-                    <div>
-                        <Label for="description" class="text-xs font-semibold">
-                            Module Summary / Topics Covered <span class="font-normal text-muted-foreground">(optional)</span>
-                        </Label>
-                        <textarea
-                            id="description"
-                            v-model="form.description"
-                            rows="3"
-                            maxlength="5000"
-                            placeholder="Brief description of lecture objectives, key takeaways, and references..."
-                            class="mt-1 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                        />
-                        <InputError class="mt-1 text-xs" :message="form.errors.description" />
-                    </div>
+                        <!-- Description / Summary Notes -->
+                        <div>
+                            <Label for="description" class="text-xs font-semibold">
+                                Module Summary / Topics Covered <span class="font-normal text-muted-foreground">(optional)</span>
+                            </Label>
+                            <textarea
+                                id="description"
+                                v-model="form.description"
+                                rows="3"
+                                maxlength="5000"
+                                placeholder="Brief description of lecture objectives, key takeaways, and references..."
+                                class="mt-1 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                            />
+                            <InputError class="mt-1 text-xs" :message="form.errors.description" />
+                        </div>
 
-                    <!-- Action Buttons -->
-                    <div class="mt-6 flex items-center justify-end gap-3 border-t border-border/60 pt-4">
-                        <button
-                            type="button"
-                            class="rounded-xl border border-border bg-background px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
-                            :disabled="form.processing"
-                            @click="closeModal"
-                        >
-                            Cancel
-                        </button>
-                        <Button type="submit" class="ink-button !h-10 px-5 text-sm font-semibold" :disabled="form.processing">
-                            <LoaderCircle v-if="form.processing" class="size-4 animate-spin" />
-                            <span>{{ form.processing ? 'Saving module...' : editingModule ? 'Update Module' : 'Save Module' }}</span>
-                        </Button>
-                    </div>
-                </form>
+                        <!-- Action Buttons -->
+                        <div class="mt-6 flex items-center justify-end gap-3 border-t border-border/60 pt-4">
+                            <button
+                                type="button"
+                                class="rounded-xl border border-border bg-background px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+                                :disabled="form.processing"
+                                @click="closeModal"
+                            >
+                                Cancel
+                            </button>
+                            <Button type="submit" class="ink-button !h-10 px-5 text-sm font-semibold" :disabled="form.processing">
+                                <LoaderCircle v-if="form.processing" class="size-4 animate-spin" />
+                                <span>{{ form.processing ? 'Saving module...' : editingModule ? 'Update Module' : 'Save Module' }}</span>
+                            </Button>
+                        </div>
+                    </form>
+                </motion.div>
             </motion.div>
-        </motion.div>
-    </AnimatePresence>
+        </AnimatePresence>
 
         <!-- Delete Confirmation Modal -->
         <AnimatePresence>
@@ -734,49 +734,44 @@ const getFileTypeBadge = (fileName: string | null, mime: string | null) => {
                     class="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl"
                 >
                     <div class="flex items-center gap-3">
-                    <div class="grid size-10 shrink-0 place-items-center rounded-xl bg-rose-100 dark:bg-rose-950/60">
-                        <Trash2 class="size-5 text-rose-600 dark:text-rose-400" />
+                        <div class="grid size-10 shrink-0 place-items-center rounded-xl bg-rose-100 dark:bg-rose-950/60">
+                            <Trash2 class="size-5 text-rose-600 dark:text-rose-400" />
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-foreground">Delete Module</h3>
+                            <p class="text-xs text-muted-foreground">{{ moduleToDelete.module_number }}: {{ moduleToDelete.title }}</p>
+                        </div>
                     </div>
-                    <div>
-                        <h3 class="text-lg font-bold text-foreground">Delete Module</h3>
-                        <p class="text-xs text-muted-foreground">{{ moduleToDelete.module_number }}: {{ moduleToDelete.title }}</p>
+
+                    <p class="mt-4 text-sm leading-relaxed text-muted-foreground">
+                        Are you sure you want to delete this module? Any uploaded presentation files and links associated with it will be permanently
+                        removed.
+                    </p>
+
+                    <div class="mt-6 flex items-center justify-end gap-3">
+                        <button
+                            type="button"
+                            class="rounded-xl border border-border bg-background px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+                            :disabled="isDeleting"
+                            @click="moduleToDelete = null"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            class="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-rose-700 disabled:opacity-50"
+                            :disabled="isDeleting"
+                            @click="executeDelete"
+                        >
+                            <LoaderCircle v-if="isDeleting" class="size-4 animate-spin" />
+                            <span>{{ isDeleting ? 'Deleting...' : 'Yes, Delete Module' }}</span>
+                        </button>
                     </div>
-                </div>
-
-                <p class="mt-4 text-sm leading-relaxed text-muted-foreground">
-                    Are you sure you want to delete this module? Any uploaded presentation files and links associated with it will be permanently
-                    removed.
-                </p>
-
-                <div class="mt-6 flex items-center justify-end gap-3">
-                    <button
-                        type="button"
-                        class="rounded-xl border border-border bg-background px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
-                        :disabled="isDeleting"
-                        @click="moduleToDelete = null"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="button"
-                        class="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-rose-700 disabled:opacity-50"
-                        :disabled="isDeleting"
-                        @click="executeDelete"
-                    >
-                        <LoaderCircle v-if="isDeleting" class="size-4 animate-spin" />
-                        <span>{{ isDeleting ? 'Deleting...' : 'Yes, Delete Module' }}</span>
-                    </button>
-                </div>
+                </motion.div>
             </motion.div>
-        </motion.div>
-    </AnimatePresence>
+        </AnimatePresence>
 
         <!-- Hermes Exam Generator Modal -->
-        <ExamGeneratorModal
-            :open="showExamGeneratorModal"
-            :section="section"
-            :initial-modules="modules"
-            @close="showExamGeneratorModal = false"
-        />
+        <ExamGeneratorModal :open="showExamGeneratorModal" :section="section" :initial-modules="modules" @close="showExamGeneratorModal = false" />
     </AppLayout>
 </template>

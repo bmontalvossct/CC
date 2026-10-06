@@ -7,6 +7,8 @@ use App\Models\Assessment;
 use App\Models\AttendanceRecord;
 use App\Models\Section;
 use App\Models\Student;
+use App\Services\Autochecker\AiDocumentGraderService;
+use App\Services\SectionFolderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,6 +17,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\Response;
 
 class AssessmentScoreController extends AssessmentModuleController
 {
@@ -71,7 +74,7 @@ class AssessmentScoreController extends AssessmentModuleController
         Section $section,
         Assessment $assessment,
         Student $student,
-        \App\Services\Autochecker\AiDocumentGraderService $aiGrader,
+        AiDocumentGraderService $aiGrader,
     ): JsonResponse {
         $this->authorizeAssessment($section, $assessment);
         abort_unless((int) $student->section_id === (int) $section->id, 404);
@@ -128,7 +131,7 @@ class AssessmentScoreController extends AssessmentModuleController
         $score = $assessment->scores()->firstOrNew(['student_id' => $student->id]);
 
         $file = $request->file('attachment');
-        $stored = app(\App\Services\SectionFolderService::class)->storeStudentAssessmentOutput($section, $assessment, $student, $file);
+        $stored = app(SectionFolderService::class)->storeStudentAssessmentOutput($section, $assessment, $student, $file);
 
         $score->fill([
             'attachment_path' => $stored['path'],
@@ -186,7 +189,7 @@ class AssessmentScoreController extends AssessmentModuleController
         Section $section,
         Assessment $assessment,
         Student $student,
-    ): BinaryFileResponse|\Symfony\Component\HttpFoundation\Response {
+    ): BinaryFileResponse|Response {
         $this->authorizeAssessment($section, $assessment);
         abort_unless((int) $student->section_id === (int) $section->id, 404);
 

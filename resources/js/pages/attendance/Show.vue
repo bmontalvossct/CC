@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
 import {
@@ -10,7 +10,6 @@ import {
     CheckCircle2,
     FileCheck,
     FileText,
-    HelpCircle,
     LayoutGrid,
     LoaderCircle,
     RotateCcw,
@@ -537,35 +536,47 @@ function deleteSession() {
                             </button>
 
                             <div class="flex flex-wrap items-center gap-3">
-                                <div class="flex items-center gap-3.5 rounded-2xl border border-border/80 bg-card/90 px-5 py-3 shadow-sm sm:gap-4 sm:px-6 sm:py-3.5">
+                                <div
+                                    class="flex items-center gap-3.5 rounded-2xl border border-border/80 bg-card/90 px-5 py-3 shadow-sm sm:gap-4 sm:px-6 sm:py-3.5"
+                                >
                                     <div class="text-center">
-                                        <span class="block text-[11px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 sm:text-xs"
+                                        <span
+                                            class="block text-[11px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 sm:text-xs"
                                             >Present</span
                                         >
-                                        <span class="font-mono text-2xl font-semibold text-emerald-700 dark:text-emerald-400">{{ presentCount }}</span>
+                                        <span class="font-mono text-2xl font-semibold text-emerald-700 dark:text-emerald-400">{{
+                                            presentCount
+                                        }}</span>
                                     </div>
                                     <div class="h-8 w-px bg-border/80" />
                                     <div class="text-center">
-                                        <span class="block text-[11px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400 sm:text-xs"
+                                        <span
+                                            class="block text-[11px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400 sm:text-xs"
                                             >Late (0.5 pt)</span
                                         >
                                         <span class="font-mono text-2xl font-semibold text-amber-700 dark:text-amber-400">{{ lateCount }}</span>
                                     </div>
                                     <div class="h-8 w-px bg-border/80" />
                                     <div class="text-center">
-                                        <span class="block text-[11px] font-semibold uppercase tracking-wider text-indigo-700 dark:text-indigo-400 sm:text-xs"
+                                        <span
+                                            class="block text-[11px] font-semibold uppercase tracking-wider text-indigo-700 dark:text-indigo-400 sm:text-xs"
                                             >Excused</span
                                         >
                                         <span class="font-mono text-2xl font-semibold text-indigo-700 dark:text-indigo-400">{{ excusedCount }}</span>
                                     </div>
                                     <div class="h-8 w-px bg-border/80" />
                                     <div class="text-center">
-                                        <span class="block text-[11px] font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-400 sm:text-xs">Absent</span>
+                                        <span
+                                            class="block text-[11px] font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-400 sm:text-xs"
+                                            >Absent</span
+                                        >
                                         <span class="font-mono text-2xl font-semibold text-rose-700 dark:text-rose-400">{{ absentCount }}</span>
                                     </div>
                                     <div class="h-8 w-px bg-border/80" />
                                     <div class="text-center">
-                                        <span class="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-xs">Total</span>
+                                        <span class="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-xs"
+                                            >Total</span
+                                        >
                                         <span class="font-mono text-2xl font-semibold text-foreground">{{ session.total_count }}</span>
                                     </div>
                                 </div>
@@ -619,7 +630,7 @@ function deleteSession() {
                         <div class="flex flex-wrap items-center gap-4 sm:gap-5">
                             <span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Drag to seat:</span>
                             <span
-                                class="inline-flex cursor-grab items-center gap-1.5 rounded-lg border border-emerald-600/30 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 shadow-2xs transition-transform active:cursor-grabbing hover:scale-105 dark:bg-emerald-950/40 dark:text-emerald-300"
+                                class="shadow-2xs inline-flex cursor-grab items-center gap-1.5 rounded-lg border border-emerald-600/30 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 transition-transform hover:scale-105 active:cursor-grabbing dark:bg-emerald-950/40 dark:text-emerald-300"
                                 draggable="true"
                                 @dragstart="startDrag($event, 'present')"
                                 title="Drag onto seat to mark Present"
@@ -627,7 +638,7 @@ function deleteSession() {
                                 <span class="size-2.5 rounded-full bg-emerald-600 ring-2 ring-emerald-500/30" /> Present (1.0 pt)
                             </span>
                             <span
-                                class="inline-flex cursor-grab items-center gap-1.5 rounded-lg border border-rose-600/30 bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-800 shadow-2xs transition-transform active:cursor-grabbing hover:scale-105 dark:bg-rose-950/40 dark:text-rose-300"
+                                class="shadow-2xs inline-flex cursor-grab items-center gap-1.5 rounded-lg border border-rose-600/30 bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-800 transition-transform hover:scale-105 active:cursor-grabbing dark:bg-rose-950/40 dark:text-rose-300"
                                 draggable="true"
                                 @dragstart="startDrag($event, 'absent')"
                                 title="Drag onto seat to mark Absent"
@@ -635,7 +646,7 @@ function deleteSession() {
                                 <span class="size-2.5 rounded-full bg-rose-600 ring-2 ring-rose-500/30" /> Absent (0 pt)
                             </span>
                             <span
-                                class="inline-flex cursor-grab items-center gap-1.5 rounded-lg border border-amber-600/30 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800 shadow-2xs transition-transform active:cursor-grabbing hover:scale-105 dark:bg-amber-950/40 dark:text-amber-300"
+                                class="shadow-2xs inline-flex cursor-grab items-center gap-1.5 rounded-lg border border-amber-600/30 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800 transition-transform hover:scale-105 active:cursor-grabbing dark:bg-amber-950/40 dark:text-amber-300"
                                 draggable="true"
                                 @dragstart="startDrag($event, 'late')"
                                 title="Drag onto seat to mark Late"
@@ -643,7 +654,7 @@ function deleteSession() {
                                 <span class="size-2.5 rounded-full bg-amber-600 ring-2 ring-amber-500/30" /> Late (0.5 pt)
                             </span>
                             <span
-                                class="inline-flex cursor-grab items-center gap-1.5 rounded-lg border border-indigo-600/40 bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-800 shadow-2xs ring-1 ring-indigo-500/20 transition-transform active:cursor-grabbing hover:scale-105 dark:bg-indigo-950/50 dark:text-indigo-300"
+                                class="shadow-2xs inline-flex cursor-grab items-center gap-1.5 rounded-lg border border-indigo-600/40 bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-800 ring-1 ring-indigo-500/20 transition-transform hover:scale-105 active:cursor-grabbing dark:bg-indigo-950/50 dark:text-indigo-300"
                                 draggable="true"
                                 @dragstart="startDrag($event, 'excused')"
                                 title="Drag onto seat to open Reason for Excuse dialog"
@@ -702,7 +713,11 @@ function deleteSession() {
                                     :key="block.id"
                                     class="shadow-xs rounded-2xl border border-border/80 bg-card transition-all"
                                     :class="
-                                        getBlockDensity(block) === 'spacious' ? 'p-5' : getBlockDensity(block) === 'compact' ? 'p-3.5' : 'p-2.5 sm:p-3'
+                                        getBlockDensity(block) === 'spacious'
+                                            ? 'p-5'
+                                            : getBlockDensity(block) === 'compact'
+                                              ? 'p-3.5'
+                                              : 'p-2.5 sm:p-3'
                                     "
                                     :style="{ gridColumn: block.column, gridRow: block.row }"
                                 >
@@ -848,17 +863,19 @@ function deleteSession() {
                                                                     <span>{{ seat.label }}</span>
                                                                     <span
                                                                         v-if="seat.record.status === 'excused'"
-                                                                        class="rounded bg-indigo-500/40 px-1 py-0.2 text-[6.5px] font-bold text-indigo-100 ring-1 ring-indigo-300/40 sm:text-[7px]"
+                                                                        class="py-0.2 rounded bg-indigo-500/40 px-1 text-[6.5px] font-bold text-indigo-100 ring-1 ring-indigo-300/40 sm:text-[7px]"
                                                                     >
                                                                         EXCUSED {{ seat.record.points_awarded ? '(1.0)' : '(0)' }}
                                                                     </span>
                                                                     <span
                                                                         v-else-if="(seat.student.absent_count ?? 0) >= 3"
-                                                                        class="rounded bg-rose-500/40 px-1 py-0.2 text-[6.5px] font-bold text-rose-200 ring-1 ring-rose-400/50 sm:text-[7px]"
+                                                                        class="py-0.2 rounded bg-rose-500/40 px-1 text-[6.5px] font-bold text-rose-200 ring-1 ring-rose-400/50 sm:text-[7px]"
                                                                     >
                                                                         3+ ABS
                                                                     </span>
-                                                                    <span v-if="seat.record.status === 'late'" class="font-bold text-amber-300">· LATE</span>
+                                                                    <span v-if="seat.record.status === 'late'" class="font-bold text-amber-300"
+                                                                        >· LATE</span
+                                                                    >
                                                                     <span v-else-if="seat.record.status === 'absent'" class="font-bold text-rose-300"
                                                                         >· ABS</span
                                                                     >
@@ -869,11 +886,17 @@ function deleteSession() {
                                                                 </div>
                                                             </button>
                                                         </TooltipTrigger>
-                                                        <TooltipContent side="top" :side-offset="10" class="z-50 max-w-xs rounded-xl border border-border bg-popover p-3 text-popover-foreground shadow-xl">
+                                                        <TooltipContent
+                                                            side="top"
+                                                            :side-offset="10"
+                                                            class="z-50 max-w-xs rounded-xl border border-border bg-popover p-3 text-popover-foreground shadow-xl"
+                                                        >
                                                             <div class="flex flex-col items-center gap-1.5 text-center">
                                                                 <p class="text-xs font-bold">{{ formatStudentDisplayName(seat.student) }}</p>
-                                                                <p class="font-mono text-[10px] text-muted-foreground">{{ seat.student.student_number }} · {{ seat.block.label }} Seat {{ seat.label }}</p>
-                                                                
+                                                                <p class="font-mono text-[10px] text-muted-foreground">
+                                                                    {{ seat.student.student_number }} · {{ seat.block.label }} Seat {{ seat.label }}
+                                                                </p>
+
                                                                 <!-- Status pill on hover -->
                                                                 <div class="mt-1 flex items-center justify-center gap-1.5">
                                                                     <span
@@ -881,7 +904,11 @@ function deleteSession() {
                                                                         class="inline-flex items-center gap-1 rounded-md bg-indigo-500/15 px-2 py-0.5 text-[11px] font-bold text-indigo-700 dark:text-indigo-400"
                                                                     >
                                                                         <ShieldCheck class="size-3" />
-                                                                        <span>Excused ({{ seat.record.points_awarded ? '1.0 pt Awarded' : '0 pt / No points' }})</span>
+                                                                        <span
+                                                                            >Excused ({{
+                                                                                seat.record.points_awarded ? '1.0 pt Awarded' : '0 pt / No points'
+                                                                            }})</span
+                                                                        >
                                                                     </span>
                                                                     <span
                                                                         v-else-if="seat.record.status === 'present'"
@@ -904,17 +931,31 @@ function deleteSession() {
                                                                 </div>
 
                                                                 <!-- Reason for excuse on hover -->
-                                                                <div v-if="seat.record.status === 'excused'" class="mt-1.5 rounded-lg border border-indigo-500/20 bg-indigo-500/10 p-2 text-left text-xs text-indigo-950 dark:text-indigo-200">
-                                                                    <p class="text-[10px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-400">Reason for Excuse:</p>
-                                                                    <p class="mt-0.5 text-[11px] leading-relaxed italic">"{{ seat.record.excuse_reason || 'Excused for this session' }}"</p>
+                                                                <div
+                                                                    v-if="seat.record.status === 'excused'"
+                                                                    class="mt-1.5 rounded-lg border border-indigo-500/20 bg-indigo-500/10 p-2 text-left text-xs text-indigo-950 dark:text-indigo-200"
+                                                                >
+                                                                    <p
+                                                                        class="text-[10px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-400"
+                                                                    >
+                                                                        Reason for Excuse:
+                                                                    </p>
+                                                                    <p class="mt-0.5 text-[11px] italic leading-relaxed">
+                                                                        "{{ seat.record.excuse_reason || 'Excused for this session' }}"
+                                                                    </p>
                                                                 </div>
 
                                                                 <!-- 3+ Absences alert if present -->
-                                                                <div v-if="(seat.student.absent_count ?? 0) >= 3" class="mt-1 rounded-md bg-rose-500/15 px-2 py-1 text-[10px] font-semibold text-rose-700 dark:text-rose-400">
+                                                                <div
+                                                                    v-if="(seat.student.absent_count ?? 0) >= 3"
+                                                                    class="mt-1 rounded-md bg-rose-500/15 px-2 py-1 text-[10px] font-semibold text-rose-700 dark:text-rose-400"
+                                                                >
                                                                     ⚠️ {{ seat.student.absent_count }} uncleared absences (Clearance letter required)
                                                                 </div>
 
-                                                                <p class="mt-1 text-[9px] text-muted-foreground">Click to cycle status · Drag Excused to modify</p>
+                                                                <p class="mt-1 text-[9px] text-muted-foreground">
+                                                                    Click to cycle status · Drag Excused to modify
+                                                                </p>
                                                             </div>
                                                         </TooltipContent>
                                                     </Tooltip>
@@ -1044,13 +1085,16 @@ function deleteSession() {
                                             <p class="text-sm font-medium text-foreground">{{ formatStudentDisplayName(item.student) }}</p>
                                             <span
                                                 v-if="(item.student.absent_count ?? 0) >= 3"
-                                                class="rounded bg-rose-500/20 px-1.5 py-0.2 text-[9px] font-bold text-rose-700 dark:text-rose-400"
+                                                class="py-0.2 rounded bg-rose-500/20 px-1.5 text-[9px] font-bold text-rose-700 dark:text-rose-400"
                                             >
                                                 3+ ABS
                                             </span>
                                         </div>
                                         <p class="font-mono text-xs text-muted-foreground">{{ item.student.student_number }}</p>
-                                        <p v-if="item.record.status === 'excused' && item.record.excuse_reason" class="mt-0.5 text-[11px] italic text-indigo-700 dark:text-indigo-300">
+                                        <p
+                                            v-if="item.record.status === 'excused' && item.record.excuse_reason"
+                                            class="mt-0.5 text-[11px] italic text-indigo-700 dark:text-indigo-300"
+                                        >
                                             Excuse: {{ item.record.excuse_reason }} ({{ item.record.points_awarded ? '1.0 pt' : '0 pt' }})
                                         </p>
                                     </div>
@@ -1146,7 +1190,9 @@ function deleteSession() {
                                         type="button"
                                         class="rounded-lg px-3 py-1 text-xs font-medium transition-colors"
                                         :class="
-                                            filterStatus === 'all' ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-amber-400 hover:text-white'
+                                            filterStatus === 'all'
+                                                ? 'bg-primary text-white'
+                                                : 'text-muted-foreground hover:bg-amber-400 hover:text-white'
                                         "
                                         @click="filterStatus = 'all'"
                                     >
@@ -1155,7 +1201,9 @@ function deleteSession() {
                                     <button
                                         type="button"
                                         class="rounded-lg px-3 py-1 text-xs font-medium transition-colors"
-                                        :class="filterStatus === 'present' ? 'bg-emerald-700 text-white' : 'text-muted-foreground hover:text-foreground'"
+                                        :class="
+                                            filterStatus === 'present' ? 'bg-emerald-700 text-white' : 'text-muted-foreground hover:text-foreground'
+                                        "
                                         @click="filterStatus = 'present'"
                                     >
                                         Present ({{ presentCount }})
@@ -1171,7 +1219,9 @@ function deleteSession() {
                                     <button
                                         type="button"
                                         class="rounded-lg px-3 py-1 text-xs font-medium transition-colors"
-                                        :class="filterStatus === 'excused' ? 'bg-indigo-700 text-white' : 'text-muted-foreground hover:text-foreground'"
+                                        :class="
+                                            filterStatus === 'excused' ? 'bg-indigo-700 text-white' : 'text-muted-foreground hover:text-foreground'
+                                        "
                                         @click="filterStatus = 'excused'"
                                     >
                                         Excused ({{ excusedCount }})
@@ -1379,7 +1429,9 @@ function deleteSession() {
             <div class="w-full max-w-lg rounded-3xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in-95 sm:p-7">
                 <div class="flex items-center justify-between border-b border-border/80 pb-4">
                     <div class="flex items-center gap-3">
-                        <div class="grid size-11 shrink-0 place-items-center rounded-2xl bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-400">
+                        <div
+                            class="grid size-11 shrink-0 place-items-center rounded-2xl bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-400"
+                        >
                             <ShieldCheck class="size-6" />
                         </div>
                         <div>
@@ -1446,7 +1498,7 @@ function deleteSession() {
                                 class="flex cursor-pointer items-start gap-3 rounded-2xl border p-3.5 transition-all"
                                 :class="
                                     excusePointsOption === 'points'
-                                        ? 'border-emerald-600 bg-emerald-500/10 shadow-xs ring-1 ring-emerald-500/30'
+                                        ? 'shadow-xs border-emerald-600 bg-emerald-500/10 ring-1 ring-emerald-500/30'
                                         : 'border-border/80 bg-secondary/20 hover:border-border'
                                 "
                             >
@@ -1469,7 +1521,7 @@ function deleteSession() {
                                 class="flex cursor-pointer items-start gap-3 rounded-2xl border p-3.5 transition-all"
                                 :class="
                                     excusePointsOption === 'no_points'
-                                        ? 'border-indigo-600 bg-indigo-500/10 shadow-xs ring-1 ring-indigo-500/30'
+                                        ? 'shadow-xs border-indigo-600 bg-indigo-500/10 ring-1 ring-indigo-500/30'
                                         : 'border-border/80 bg-secondary/20 hover:border-border'
                                 "
                             >
@@ -1496,8 +1548,9 @@ function deleteSession() {
                             <Sparkles class="size-3.5" />
                             <span>Policy Exemption</span>
                         </div>
-                        <p class="mt-1 leading-relaxed text-[11px]">
-                            Excused attendance will <strong>never count</strong> as one of the 3 unexcused absences. The reason will be visible when hovering over the student's attendance card.
+                        <p class="mt-1 text-[11px] leading-relaxed">
+                            Excused attendance will <strong>never count</strong> as one of the 3 unexcused absences. The reason will be visible when
+                            hovering over the student's attendance card.
                         </p>
                     </div>
                 </div>
@@ -1537,7 +1590,9 @@ function deleteSession() {
             <div class="w-full max-w-lg rounded-3xl border border-rose-500/30 bg-card p-6 shadow-2xl animate-in fade-in zoom-in-95 sm:p-7">
                 <div class="flex items-center justify-between border-b border-border/80 pb-4">
                     <div class="flex items-center gap-3">
-                        <div class="grid size-11 shrink-0 place-items-center rounded-2xl bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400">
+                        <div
+                            class="grid size-11 shrink-0 place-items-center rounded-2xl bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400"
+                        >
                             <ShieldAlert class="size-6" />
                         </div>
                         <div>
@@ -1569,11 +1624,10 @@ function deleteSession() {
 
                 <!-- Question & Explanations -->
                 <div class="mt-5 space-y-3">
-                    <h4 class="text-sm font-bold text-foreground">
-                        Did this student submit an official Excuse / Clearance Letter?
-                    </h4>
+                    <h4 class="text-sm font-bold text-foreground">Did this student submit an official Excuse / Clearance Letter?</h4>
                     <p class="text-xs leading-relaxed text-muted-foreground">
-                        According to classroom policy, for every 3 absences, students cannot be marked present unless an official letter is provided. Providing a letter resets their 3-absence count while preserving previous absence logs.
+                        According to classroom policy, for every 3 absences, students cannot be marked present unless an official letter is provided.
+                        Providing a letter resets their 3-absence count while preserving previous absence logs.
                     </p>
                 </div>
 
@@ -1614,9 +1668,7 @@ function deleteSession() {
                                 <X class="size-4" />
                             </div>
                             <div>
-                                <span class="block text-sm font-bold text-rose-900 dark:text-rose-300">
-                                    No Letter Provided (Keep as Absent)
-                                </span>
+                                <span class="block text-sm font-bold text-rose-900 dark:text-rose-300"> No Letter Provided (Keep as Absent) </span>
                                 <span class="mt-0.5 block text-xs text-rose-800/80 dark:text-rose-400/80">
                                     Student cannot be admitted as present without a clearance letter. Marked Absent (0 pt) for today.
                                 </span>
@@ -1637,15 +1689,15 @@ function deleteSession() {
                                 <Sparkles class="size-3.5" />
                             </div>
                             <div>
-                                <span class="block text-xs font-bold text-foreground">
-                                    Teacher Override (Mark Present Without Reset)
-                                </span>
+                                <span class="block text-xs font-bold text-foreground"> Teacher Override (Mark Present Without Reset) </span>
                                 <span class="mt-0.5 block text-[11px] text-muted-foreground">
                                     Teacher exception to mark student Present today while keeping previous absences untouched.
                                 </span>
                             </div>
                         </div>
-                        <span class="rounded-md border border-border bg-card px-2 py-0.5 text-[10px] font-bold text-muted-foreground group-hover:text-amber-700">
+                        <span
+                            class="rounded-md border border-border bg-card px-2 py-0.5 text-[10px] font-bold text-muted-foreground group-hover:text-amber-700"
+                        >
                             Override
                         </span>
                     </button>
@@ -1680,7 +1732,9 @@ function deleteSession() {
                     </div>
                     <div>
                         <h3 class="text-lg font-bold text-foreground">Delete Roll Call</h3>
-                        <p class="text-xs text-muted-foreground">{{ session.session_date }} · {{ formatTime12h(session.starts_at) }} – {{ formatTime12h(session.ends_at) }}</p>
+                        <p class="text-xs text-muted-foreground">
+                            {{ session.session_date }} · {{ formatTime12h(session.starts_at) }} – {{ formatTime12h(session.ends_at) }}
+                        </p>
                     </div>
                 </div>
 

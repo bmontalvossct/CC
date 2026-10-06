@@ -177,7 +177,11 @@ defineExpose({ openPalette });
                                 @mouseenter="activeIndex = index"
                             >
                                 <div class="flex min-w-0 items-center gap-3">
-                                    <component :is="item.icon" class="size-4 shrink-0" :class="index === activeIndex ? 'text-white' : 'text-primary'" />
+                                    <component
+                                        :is="item.icon"
+                                        class="size-4 shrink-0"
+                                        :class="index === activeIndex ? 'text-white' : 'text-primary'"
+                                    />
                                     <div class="min-w-0">
                                         <p class="truncate text-xs font-bold leading-tight">{{ item.title }}</p>
                                         <p

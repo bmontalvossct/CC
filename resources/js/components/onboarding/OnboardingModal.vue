@@ -2,9 +2,9 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { SharedData } from '@/types';
-import { Link, router, usePage } from '@inertiajs/vue3';
 import { useAiAssistant } from '@/composables/useAiAssistant';
+import type { SharedData } from '@/types';
+import { Link, usePage } from '@inertiajs/vue3';
 import {
     AlertTriangle,
     Armchair,
@@ -15,9 +15,7 @@ import {
     Calendar,
     CalendarCheck2,
     CalendarDays,
-    Check,
     CheckCircle2,
-    Cpu,
     Download,
     ExternalLink,
     GraduationCap,
@@ -33,7 +31,6 @@ import {
     Target,
     Trophy,
     User,
-    UserCheck,
     Users,
     X,
     Zap,
@@ -68,24 +65,13 @@ const emit = defineEmits<{
 const page = usePage<SharedData>();
 const isOffline = computed(() => Boolean(page.props.is_offline));
 
-const {
-    isOllamaOnline,
-    availableModels,
-    fetchStatus,
-    setAiEnabled,
-    isAiEnabled,
-    isPullingModel,
-    pullProgress,
-    pullModel,
-} = useAiAssistant();
+const { isOllamaOnline, availableModels, fetchStatus, setAiEnabled, isAiEnabled, isPullingModel, pullProgress, pullModel } = useAiAssistant();
 
 const isCheckingOllama = ref(false);
 const downloadError = ref('');
 const wantsAiSetup = ref<boolean>(isAiEnabled.value);
 
-const hasHermes3Model = computed(() =>
-    availableModels.value.some((m) => m.name.toLowerCase().includes('hermes3')),
-);
+const hasHermes3Model = computed(() => availableModels.value.some((m) => m.name.toLowerCase().includes('hermes3')));
 
 const runOllamaCheck = async () => {
     isCheckingOllama.value = true;
@@ -124,9 +110,7 @@ const form = ref({
     term_name: props.currentTerm?.name || '1st Semester',
     school_year: props.currentTerm?.school_year || '2026-2027',
     starts_on: props.currentTerm?.starts_on || new Date().toISOString().split('T')[0],
-    ends_on:
-        props.currentTerm?.ends_on ||
-        new Date(new Date().setMonth(new Date().getMonth() + 5)).toISOString().split('T')[0],
+    ends_on: props.currentTerm?.ends_on || new Date(new Date().setMonth(new Date().getMonth() + 5)).toISOString().split('T')[0],
     reporting_frequency: 'once_per_sem' as 'once_per_sem' | 'twice_per_sem',
     passing_rates: {
         quiz: 75,
@@ -306,10 +290,10 @@ const saveAndContinueToAi = async () => {
 <template>
     <div
         v-if="open"
-        class="fixed inset-0 z-50 grid place-items-center bg-zinc-950/75 p-3 sm:p-6 backdrop-blur-xs duration-200 animate-in fade-in print:hidden"
+        class="backdrop-blur-xs fixed inset-0 z-50 grid place-items-center bg-zinc-950/75 p-3 duration-200 animate-in fade-in sm:p-6 print:hidden"
     >
         <div
-            class="paper-card relative flex max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden border border-border/80 bg-card p-5 sm:p-7 shadow-2xl duration-200 animate-in zoom-in-95"
+            class="paper-card relative flex max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden border border-border/80 bg-card p-5 shadow-2xl duration-200 animate-in zoom-in-95 sm:p-7"
             role="dialog"
             aria-modal="true"
             aria-label="ClassCheck Onboarding Setup"
@@ -317,7 +301,9 @@ const saveAndContinueToAi = async () => {
             <!-- Header Bar with Progress Indicator -->
             <div class="flex items-center justify-between border-b border-border/70 pb-3.5">
                 <div class="flex items-center gap-2">
-                    <span class="rounded-md border border-border/80 bg-secondary/60 px-2.5 py-0.5 font-mono text-xs font-semibold text-muted-foreground">
+                    <span
+                        class="rounded-md border border-border/80 bg-secondary/60 px-2.5 py-0.5 font-mono text-xs font-semibold text-muted-foreground"
+                    >
                         Step {{ currentStep + 1 }} of 5
                     </span>
                     <span class="text-xs font-semibold text-foreground">
@@ -365,7 +351,9 @@ const saveAndContinueToAi = async () => {
                     </div>
                     <div>
                         <h2 class="text-xl font-bold tracking-tight text-foreground sm:text-2xl">Welcome to ClassCheck</h2>
-                        <p class="text-xs text-muted-foreground sm:text-sm">Let's personalize your workspace. What is your name or preferred title?</p>
+                        <p class="text-xs text-muted-foreground sm:text-sm">
+                            Let's personalize your workspace. What is your name or preferred title?
+                        </p>
                     </div>
                 </div>
 
@@ -438,7 +426,7 @@ const saveAndContinueToAi = async () => {
                                 class="rounded-xl border p-2.5 text-center text-xs font-semibold transition-all"
                                 :class="
                                     form.term_name === sem
-                                        ? 'border-primary bg-primary text-white shadow-xs'
+                                        ? 'shadow-xs border-primary bg-primary text-white'
                                         : 'border-border/80 bg-card text-foreground hover:bg-secondary'
                                 "
                                 @click="form.term_name = sem"
@@ -477,7 +465,12 @@ const saveAndContinueToAi = async () => {
                     <div class="grid gap-3 sm:grid-cols-2">
                         <div>
                             <Label for="starts-on-input" class="text-xs font-medium text-muted-foreground"> Term Starts On </Label>
-                            <Input id="starts-on-input" v-model="form.starts_on" type="date" class="mt-1 h-10 rounded-xl bg-card text-xs font-medium" />
+                            <Input
+                                id="starts-on-input"
+                                v-model="form.starts_on"
+                                type="date"
+                                class="mt-1 h-10 rounded-xl bg-card text-xs font-medium"
+                            />
                         </div>
                         <div>
                             <Label for="ends-on-input" class="text-xs font-medium text-muted-foreground"> Term Ends On </Label>
@@ -486,7 +479,7 @@ const saveAndContinueToAi = async () => {
                     </div>
 
                     <!-- Oral Reporting Frequency & Periodic Grading Setup -->
-                    <div class="rounded-xl border border-teal-500/30 bg-teal-500/5 p-4 space-y-2.5">
+                    <div class="space-y-2.5 rounded-xl border border-teal-500/30 bg-teal-500/5 p-4">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-2">
                                 <Award class="size-4 text-teal-600 dark:text-teal-400" />
@@ -496,44 +489,52 @@ const saveAndContinueToAi = async () => {
                                 Periodic Grading
                             </span>
                         </div>
-                        <p class="text-[11px] text-muted-foreground leading-relaxed">
+                        <p class="text-[11px] leading-relaxed text-muted-foreground">
                             Midterm Grade is calculated from tasks on/before Midterm Exam + Midterm Exam. Choose your reporting policy below:
                         </p>
-                        <div class="grid gap-2 sm:grid-cols-2 pt-1">
+                        <div class="grid gap-2 pt-1 sm:grid-cols-2">
                             <button
                                 type="button"
-                                class="flex flex-col justify-between rounded-xl border p-3 text-left transition-all cursor-pointer"
+                                class="flex cursor-pointer flex-col justify-between rounded-xl border p-3 text-left transition-all"
                                 :class="
                                     form.reporting_frequency === 'once_per_sem'
-                                        ? 'border-teal-500 bg-teal-500/10 ring-1 ring-teal-500/30 shadow-xs'
+                                        ? 'shadow-xs border-teal-500 bg-teal-500/10 ring-1 ring-teal-500/30'
                                         : 'border-border/80 bg-card hover:bg-secondary/40'
                                 "
                                 @click="form.reporting_frequency = 'once_per_sem'"
                             >
                                 <div class="flex items-center justify-between">
                                     <span class="text-xs font-bold text-foreground">1 Report / Sem (Default)</span>
-                                    <span v-if="form.reporting_frequency === 'once_per_sem'" class="text-[10px] font-bold text-teal-600 dark:text-teal-400">✓ Selected</span>
+                                    <span
+                                        v-if="form.reporting_frequency === 'once_per_sem'"
+                                        class="text-[10px] font-bold text-teal-600 dark:text-teal-400"
+                                        >✓ Selected</span
+                                    >
                                 </div>
-                                <p class="mt-1 text-[10px] text-muted-foreground leading-normal">
+                                <p class="mt-1 text-[10px] leading-normal text-muted-foreground">
                                     Recorded in Finals so students reporting later aren't marked missing in Midterms.
                                 </p>
                             </button>
 
                             <button
                                 type="button"
-                                class="flex flex-col justify-between rounded-xl border p-3 text-left transition-all cursor-pointer"
+                                class="flex cursor-pointer flex-col justify-between rounded-xl border p-3 text-left transition-all"
                                 :class="
                                     form.reporting_frequency === 'twice_per_sem'
-                                        ? 'border-teal-500 bg-teal-500/10 ring-1 ring-teal-500/30 shadow-xs'
+                                        ? 'shadow-xs border-teal-500 bg-teal-500/10 ring-1 ring-teal-500/30'
                                         : 'border-border/80 bg-card hover:bg-secondary/40'
                                 "
                                 @click="form.reporting_frequency = 'twice_per_sem'"
                             >
                                 <div class="flex items-center justify-between">
                                     <span class="text-xs font-bold text-foreground">2 Reports / Sem</span>
-                                    <span v-if="form.reporting_frequency === 'twice_per_sem'" class="text-[10px] font-bold text-teal-600 dark:text-teal-400">✓ Selected</span>
+                                    <span
+                                        v-if="form.reporting_frequency === 'twice_per_sem'"
+                                        class="text-[10px] font-bold text-teal-600 dark:text-teal-400"
+                                        >✓ Selected</span
+                                    >
                                 </div>
-                                <p class="mt-1 text-[10px] text-muted-foreground leading-normal">
+                                <p class="mt-1 text-[10px] leading-normal text-muted-foreground">
                                     Students present twice: 1 oral report in Midterms and 1 oral report in Finals.
                                 </p>
                             </button>
@@ -541,17 +542,19 @@ const saveAndContinueToAi = async () => {
                     </div>
 
                     <!-- Coursework Passing Benchmarks -->
-                    <div class="rounded-2xl border border-primary/25 bg-primary/5 p-4 space-y-3">
+                    <div class="space-y-3 rounded-2xl border border-primary/25 bg-primary/5 p-4">
                         <div class="flex flex-wrap items-center justify-between gap-2">
                             <div class="flex items-center gap-2">
                                 <Target class="size-4 text-primary" />
                                 <div>
                                     <Label class="text-xs font-bold text-foreground">Coursework Passing Benchmarks (%)</Label>
-                                    <p class="text-[11px] text-muted-foreground">Default passing threshold per category applied when creating sections.</p>
+                                    <p class="text-[11px] text-muted-foreground">
+                                        Default passing threshold per category applied when creating sections.
+                                    </p>
                                 </div>
                             </div>
                             <div class="flex items-center gap-1">
-                                <span class="text-[10px] font-medium text-muted-foreground mr-1">Presets:</span>
+                                <span class="mr-1 text-[10px] font-medium text-muted-foreground">Presets:</span>
                                 <button
                                     v-for="rate in [60, 70, 75, 80]"
                                     :key="rate"
@@ -573,9 +576,9 @@ const saveAndContinueToAi = async () => {
                                     { key: 'exam', label: 'Exams' },
                                 ] as const"
                                 :key="cat.key"
-                                class="rounded-xl border border-border/80 bg-card p-2.5 shadow-2xs"
+                                class="shadow-2xs rounded-xl border border-border/80 bg-card p-2.5"
                             >
-                                <div class="flex items-center justify-between text-[11px] font-medium text-muted-foreground mb-1">
+                                <div class="mb-1 flex items-center justify-between text-[11px] font-medium text-muted-foreground">
                                     <span>{{ cat.label }}</span>
                                     <span class="font-mono text-xs font-bold text-primary">{{ form.passing_rates[cat.key] }}%</span>
                                 </div>
@@ -586,7 +589,7 @@ const saveAndContinueToAi = async () => {
                                         min="1"
                                         max="100"
                                         step="1"
-                                        class="h-8 rounded-lg bg-background text-xs font-mono font-bold pr-6 text-foreground"
+                                        class="h-8 rounded-lg bg-background pr-6 font-mono text-xs font-bold text-foreground"
                                     />
                                     <span class="pointer-events-none absolute right-2 text-xs font-semibold text-muted-foreground">%</span>
                                 </div>
@@ -595,16 +598,18 @@ const saveAndContinueToAi = async () => {
                     </div>
                 </div>
             </div>
-            
+
             <!-- STEP 3: Local AI & Hermes 3 Setup (Step index 2) -->
             <div v-else-if="currentStep === 2" class="flex-1 space-y-4 overflow-y-auto py-3 pr-1">
                 <div class="flex items-center gap-3">
-                    <div class="grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary shrink-0">
+                    <div class="grid size-12 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
                         <Bot class="size-6 text-primary" />
                     </div>
                     <div>
                         <h2 class="text-xl font-bold tracking-tight text-foreground sm:text-2xl">Octo AI & Hermes 3 Setup</h2>
-                        <p class="text-xs text-muted-foreground sm:text-sm">Choose whether you want to install and enable local AI features powered by Hermes 3.</p>
+                        <p class="text-xs text-muted-foreground sm:text-sm">
+                            Choose whether you want to install and enable local AI features powered by Hermes 3.
+                        </p>
                     </div>
                 </div>
 
@@ -613,10 +618,10 @@ const saveAndContinueToAi = async () => {
                     <!-- Choice A: YES, Install / Enable AI -->
                     <button
                         type="button"
-                        class="relative flex flex-col justify-between rounded-2xl border p-4 text-left transition-all duration-200 cursor-pointer"
+                        class="relative flex cursor-pointer flex-col justify-between rounded-2xl border p-4 text-left transition-all duration-200"
                         :class="
                             wantsAiSetup
-                                ? 'border-primary bg-primary/5 ring-2 ring-primary/20 shadow-sm'
+                                ? 'border-primary bg-primary/5 shadow-sm ring-2 ring-primary/20'
                                 : 'border-border/80 bg-card hover:border-border hover:bg-secondary/20'
                         "
                         @click="handleSelectAiChoice(true)"
@@ -636,11 +641,11 @@ const saveAndContinueToAi = async () => {
                                     Selected
                                 </span>
                             </div>
-                            <p class="text-xs text-muted-foreground leading-relaxed">
+                            <p class="text-xs leading-relaxed text-muted-foreground">
                                 Install Hermes 3 (8B) for interactive class insights, student absence lookups, and auto-grading.
                             </p>
                         </div>
-                        <div class="mt-3 flex items-center gap-1.5 font-mono text-[10px] text-primary font-medium">
+                        <div class="mt-3 flex items-center gap-1.5 font-mono text-[10px] font-medium text-primary">
                             <Zap class="size-3" />
                             <span>8GB+ RAM Recommended · 100% Offline</span>
                         </div>
@@ -649,10 +654,10 @@ const saveAndContinueToAi = async () => {
                     <!-- Choice B: NO, Skip AI -->
                     <button
                         type="button"
-                        class="relative flex flex-col justify-between rounded-2xl border p-4 text-left transition-all duration-200 cursor-pointer"
+                        class="relative flex cursor-pointer flex-col justify-between rounded-2xl border p-4 text-left transition-all duration-200"
                         :class="
                             !wantsAiSetup
-                                ? 'border-foreground/80 bg-secondary/30 ring-2 ring-foreground/10 shadow-sm'
+                                ? 'border-foreground/80 bg-secondary/30 shadow-sm ring-2 ring-foreground/10'
                                 : 'border-border/80 bg-card hover:border-border hover:bg-secondary/20'
                         "
                         @click="handleSelectAiChoice(false)"
@@ -672,11 +677,11 @@ const saveAndContinueToAi = async () => {
                                     Selected
                                 </span>
                             </div>
-                            <p class="text-xs text-muted-foreground leading-relaxed">
+                            <p class="text-xs leading-relaxed text-muted-foreground">
                                 Run ClassCheck in lightning-fast standard offline mode without downloading any AI models.
                             </p>
                         </div>
-                        <div class="mt-3 flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground font-medium">
+                        <div class="mt-3 flex items-center gap-1.5 font-mono text-[10px] font-medium text-muted-foreground">
                             <ShieldCheck class="size-3 text-emerald-600" />
                             <span>Runs on all hardware (4GB RAM)</span>
                         </div>
@@ -691,28 +696,33 @@ const saveAndContinueToAi = async () => {
                         <div v-if="isOllamaOnline && hasHermes3Model" class="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
                             <div class="flex items-start justify-between gap-3">
                                 <div class="flex items-start gap-3">
-                                    <CheckCircle2 class="size-5 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
+                                    <CheckCircle2 class="mt-0.5 size-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                                     <div>
                                         <h4 class="text-sm font-bold text-emerald-950 dark:text-emerald-200">Hermes 3 (8B) is Installed & Ready</h4>
-                                        <p class="text-xs text-emerald-800/80 dark:text-emerald-300/80 mt-0.5 leading-relaxed">
-                                            Local Ollama service and the <strong class="font-mono text-[11px]">hermes3:8b</strong> model are fully configured. Octo Copilot is ready to assist with real-time class queries.
+                                        <p class="mt-0.5 text-xs leading-relaxed text-emerald-800/80 dark:text-emerald-300/80">
+                                            Local Ollama service and the <strong class="font-mono text-[11px]">hermes3:8b</strong> model are fully
+                                            configured. Octo Copilot is ready to assist with real-time class queries.
                                         </p>
                                     </div>
                                 </div>
-                                <span class="rounded-full bg-emerald-500/20 px-2.5 py-0.5 font-mono text-[10px] font-bold text-emerald-700 dark:text-emerald-300 shrink-0">
+                                <span
+                                    class="shrink-0 rounded-full bg-emerald-500/20 px-2.5 py-0.5 font-mono text-[10px] font-bold text-emerald-700 dark:text-emerald-300"
+                                >
                                     Hermes 3 Active
                                 </span>
                             </div>
                         </div>
 
                         <!-- Case 2: Ollama Online BUT Hermes 3 is NOT installed yet -->
-                        <div v-else-if="isOllamaOnline && !hasHermes3Model" class="rounded-xl border border-border/80 bg-card p-4 space-y-3">
+                        <div v-else-if="isOllamaOnline && !hasHermes3Model" class="space-y-3 rounded-xl border border-border/80 bg-card p-4">
                             <div class="flex items-start gap-3">
-                                <Download class="size-5 text-primary mt-0.5 shrink-0" />
+                                <Download class="mt-0.5 size-5 shrink-0 text-primary" />
                                 <div>
                                     <h4 class="text-sm font-bold text-foreground">Install Hermes 3 Model (4.7 GB)</h4>
-                                    <p class="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                                        Ollama is connected on your computer. Click below to download and install the official <code class="font-mono text-[11px] bg-secondary px-1 py-0.5 rounded">hermes3:8b</code> model directly into Ollama.
+                                    <p class="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                                        Ollama is connected on your computer. Click below to download and install the official
+                                        <code class="rounded bg-secondary px-1 py-0.5 font-mono text-[11px]">hermes3:8b</code> model directly into
+                                        Ollama.
                                     </p>
                                 </div>
                             </div>
@@ -735,17 +745,16 @@ const saveAndContinueToAi = async () => {
                             </div>
 
                             <!-- Download Error Message -->
-                            <div v-if="downloadError" class="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-600 dark:text-rose-400">
+                            <div
+                                v-if="downloadError"
+                                class="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-600 dark:text-rose-400"
+                            >
                                 {{ downloadError }}
                             </div>
 
                             <!-- Install Button -->
                             <div v-if="!isPullingModel" class="flex items-center gap-2 pt-1">
-                                <Button
-                                    type="button"
-                                    class="ink-button !h-9 !rounded-lg !px-4 text-xs font-semibold"
-                                    @click="handleDownloadHermes"
-                                >
+                                <Button type="button" class="ink-button !h-9 !rounded-lg !px-4 text-xs font-semibold" @click="handleDownloadHermes">
                                     <Download class="mr-1.5 size-3.5" />
                                     <span>Download & Install Hermes 3</span>
                                 </Button>
@@ -753,13 +762,14 @@ const saveAndContinueToAi = async () => {
                         </div>
 
                         <!-- Case 3: Ollama is NOT running or NOT installed -->
-                        <div v-else class="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 space-y-3">
+                        <div v-else class="space-y-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
                             <div class="flex items-start gap-3">
-                                <AlertTriangle class="size-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                                <AlertTriangle class="mt-0.5 size-5 shrink-0 text-amber-600 dark:text-amber-400" />
                                 <div>
                                     <h4 class="text-sm font-bold text-amber-950 dark:text-amber-200">Ollama Not Running on This PC</h4>
-                                    <p class="text-xs text-amber-800/80 dark:text-amber-300/80 mt-0.5 leading-relaxed">
-                                        To run Hermes 3 offline on your hardware, Ollama must be installed. You can download the official Windows installer below.
+                                    <p class="mt-0.5 text-xs leading-relaxed text-amber-800/80 dark:text-amber-300/80">
+                                        To run Hermes 3 offline on your hardware, Ollama must be installed. You can download the official Windows
+                                        installer below.
                                     </p>
                                 </div>
                             </div>
@@ -793,15 +803,16 @@ const saveAndContinueToAi = async () => {
                     </div>
 
                     <!-- IF NO: Skip AI Selected -->
-                    <div v-else class="rounded-xl border border-border/80 bg-card p-4 space-y-2">
+                    <div v-else class="space-y-2 rounded-xl border border-border/80 bg-card p-4">
                         <div class="flex items-center gap-2.5">
                             <ShieldCheck class="size-5 text-emerald-600" />
                             <h4 class="text-sm font-bold text-foreground">Standard Offline Mode Configured</h4>
                         </div>
-                        <p class="text-xs text-muted-foreground leading-relaxed">
-                            No models will be downloaded and no background AI processes will run. All core features (interactive seating layout, 1-tap roll call, oral participation, and weighted gradebook computation) will operate with zero network dependency.
+                        <p class="text-xs leading-relaxed text-muted-foreground">
+                            No models will be downloaded and no background AI processes will run. All core features (interactive seating layout, 1-tap
+                            roll call, oral participation, and weighted gradebook computation) will operate with zero network dependency.
                         </p>
-                        <p class="text-[11px] text-muted-foreground/80 italic pt-1">
+                        <p class="pt-1 text-[11px] italic text-muted-foreground/80">
                             Note: You can install Ollama and enable Hermes 3 anytime from Settings.
                         </p>
                     </div>
@@ -817,7 +828,7 @@ const saveAndContinueToAi = async () => {
                         :key="guide.id"
                         type="button"
                         class="flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-center text-xs font-medium transition-colors"
-                        :class="activeGuideTab === gIdx ? 'bg-card text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'"
+                        :class="activeGuideTab === gIdx ? 'shadow-xs bg-card text-foreground' : 'text-muted-foreground hover:text-foreground'"
                         @click="activeGuideTab = gIdx"
                     >
                         <component :is="guide.icon" class="size-3.5" />
@@ -844,7 +855,9 @@ const saveAndContinueToAi = async () => {
                     <!-- Pillar 0: Seating Grid -->
                     <div v-if="activeGuideTab === 0" class="space-y-3 py-1">
                         <div class="rounded-xl border border-zinc-800 bg-zinc-900/80 p-3 text-center">
-                            <div class="mx-auto flex max-w-xs items-center justify-center gap-2 rounded-lg border border-zinc-700 bg-zinc-800/90 py-1 font-mono text-[11px] font-semibold text-zinc-300">
+                            <div
+                                class="mx-auto flex max-w-xs items-center justify-center gap-2 rounded-lg border border-zinc-700 bg-zinc-800/90 py-1 font-mono text-[11px] font-semibold text-zinc-300"
+                            >
                                 <span>FRONT PODIUM / WHITEBOARD</span>
                             </div>
                             <div class="mt-3 grid grid-cols-4 gap-2">
@@ -924,7 +937,7 @@ const saveAndContinueToAi = async () => {
                 <!-- Text Breakdown for Selected Pillar -->
                 <div>
                     <h3 class="text-base font-bold text-foreground">{{ guideTabs[activeGuideTab].title }}</h3>
-                    <p class="mt-1 text-xs text-muted-foreground leading-relaxed">{{ guideTabs[activeGuideTab].description }}</p>
+                    <p class="mt-1 text-xs leading-relaxed text-muted-foreground">{{ guideTabs[activeGuideTab].description }}</p>
                 </div>
 
                 <div class="grid gap-2 sm:grid-cols-3">
@@ -934,10 +947,10 @@ const saveAndContinueToAi = async () => {
                         class="rounded-xl border border-border/70 bg-secondary/25 p-3"
                     >
                         <div class="flex items-center gap-1.5">
-                            <CheckCircle2 class="size-3 text-primary shrink-0" />
+                            <CheckCircle2 class="size-3 shrink-0 text-primary" />
                             <h4 class="text-xs font-semibold text-foreground">{{ item.title }}</h4>
                         </div>
-                        <p class="mt-1 text-[11px] text-muted-foreground leading-normal">{{ item.text }}</p>
+                        <p class="mt-1 text-[11px] leading-normal text-muted-foreground">{{ item.text }}</p>
                     </div>
                 </div>
             </div>
@@ -950,12 +963,14 @@ const saveAndContinueToAi = async () => {
                     </div>
                     <div>
                         <h2 class="text-xl font-bold tracking-tight text-foreground sm:text-2xl">You're All Set!</h2>
-                        <p class="text-xs text-muted-foreground sm:text-sm">Your teacher profile, active semester, and preferences are ready. Let's create your first section.</p>
+                        <p class="text-xs text-muted-foreground sm:text-sm">
+                            Your teacher profile, active semester, and preferences are ready. Let's create your first section.
+                        </p>
                     </div>
                 </div>
 
                 <!-- Summary Card -->
-                <div class="rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card to-primary/5 p-5 shadow-sm space-y-3.5">
+                <div class="space-y-3.5 rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card to-primary/5 p-5 shadow-sm">
                     <div class="flex items-center justify-between border-b border-border/60 pb-3">
                         <div class="flex items-center gap-2">
                             <User class="size-4 text-primary" />
@@ -1050,12 +1065,7 @@ const saveAndContinueToAi = async () => {
                     </Button>
 
                     <!-- Step 0 Action -->
-                    <Button
-                        v-if="currentStep === 0"
-                        type="button"
-                        class="ink-button !h-9 !rounded-lg !px-4 text-xs font-medium"
-                        @click="goToStep(1)"
-                    >
+                    <Button v-if="currentStep === 0" type="button" class="ink-button !h-9 !rounded-lg !px-4 text-xs font-medium" @click="goToStep(1)">
                         <span>Next: Semester</span>
                         <ArrowRight class="ml-1.5 size-3.5" />
                     </Button>
@@ -1097,18 +1107,13 @@ const saveAndContinueToAi = async () => {
 
                     <!-- Step 4 Actions: Primary Create Section CTA + Secondary Close -->
                     <div v-else class="flex items-center gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            class="h-9 rounded-lg px-3 text-xs font-medium"
-                            @click="emit('close')"
-                        >
+                        <Button type="button" variant="outline" class="h-9 rounded-lg px-3 text-xs font-medium" @click="emit('close')">
                             <span>Dashboard</span>
                         </Button>
 
                         <Link
                             href="/sections/create"
-                            class="ink-button !h-9 !rounded-lg !px-4 text-xs font-bold shadow-sm hover:scale-[1.02] transition-all"
+                            class="ink-button !h-9 !rounded-lg !px-4 text-xs font-bold shadow-sm transition-all hover:scale-[1.02]"
                             @click="emit('close')"
                         >
                             <PlusCircle class="mr-1.5 size-4" />

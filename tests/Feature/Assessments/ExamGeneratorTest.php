@@ -8,11 +8,8 @@ use App\Models\CourseModule;
 use App\Models\Section;
 use App\Models\User;
 use App\Services\Autochecker\ExamGeneratorService;
-use App\Services\Autochecker\FileContentExtractorService;
-use App\Services\Autochecker\OllamaClient;
 use Generator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -21,8 +18,11 @@ class ExamGeneratorTest extends TestCase
     use RefreshDatabase;
 
     private User $teacher;
+
     private Section $section;
+
     private CourseModule $module1;
+
     private CourseModule $module2;
 
     protected function setUp(): void

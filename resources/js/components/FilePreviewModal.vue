@@ -60,7 +60,7 @@ const openFolderLocation = async () => {
                 file_name: props.fileName,
             }),
         });
-        const data = await response.json();
+        await response.json();
         folderOpened.value = true;
         setTimeout(() => {
             folderOpened.value = false;

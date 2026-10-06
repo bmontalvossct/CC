@@ -50,8 +50,7 @@ class DockerSandboxRunner
     /**
      * Run Python test suite against student submission inside an isolated, non-root container.
      *
-     * @param string $studentCode
-     * @param array<int, array{name: string, stdin?: string, expected_output?: string, points: float}> $testCases
+     * @param  array<int, array{name: string, stdin?: string, expected_output?: string, points: float}>  $testCases
      * @return array{
      *     success: bool,
      *     total_points_earned: float,
@@ -76,7 +75,7 @@ class DockerSandboxRunner
             ];
         }
 
-        $tempDir = storage_path('app/temp/sandbox_' . uniqid('', true));
+        $tempDir = storage_path('app/temp/sandbox_'.uniqid('', true));
         if (! @mkdir($tempDir, 0755, true)) {
             return [
                 'success' => false,
@@ -158,7 +157,7 @@ class DockerSandboxRunner
                 'error' => null,
             ];
         } catch (Exception $e) {
-            Log::warning("DockerSandboxRunner execution failed: " . $e->getMessage());
+            Log::warning('DockerSandboxRunner execution failed: '.$e->getMessage());
 
             return [
                 'success' => false,
@@ -167,7 +166,7 @@ class DockerSandboxRunner
                 'passed_count' => $passed,
                 'total_tests' => count($testCases),
                 'test_results' => $results,
-                'error' => 'Test execution error: ' . $e->getMessage(),
+                'error' => 'Test execution error: '.$e->getMessage(),
             ];
         } finally {
             // Clean up temporary sandbox directory

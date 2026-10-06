@@ -15,6 +15,7 @@ class ExamDocxExportTest extends TestCase
     use RefreshDatabase;
 
     private User $teacher;
+
     private Section $section;
 
     protected function setUp(): void
@@ -96,7 +97,7 @@ MD;
         $tempFile = tempnam(sys_get_temp_dir(), 'docx_test_');
         file_put_contents($tempFile, $binaryContent);
 
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         $opened = $zip->open($tempFile);
         $this->assertTrue($opened === true, 'Response is not a valid zip archive');
         $this->assertNotEmpty($zip->getFromName('word/document.xml'), 'DOCX must contain word/document.xml');
@@ -106,8 +107,8 @@ MD;
 
     public function test_teacher_can_export_exam_with_answer_key(): void
     {
-        $sampleExam = "1. Question 1 stem";
-        $answerKey = "1. Answer 1 explanation";
+        $sampleExam = '1. Question 1 stem';
+        $answerKey = '1. Answer 1 explanation';
 
         $response = $this->actingAs($this->teacher)
             ->post(route('sections.exam-generator.export-docx', $this->section), [

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\SectionFolderService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -44,7 +45,7 @@ class Section extends Model
 
         static::created(function (Section $section) {
             try {
-                app(\App\Services\SectionFolderService::class)->ensureSectionFolders($section);
+                app(SectionFolderService::class)->ensureSectionFolders($section);
             } catch (\Throwable) {
                 // Ignore storage errors during testing or CLI
             }
@@ -53,7 +54,7 @@ class Section extends Model
         static::updated(function (Section $section) {
             if ($section->wasChanged(['subject_code', 'name'])) {
                 try {
-                    app(\App\Services\SectionFolderService::class)->handleSectionRenamed(
+                    app(SectionFolderService::class)->handleSectionRenamed(
                         $section,
                         $section->getOriginal('subject_code'),
                         $section->getOriginal('name')
@@ -70,7 +71,7 @@ class Section extends Model
      */
     public function ensureFolders(): array
     {
-        return app(\App\Services\SectionFolderService::class)->ensureSectionFolders($this);
+        return app(SectionFolderService::class)->ensureSectionFolders($this);
     }
 
     /**
@@ -78,7 +79,7 @@ class Section extends Model
      */
     public function getFolderNameAttribute(): string
     {
-        return app(\App\Services\SectionFolderService::class)->getFolderName($this);
+        return app(SectionFolderService::class)->getFolderName($this);
     }
 
     public function user(): BelongsTo

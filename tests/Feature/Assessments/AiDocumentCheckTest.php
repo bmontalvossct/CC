@@ -11,6 +11,7 @@ use App\Models\ProjectGroupMember;
 use App\Models\Section;
 use App\Models\Student;
 use App\Models\User;
+use App\Services\Autochecker\AiDocumentGraderService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -21,7 +22,9 @@ class AiDocumentCheckTest extends TestCase
     use RefreshDatabase;
 
     private User $user;
+
     private Section $section;
+
     private Student $student;
 
     protected function setUp(): void
@@ -55,7 +58,7 @@ class AiDocumentCheckTest extends TestCase
             'gender' => 'male',
         ]);
 
-        $mockGrader = $this->createMock(\App\Services\Autochecker\AiDocumentGraderService::class);
+        $mockGrader = $this->createMock(AiDocumentGraderService::class);
         $mockGrader->method('gradeAssessmentSubmission')->willReturn([
             'score' => 95.0,
             'remarks' => 'Clean form structure with proper semantic HTML tags.',
@@ -71,7 +74,7 @@ class AiDocumentCheckTest extends TestCase
             'remarks' => 'Clear presentation slides.',
             'student_id' => $this->student->id,
         ]);
-        $this->app->instance(\App\Services\Autochecker\AiDocumentGraderService::class, $mockGrader);
+        $this->app->instance(AiDocumentGraderService::class, $mockGrader);
     }
 
     public function test_ai_check_scores_and_remarks_for_assessment_submission(): void

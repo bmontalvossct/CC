@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { ArrowLeft, CalendarDays, Copy, FolderKanban, History, LoaderCircle, Plus, Trash2, Users } from 'lucide-vue-next';
+import { ArrowLeft, CalendarDays, Copy, FolderKanban, LoaderCircle, Plus, Trash2, Users } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
 type Project = {
@@ -265,38 +265,44 @@ const submit = () => {
                     </label>
 
                     <template v-if="form.format !== 'individual'">
-                        <div class="lg:col-span-12 rounded-2xl border border-border/80 bg-secondary/20 p-4">
-                            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border/60 pb-3">
+                        <div class="rounded-2xl border border-border/80 bg-secondary/20 p-4 lg:col-span-12">
+                            <div class="flex flex-col gap-3 border-b border-border/60 pb-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
-                                    <h4 class="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                                    <h4 class="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-foreground">
                                         <Users class="size-3.5 text-primary" />
                                         <span>Group Assignment Setup</span>
                                     </h4>
-                                    <p class="text-[11px] text-muted-foreground mt-0.5">
-                                        Choose how students should be grouped for this activity.
-                                    </p>
+                                    <p class="mt-0.5 text-[11px] text-muted-foreground">Choose how students should be grouped for this activity.</p>
                                 </div>
 
-                                <div class="flex flex-wrap items-center gap-1.5 rounded-xl bg-background/80 p-1 border border-border/60">
+                                <div class="flex flex-wrap items-center gap-1.5 rounded-xl border border-border/60 bg-background/80 p-1">
                                     <button
                                         type="button"
                                         class="rounded-lg px-2.5 py-1 text-xs font-semibold transition-all"
-                                        :class="groupSetupMode === 'random' ? 'bg-primary text-white shadow-xs' : 'text-muted-foreground hover:text-foreground'"
+                                        :class="
+                                            groupSetupMode === 'random'
+                                                ? 'shadow-xs bg-primary text-white'
+                                                : 'text-muted-foreground hover:text-foreground'
+                                        "
                                         @click="groupSetupMode = 'random'"
                                     >
                                         Auto-Assign (Random)
                                     </button>
                                     <button
                                         type="button"
-                                        class="rounded-lg px-2.5 py-1 text-xs font-semibold transition-all flex items-center gap-1"
-                                        :class="groupSetupMode === 'previous' ? 'bg-primary text-white shadow-xs' : 'text-muted-foreground hover:text-foreground'"
+                                        class="flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold transition-all"
+                                        :class="
+                                            groupSetupMode === 'previous'
+                                                ? 'shadow-xs bg-primary text-white'
+                                                : 'text-muted-foreground hover:text-foreground'
+                                        "
                                         @click="groupSetupMode = 'previous'"
                                     >
                                         <Copy class="size-3" />
                                         <span>Use Previous Grouping</span>
                                         <span
                                             v-if="availableGroupProjects && availableGroupProjects.length > 0"
-                                            class="ml-1 rounded-full px-1.5 py-0.2 font-mono text-[9px] font-bold"
+                                            class="py-0.2 ml-1 rounded-full px-1.5 font-mono text-[9px] font-bold"
                                             :class="groupSetupMode === 'previous' ? 'bg-white/20 text-white' : 'bg-primary/10 text-primary'"
                                         >
                                             {{ availableGroupProjects.length }}
@@ -305,7 +311,11 @@ const submit = () => {
                                     <button
                                         type="button"
                                         class="rounded-lg px-2.5 py-1 text-xs font-semibold transition-all"
-                                        :class="groupSetupMode === 'empty' ? 'bg-primary text-white shadow-xs' : 'text-muted-foreground hover:text-foreground'"
+                                        :class="
+                                            groupSetupMode === 'empty'
+                                                ? 'shadow-xs bg-primary text-white'
+                                                : 'text-muted-foreground hover:text-foreground'
+                                        "
                                         @click="groupSetupMode = 'empty'"
                                     >
                                         Empty Slots
@@ -314,9 +324,11 @@ const submit = () => {
                             </div>
 
                             <!-- Mode 1: Auto-assign Random -->
-                            <div v-if="groupSetupMode === 'random'" class="mt-3.5 grid gap-4 sm:grid-cols-12 items-center">
+                            <div v-if="groupSetupMode === 'random'" class="mt-3.5 grid items-center gap-4 sm:grid-cols-12">
                                 <label class="sm:col-span-4">
-                                    <span class="mb-1 block text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Number of Groups</span>
+                                    <span class="mb-1 block text-[11px] font-bold uppercase tracking-wider text-muted-foreground"
+                                        >Number of Groups</span
+                                    >
                                     <input
                                         v-model.number="form.group_count"
                                         type="number"
@@ -325,33 +337,44 @@ const submit = () => {
                                         class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
                                     />
                                 </label>
-                                <div class="sm:col-span-8 text-xs text-muted-foreground pt-3 sm:pt-0">
+                                <div class="pt-3 text-xs text-muted-foreground sm:col-span-8 sm:pt-0">
                                     <p class="font-medium text-foreground">Fair Balanced Random Distribution</p>
-                                    <p class="text-[11px] mt-0.5">Active students in the section will be evenly distributed across {{ form.group_count || 4 }} groups.</p>
+                                    <p class="mt-0.5 text-[11px]">
+                                        Active students in the section will be evenly distributed across {{ form.group_count || 4 }} groups.
+                                    </p>
                                 </div>
                             </div>
 
                             <!-- Mode 2: Use Grouping from Previous Activity -->
                             <div v-else-if="groupSetupMode === 'previous'" class="mt-3.5 space-y-3">
-                                <div v-if="!availableGroupProjects || availableGroupProjects.length === 0" class="rounded-xl border border-dashed border-border/80 bg-background/50 p-4 text-center text-xs text-muted-foreground">
+                                <div
+                                    v-if="!availableGroupProjects || availableGroupProjects.length === 0"
+                                    class="rounded-xl border border-dashed border-border/80 bg-background/50 p-4 text-center text-xs text-muted-foreground"
+                                >
                                     <p class="font-medium text-foreground">No previous group activities found in this section.</p>
-                                    <p class="text-[11px] mt-0.5">Create your first group activity using Auto-Assign, and you will be able to reuse its roster for future activities.</p>
+                                    <p class="mt-0.5 text-[11px]">
+                                        Create your first group activity using Auto-Assign, and you will be able to reuse its roster for future
+                                        activities.
+                                    </p>
                                 </div>
                                 <div v-else class="grid gap-4 sm:grid-cols-12">
                                     <label class="sm:col-span-6">
-                                        <span class="mb-1 block text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Select Previous Activity</span>
+                                        <span class="mb-1 block text-[11px] font-bold uppercase tracking-wider text-muted-foreground"
+                                            >Select Previous Activity</span
+                                        >
                                         <select
                                             v-model="selectedSourceProjectId"
                                             class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
                                         >
                                             <option value="" disabled>Choose an activity to copy groups from...</option>
                                             <option v-for="prev in availableGroupProjects" :key="prev.id" :value="prev.id">
-                                                {{ prev.title }} ({{ prev.groups_count }} groups · {{ prev.members_count }} students · {{ formatDate(prev.conducted_on) }})
+                                                {{ prev.title }} ({{ prev.groups_count }} groups · {{ prev.members_count }} students ·
+                                                {{ formatDate(prev.conducted_on) }})
                                             </option>
                                         </select>
                                     </label>
 
-                                    <div class="sm:col-span-6 flex flex-col justify-end gap-2 text-xs">
+                                    <div class="flex flex-col justify-end gap-2 text-xs sm:col-span-6">
                                         <label class="flex cursor-pointer items-center gap-2 font-medium text-foreground">
                                             <input
                                                 v-model="form.copy_names"
@@ -371,22 +394,35 @@ const submit = () => {
                                     </div>
 
                                     <!-- Preview Roster Box if selected -->
-                                    <div v-if="selectedSourceProject" class="sm:col-span-12 rounded-xl border border-primary/20 bg-primary/5 p-3 duration-150 animate-in fade-in">
-                                        <div class="flex items-center justify-between border-b border-primary/10 pb-2 text-xs font-semibold text-primary">
+                                    <div
+                                        v-if="selectedSourceProject"
+                                        class="rounded-xl border border-primary/20 bg-primary/5 p-3 duration-150 animate-in fade-in sm:col-span-12"
+                                    >
+                                        <div
+                                            class="flex items-center justify-between border-b border-primary/10 pb-2 text-xs font-semibold text-primary"
+                                        >
                                             <span>Roster Preview: {{ selectedSourceProject.title }}</span>
-                                            <span>{{ selectedSourceProject.groups_count }} groups · {{ selectedSourceProject.members_count }} assigned students</span>
+                                            <span
+                                                >{{ selectedSourceProject.groups_count }} groups · {{ selectedSourceProject.members_count }} assigned
+                                                students</span
+                                            >
                                         </div>
-                                        <div class="mt-2.5 flex flex-wrap gap-2 max-h-36 overflow-y-auto pr-1">
+                                        <div class="mt-2.5 flex max-h-36 flex-wrap gap-2 overflow-y-auto pr-1">
                                             <div
                                                 v-for="grp in selectedSourceProject.groups"
                                                 :key="grp.id"
-                                                class="rounded-lg border border-border/80 bg-background px-2.5 py-1.5 text-[11px] shadow-2xs min-w-[140px]"
+                                                class="shadow-2xs min-w-[140px] rounded-lg border border-border/80 bg-background px-2.5 py-1.5 text-[11px]"
                                             >
                                                 <div class="font-bold text-foreground">{{ grp.name }}</div>
-                                                <div class="text-[10px] text-muted-foreground mt-0.5">
+                                                <div class="mt-0.5 text-[10px] text-muted-foreground">
                                                     {{ grp.members.length }} members:
-                                                    <span class="truncate block text-foreground/80">
-                                                        {{ grp.members.map((m) => m.full_name).slice(0, 3).join(', ') }}{{ grp.members.length > 3 ? '...' : '' }}
+                                                    <span class="block truncate text-foreground/80">
+                                                        {{
+                                                            grp.members
+                                                                .map((m) => m.full_name)
+                                                                .slice(0, 3)
+                                                                .join(', ')
+                                                        }}{{ grp.members.length > 3 ? '...' : '' }}
                                                     </span>
                                                 </div>
                                             </div>
@@ -396,9 +432,11 @@ const submit = () => {
                             </div>
 
                             <!-- Mode 3: Empty Slots -->
-                            <div v-else class="mt-3.5 grid gap-4 sm:grid-cols-12 items-center">
+                            <div v-else class="mt-3.5 grid items-center gap-4 sm:grid-cols-12">
                                 <label class="sm:col-span-4">
-                                    <span class="mb-1 block text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Number of Empty Groups</span>
+                                    <span class="mb-1 block text-[11px] font-bold uppercase tracking-wider text-muted-foreground"
+                                        >Number of Empty Groups</span
+                                    >
                                     <input
                                         v-model.number="form.group_count"
                                         type="number"
@@ -407,9 +445,12 @@ const submit = () => {
                                         class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
                                     />
                                 </label>
-                                <div class="sm:col-span-8 text-xs text-muted-foreground pt-3 sm:pt-0">
+                                <div class="pt-3 text-xs text-muted-foreground sm:col-span-8 sm:pt-0">
                                     <p class="font-medium text-foreground">Empty Group Placeholders</p>
-                                    <p class="text-[11px] mt-0.5">{{ form.group_count || 4 }} empty groups will be created. You can drag and drop or manually assign students inside the activity.</p>
+                                    <p class="mt-0.5 text-[11px]">
+                                        {{ form.group_count || 4 }} empty groups will be created. You can drag and drop or manually assign students
+                                        inside the activity.
+                                    </p>
                                 </div>
                             </div>
                         </div>

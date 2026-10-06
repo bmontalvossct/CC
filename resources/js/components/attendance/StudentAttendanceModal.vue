@@ -198,7 +198,7 @@ const formatStudentDisplayName = (student: StudentSummary | { name?: string; fir
                     <div class="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-3 text-center">
                         <span class="block text-xs font-semibold uppercase tracking-wider text-indigo-700 dark:text-indigo-400">Excused</span>
                         <p class="mt-1 font-mono text-2xl font-semibold text-indigo-700 dark:text-indigo-400">
-                            {{ student.excused_count ?? (student.excused_days?.length ?? 0) }}
+                            {{ student.excused_count ?? student.excused_days?.length ?? 0 }}
                         </p>
                         <span class="text-xs text-muted-foreground">sessions</span>
                     </div>

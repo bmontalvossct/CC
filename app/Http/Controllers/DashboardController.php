@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AcademicTerm;
 use App\Models\Section;
+use App\Services\GradebookCalculationService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -127,7 +130,7 @@ class DashboardController extends Controller
         ]);
     }
 
-    public function saveQuickSetup(Request $request): \Illuminate\Http\JsonResponse
+    public function saveQuickSetup(Request $request): JsonResponse
     {
         $user = $request->user();
 
@@ -161,7 +164,7 @@ class DashboardController extends Controller
         $startsOn = $data['starts_on'] ?? now()->startOfMonth()->toDateString();
         $endsOn = $data['ends_on'] ?? now()->addMonths(5)->endOfMonth()->toDateString();
 
-        $term = \App\Models\AcademicTerm::resolveForUser($user->id, [
+        $term = AcademicTerm::resolveForUser($user->id, [
             'name' => $data['term_name'],
             'school_year' => $data['school_year'],
             'starts_on' => $startsOn,
@@ -180,7 +183,7 @@ class DashboardController extends Controller
                 'starts_on' => $term->starts_on?->format('Y-m-d'),
                 'ends_on' => $term->ends_on?->format('Y-m-d'),
             ],
-            'passing_rates' => $data['passing_rates'] ?? \App\Services\GradebookCalculationService::DEFAULT_PASSING_RATES,
+            'passing_rates' => $data['passing_rates'] ?? GradebookCalculationService::DEFAULT_PASSING_RATES,
         ]);
     }
 }

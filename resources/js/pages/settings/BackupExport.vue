@@ -208,7 +208,8 @@ const formatBytes = (bytes: number): string => {
                     <div class="mt-6 pt-2">
                         <h4 class="mb-1 text-sm font-semibold text-foreground">Restore or Sync from Backup File</h4>
                         <p class="mb-4 text-xs text-muted-foreground">
-                            Upload an exported <code class="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">classcheck_backup_*.json</code> or raw SQLite database <code class="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">classcheck_db_*.sqlite</code> file to
+                            Upload an exported <code class="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">classcheck_backup_*.json</code> or raw
+                            SQLite database <code class="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">classcheck_db_*.sqlite</code> file to
                             restore terms, sections, rosters, attendance, recitations, and grades.
                         </p>
 

@@ -7,7 +7,6 @@ use App\Models\AcademicTerm;
 use App\Models\Section;
 use App\Models\Student;
 use App\Services\BackupExportService;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -82,7 +81,7 @@ class BackupExportController extends Controller
     {
         $sqlitePath = config('database.connections.sqlite.database');
 
-        if (!file_exists($sqlitePath)) {
+        if (! file_exists($sqlitePath)) {
             abort(404, 'SQLite database file not found.');
         }
 
@@ -110,12 +109,12 @@ class BackupExportController extends Controller
     {
         $sqlitePath = config('database.connections.sqlite.database');
 
-        if (!file_exists($sqlitePath)) {
+        if (! file_exists($sqlitePath)) {
             return back()->with('error', 'SQLite database file not found on local disk.');
         }
 
         $backupDir = database_path('backups');
-        if (!is_dir($backupDir)) {
+        if (! is_dir($backupDir)) {
             mkdir($backupDir, 0755, true);
         }
 
@@ -154,6 +153,7 @@ class BackupExportController extends Controller
                         $data = $this->backupService->extractSqliteData($file->getRealPath());
                     } else {
                         $jsonErr = json_last_error_msg() ?: 'Invalid syntax';
+
                         return back()->withErrors(['backup_file' => "The uploaded file is not a valid JSON or SQLite backup. ({$jsonErr})"]);
                     }
                 }

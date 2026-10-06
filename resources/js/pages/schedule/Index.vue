@@ -409,7 +409,10 @@ const daysWithEvents = computed(() => {
 
                                     <div class="mt-0.5 flex items-center justify-between text-[10px]">
                                         <!-- Course code / title second -->
-                                        <span class="truncate text-muted-foreground group-hover/item:text-primary font-medium" :title="cls.subject_title || cls.subject_code">
+                                        <span
+                                            class="truncate font-medium text-muted-foreground group-hover/item:text-primary"
+                                            :title="cls.subject_title || cls.subject_code"
+                                        >
                                             {{ cls.subject_title || cls.subject_code }}
                                         </span>
 

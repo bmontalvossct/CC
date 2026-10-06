@@ -10,10 +10,13 @@ use App\Models\ProjectGroup;
 use App\Models\ProjectGroupMember;
 use App\Models\Section;
 use App\Models\Student;
+use App\Services\Autochecker\AiDocumentGraderService;
+use App\Services\SectionFolderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -109,7 +112,7 @@ class ProjectController extends AssessmentModuleController
 
         if ($request->hasFile('attachment')) {
             $file = $request->file('attachment');
-            $stored = app(\App\Services\SectionFolderService::class)->storeProjectAttachment(
+            $stored = app(SectionFolderService::class)->storeProjectAttachment(
                 $section,
                 $file,
                 $data['type'] ?? 'project',
@@ -148,7 +151,7 @@ class ProjectController extends AssessmentModuleController
                 foreach ($activeStudents as $index => $student) {
                     $group = $project->groups()->create([
                         'group_number' => $index + 1,
-                        'name' => $student->full_name ?: "Student ".($index + 1),
+                        'name' => $student->full_name ?: 'Student '.($index + 1),
                         'order_column' => $index + 1,
                     ]);
                     $group->members()->create([
@@ -365,7 +368,7 @@ class ProjectController extends AssessmentModuleController
             }
             $file = $request->file('attachment');
             $type = $data['type'] ?? $project->type;
-            $stored = app(\App\Services\SectionFolderService::class)->storeProjectAttachment(
+            $stored = app(SectionFolderService::class)->storeProjectAttachment(
                 $section,
                 $file,
                 $type,
@@ -433,7 +436,7 @@ class ProjectController extends AssessmentModuleController
         abort_unless($fullPath && file_exists($fullPath), 404, 'Attachment file not found on disk.');
 
         $name = $project->attachment_name ?: basename($path);
-        $mime = $project->attachment_mime ?: (\Illuminate\Support\Facades\File::mimeType($fullPath) ?: 'application/octet-stream');
+        $mime = $project->attachment_mime ?: (File::mimeType($fullPath) ?: 'application/octet-stream');
 
         if ($request->boolean('download') || $request->has('download')) {
             return response()->download($fullPath, $name, [
@@ -463,7 +466,7 @@ class ProjectController extends AssessmentModuleController
         }
 
         $file = $request->file('attachment');
-        $stored = app(\App\Services\SectionFolderService::class)->storeProjectAttachment(
+        $stored = app(SectionFolderService::class)->storeProjectAttachment(
             $section,
             $file,
             $project->type,
@@ -513,9 +516,8 @@ class ProjectController extends AssessmentModuleController
             'attachment.extensions' => 'The attachment must be a valid file type.',
         ]);
 
-
         $file = $request->file('attachment');
-        $stored = app(\App\Services\SectionFolderService::class)->storeGroupProjectOutput($section, $project, $group, $file);
+        $stored = app(SectionFolderService::class)->storeGroupProjectOutput($section, $project, $group, $file);
 
         $group->update([
             'attachment_path' => $stored['path'],
@@ -587,7 +589,7 @@ class ProjectController extends AssessmentModuleController
         abort_unless($fullPath && file_exists($fullPath), 404, 'Group output file not found on disk.');
 
         $name = $group->attachment_name ?: basename($path);
-        $mime = $group->attachment_mime ?: (\Illuminate\Support\Facades\File::mimeType($fullPath) ?: 'application/octet-stream');
+        $mime = $group->attachment_mime ?: (File::mimeType($fullPath) ?: 'application/octet-stream');
 
         if ($request->boolean('download') || $request->has('download')) {
             return response()->download($fullPath, $name, [
@@ -621,9 +623,8 @@ class ProjectController extends AssessmentModuleController
             'attachment.extensions' => 'The attachment must be a valid file type.',
         ]);
 
-
         $file = $request->file('attachment');
-        $stored = app(\App\Services\SectionFolderService::class)->storeStudentProjectOutput($section, $project, $student, $file);
+        $stored = app(SectionFolderService::class)->storeStudentProjectOutput($section, $project, $student, $file);
 
         $member->fill([
             'attachment_path' => $stored['path'],
@@ -703,7 +704,7 @@ class ProjectController extends AssessmentModuleController
         abort_unless($fullPath && file_exists($fullPath), 404, 'Student output file not found on disk.');
 
         $name = $member->attachment_name ?: basename($path);
-        $mime = $member->attachment_mime ?: (\Illuminate\Support\Facades\File::mimeType($fullPath) ?: 'application/octet-stream');
+        $mime = $member->attachment_mime ?: (File::mimeType($fullPath) ?: 'application/octet-stream');
 
         if ($request->boolean('download') || $request->has('download')) {
             return response()->download($fullPath, $name, [
@@ -1286,7 +1287,7 @@ class ProjectController extends AssessmentModuleController
         Section $section,
         Project $project,
         ProjectGroup $group,
-        \App\Services\Autochecker\AiDocumentGraderService $aiGrader,
+        AiDocumentGraderService $aiGrader,
     ): JsonResponse {
         $this->authorizeProject($section, $project);
         abort_unless((int) $group->project_id === (int) $project->id, 404);
@@ -1331,7 +1332,7 @@ class ProjectController extends AssessmentModuleController
         Project $project,
         ProjectGroup $group,
         Student $student,
-        \App\Services\Autochecker\AiDocumentGraderService $aiGrader,
+        AiDocumentGraderService $aiGrader,
     ): JsonResponse {
         $this->authorizeProject($section, $project);
         abort_unless((int) $group->project_id === (int) $project->id, 404);
@@ -1400,7 +1401,7 @@ class ProjectController extends AssessmentModuleController
             if ($project->attachment_path) {
                 Storage::disk('local')->delete($project->attachment_path);
             }
-            $stored = app(\App\Services\SectionFolderService::class)->storeProjectAttachment(
+            $stored = app(SectionFolderService::class)->storeProjectAttachment(
                 $section,
                 $request->file('attachment'),
                 $project->type ?? 'project',
@@ -1439,13 +1440,13 @@ class ProjectController extends AssessmentModuleController
         $fileName = null;
 
         if ($project->attachment_path) {
-            $grader = app(\App\Services\Autochecker\AiDocumentGraderService::class);
+            $grader = app(AiDocumentGraderService::class);
             $filePath = $grader->resolveFilePath($project->attachment_path);
             $fileName = $project->attachment_name;
         }
 
         try {
-            $grader = app(\App\Services\Autochecker\AiDocumentGraderService::class);
+            $grader = app(AiDocumentGraderService::class);
             $result = $grader->studyRubricDocument(
                 filePath: $filePath,
                 fileName: $fileName,

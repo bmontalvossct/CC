@@ -36,7 +36,7 @@ const tabs = [
             <motion.div
                 v-if="appearance === value"
                 layout-id="appearance-active-tab"
-                class="absolute inset-0 rounded-md bg-white shadow-xs dark:bg-neutral-700"
+                class="shadow-xs absolute inset-0 rounded-md bg-white dark:bg-neutral-700"
                 :transition="tabIndicatorTransition"
             />
             <span class="relative z-10 flex items-center">

@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Models\AcademicTerm;
+use App\Models\Section;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -77,7 +79,7 @@ class OfflineModeTest extends TestCase
     public function test_offline_mode_hides_join_url_in_section_show(): void
     {
         $user = User::factory()->create();
-        $term = \App\Models\AcademicTerm::create([
+        $term = AcademicTerm::create([
             'user_id' => $user->id,
             'name' => '1st Semester',
             'school_year' => '2026-2027',
@@ -86,7 +88,7 @@ class OfflineModeTest extends TestCase
             'is_current' => true,
         ]);
 
-        $section = \App\Models\Section::create([
+        $section = Section::create([
             'user_id' => $user->id,
             'academic_term_id' => $term->id,
             'name' => 'Section Acacia',

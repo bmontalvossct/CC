@@ -2,6 +2,8 @@
 
 namespace Tests\Unit;
 
+use App\Models\AcademicTerm;
+use App\Models\Section;
 use App\Models\User;
 use App\Services\Autochecker\ChatbotService;
 use App\Services\Autochecker\ChatToolRegistry;
@@ -93,7 +95,7 @@ class ChatbotServiceTest extends TestCase
         $service = new ChatbotService($mockOllama, $toolRegistry);
 
         $user = User::factory()->create(['name' => 'Prof. Alan']);
-        $term = \App\Models\AcademicTerm::create([
+        $term = AcademicTerm::create([
             'user_id' => $user->id,
             'name' => '1st Semester',
             'school_year' => '2026-2027',
@@ -101,7 +103,7 @@ class ChatbotServiceTest extends TestCase
             'ends_on' => '2026-12-15',
             'is_current' => true,
         ]);
-        $section = \App\Models\Section::create([
+        $section = Section::create([
             'user_id' => $user->id,
             'academic_term_id' => $term->id,
             'name' => 'BSIT 3A',
@@ -138,7 +140,7 @@ class ChatbotServiceTest extends TestCase
         $this->assertNotEmpty($events);
 
         $errorEvent = collect($events)->firstWhere('type', 'error');
-        $this->assertNull($errorEvent, 'Should not yield an error event: ' . ($errorEvent['message'] ?? ''));
+        $this->assertNull($errorEvent, 'Should not yield an error event: '.($errorEvent['message'] ?? ''));
 
         $doneEvent = collect($events)->firstWhere('type', 'done');
         $this->assertNotNull($doneEvent);

@@ -8,6 +8,7 @@ use App\Models\AcademicTerm;
 use App\Models\Project;
 use App\Models\Seat;
 use App\Models\Section;
+use App\Services\GradebookCalculationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -85,7 +86,7 @@ class SectionController extends Controller
         }
 
         $defaultPassingRates = cache()->get("user_{$user?->id}_default_passing_rates")
-            ?? \App\Services\GradebookCalculationService::DEFAULT_PASSING_RATES;
+            ?? GradebookCalculationService::DEFAULT_PASSING_RATES;
 
         return Inertia::render('sections/Create', [
             'currentTerm' => $currentTerm ? [
@@ -158,7 +159,7 @@ class SectionController extends Controller
             ->where('attendance_records.status', 'absent')
             ->where(function ($q) {
                 $q->whereNull('attendance_records.cleared_by_letter')
-                  ->orWhere('attendance_records.cleared_by_letter', false);
+                    ->orWhere('attendance_records.cleared_by_letter', false);
             })
             ->groupBy('attendance_records.student_id')
             ->select('attendance_records.student_id', DB::raw('COUNT(*) as count'))

@@ -1,17 +1,16 @@
 <script setup lang="ts">
 import ActivityFileButton from '@/components/ActivityFileButton.vue';
-import DisabledReason from '@/components/DisabledReason.vue';
 import AutocheckerModal from '@/components/assessments/AutocheckerModal.vue';
 import CheckAllProgressModal, { type CheckProgressItem } from '@/components/assessments/CheckAllProgressModal.vue';
-import FilePreviewModal from '@/components/FilePreviewModal.vue';
 import RubricManagerModal from '@/components/assessments/RubricManagerModal.vue';
+import DisabledReason from '@/components/DisabledReason.vue';
+import FilePreviewModal from '@/components/FilePreviewModal.vue';
 import OctoSpinner from '@/components/OctoSpinner.vue';
-import AppLayout from '@/layouts/AppLayout.vue';
 import { useAiAssistant } from '@/composables/useAiAssistant';
+import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
     ArrowLeft,
-    Bot,
     CalendarDays,
     CheckCircle2,
     Download,
@@ -175,7 +174,7 @@ const handleStudentFileUpload = async (student: Student, event: Event) => {
             const err = await response.json();
             saveErrorMessage.value = err.message || 'Failed to upload student output.';
         }
-    } catch (e: any) {
+    } catch (_e: any) {
         saveErrorMessage.value = 'Failed to upload student output. Please check the file and try again.';
     } finally {
         studentUploading.value[student.id] = false;
@@ -212,7 +211,7 @@ const checkUnavailableReason = computed(() => {
     if (aiCheckingStudentId.value !== null) return 'A student output is being checked. Wait for it to finish.';
     return '';
 });
-const attachedStudents = computed(() => props.students.filter(student => student.attachment_path));
+const attachedStudents = computed(() => props.students.filter((student) => student.attachment_path));
 const runAiCheck = async (student: Student, batch = false): Promise<boolean> => {
     if ((checkingAll.value && !batch) || !hasRubric.value || !student.attachment_path) return false;
     if (aiCheckingStudentId.value !== null) return false;
@@ -220,18 +219,15 @@ const runAiCheck = async (student: Student, batch = false): Promise<boolean> => 
     saveErrorMessage.value = '';
 
     try {
-        const response = await fetch(
-            `/sections/${props.section.id}/assessments/${props.assessment.id}/scores/${student.id}/ai-check`,
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '',
-                },
+        const response = await fetch(`/sections/${props.section.id}/assessments/${props.assessment.id}/scores/${student.id}/ai-check`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '',
             },
-        );
+        });
 
         const data = await response.json();
 
@@ -529,10 +525,6 @@ const toggleStudentPreset = (studentId: number, preset: string) => {
     }
 };
 
-const appendStudentRemark = (studentId: number, text: string) => {
-    toggleStudentPreset(studentId, text);
-};
-
 const unsavedCount = computed(() => {
     return props.students.filter((s) => isUnsaved(s.id)).length;
 });
@@ -568,16 +560,12 @@ const filteredStudents = computed(() => {
     });
 });
 
-const visibleEligible = computed(() =>
-    filteredStudents.value.filter((student) => !student.is_absent || includeAbsent.value),
-);
+const visibleEligible = computed(() => filteredStudents.value.filter((student) => !student.is_absent || includeAbsent.value));
 
 const counts = computed(() => {
     const total = props.students.length;
     const recorded = props.students.filter((s) => toCleanString(scores[s.id]) !== '').length;
-    const unrecorded = props.students.filter(
-        (s) => toCleanString(scores[s.id]) === '' && (!s.is_absent || includeAbsent.value),
-    ).length;
+    const unrecorded = props.students.filter((s) => toCleanString(scores[s.id]) === '' && (!s.is_absent || includeAbsent.value)).length;
     const absent = props.students.filter((s) => s.is_absent).length;
     return { total, recorded, unrecorded, absent };
 });
@@ -809,9 +797,12 @@ onUnmounted(() => {
                         >
                             <LoaderCircle v-if="isSaving" class="size-4 shrink-0 animate-spin" />
                             <Save v-else class="size-4 shrink-0" />
-                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">{{
-                                isSaving ? 'Saving all scores…' : hasUnsavedChanges ? `Save All Scores (${unsavedCount})` : 'Save All Scores'
-                            }}</span>
+                            <span
+                                class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100"
+                                >{{
+                                    isSaving ? 'Saving all scores…' : hasUnsavedChanges ? `Save All Scores (${unsavedCount})` : 'Save All Scores'
+                                }}</span
+                            >
                         </button>
 
                         <ActivityFileButton
@@ -830,7 +821,15 @@ onUnmounted(() => {
                             <Paperclip class="size-4 shrink-0" />
                             <span>{{ rubricBadgeLabel }}</span>
                         </button>
-                        <DisabledReason :reason="!hasRubric ? 'Configure a rubric or attach a file in Rubrics before using the autochecker.' : checkingAll ? 'Check all is running. Wait for the current batch to finish.' : ''">
+                        <DisabledReason
+                            :reason="
+                                !hasRubric
+                                    ? 'Configure a rubric or attach a file in Rubrics before using the autochecker.'
+                                    : checkingAll
+                                      ? 'Check all is running. Wait for the current batch to finish.'
+                                      : ''
+                            "
+                        >
                             <button
                                 type="button"
                                 title="Bulk AI Autochecker"
@@ -840,7 +839,10 @@ onUnmounted(() => {
                                 class="shadow-xs group inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-primary/40 bg-primary/10 px-3 text-xs font-bold text-primary transition-all duration-300 hover:bg-primary hover:text-primary-foreground"
                             >
                                 <Sparkles class="size-4 shrink-0" />
-                                <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">Autochecker</span>
+                                <span
+                                    class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100"
+                                    >Autochecker</span
+                                >
                             </button>
                         </DisabledReason>
                         <a
@@ -849,7 +851,10 @@ onUnmounted(() => {
                             class="shadow-xs group inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-border bg-card px-3 text-xs font-medium text-foreground transition-all duration-300 hover:bg-secondary"
                         >
                             <Download class="size-4 shrink-0 text-muted-foreground group-hover:text-foreground" />
-                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">Export scores</span>
+                            <span
+                                class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100"
+                                >Export scores</span
+                            >
                         </a>
                         <button
                             type="button"
@@ -858,7 +863,10 @@ onUnmounted(() => {
                             class="shadow-xs group inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-border bg-card px-3 text-xs font-medium text-foreground transition-all duration-300 hover:bg-secondary"
                         >
                             <Settings class="size-4 shrink-0 text-primary" />
-                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">Edit assessment</span>
+                            <span
+                                class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100"
+                                >Edit assessment</span
+                            >
                         </button>
 
                         <button
@@ -868,29 +876,51 @@ onUnmounted(() => {
                             @click="showDeleteModal = true"
                         >
                             <Trash2 class="size-4 shrink-0" />
-                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 capitalize">Delete {{ assessment.type }}</span>
+                            <span
+                                class="max-w-0 overflow-hidden whitespace-nowrap capitalize opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100"
+                                >Delete {{ assessment.type }}</span
+                            >
                         </button>
                     </div>
                 </div>
             </header>
 
             <section class="grading-toolbar" aria-label="Submission checking">
-                <div><p class="font-semibold">Student outputs</p><p class="text-sm text-muted-foreground">{{ attachedStudents.length }} attached • {{ hasRubric ? `${rubricBadgeLabel} ready to review` : 'Configure a rubric in Rubrics to enable checking.' }}</p></div>
-                <DisabledReason :reason="checkUnavailableReason || (!attachedStudents.length ? 'Attach at least one student output to enable Check all.' : '')">
+                <div>
+                    <p class="font-semibold">Student outputs</p>
+                    <p class="text-sm text-muted-foreground">
+                        {{ attachedStudents.length }} attached •
+                        {{ hasRubric ? `${rubricBadgeLabel} ready to review` : 'Configure a rubric in Rubrics to enable checking.' }}
+                    </p>
+                </div>
+                <DisabledReason
+                    :reason="checkUnavailableReason || (!attachedStudents.length ? 'Attach at least one student output to enable Check all.' : '')"
+                >
                     <button
                         type="button"
                         class="grading-check-button"
                         :disabled="!hasRubric || !attachedStudents.length || checkingAll || aiCheckingStudentId !== null"
-                        @mouseenter="warmModel('code_grading'); warmModel('general_grading')"
+                        @mouseenter="
+                            warmModel('code_grading');
+                            warmModel('general_grading');
+                        "
                         @click="checkAll"
                     >
                         <OctoSpinner v-if="checkingAll" size="sm" class="mr-1.5" />
-                        <Sparkles v-else class="size-4 mr-1.5 shrink-0" />
+                        <Sparkles v-else class="mr-1.5 size-4 shrink-0" />
                         {{ checkingAll ? `Octo checking ${checkProgress} / ${attachedStudents.length}` : `Check all (${attachedStudents.length})` }}
                     </button>
                 </DisabledReason>
-                <progress v-if="checkingAll" class="w-full accent-primary" :value="checkProgress" :max="attachedStudents.length" aria-label="Checking progress" />
-                <ul v-if="checkFailures.length" class="w-full space-y-1 text-sm text-rose-600" aria-live="polite"><li v-for="failure in checkFailures" :key="failure">{{ failure }}</li></ul>
+                <progress
+                    v-if="checkingAll"
+                    class="w-full accent-primary"
+                    :value="checkProgress"
+                    :max="attachedStudents.length"
+                    aria-label="Checking progress"
+                />
+                <ul v-if="checkFailures.length" class="w-full space-y-1 text-sm text-rose-600" aria-live="polite">
+                    <li v-for="failure in checkFailures" :key="failure">{{ failure }}</li>
+                </ul>
             </section>
 
             <!-- Alerts Banner -->
@@ -1009,7 +1039,7 @@ onUnmounted(() => {
                             v-model="searchQuery"
                             type="text"
                             placeholder="Search student by name, ID, or chair... (Press '/' to focus)"
-                            class="w-full rounded-xl border border-input bg-card py-2 pl-10 pr-9 text-xs font-medium text-foreground shadow-2xs transition-all placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            class="shadow-2xs w-full rounded-xl border border-input bg-card py-2 pl-10 pr-9 text-xs font-medium text-foreground transition-all placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                             @keydown.enter.prevent="focusFirstMatch"
                             @keydown.down.prevent="focusFirstMatch"
                             @keydown.esc="clearSearch"
@@ -1032,7 +1062,7 @@ onUnmounted(() => {
                             class="rounded-lg px-2.5 py-1 text-xs font-medium transition-all"
                             :class="
                                 statusFilter === 'all'
-                                    ? 'bg-primary text-primary-foreground font-bold shadow-xs'
+                                    ? 'shadow-xs bg-primary font-bold text-primary-foreground'
                                     : 'border border-border/80 bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground'
                             "
                             @click="statusFilter = 'all'"
@@ -1044,7 +1074,7 @@ onUnmounted(() => {
                             class="rounded-lg px-2.5 py-1 text-xs font-medium transition-all"
                             :class="
                                 statusFilter === 'unrecorded'
-                                    ? 'bg-amber-600 text-white font-bold shadow-xs dark:bg-amber-500'
+                                    ? 'shadow-xs bg-amber-600 font-bold text-white dark:bg-amber-500'
                                     : 'border border-border/80 bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground'
                             "
                             @click="statusFilter = 'unrecorded'"
@@ -1056,7 +1086,7 @@ onUnmounted(() => {
                             class="rounded-lg px-2.5 py-1 text-xs font-medium transition-all"
                             :class="
                                 statusFilter === 'recorded'
-                                    ? 'bg-emerald-600 text-white font-bold shadow-xs dark:bg-emerald-500'
+                                    ? 'shadow-xs bg-emerald-600 font-bold text-white dark:bg-emerald-500'
                                     : 'border border-border/80 bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground'
                             "
                             @click="statusFilter = 'recorded'"
@@ -1069,7 +1099,7 @@ onUnmounted(() => {
                             class="rounded-lg px-2.5 py-1 text-xs font-medium transition-all"
                             :class="
                                 statusFilter === 'absent'
-                                    ? 'bg-rose-600 text-white font-bold shadow-xs dark:bg-rose-500'
+                                    ? 'shadow-xs bg-rose-600 font-bold text-white dark:bg-rose-500'
                                     : 'border border-border/80 bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground'
                             "
                             @click="statusFilter = 'absent'"
@@ -1085,36 +1115,37 @@ onUnmounted(() => {
                     class="mt-3 flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 px-3.5 py-2 text-xs text-muted-foreground"
                 >
                     <div class="flex flex-wrap items-center gap-2">
-                        <span class="font-medium text-foreground">
-                            Showing {{ filteredStudents.length }} of {{ students.length }} students
-                        </span>
+                        <span class="font-medium text-foreground"> Showing {{ filteredStudents.length }} of {{ students.length }} students </span>
                         <span v-if="searchQuery" class="text-muted-foreground">
-                            matching "<strong class="text-primary">{{ searchQuery }}</strong>"
+                            matching "<strong class="text-primary">{{ searchQuery }}</strong
+                            >"
                         </span>
                         <span v-if="statusFilter !== 'all'" class="text-muted-foreground">
                             with status <strong class="capitalize text-foreground">{{ statusFilter }}</strong>
                         </span>
-                        <span class="text-[11px] text-muted-foreground/80 italic">
+                        <span class="text-[11px] italic text-muted-foreground/80">
                             (Press Enter or Down arrow from search box to start scoring)
                         </span>
                     </div>
 
-                    <button
-                        type="button"
-                        class="shrink-0 font-semibold text-primary hover:underline hover:text-primary/80"
-                        @click="clearAllFilters"
-                    >
+                    <button type="button" class="shrink-0 font-semibold text-primary hover:text-primary/80 hover:underline" @click="clearAllFilters">
                         Clear filters & show all
                     </button>
                 </div>
 
-                <div class="mt-4 overflow-auto max-h-[calc(100vh-14rem)] min-h-[380px] rounded-xl border border-border/70 bg-card shadow-2xs scrollbar-thin print:max-h-none print:overflow-visible">
+                <div
+                    class="shadow-2xs scrollbar-thin mt-4 max-h-[calc(100vh-14rem)] min-h-[380px] overflow-auto rounded-xl border border-border/70 bg-card print:max-h-none print:overflow-visible"
+                >
                     <table class="w-full min-w-[800px] border-separate border-spacing-0 text-sm">
-                        <thead class="sticky top-0 z-20 border-b border-border/80 bg-secondary/95 backdrop-blur-md shadow-2xs print:static print:bg-gray-100">
-                            <tr
-                                class="text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground"
-                            >
-                                <th class="sticky top-0 left-0 z-30 min-w-64 border-b border-border/80 bg-secondary/95 px-4 py-3 backdrop-blur-md print:static print:bg-gray-100">Student Name & ID</th>
+                        <thead
+                            class="shadow-2xs sticky top-0 z-20 border-b border-border/80 bg-secondary/95 backdrop-blur-md print:static print:bg-gray-100"
+                        >
+                            <tr class="text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                                <th
+                                    class="sticky left-0 top-0 z-30 min-w-64 border-b border-border/80 bg-secondary/95 px-4 py-3 backdrop-blur-md print:static print:bg-gray-100"
+                                >
+                                    Student Name & ID
+                                </th>
                                 <th class="w-44 border-b border-border/80 px-4 py-3">Score / {{ assessment.max_points }} pts</th>
                                 <th class="min-w-44 border-b border-border/80 px-4 py-3">Remarks / Feedback</th>
                                 <th class="w-48 border-b border-border/80 px-4 py-3">Student Output</th>
@@ -1130,11 +1161,10 @@ onUnmounted(() => {
                                         <p class="font-bold text-foreground">No students found</p>
                                         <p class="text-xs text-muted-foreground">
                                             <span v-if="searchQuery">
-                                                No students match "<strong class="text-foreground">{{ searchQuery }}</strong>". Try searching by name, student number, or chair.
+                                                No students match "<strong class="text-foreground">{{ searchQuery }}</strong
+                                                >". Try searching by name, student number, or chair.
                                             </span>
-                                            <span v-else>
-                                                No students found for status "{{ statusFilter }}".
-                                            </span>
+                                            <span v-else> No students found for status "{{ statusFilter }}". </span>
                                         </p>
                                         <button
                                             type="button"
@@ -1158,7 +1188,9 @@ onUnmounted(() => {
                                     hasInvalidScore(student.id) ? 'bg-rose-500/5' : isUnsaved(student.id) ? 'bg-primary/5' : '',
                                 ]"
                             >
-                                <td class="sticky left-0 z-10 border-b border-r border-border/50 bg-card/95 px-4 py-3 backdrop-blur-xs print:static print:bg-white">
+                                <td
+                                    class="backdrop-blur-xs sticky left-0 z-10 border-b border-r border-border/50 bg-card/95 px-4 py-3 print:static print:bg-white"
+                                >
                                     <div class="flex items-center gap-3">
                                         <div
                                             class="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 font-mono text-xs font-bold uppercase text-primary"
@@ -1167,7 +1199,7 @@ onUnmounted(() => {
                                         </div>
                                         <div class="min-w-0 flex-1">
                                             <span class="block font-semibold text-foreground">{{ student.full_name }}</span>
-                                            <div class="flex items-center gap-2 flex-wrap">
+                                            <div class="flex flex-wrap items-center gap-2">
                                                 <span class="font-mono text-xs text-muted-foreground">{{ student.student_number }}</span>
                                                 <span
                                                     v-if="student.seat_label"
@@ -1227,22 +1259,33 @@ onUnmounted(() => {
                                     <div class="space-y-1">
                                         <textarea
                                             v-model="remarks[student.id]"
-                                            rows="4" maxlength="10000"
-
+                                            rows="4"
+                                            maxlength="10000"
                                             placeholder="Score justification / remarks..."
-                                            class="resize-y leading-relaxed w-full rounded-xl border border-input bg-background px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/60 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-muted/40"
+                                            class="w-full resize-y rounded-xl border border-input bg-background px-3 py-1.5 text-xs leading-relaxed text-foreground transition-all placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-muted/40"
                                             :disabled="student.is_absent && !includeAbsent"
                                             :aria-label="`Remarks for ${student.full_name}`"
                                         />
                                         <div v-if="!student.is_absent || includeAbsent" class="flex flex-wrap items-center gap-1 pt-0.5">
                                             <button
-                                                v-for="preset in ['Complete requirements', '-5 Late', 'Incomplete solution', 'Bonus points', 'Needs revision', 'Outstanding']"
+                                                v-for="preset in [
+                                                    'Complete requirements',
+                                                    '-5 Late',
+                                                    'Incomplete solution',
+                                                    'Bonus points',
+                                                    'Needs revision',
+                                                    'Outstanding',
+                                                ]"
                                                 :key="preset"
                                                 type="button"
-                                                class="inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[9px] transition-all cursor-pointer select-none"
+                                                class="inline-flex cursor-pointer select-none items-center gap-1 rounded border px-1.5 py-0.5 text-[9px] transition-all"
                                                 :class="getPresetClass(student.id, preset)"
                                                 :aria-pressed="isPresetActive(student.id, preset)"
-                                                :title="isPresetActive(student.id, preset) ? `Click to remove '${preset}'` : `Click to apply '${preset}' and adjust score`"
+                                                :title="
+                                                    isPresetActive(student.id, preset)
+                                                        ? `Click to remove '${preset}'`
+                                                        : `Click to apply '${preset}' and adjust score`
+                                                "
                                                 @click="toggleStudentPreset(student.id, preset)"
                                             >
                                                 <span class="font-bold">{{ isPresetActive(student.id, preset) ? '✓' : '+' }}</span>
@@ -1254,7 +1297,11 @@ onUnmounted(() => {
                                 <td class="border-b border-border/50 px-4 py-3">
                                     <!-- Hidden File Input for this student -->
                                     <input
-                                        :ref="(el) => { if (el) studentFileInputs.set(student.id, el as HTMLInputElement); }"
+                                        :ref="
+                                            (el) => {
+                                                if (el) studentFileInputs.set(student.id, el as HTMLInputElement);
+                                            }
+                                        "
                                         type="file"
                                         accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z,.rtf,.odt,.ods,.odp,.svg,.gif,.bmp,.heic,.pages,.numbers,.key,.json,.sql,.db,.sqlite,.sqlite3"
                                         class="hidden"
@@ -1285,8 +1332,15 @@ onUnmounted(() => {
                                                 type="button"
                                                 :disabled="checkingAll || aiCheckingStudentId !== null || !hasRubric"
                                                 class="inline-flex items-center gap-1 rounded-md border border-violet-500/30 bg-violet-500/10 px-2 py-1 text-[11px] font-semibold text-violet-700 transition-all hover:bg-violet-600 hover:text-white disabled:opacity-50 dark:border-violet-400/30 dark:bg-violet-400/10 dark:text-violet-300 dark:hover:bg-violet-500 dark:hover:text-white"
-                                                :title="aiCheckingStudentId === student.id ? 'Octo AI is analyzing submission against rubrics...' : 'AI Check: Analyze document against activity rubrics and auto-score'"
-                                                @mouseenter="warmModel('code_grading'); warmModel('general_grading')"
+                                                :title="
+                                                    aiCheckingStudentId === student.id
+                                                        ? 'Octo AI is analyzing submission against rubrics...'
+                                                        : 'AI Check: Analyze document against activity rubrics and auto-score'
+                                                "
+                                                @mouseenter="
+                                                    warmModel('code_grading');
+                                                    warmModel('general_grading');
+                                                "
                                                 @click="runAiCheck(student)"
                                             >
                                                 <OctoSpinner v-if="aiCheckingStudentId === student.id" size="xs" class="mr-0.5" />
@@ -1449,12 +1503,28 @@ onUnmounted(() => {
 
                     <label class="sm:col-span-1">
                         <span class="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                            {{ editForm.type === 'quiz' ? 'Quiz #' : editForm.type === 'exam' ? 'Exam #' : editForm.type === 'laboratory' ? 'Lab #' : 'Activity #' }}
+                            {{
+                                editForm.type === 'quiz'
+                                    ? 'Quiz #'
+                                    : editForm.type === 'exam'
+                                      ? 'Exam #'
+                                      : editForm.type === 'laboratory'
+                                        ? 'Lab #'
+                                        : 'Activity #'
+                            }}
                         </span>
                         <input
                             v-model="editForm.assessment_number"
                             class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
-                            :placeholder="editForm.type === 'quiz' ? 'e.g. Quiz 1' : editForm.type === 'exam' ? 'e.g. Exam 1' : editForm.type === 'laboratory' ? 'e.g. Lab 1' : 'e.g. Activity 1'"
+                            :placeholder="
+                                editForm.type === 'quiz'
+                                    ? 'e.g. Quiz 1'
+                                    : editForm.type === 'exam'
+                                      ? 'e.g. Exam 1'
+                                      : editForm.type === 'laboratory'
+                                        ? 'e.g. Lab 1'
+                                        : 'e.g. Activity 1'
+                            "
                         />
                         <small v-if="editForm.errors.assessment_number" class="mt-1 block text-xs text-rose-600">{{
                             editForm.errors.assessment_number
@@ -1520,17 +1590,17 @@ onUnmounted(() => {
                             v-if="assessment.attachment_name && !editForm.remove_attachment"
                             class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/80 bg-muted/40 p-3 text-xs"
                         >
-                            <div class="flex items-center gap-2 min-w-0">
-                                <Paperclip class="size-4 text-primary shrink-0" />
+                            <div class="flex min-w-0 items-center gap-2">
+                                <Paperclip class="size-4 shrink-0 text-primary" />
                                 <div class="min-w-0">
-                                    <p class="font-semibold text-foreground truncate">{{ assessment.attachment_name }}</p>
+                                    <p class="truncate font-semibold text-foreground">{{ assessment.attachment_name }}</p>
                                     <p class="text-[10px] text-muted-foreground">Current attachment</p>
                                 </div>
                             </div>
                             <div class="flex items-center gap-1.5">
                                 <button
                                     type="button"
-                                    class="inline-flex h-7 items-center gap-1 rounded-lg border border-primary/40 bg-primary/10 px-2.5 text-[11px] font-semibold text-primary hover:bg-primary hover:text-white transition-colors"
+                                    class="inline-flex h-7 items-center gap-1 rounded-lg border border-primary/40 bg-primary/10 px-2.5 text-[11px] font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
                                     @click="editFileInputRef?.click()"
                                 >
                                     <RefreshCw class="size-3" />
@@ -1538,8 +1608,11 @@ onUnmounted(() => {
                                 </button>
                                 <button
                                     type="button"
-                                    class="inline-flex h-7 items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 text-[11px] font-semibold text-rose-600 hover:bg-rose-600 hover:text-white transition-colors dark:text-rose-400"
-                                    @click="editForm.remove_attachment = true; editForm.attachment = null;"
+                                    class="inline-flex h-7 items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 text-[11px] font-semibold text-rose-600 transition-colors hover:bg-rose-600 hover:text-white dark:text-rose-400"
+                                    @click="
+                                        editForm.remove_attachment = true;
+                                        editForm.attachment = null;
+                                    "
                                 >
                                     <Trash2 class="size-3" />
                                     <span>Delete File</span>
@@ -1554,7 +1627,9 @@ onUnmounted(() => {
                         >
                             <div class="flex items-center gap-2">
                                 <Trash2 class="size-4 shrink-0" />
-                                <span>Attached file <strong>{{ assessment.attachment_name }}</strong> will be removed upon save.</span>
+                                <span
+                                    >Attached file <strong>{{ assessment.attachment_name }}</strong> will be removed upon save.</span
+                                >
                             </div>
                             <button
                                 type="button"
@@ -1577,12 +1652,23 @@ onUnmounted(() => {
                                     editForm.remove_attachment = false;
                                 "
                             />
-                            <div v-if="editForm.attachment" class="mt-1.5 flex items-center justify-between rounded-lg bg-primary/10 px-2.5 py-1 text-xs text-primary font-mono">
-                                <span>Selected replacement: {{ editForm.attachment.name }} ({{ (editForm.attachment.size / 1024 / 1024).toFixed(2) }} MB)</span>
+                            <div
+                                v-if="editForm.attachment"
+                                class="mt-1.5 flex items-center justify-between rounded-lg bg-primary/10 px-2.5 py-1 font-mono text-xs text-primary"
+                            >
+                                <span
+                                    >Selected replacement: {{ editForm.attachment.name }} ({{
+                                        (editForm.attachment.size / 1024 / 1024).toFixed(2)
+                                    }}
+                                    MB)</span
+                                >
                                 <button
                                     type="button"
-                                    class="text-muted-foreground hover:text-foreground ml-2"
-                                    @click="editForm.attachment = null; if (editFileInputRef) editFileInputRef.value = '';"
+                                    class="ml-2 text-muted-foreground hover:text-foreground"
+                                    @click="
+                                        editForm.attachment = null;
+                                        if (editFileInputRef) editFileInputRef.value = '';
+                                    "
                                 >
                                     <X class="size-3.5" />
                                 </button>

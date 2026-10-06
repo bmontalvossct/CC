@@ -1,18 +1,7 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
 import { useForm } from '@inertiajs/vue3';
-import {
-    AlertCircle,
-    Calendar,
-    Check,
-    Clock,
-    Info,
-    LoaderCircle,
-    Mic,
-    User,
-    Users,
-    X,
-} from 'lucide-vue-next';
+import { AlertCircle, Check, Info, LoaderCircle, Mic, User, Users, X } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 
 export type StudentRow = {
@@ -206,10 +195,10 @@ const submitOverride = () => {
 <template>
     <div
         v-if="open"
-        class="fixed inset-0 z-50 grid place-items-center bg-zinc-950/60 p-4 sm:p-6 backdrop-blur-xs duration-200 animate-in fade-in print:hidden"
+        class="backdrop-blur-xs fixed inset-0 z-50 grid place-items-center bg-zinc-950/60 p-4 duration-200 animate-in fade-in sm:p-6 print:hidden"
     >
         <div
-            class="paper-card relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden border border-border/80 bg-card p-6 sm:p-8 shadow-xl duration-200 animate-in zoom-in-95"
+            class="paper-card relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden border border-border/80 bg-card p-6 shadow-xl duration-200 animate-in zoom-in-95 sm:p-8"
             role="dialog"
             aria-modal="true"
             aria-label="Manual Oral Points Override"
@@ -233,7 +222,14 @@ const submitOverride = () => {
                     </div>
                 </div>
 
-                <Button type="button" variant="ghost" size="icon" class="size-8 rounded-lg text-muted-foreground hover:text-foreground" title="Close" @click="emit('close')">
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    class="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+                    title="Close"
+                    @click="emit('close')"
+                >
                     <X class="size-4" />
                 </Button>
             </div>
@@ -247,7 +243,7 @@ const submitOverride = () => {
                         class="flex items-center justify-center gap-2 rounded-md py-1.5 text-xs font-medium transition-all"
                         :class="
                             mode === 'single'
-                                ? 'border border-border/80 bg-background text-foreground shadow-xs'
+                                ? 'shadow-xs border border-border/80 bg-background text-foreground'
                                 : 'text-muted-foreground hover:text-foreground'
                         "
                         @click="mode = 'single'"
@@ -260,7 +256,7 @@ const submitOverride = () => {
                         class="flex items-center justify-center gap-2 rounded-md py-1.5 text-xs font-medium transition-all"
                         :class="
                             mode === 'all'
-                                ? 'border border-border/80 bg-background text-foreground shadow-xs'
+                                ? 'shadow-xs border border-border/80 bg-background text-foreground'
                                 : 'text-muted-foreground hover:text-foreground'
                         "
                         @click="mode = 'all'"
@@ -273,9 +269,7 @@ const submitOverride = () => {
                 <!-- Single Student Mode: Picker & Status -->
                 <div v-if="mode === 'single'" class="space-y-4">
                     <div>
-                        <label class="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                            Select Student
-                        </label>
+                        <label class="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground"> Select Student </label>
                         <select
                             v-model="selectedStudentId"
                             class="w-full rounded-lg border border-input bg-background px-3.5 py-2 text-sm font-medium text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground"
@@ -288,7 +282,7 @@ const submitOverride = () => {
                     </div>
 
                     <!-- Selected Student Attendance & Oral Status Card (Clean Neutral) -->
-                    <div v-if="selectedStudent" class="rounded-xl border border-border/70 bg-secondary/20 p-4 sm:p-5 space-y-3">
+                    <div v-if="selectedStudent" class="space-y-3 rounded-xl border border-border/70 bg-secondary/20 p-4 sm:p-5">
                         <div class="flex flex-wrap items-center justify-between gap-2">
                             <div>
                                 <span class="font-mono text-[11px] text-muted-foreground">{{ selectedStudent.student_number }}</span>
@@ -298,7 +292,9 @@ const submitOverride = () => {
                                 <span class="rounded-md border border-border/70 bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground">
                                     {{ daysCount }} {{ daysCount === 1 ? 'day' : 'days' }} eligible
                                 </span>
-                                <span class="rounded-md border border-border/70 bg-card px-2.5 py-1 font-mono text-xs font-medium text-muted-foreground">
+                                <span
+                                    class="rounded-md border border-border/70 bg-card px-2.5 py-1 font-mono text-xs font-medium text-muted-foreground"
+                                >
                                     Max: {{ maxOralPoints }} pts
                                 </span>
                             </div>
@@ -306,19 +302,19 @@ const submitOverride = () => {
 
                         <!-- Mini stats grid (Clean Neutral) -->
                         <div class="grid grid-cols-3 gap-2 border-t border-border/50 pt-3 text-center text-xs">
-                            <div class="rounded-lg bg-card/60 p-2 border border-border/40">
+                            <div class="rounded-lg border border-border/40 bg-card/60 p-2">
                                 <span class="block text-[11px] text-muted-foreground">Days Present</span>
                                 <span class="mt-0.5 block font-mono text-sm font-semibold text-foreground">
                                     {{ selectedStudent.attendance.present_count }}
                                 </span>
                             </div>
-                            <div class="rounded-lg bg-card/60 p-2 border border-border/40">
+                            <div class="rounded-lg border border-border/40 bg-card/60 p-2">
                                 <span class="block text-[11px] text-muted-foreground">Days Late</span>
                                 <span class="mt-0.5 block font-mono text-sm font-semibold text-foreground">
                                     {{ selectedStudent.attendance.late_count }}
                                 </span>
                             </div>
-                            <div class="rounded-lg bg-card/60 p-2 border border-border/40">
+                            <div class="rounded-lg border border-border/40 bg-card/60 p-2">
                                 <span class="block text-[11px] text-muted-foreground">Current Total</span>
                                 <span class="mt-0.5 block font-mono text-sm font-semibold text-foreground">
                                     {{ selectedStudent.recitation.total_score ?? 0 }} pts
@@ -364,7 +360,7 @@ const submitOverride = () => {
                 </div>
 
                 <!-- All Students Mode Card (Clean Neutral) -->
-                <div v-else class="rounded-xl border border-border/70 bg-secondary/20 p-4 sm:p-5 space-y-3">
+                <div v-else class="space-y-3 rounded-xl border border-border/70 bg-secondary/20 p-4 sm:p-5">
                     <div class="flex items-start gap-2.5">
                         <Info class="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                         <div>
@@ -392,12 +388,8 @@ const submitOverride = () => {
                 <!-- Points Input Field -->
                 <div class="space-y-2">
                     <div class="flex items-center justify-between">
-                        <label class="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                            Total Oral Points to Allocate
-                        </label>
-                        <span v-if="mode === 'single'" class="font-mono text-xs text-muted-foreground">
-                            Max: {{ maxOralPoints }} pts
-                        </span>
+                        <label class="text-xs font-medium uppercase tracking-wider text-muted-foreground"> Total Oral Points to Allocate </label>
+                        <span v-if="mode === 'single'" class="font-mono text-xs text-muted-foreground"> Max: {{ maxOralPoints }} pts </span>
                     </div>
 
                     <div class="relative">
@@ -411,14 +403,12 @@ const submitOverride = () => {
                             class="w-full rounded-lg border border-input bg-background px-3.5 py-2.5 font-mono text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground"
                             :class="surpassesMax ? 'border-rose-500 text-rose-600 focus-visible:ring-rose-500' : ''"
                         />
-                        <span class="absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-xs text-muted-foreground">
-                            pts
-                        </span>
+                        <span class="absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-xs text-muted-foreground"> pts </span>
                     </div>
 
                     <!-- Quick Preset Buttons (Single student, clean neutral) -->
                     <div v-if="mode === 'single' && daysCount > 0" class="flex flex-wrap items-center gap-1.5 pt-1">
-                        <span class="text-[11px] text-muted-foreground mr-1">Quick Set:</span>
+                        <span class="mr-1 text-[11px] text-muted-foreground">Quick Set:</span>
                         <button
                             type="button"
                             class="rounded-md border border-border/70 bg-secondary/40 px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
@@ -453,7 +443,10 @@ const submitOverride = () => {
                 <!-- Live Allocation Preview Card (Clean Neutral) -->
                 <div v-if="mode === 'single'">
                     <!-- Warning: 0 days present -->
-                    <div v-if="hasZeroDays" class="flex items-start gap-2.5 rounded-xl border border-rose-500/30 bg-rose-500/5 p-4 text-rose-700 dark:text-rose-400">
+                    <div
+                        v-if="hasZeroDays"
+                        class="flex items-start gap-2.5 rounded-xl border border-rose-500/30 bg-rose-500/5 p-4 text-rose-700 dark:text-rose-400"
+                    >
                         <AlertCircle class="mt-0.5 size-4 shrink-0" />
                         <div class="text-xs">
                             <p class="font-semibold">Zero Attendance Days Recorded</p>
@@ -465,7 +458,10 @@ const submitOverride = () => {
                     </div>
 
                     <!-- Warning: Surpasses Max -->
-                    <div v-else-if="surpassesMax" class="flex items-start gap-2.5 rounded-xl border border-rose-500/30 bg-rose-500/5 p-4 text-rose-700 dark:text-rose-400">
+                    <div
+                        v-else-if="surpassesMax"
+                        class="flex items-start gap-2.5 rounded-xl border border-rose-500/30 bg-rose-500/5 p-4 text-rose-700 dark:text-rose-400"
+                    >
                         <AlertCircle class="mt-0.5 size-4 shrink-0" />
                         <div class="text-xs">
                             <p class="font-semibold">Surpasses Maximum Oral Points</p>
@@ -477,30 +473,24 @@ const submitOverride = () => {
                     </div>
 
                     <!-- Valid Allocation Preview (Clean Neutral, no loud colors) -->
-                    <div v-else class="rounded-xl border border-border/70 bg-secondary/20 p-4 sm:p-5 space-y-2.5 text-xs">
+                    <div v-else class="space-y-2.5 rounded-xl border border-border/70 bg-secondary/20 p-4 text-xs sm:p-5">
                         <div class="flex items-center justify-between">
                             <span class="text-muted-foreground">Equal Daily Rate:</span>
-                            <span class="font-mono text-sm font-semibold text-foreground">
-                                {{ perDayScore }} pts / day
-                            </span>
+                            <span class="font-mono text-sm font-semibold text-foreground"> {{ perDayScore }} pts / day </span>
                         </div>
                         <div class="flex items-center justify-between border-t border-border/50 pt-2 text-muted-foreground">
                             <span>Total across {{ daysCount }} days:</span>
-                            <span class="font-mono text-foreground font-medium">
-                                {{ pointsInput }} / {{ maxOralPoints }} max pts
-                            </span>
+                            <span class="font-mono font-medium text-foreground"> {{ pointsInput }} / {{ maxOralPoints }} max pts </span>
                         </div>
                         <div class="flex items-center justify-between text-muted-foreground">
                             <span>Projected Recitation Average:</span>
-                            <span class="font-mono text-foreground font-medium">
+                            <span class="font-mono font-medium text-foreground">
                                 {{ projectedAvg !== null ? `${projectedAvg} / 10` : '—' }}
                             </span>
                         </div>
                         <div class="flex items-center justify-between text-muted-foreground">
                             <span>Projected Activity Bonus:</span>
-                            <span class="font-mono text-foreground font-medium">
-                                +{{ projectedBonus }} pts to Activities
-                            </span>
+                            <span class="font-mono font-medium text-foreground"> +{{ projectedBonus }} pts to Activities </span>
                         </div>
                     </div>
                 </div>
@@ -517,9 +507,7 @@ const submitOverride = () => {
 
             <!-- Modal Footer Actions -->
             <div class="flex items-center justify-end gap-2.5 border-t border-border/70 pt-4">
-                <Button type="button" variant="outline" class="rounded-lg h-9 px-4 text-xs font-medium" @click="emit('close')">
-                    Cancel
-                </Button>
+                <Button type="button" variant="outline" class="h-9 rounded-lg px-4 text-xs font-medium" @click="emit('close')"> Cancel </Button>
 
                 <Button
                     type="button"

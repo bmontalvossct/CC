@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\AcademicTerm;
+use App\Models\AttendanceRecord;
+use App\Models\AttendanceSession;
 use App\Models\Recitation;
 use App\Models\Section;
 use App\Models\Student;
@@ -287,7 +289,7 @@ class RecitationTest extends TestCase
         ]);
 
         $sessionDate = now()->toDateString();
-        $session = \App\Models\AttendanceSession::create([
+        $session = AttendanceSession::create([
             'section_id' => $section->id,
             'session_date' => $sessionDate,
             'starts_at' => '08:00:00',
@@ -295,10 +297,10 @@ class RecitationTest extends TestCase
             'duration_minutes' => 90,
         ]);
 
-        \App\Models\AttendanceRecord::create([
+        AttendanceRecord::create([
             'attendance_session_id' => $session->id,
             'student_id' => $student->id,
-            'status' => \App\Models\AttendanceRecord::STATUS_ABSENT,
+            'status' => AttendanceRecord::STATUS_ABSENT,
         ]);
 
         // Attempt to score absent student
@@ -339,7 +341,7 @@ class RecitationTest extends TestCase
         ]);
 
         $sessionDate = now()->toDateString();
-        $session = \App\Models\AttendanceSession::create([
+        $session = AttendanceSession::create([
             'section_id' => $section->id,
             'session_date' => $sessionDate,
             'starts_at' => '08:00:00',
@@ -347,16 +349,16 @@ class RecitationTest extends TestCase
             'duration_minutes' => 90,
         ]);
 
-        \App\Models\AttendanceRecord::create([
+        AttendanceRecord::create([
             'attendance_session_id' => $session->id,
             'student_id' => $presentStudent->id,
-            'status' => \App\Models\AttendanceRecord::STATUS_PRESENT,
+            'status' => AttendanceRecord::STATUS_PRESENT,
         ]);
 
-        \App\Models\AttendanceRecord::create([
+        AttendanceRecord::create([
             'attendance_session_id' => $session->id,
             'student_id' => $lateStudent->id,
-            'status' => \App\Models\AttendanceRecord::STATUS_LATE,
+            'status' => AttendanceRecord::STATUS_LATE,
         ]);
 
         // Score present student
@@ -405,7 +407,7 @@ class RecitationTest extends TestCase
         ]);
 
         $sessionDate = now()->toDateString();
-        $session = \App\Models\AttendanceSession::create([
+        $session = AttendanceSession::create([
             'section_id' => $section->id,
             'session_date' => $sessionDate,
             'starts_at' => '08:00:00',
@@ -413,10 +415,10 @@ class RecitationTest extends TestCase
             'duration_minutes' => 90,
         ]);
 
-        \App\Models\AttendanceRecord::create([
+        AttendanceRecord::create([
             'attendance_session_id' => $session->id,
             'student_id' => $student->id,
-            'status' => \App\Models\AttendanceRecord::STATUS_ABSENT,
+            'status' => AttendanceRecord::STATUS_ABSENT,
         ]);
 
         $response = $this->actingAs($user)->get(route('sections.recitation.index', $section));

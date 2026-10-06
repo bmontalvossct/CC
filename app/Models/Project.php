@@ -13,6 +13,7 @@ class Project extends Model
     use HasFactory;
 
     public const TYPES = ['project', 'reporting', 'group_activity'];
+
     public const FORMATS = ['group', 'individual'];
 
     protected $fillable = [

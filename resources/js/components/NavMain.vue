@@ -126,7 +126,7 @@ const handleSelectSection = (sec: any) => {
                         <span class="truncate">{{ activeSection.name }}</span>
                         <span
                             v-if="activeSection.subject_code"
-                            class="inline-flex items-center whitespace-nowrap shrink-0 mx-1 rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold text-primary dark:bg-primary/25"
+                            class="mx-1 inline-flex shrink-0 items-center whitespace-nowrap rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold text-primary dark:bg-primary/25"
                         >
                             {{ activeSection.subject_code }}
                         </span>
@@ -213,7 +213,7 @@ const handleSelectSection = (sec: any) => {
                             </div>
                             <span
                                 v-if="sec.subject_code"
-                                class="inline-flex items-center whitespace-nowrap shrink-0 mx-1 rounded bg-primary px-1.5 py-0.5 font-mono text-[9px] font-medium text-white shadow-sm"
+                                class="mx-1 inline-flex shrink-0 items-center whitespace-nowrap rounded bg-primary px-1.5 py-0.5 font-mono text-[9px] font-medium text-white shadow-sm"
                             >
                                 {{ sec.subject_code }}
                             </span>

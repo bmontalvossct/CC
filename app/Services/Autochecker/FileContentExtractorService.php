@@ -10,8 +10,7 @@ class FileContentExtractorService
     /**
      * Extract text content from an uploaded file.
      *
-     * @param UploadedFile|string $file
-     * @param string|null $originalFilename
+     * @param  UploadedFile|string  $file
      * @return array{success: bool, content: string, extension: string, error?: string}
      */
     public function extract($file, ?string $originalFilename = null): array
@@ -32,6 +31,7 @@ class FileContentExtractorService
         // 1. PDF Files (Local extraction via stream / regex or pdftotext)
         if ($extension === 'pdf') {
             $pdfText = $this->extractPdfText($filePath);
+
             return [
                 'success' => ! empty(trim($pdfText)),
                 'content' => $pdfText,
@@ -43,6 +43,7 @@ class FileContentExtractorService
         // 2. Word DOCX Files (Extract text from word/document.xml)
         if ($extension === 'docx') {
             $docxText = $this->extractDocxText($filePath);
+
             return [
                 'success' => ! empty(trim($docxText)),
                 'content' => $docxText,
@@ -54,6 +55,7 @@ class FileContentExtractorService
         // 3. PowerPoint PPTX Files (Extract text from ppt/slides/slide*.xml)
         if ($extension === 'pptx') {
             $pptxText = $this->extractPptxText($filePath);
+
             return [
                 'success' => ! empty(trim($pptxText)),
                 'content' => $pptxText,
@@ -81,6 +83,7 @@ class FileContentExtractorService
             }
 
             $cleaned = $this->cleanUtf8($raw);
+
             return [
                 'success' => true,
                 'content' => $cleaned,
@@ -109,8 +112,7 @@ class FileContentExtractorService
     /**
      * Unpack a zip file and extract individual submission files.
      *
-     * @param UploadedFile|string $zipFile
-     * @param string $destinationDir
+     * @param  UploadedFile|string  $zipFile
      * @return array<int, string> List of extracted file paths
      */
     public function unpackZip($zipFile, string $destinationDir): array
@@ -122,7 +124,7 @@ class FileContentExtractorService
             return [];
         }
 
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         if ($zip->open($zipPath) === true) {
             if (! is_dir($destinationDir)) {
                 mkdir($destinationDir, 0755, true);
@@ -135,7 +137,7 @@ class FileContentExtractorService
                     continue;
                 }
 
-                $targetPath = $destinationDir . DIRECTORY_SEPARATOR . basename($entryName);
+                $targetPath = $destinationDir.DIRECTORY_SEPARATOR.basename($entryName);
                 if (copy("zip://{$zipPath}#{$entryName}", $targetPath)) {
                     $extractedPaths[] = $targetPath;
                 }
@@ -159,7 +161,7 @@ class FileContentExtractorService
         // Check if pdftotext CLI is available locally
         if (function_exists('exec')) {
             $tempOutput = tempnam(sys_get_temp_dir(), 'pdf_out_');
-            @exec("pdftotext " . escapeshellarg($filePath) . " " . escapeshellarg($tempOutput), $out, $code);
+            @exec('pdftotext '.escapeshellarg($filePath).' '.escapeshellarg($tempOutput), $out, $code);
             if ($code === 0 && file_exists($tempOutput)) {
                 $text = file_get_contents($tempOutput);
                 @unlink($tempOutput);
@@ -184,11 +186,11 @@ class FileContentExtractorService
                 if (preg_match_all('/\[([^\]]+)\]\s*TJ/s', $uncompressed, $tjMatches)) {
                     foreach ($tjMatches[1] as $tj) {
                         if (preg_match_all('/\((.*?)\)/s', $tj, $tMatches)) {
-                            $text .= implode('', $tMatches[1]) . ' ';
+                            $text .= implode('', $tMatches[1]).' ';
                         }
                     }
                 } elseif (preg_match_all('/\((.*?)\)\s*Tj/s', $uncompressed, $tMatches)) {
-                    $text .= implode(' ', $tMatches[1]) . "\n";
+                    $text .= implode(' ', $tMatches[1])."\n";
                 }
             }
         }
@@ -205,7 +207,7 @@ class FileContentExtractorService
             return '';
         }
 
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         if ($zip->open($filePath) !== true) {
             return '';
         }
@@ -234,7 +236,7 @@ class FileContentExtractorService
             return '';
         }
 
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         if ($zip->open($filePath) !== true) {
             return '';
         }
@@ -253,7 +255,7 @@ class FileContentExtractorService
             if (! empty($matches[1])) {
                 $slideContent = trim(implode(' ', array_map('html_entity_decode', $matches[1])));
                 if ($slideContent !== '') {
-                    $slideTexts[] = "[Slide {$slideIndex}]\n" . $slideContent;
+                    $slideTexts[] = "[Slide {$slideIndex}]\n".$slideContent;
                 }
             }
 
@@ -273,7 +275,7 @@ class FileContentExtractorService
                         if (! empty($matches[1])) {
                             $slideContent = trim(implode(' ', array_map('html_entity_decode', $matches[1])));
                             if ($slideContent !== '') {
-                                $indexedSlides[$idx] = "[Slide {$idx}]\n" . $slideContent;
+                                $indexedSlides[$idx] = "[Slide {$idx}]\n".$slideContent;
                             }
                         }
                     }
@@ -298,6 +300,7 @@ class FileContentExtractorService
     {
         // Convert to UTF-8 and strip control chars (except newline/tabs)
         $utf8 = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
+
         return preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $utf8) ?? $utf8;
     }
 }

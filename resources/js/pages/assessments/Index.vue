@@ -1,9 +1,9 @@
 <script setup lang="ts">
+import ExamGeneratorModal from '@/components/assessments/ExamGeneratorModal.vue';
 import FilePreviewModal from '@/components/FilePreviewModal.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { cardHover, staggerItem, tabIndicatorTransition } from '@/lib/motion';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { motion } from 'motion-v';
 import {
     AlertCircle,
     BarChart3,
@@ -21,7 +21,7 @@ import {
     Users,
     X,
 } from 'lucide-vue-next';
-import ExamGeneratorModal from '@/components/assessments/ExamGeneratorModal.vue';
+import { motion } from 'motion-v';
 import { computed, ref, watch } from 'vue';
 
 type Assessment = {
@@ -333,7 +333,6 @@ const submitProject = () => {
         },
     });
 };
-
 </script>
 
 <template>
@@ -358,7 +357,9 @@ const submitProject = () => {
                                 <span class="badge-muted">{{ section.name }}</span>
                             </div>
                             <h1 class="mt-2 text-2xl font-extrabold tracking-tight sm:text-3xl">Activities, Projects & Scores</h1>
-                            <p class="mt-0.5 text-xs text-muted-foreground sm:text-sm">Create quizzes, group projects, reporting presentations, and exams.</p>
+                            <p class="mt-0.5 text-xs text-muted-foreground sm:text-sm">
+                                Create quizzes, group projects, reporting presentations, and exams.
+                            </p>
                         </div>
                     </div>
 
@@ -371,7 +372,10 @@ const submitProject = () => {
                             class="shadow-xs group inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-primary bg-white px-3 text-xs font-medium text-primary transition-all duration-300 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                         >
                             <BarChart3 class="size-4 shrink-0 text-primary transition-colors group-hover:text-white" />
-                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">Gradebook</span>
+                            <span
+                                class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100"
+                                >Gradebook</span
+                            >
                         </Link>
                         <a
                             :href="`/sections/${section.id}/exports/gradebook`"
@@ -379,7 +383,10 @@ const submitProject = () => {
                             class="shadow-xs group inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-primary bg-white px-3 text-xs font-medium text-primary transition-all duration-300 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                         >
                             <Download class="size-4 shrink-0 text-primary transition-colors group-hover:text-white" />
-                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">Export CSV</span>
+                            <span
+                                class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100"
+                                >Export CSV</span
+                            >
                         </a>
                         <button
                             type="button"
@@ -391,7 +398,10 @@ const submitProject = () => {
                             "
                         >
                             <FlaskConical class="size-4 shrink-0 text-primary transition-colors group-hover:text-white" />
-                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">New Lab Activity</span>
+                            <span
+                                class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100"
+                                >New Lab Activity</span
+                            >
                         </button>
                         <button
                             type="button"
@@ -403,7 +413,10 @@ const submitProject = () => {
                             "
                         >
                             <Users class="size-4 shrink-0 text-primary transition-colors group-hover:text-white" />
-                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">New Group Activity</span>
+                            <span
+                                class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100"
+                                >New Group Activity</span
+                            >
                         </button>
                         <button
                             type="button"
@@ -415,7 +428,10 @@ const submitProject = () => {
                             "
                         >
                             <FolderKanban class="size-4 shrink-0 text-primary transition-colors group-hover:text-white" />
-                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">New Project / Report</span>
+                            <span
+                                class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100"
+                                >New Project / Report</span
+                            >
                         </button>
                         <button
                             type="button"
@@ -424,19 +440,25 @@ const submitProject = () => {
                             @click="showExamGeneratorModal = true"
                         >
                             <Sparkles class="size-4 shrink-0 text-primary transition-colors group-hover:text-white" />
-                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">Generate Exam (Hermes)</span>
+                            <span
+                                class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100"
+                                >Generate Exam (Hermes)</span
+                            >
                         </button>
                         <button
                             type="button"
                             title="New Assessment"
-                            class="ink-button group !h-9 !shrink-0 !rounded-xl !px-3 whitespace-nowrap text-xs font-semibold shadow-xs transition-all duration-300"
+                            class="ink-button shadow-xs group !h-9 !shrink-0 whitespace-nowrap !rounded-xl !px-3 text-xs font-semibold transition-all duration-300"
                             @click="
                                 creating = true;
                                 setCreationMode('assessment');
                             "
                         >
                             <Plus class="size-4 shrink-0" />
-                            <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5">New Assessment</span>
+                            <span
+                                class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100"
+                                >New Assessment</span
+                            >
                         </button>
                     </div>
                 </div>
@@ -517,12 +539,28 @@ const submitProject = () => {
 
                     <label class="lg:col-span-3">
                         <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                            {{ form.type === 'quiz' ? 'Quiz #' : form.type === 'exam' ? 'Exam #' : form.type === 'laboratory' ? 'Lab #' : 'Activity #' }}
+                            {{
+                                form.type === 'quiz'
+                                    ? 'Quiz #'
+                                    : form.type === 'exam'
+                                      ? 'Exam #'
+                                      : form.type === 'laboratory'
+                                        ? 'Lab #'
+                                        : 'Activity #'
+                            }}
                         </span>
                         <input
                             v-model="form.assessment_number"
                             class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
-                            :placeholder="form.type === 'quiz' ? 'e.g. Quiz 1' : form.type === 'exam' ? 'e.g. Exam 1' : form.type === 'laboratory' ? 'e.g. Lab 1' : 'e.g. Activity 1'"
+                            :placeholder="
+                                form.type === 'quiz'
+                                    ? 'e.g. Quiz 1'
+                                    : form.type === 'exam'
+                                      ? 'e.g. Exam 1'
+                                      : form.type === 'laboratory'
+                                        ? 'e.g. Lab 1'
+                                        : 'e.g. Activity 1'
+                            "
                         />
                         <small v-if="form.errors.assessment_number" class="mt-1 block text-xs text-rose-600">{{
                             form.errors.assessment_number
@@ -785,19 +823,17 @@ const submitProject = () => {
                     </label>
 
                     <template v-if="projectForm.format !== 'individual'">
-                        <div class="lg:col-span-12 rounded-2xl border border-border/80 bg-secondary/20 p-4">
-                            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border/60 pb-3">
+                        <div class="rounded-2xl border border-border/80 bg-secondary/20 p-4 lg:col-span-12">
+                            <div class="flex flex-col gap-3 border-b border-border/60 pb-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
-                                    <h4 class="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                                    <h4 class="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-foreground">
                                         <Users class="size-3.5 text-primary" />
                                         <span>Group Assignment Setup</span>
                                     </h4>
-                                    <p class="text-[11px] text-muted-foreground mt-0.5">
-                                        Choose how students should be grouped for this activity.
-                                    </p>
+                                    <p class="mt-0.5 text-[11px] text-muted-foreground">Choose how students should be grouped for this activity.</p>
                                 </div>
 
-                                <div class="flex flex-wrap items-center gap-1.5 rounded-xl bg-background/80 p-1 border border-border/60">
+                                <div class="flex flex-wrap items-center gap-1.5 rounded-xl border border-border/60 bg-background/80 p-1">
                                     <button
                                         type="button"
                                         class="relative rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors"
@@ -807,21 +843,21 @@ const submitProject = () => {
                                         <motion.div
                                             v-if="projectGroupSetupMode === 'random'"
                                             layout-id="project-group-setup-mode-tab"
-                                            class="absolute inset-0 rounded-lg bg-primary shadow-xs"
+                                            class="shadow-xs absolute inset-0 rounded-lg bg-primary"
                                             :transition="tabIndicatorTransition"
                                         />
                                         <span class="relative z-10">Auto-Assign (Random)</span>
                                     </button>
                                     <button
                                         type="button"
-                                        class="relative rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors flex items-center gap-1"
+                                        class="relative flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors"
                                         :class="projectGroupSetupMode === 'previous' ? 'text-white' : 'text-muted-foreground hover:text-foreground'"
                                         @click="projectGroupSetupMode = 'previous'"
                                     >
                                         <motion.div
                                             v-if="projectGroupSetupMode === 'previous'"
                                             layout-id="project-group-setup-mode-tab"
-                                            class="absolute inset-0 rounded-lg bg-primary shadow-xs"
+                                            class="shadow-xs absolute inset-0 rounded-lg bg-primary"
                                             :transition="tabIndicatorTransition"
                                         />
                                         <span class="relative z-10 flex items-center gap-1">
@@ -829,8 +865,10 @@ const submitProject = () => {
                                             <span>Use Previous Grouping</span>
                                             <span
                                                 v-if="availableGroupProjects && availableGroupProjects.length > 0"
-                                                class="ml-1 rounded-full px-1.5 py-0.2 font-mono text-[9px] font-bold"
-                                                :class="projectGroupSetupMode === 'previous' ? 'bg-white/20 text-white' : 'bg-primary/10 text-primary'"
+                                                class="py-0.2 ml-1 rounded-full px-1.5 font-mono text-[9px] font-bold"
+                                                :class="
+                                                    projectGroupSetupMode === 'previous' ? 'bg-white/20 text-white' : 'bg-primary/10 text-primary'
+                                                "
                                             >
                                                 {{ availableGroupProjects.length }}
                                             </span>
@@ -845,7 +883,7 @@ const submitProject = () => {
                                         <motion.div
                                             v-if="projectGroupSetupMode === 'empty'"
                                             layout-id="project-group-setup-mode-tab"
-                                            class="absolute inset-0 rounded-lg bg-primary shadow-xs"
+                                            class="shadow-xs absolute inset-0 rounded-lg bg-primary"
                                             :transition="tabIndicatorTransition"
                                         />
                                         <span class="relative z-10">Empty Slots</span>
@@ -854,9 +892,11 @@ const submitProject = () => {
                             </div>
 
                             <!-- Mode 1: Auto-assign Random -->
-                            <div v-if="projectGroupSetupMode === 'random'" class="mt-3.5 grid gap-4 sm:grid-cols-12 items-center">
+                            <div v-if="projectGroupSetupMode === 'random'" class="mt-3.5 grid items-center gap-4 sm:grid-cols-12">
                                 <label class="sm:col-span-4">
-                                    <span class="mb-1 block text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Number of Groups</span>
+                                    <span class="mb-1 block text-[11px] font-bold uppercase tracking-wider text-muted-foreground"
+                                        >Number of Groups</span
+                                    >
                                     <input
                                         v-model.number="projectForm.group_count"
                                         type="number"
@@ -868,21 +908,31 @@ const submitProject = () => {
                                         projectForm.errors.group_count
                                     }}</small>
                                 </label>
-                                <div class="sm:col-span-8 text-xs text-muted-foreground pt-3 sm:pt-0">
+                                <div class="pt-3 text-xs text-muted-foreground sm:col-span-8 sm:pt-0">
                                     <p class="font-medium text-foreground">Fair Balanced Random Distribution</p>
-                                    <p class="text-[11px] mt-0.5">Active students in the section will be evenly distributed across {{ projectForm.group_count || 4 }} groups.</p>
+                                    <p class="mt-0.5 text-[11px]">
+                                        Active students in the section will be evenly distributed across {{ projectForm.group_count || 4 }} groups.
+                                    </p>
                                 </div>
                             </div>
 
                             <!-- Mode 2: Use Grouping from Previous Activity -->
                             <div v-else-if="projectGroupSetupMode === 'previous'" class="mt-3.5 space-y-3">
-                                <div v-if="!availableGroupProjects || availableGroupProjects.length === 0" class="rounded-xl border border-dashed border-border/80 bg-background/50 p-4 text-center text-xs text-muted-foreground">
+                                <div
+                                    v-if="!availableGroupProjects || availableGroupProjects.length === 0"
+                                    class="rounded-xl border border-dashed border-border/80 bg-background/50 p-4 text-center text-xs text-muted-foreground"
+                                >
                                     <p class="font-medium text-foreground">No previous group activities found in this section.</p>
-                                    <p class="text-[11px] mt-0.5">Create your first group activity using Auto-Assign, and you will be able to reuse its roster for future activities.</p>
+                                    <p class="mt-0.5 text-[11px]">
+                                        Create your first group activity using Auto-Assign, and you will be able to reuse its roster for future
+                                        activities.
+                                    </p>
                                 </div>
                                 <div v-else class="grid gap-4 sm:grid-cols-12">
                                     <label class="sm:col-span-6">
-                                        <span class="mb-1 block text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Select Previous Activity</span>
+                                        <span class="mb-1 block text-[11px] font-bold uppercase tracking-wider text-muted-foreground"
+                                            >Select Previous Activity</span
+                                        >
                                         <select
                                             v-model="projectSelectedSourceId"
                                             class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
@@ -894,7 +944,7 @@ const submitProject = () => {
                                         </select>
                                     </label>
 
-                                    <div class="sm:col-span-6 flex flex-col justify-end gap-2 text-xs">
+                                    <div class="flex flex-col justify-end gap-2 text-xs sm:col-span-6">
                                         <label class="flex cursor-pointer items-center gap-2 font-medium text-foreground">
                                             <input
                                                 v-model="projectForm.copy_names"
@@ -914,22 +964,35 @@ const submitProject = () => {
                                     </div>
 
                                     <!-- Preview Roster Box if selected -->
-                                    <div v-if="selectedProjectSource" class="sm:col-span-12 rounded-xl border border-primary/20 bg-primary/5 p-3 duration-150 animate-in fade-in">
-                                        <div class="flex items-center justify-between border-b border-primary/10 pb-2 text-xs font-semibold text-primary">
+                                    <div
+                                        v-if="selectedProjectSource"
+                                        class="rounded-xl border border-primary/20 bg-primary/5 p-3 duration-150 animate-in fade-in sm:col-span-12"
+                                    >
+                                        <div
+                                            class="flex items-center justify-between border-b border-primary/10 pb-2 text-xs font-semibold text-primary"
+                                        >
                                             <span>Roster Preview: {{ selectedProjectSource.title }}</span>
-                                            <span>{{ selectedProjectSource.groups_count }} groups · {{ selectedProjectSource.members_count }} assigned students</span>
+                                            <span
+                                                >{{ selectedProjectSource.groups_count }} groups · {{ selectedProjectSource.members_count }} assigned
+                                                students</span
+                                            >
                                         </div>
-                                        <div class="mt-2.5 flex flex-wrap gap-2 max-h-36 overflow-y-auto pr-1">
+                                        <div class="mt-2.5 flex max-h-36 flex-wrap gap-2 overflow-y-auto pr-1">
                                             <div
                                                 v-for="grp in selectedProjectSource.groups"
                                                 :key="grp.id"
-                                                class="rounded-lg border border-border/80 bg-background px-2.5 py-1.5 text-[11px] shadow-2xs min-w-[140px]"
+                                                class="shadow-2xs min-w-[140px] rounded-lg border border-border/80 bg-background px-2.5 py-1.5 text-[11px]"
                                             >
                                                 <div class="font-bold text-foreground">{{ grp.name }}</div>
-                                                <div class="text-[10px] text-muted-foreground mt-0.5">
+                                                <div class="mt-0.5 text-[10px] text-muted-foreground">
                                                     {{ grp.members.length }} members:
-                                                    <span class="truncate block text-foreground/80">
-                                                        {{ grp.members.map((m) => m.full_name).slice(0, 3).join(', ') }}{{ grp.members.length > 3 ? '...' : '' }}
+                                                    <span class="block truncate text-foreground/80">
+                                                        {{
+                                                            grp.members
+                                                                .map((m) => m.full_name)
+                                                                .slice(0, 3)
+                                                                .join(', ')
+                                                        }}{{ grp.members.length > 3 ? '...' : '' }}
                                                     </span>
                                                 </div>
                                             </div>
@@ -939,9 +1002,11 @@ const submitProject = () => {
                             </div>
 
                             <!-- Mode 3: Empty Slots -->
-                            <div v-else class="mt-3.5 grid gap-4 sm:grid-cols-12 items-center">
+                            <div v-else class="mt-3.5 grid items-center gap-4 sm:grid-cols-12">
                                 <label class="sm:col-span-4">
-                                    <span class="mb-1 block text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Number of Empty Groups</span>
+                                    <span class="mb-1 block text-[11px] font-bold uppercase tracking-wider text-muted-foreground"
+                                        >Number of Empty Groups</span
+                                    >
                                     <input
                                         v-model.number="projectForm.group_count"
                                         type="number"
@@ -953,9 +1018,12 @@ const submitProject = () => {
                                         projectForm.errors.group_count
                                     }}</small>
                                 </label>
-                                <div class="sm:col-span-8 text-xs text-muted-foreground pt-3 sm:pt-0">
+                                <div class="pt-3 text-xs text-muted-foreground sm:col-span-8 sm:pt-0">
                                     <p class="font-medium text-foreground">Empty Group Placeholders</p>
-                                    <p class="text-[11px] mt-0.5">{{ projectForm.group_count || 4 }} empty groups will be created. You can drag and drop or manually assign students inside the activity.</p>
+                                    <p class="mt-0.5 text-[11px]">
+                                        {{ projectForm.group_count || 4 }} empty groups will be created. You can drag and drop or manually assign
+                                        students inside the activity.
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -1015,16 +1083,12 @@ const submitProject = () => {
                     :href="`/sections/${section.id}/assessments${tab === 'all' ? '' : `?type=${tab}`}`"
                     prefetch="hover"
                     class="relative rounded-xl px-4 py-2 text-xs font-bold capitalize transition-colors"
-                    :class="
-                        filter === tab
-                            ? 'text-primary-foreground'
-                            : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
-                    "
+                    :class="filter === tab ? 'text-primary-foreground' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'"
                 >
                     <motion.div
                         v-if="filter === tab"
                         layout-id="active-assessment-filter-pill"
-                        class="absolute inset-0 rounded-xl bg-primary shadow-xs"
+                        class="shadow-xs absolute inset-0 rounded-xl bg-primary"
                         :transition="tabIndicatorTransition"
                     />
                     <span class="relative z-10">{{ tab === 'project' ? 'Projects & Reports' : tab }}</span>
@@ -1077,69 +1141,73 @@ const submitProject = () => {
                                       : 'border-l-amber-500'
                             "
                         >
-                        <div>
-                            <div class="flex items-center justify-between">
-                                <span
-                                    class="rounded-md px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white"
-                                    :class="
-                                        item.type === 'group_activity'
-                                            ? 'bg-emerald-800'
-                                            : item.type === 'project'
-                                              ? 'bg-emerald-800'
-                                              : 'bg-amber-800'
-                                    "
-                                >
-                                    {{
-                                        item.project_number ||
-                                        (item.type === 'group_activity' ? 'Group Activity' : item.type === 'project' ? 'Project' : 'Reporting')
-                                    }}
-                                </span>
-                                <div class="flex items-center gap-2">
-                                    <span v-if="item.max_points" class="font-mono text-xs font-medium text-foreground">
-                                        {{ item.max_points }} pts
-                                    </span>
-                                    <button
-                                        type="button"
-                                        class="grid size-7 place-items-center rounded-lg text-muted-foreground/60 transition-colors hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400"
-                                        title="Delete project/activity misentry"
-                                        @click.stop.prevent="deleteProjectTarget = item"
+                            <div>
+                                <div class="flex items-center justify-between">
+                                    <span
+                                        class="rounded-md px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white"
+                                        :class="
+                                            item.type === 'group_activity'
+                                                ? 'bg-emerald-800'
+                                                : item.type === 'project'
+                                                  ? 'bg-emerald-800'
+                                                  : 'bg-amber-800'
+                                        "
                                     >
-                                        <Trash2 class="size-3.5" />
+                                        {{
+                                            item.project_number ||
+                                            (item.type === 'group_activity' ? 'Group Activity' : item.type === 'project' ? 'Project' : 'Reporting')
+                                        }}
+                                    </span>
+                                    <div class="flex items-center gap-2">
+                                        <span v-if="item.max_points" class="font-mono text-xs font-medium text-foreground">
+                                            {{ item.max_points }} pts
+                                        </span>
+                                        <button
+                                            type="button"
+                                            class="grid size-7 place-items-center rounded-lg text-muted-foreground/60 transition-colors hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400"
+                                            title="Delete project/activity misentry"
+                                            @click.stop.prevent="deleteProjectTarget = item"
+                                        >
+                                            <Trash2 class="size-3.5" />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <h3 class="mt-3 text-lg font-bold tracking-tight text-foreground transition-colors group-hover:text-primary">
+                                    {{ item.title }}
+                                </h3>
+
+                                <p v-if="item.description" class="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                                    {{ item.description }}
+                                </p>
+
+                                <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+                                    <p class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                        <CalendarDays class="size-3.5" /> {{ formatDate(item.conducted_on) }}
+                                    </p>
+                                    <button
+                                        v-if="item.attachment_path"
+                                        type="button"
+                                        class="flex items-center gap-1.5 rounded-lg bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
+                                        title="Preview attached file with download option"
+                                        @click.stop.prevent="openProjectPreview(item, $event)"
+                                    >
+                                        <Paperclip class="size-3" />
+                                        <span>Preview attached</span>
                                     </button>
                                 </div>
                             </div>
 
-                            <h3 class="mt-3 text-lg font-bold tracking-tight text-foreground transition-colors group-hover:text-primary">
-                                {{ item.title }}
-                            </h3>
-
-                            <p v-if="item.description" class="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                                {{ item.description }}
-                            </p>
-
-                            <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
-                                <p class="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                    <CalendarDays class="size-3.5" /> {{ formatDate(item.conducted_on) }}
-                                </p>
-                                <button
-                                    v-if="item.attachment_path"
-                                    type="button"
-                                    class="flex items-center gap-1.5 rounded-lg bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
-                                    title="Preview attached file with download option"
-                                    @click.stop.prevent="openProjectPreview(item, $event)"
-                                >
-                                    <Paperclip class="size-3" />
-                                    <span>Preview attached</span>
-                                </button>
+                            <div
+                                class="mt-5 flex items-center justify-between border-t border-border/80 pt-3 text-xs font-medium text-muted-foreground"
+                            >
+                                <span class="flex items-center gap-1">
+                                    <FolderKanban class="size-3 text-primary" /> {{ item.groups_count }} groups
+                                </span>
+                                <span class="flex items-center gap-1">
+                                    <Users class="size-3 text-emerald-600 dark:text-emerald-400" /> {{ item.members_count }} members
+                                </span>
                             </div>
-                        </div>
-
-                        <div class="mt-5 flex items-center justify-between border-t border-border/80 pt-3 text-xs font-medium text-muted-foreground">
-                            <span class="flex items-center gap-1"> <FolderKanban class="size-3 text-primary" /> {{ item.groups_count }} groups </span>
-                            <span class="flex items-center gap-1">
-                                <Users class="size-3 text-emerald-600 dark:text-emerald-400" /> {{ item.members_count }} members
-                            </span>
-                        </div>
                         </Link>
                     </motion.div>
                 </div>
@@ -1166,62 +1234,70 @@ const submitProject = () => {
                             prefetch="hover"
                             class="paper-card group flex h-full flex-col justify-between transition-shadow hover:border-primary/50 hover:shadow-lg"
                         >
-                        <div>
-                            <div class="flex items-center justify-between">
-                                <span
-                                    class="rounded-md px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white"
-                                    :class="item.type === 'exam' ? 'bg-purple-800' : item.type === 'quiz' ? 'bg-blue-800' : item.type === 'laboratory' ? 'bg-cyan-800' : 'bg-emerald-800'"
-                                >
-                                    {{ item.assessment_number || (item.type === 'laboratory' ? 'Lab' : item.type) }}
-                                </span>
-                                <div class="flex items-center gap-2">
-                                    <span class="font-mono text-xs font-medium text-foreground">{{ item.max_points }} pts</span>
-                                    <button
-                                        type="button"
-                                        class="grid size-7 place-items-center rounded-lg text-muted-foreground/60 transition-colors hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400"
-                                        :title="`Delete ${item.type} misentry`"
-                                        @click.stop.prevent="deleteAssessmentTarget = item"
+                            <div>
+                                <div class="flex items-center justify-between">
+                                    <span
+                                        class="rounded-md px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white"
+                                        :class="
+                                            item.type === 'exam'
+                                                ? 'bg-purple-800'
+                                                : item.type === 'quiz'
+                                                  ? 'bg-blue-800'
+                                                  : item.type === 'laboratory'
+                                                    ? 'bg-cyan-800'
+                                                    : 'bg-emerald-800'
+                                        "
                                     >
-                                        <Trash2 class="size-3.5" />
+                                        {{ item.assessment_number || (item.type === 'laboratory' ? 'Lab' : item.type) }}
+                                    </span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-mono text-xs font-medium text-foreground">{{ item.max_points }} pts</span>
+                                        <button
+                                            type="button"
+                                            class="grid size-7 place-items-center rounded-lg text-muted-foreground/60 transition-colors hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400"
+                                            :title="`Delete ${item.type} misentry`"
+                                            @click.stop.prevent="deleteAssessmentTarget = item"
+                                        >
+                                            <Trash2 class="size-3.5" />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <h3 class="mt-4 text-xl font-medium tracking-tight transition-colors group-hover:text-primary">
+                                    {{ item.title }}
+                                </h3>
+
+                                <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+                                    <p class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                        <CalendarDays class="size-3.5" /> {{ formatDate(item.conducted_on) }}
+                                    </p>
+                                    <button
+                                        v-if="item.attachment_path"
+                                        type="button"
+                                        class="flex items-center gap-1.5 rounded-lg bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
+                                        title="Preview attached file with download option"
+                                        @click.stop.prevent="openAssessmentPreview(item, $event)"
+                                    >
+                                        <Paperclip class="size-3" />
+                                        <span>Preview attached</span>
                                     </button>
                                 </div>
                             </div>
 
-                            <h3 class="mt-4 text-xl font-medium tracking-tight transition-colors group-hover:text-primary">
-                                {{ item.title }}
-                            </h3>
-
-                            <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-                                <p class="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                    <CalendarDays class="size-3.5" /> {{ formatDate(item.conducted_on) }}
-                                </p>
-                                <button
-                                    v-if="item.attachment_path"
-                                    type="button"
-                                    class="flex items-center gap-1.5 rounded-lg bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
-                                    title="Preview attached file with download option"
-                                    @click.stop.prevent="openAssessmentPreview(item, $event)"
-                                >
-                                    <Paperclip class="size-3" />
-                                    <span>Preview attached</span>
-                                </button>
+                            <div class="mt-6 border-t border-border/80 pt-4">
+                                <div class="mb-2 flex items-center justify-between text-xs">
+                                    <span class="font-normal text-muted-foreground">Scoring progress</span>
+                                    <span class="font-mono font-medium text-primary">{{ item.graded_count }} recorded</span>
+                                </div>
+                                <div class="h-2 overflow-hidden rounded-full bg-secondary">
+                                    <div
+                                        class="h-full rounded-full bg-primary transition-all duration-300"
+                                        :style="{ width: `${Math.min(100, item.graded_count > 0 ? 100 : 0)}%` }"
+                                    />
+                                </div>
                             </div>
-                        </div>
-
-                        <div class="mt-6 border-t border-border/80 pt-4">
-                            <div class="mb-2 flex items-center justify-between text-xs">
-                                <span class="font-normal text-muted-foreground">Scoring progress</span>
-                                <span class="font-mono font-medium text-primary">{{ item.graded_count }} recorded</span>
-                            </div>
-                            <div class="h-2 overflow-hidden rounded-full bg-secondary">
-                                <div
-                                    class="h-full rounded-full bg-primary transition-all duration-300"
-                                    :style="{ width: `${Math.min(100, item.graded_count > 0 ? 100 : 0)}%` }"
-                                />
-                            </div>
-                        </div>
-                    </Link>
-                </motion.div>
+                        </Link>
+                    </motion.div>
 
                     <div
                         v-if="!filteredAssessments.length && !filteredProjects.length"
@@ -1373,10 +1449,6 @@ const submitProject = () => {
         />
 
         <!-- Hermes Exam Generator Modal -->
-        <ExamGeneratorModal
-            :open="showExamGeneratorModal"
-            :section="section"
-            @close="showExamGeneratorModal = false"
-        />
+        <ExamGeneratorModal :open="showExamGeneratorModal" :section="section" @close="showExamGeneratorModal = false" />
     </AppLayout>
 </template>

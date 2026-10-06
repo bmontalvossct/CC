@@ -24,7 +24,7 @@ class GradebookCalculationServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new GradebookCalculationService();
+        $this->service = new GradebookCalculationService;
     }
 
     public function test_it_calculates_gradebook_and_insights_with_accurate_metrics()

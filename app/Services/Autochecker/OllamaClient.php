@@ -11,8 +11,11 @@ use Illuminate\Support\Facades\Log;
 class OllamaClient
 {
     protected string $baseUrl;
+
     protected int $connectTimeout;
+
     protected int $timeout;
+
     protected string $keepAlive;
 
     public function __construct()
@@ -70,7 +73,7 @@ class OllamaClient
                 'online' => false,
                 'is_local' => $this->isLocalEndpoint(),
                 'latency_ms' => null,
-                'error' => 'Ollama is unreachable on ' . $this->baseUrl,
+                'error' => 'Ollama is unreachable on '.$this->baseUrl,
             ];
         }
     }
@@ -111,7 +114,8 @@ class OllamaClient
 
             return $models;
         } catch (Exception $e) {
-            Log::warning("Ollama getModels failed: " . $e->getMessage());
+            Log::warning('Ollama getModels failed: '.$e->getMessage());
+
             return [];
         }
     }
@@ -138,7 +142,7 @@ class OllamaClient
 
         // 2. Check if primary matches an installed model tag variation (e.g., 'hermes3' -> 'hermes3:latest')
         foreach ($installed as $inst) {
-            if ($inst === $primary || str_starts_with($inst, $primary . ':') || str_starts_with($primary, $inst . ':')) {
+            if ($inst === $primary || str_starts_with($inst, $primary.':') || str_starts_with($primary, $inst.':')) {
                 return $inst;
             }
         }
@@ -146,7 +150,7 @@ class OllamaClient
         // 3. Check if any allowed alias is installed
         foreach ($allowed as $candidate) {
             foreach ($installed as $inst) {
-                if ($inst === $candidate || str_starts_with($inst, $candidate . ':') || str_starts_with($candidate, $inst)) {
+                if ($inst === $candidate || str_starts_with($inst, $candidate.':') || str_starts_with($candidate, $inst)) {
                     return $inst;
                 }
             }
@@ -179,7 +183,8 @@ class OllamaClient
 
             return $response->successful();
         } catch (Exception $e) {
-            Log::info("Ollama warm request failed or timed out: " . $e->getMessage());
+            Log::info('Ollama warm request failed or timed out: '.$e->getMessage());
+
             return false;
         }
     }
@@ -187,10 +192,10 @@ class OllamaClient
     /**
      * Execute a synchronous chat request.
      *
-     * @param array<int, array{role: string, content: string}> $messages
-     * @param array<int, array<string, mixed>> $tools
-     * @param array<string, mixed>|null $schema
-     * @param array<string, mixed> $extraOptions
+     * @param  array<int, array{role: string, content: string}>  $messages
+     * @param  array<int, array<string, mixed>>  $tools
+     * @param  array<string, mixed>|null  $schema
+     * @param  array<string, mixed>  $extraOptions
      * @return array<string, mixed>
      */
     public function chat(
@@ -243,10 +248,10 @@ class OllamaClient
     /**
      * Execute a streaming chat request using a Generator.
      *
-     * @param array<int, array{role: string, content: string}> $messages
-     * @param array<int, array<string, mixed>> $tools
-     * @param array<string, mixed>|null $schema
-     * @param array<string, mixed> $extraOptions
+     * @param  array<int, array{role: string, content: string}>  $messages
+     * @param  array<int, array<string, mixed>>  $tools
+     * @param  array<string, mixed>|null  $schema
+     * @param  array<string, mixed>  $extraOptions
      * @return Generator<int, array<string, mixed>>
      */
     public function chatStream(
@@ -301,6 +306,7 @@ class OllamaClient
             $chunk = $body->read(8192);
             if ($chunk === '' && ! $body->eof()) {
                 usleep(5000);
+
                 continue;
             }
             $buffer .= $chunk;
@@ -361,6 +367,7 @@ class OllamaClient
                 $chunk = $body->read(8192);
                 if ($chunk === '' && ! $body->eof()) {
                     usleep(5000);
+
                     continue;
                 }
                 $buffer .= $chunk;
@@ -391,7 +398,7 @@ class OllamaClient
                 }
             }
         } catch (Exception $e) {
-            Log::error("Ollama streamPull failed for {$modelName}: " . $e->getMessage());
+            Log::error("Ollama streamPull failed for {$modelName}: ".$e->getMessage());
             yield [
                 'error' => $e->getMessage(),
                 'status' => 'error',
@@ -399,4 +406,3 @@ class OllamaClient
         }
     }
 }
-

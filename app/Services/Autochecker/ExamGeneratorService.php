@@ -8,7 +8,6 @@ use Exception;
 use Generator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 class ExamGeneratorService
 {
@@ -76,8 +75,8 @@ class ExamGeneratorService
     /**
      * Extract syllabus, topic summaries, and file text from selected modules using RAG grounding.
      *
-     * @param Collection<int, CourseModule> $modules
-     * @param array<string, mixed> $config
+     * @param  Collection<int, CourseModule>  $modules
+     * @param  array<string, mixed>  $config
      * @return array<int, array{id: int, module_number: string, title: string, description: ?string, excerpt: string, has_file: bool, file_name: ?string}>
      */
     public function extractCurriculumContext(Collection $modules, array $config = []): array
@@ -99,9 +98,8 @@ class ExamGeneratorService
     /**
      * Generate structured examination stream from Gemini Flash or Hermes 3.
      *
-     * @param Section $section
-     * @param Collection<int, CourseModule> $modules
-     * @param array<string, mixed> $config
+     * @param  Collection<int, CourseModule>  $modules
+     * @param  array<string, mixed>  $config
      * @return Generator<int, array<string, mixed>>
      */
     public function streamGenerateExam(Section $section, Collection $modules, array $config): Generator
@@ -127,7 +125,7 @@ class ExamGeneratorService
             yield [
                 'type' => 'status',
                 'step' => 'curriculum',
-                'message' => "Configuring prompt requirements and topic scope...",
+                'message' => 'Configuring prompt requirements and topic scope...',
             ];
             $curriculum = [];
         }
@@ -175,7 +173,7 @@ class ExamGeneratorService
                     }
                 }
             } catch (Exception $e) {
-                Log::warning('Gemini streaming failed, falling back to Ollama: ' . $e->getMessage());
+                Log::warning('Gemini streaming failed, falling back to Ollama: '.$e->getMessage());
                 // If Gemini fails or times out, fallback to local Ollama if online
                 $useGemini = false;
             }
@@ -290,7 +288,7 @@ class ExamGeneratorService
             ? implode("\n---\n", $moduleSummaries)
             : "No course module slides attached. Derive authentic, rigorous collegiate examination questions matching the course title ({$section->subject_code} - {$section->subject_title}), the exam title ({$examTitle}), standard collegiate syllabus topics, and the Teacher's Special Focus / Instructions.";
 
-        $systemPrompt = <<<PROMPT
+        $systemPrompt = <<<'PROMPT'
 You are an expert collegiate professor, curriculum evaluator, and examination creator.
 Your objective is to generate an authentic, rigorous, college-standard examination paper and a corresponding teacher answer key based on the course topics and instructor directives.
 
@@ -519,7 +517,7 @@ USER_PROMPT;
                 $answerText = trim($match[2]);
 
                 $items[] = [
-                    'id' => 'item_' . $parsedNum,
+                    'id' => 'item_'.$parsedNum,
                     'item_number' => $parsedNum,
                     'expected_answer' => $answerText,
                     'points' => 1.0,

@@ -12,6 +12,7 @@ use App\Models\Recitation;
 use App\Models\Section;
 use App\Models\Student;
 use App\Models\User;
+use App\Services\Autochecker\AiDocumentGraderService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -58,7 +59,7 @@ class AssessmentWorkflowTest extends TestCase
             Storage::disk('local')->assertExists($activity->activity_file_path);
             $this->get($url)->assertOk();
             $this->get($url.'?download=1')->assertDownload('instructions.txt');
-            $instructions = app(\App\Services\Autochecker\AiDocumentGraderService::class)->activityInstructions($activity);
+            $instructions = app(AiDocumentGraderService::class)->activityInstructions($activity);
             $this->assertStringContainsString('Build a calculator and include tests.', $instructions);
             $this->postJson($url, ['attachment' => UploadedFile::fake()->create('archive.zip', 1)])
                 ->assertUnprocessable()->assertJsonValidationErrors('attachment');

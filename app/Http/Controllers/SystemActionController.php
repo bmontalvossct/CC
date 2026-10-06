@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Assessment;
 use App\Models\CourseModule;
 use App\Models\Project;
+use App\Models\Section;
+use App\Services\SectionFolderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -22,9 +24,9 @@ class SystemActionController extends Controller
 
         // 0. Direct section or section category folder request
         if ($sectionId) {
-            $section = \App\Models\Section::where('user_id', $user->id)->find($sectionId);
+            $section = Section::where('user_id', $user->id)->find($sectionId);
             if ($section) {
-                $folderService = app(\App\Services\SectionFolderService::class);
+                $folderService = app(SectionFolderService::class);
                 $folderService->ensureSectionFolders($section);
                 $fullPath = $folderService->getPhysicalPath($section, $category ? (string) $category : null);
             }

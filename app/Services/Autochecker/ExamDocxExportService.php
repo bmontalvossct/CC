@@ -2,7 +2,6 @@
 
 namespace App\Services\Autochecker;
 
-use Exception;
 use Illuminate\Support\Str;
 use PhpOffice\PhpWord\Element\Table;
 use PhpOffice\PhpWord\IOFactory;
@@ -15,16 +14,16 @@ class ExamDocxExportService
     /**
      * Generate a Microsoft Word (.docx) file from exam markdown content.
      *
-     * @param array $options [
-     *     'title' => string,
-     *     'subject_code' => string|null,
-     *     'subject_title' => string|null,
-     *     'section_name' => string|null,
-     *     'max_points' => float|int|null,
-     *     'exam_content' => string,
-     *     'answer_key' => string|null,
-     *     'mode' => 'student'|'both'|'answers',
-     * ]
+     * @param  array  $options  [
+     *                          'title' => string,
+     *                          'subject_code' => string|null,
+     *                          'subject_title' => string|null,
+     *                          'section_name' => string|null,
+     *                          'max_points' => float|int|null,
+     *                          'exam_content' => string,
+     *                          'answer_key' => string|null,
+     *                          'mode' => 'student'|'both'|'answers',
+     *                          ]
      * @return string Absolute file path to the generated .docx file in temporary storage.
      */
     public function generateDocx(array $options): string
@@ -38,7 +37,7 @@ class ExamDocxExportService
         $answerKey = $options['answer_key'] ?? '';
         $mode = $options['mode'] ?? 'student';
 
-        $phpWord = new PhpWord();
+        $phpWord = new PhpWord;
 
         // Document Properties
         $properties = $phpWord->getDocInfo();
@@ -86,8 +85,8 @@ class ExamDocxExportService
             @mkdir($tempDir, 0755, true);
         }
 
-        $filename = 'exam_' . Str::random(16) . '.docx';
-        $fullPath = $tempDir . DIRECTORY_SEPARATOR . $filename;
+        $filename = 'exam_'.Str::random(16).'.docx';
+        $fullPath = $tempDir.DIRECTORY_SEPARATOR.$filename;
 
         $writer = IOFactory::createWriter($phpWord, 'Word2007');
         $writer->save($fullPath);
@@ -108,7 +107,7 @@ class ExamDocxExportService
         bool $isAnswerKeyOnly
     ): void {
         // Course info line
-        $subjectLine = trim(($subjectCode ? "{$subjectCode} - " : '') . ($subjectTitle ?: 'Academic Course'));
+        $subjectLine = trim(($subjectCode ? "{$subjectCode} - " : '').($subjectTitle ?: 'Academic Course'));
         if ($subjectLine) {
             $section->addText(
                 mb_strtoupper($subjectLine),
@@ -133,6 +132,7 @@ class ExamDocxExportService
 
             // Divider rule
             $this->addHorizontalRule($section, '047857');
+
             return;
         }
 
@@ -145,7 +145,7 @@ class ExamDocxExportService
             'cellMarginBottom' => 60,
         ]);
 
-        $scoreLabel = $maxPoints ? "Score: _____ / {$maxPoints}" : "Score: _________";
+        $scoreLabel = $maxPoints ? "Score: _____ / {$maxPoints}" : 'Score: _________';
 
         // Row 1: Student Name & Section
         $row1 = $table->addRow(300);
@@ -180,7 +180,7 @@ class ExamDocxExportService
     protected function renderAnswerKeyHeader($section, string $title, float|int|null $maxPoints): void
     {
         $section->addText(
-            mb_strtoupper($title) . ' — ANSWER KEY & RUBRIC',
+            mb_strtoupper($title).' — ANSWER KEY & RUBRIC',
             ['name' => 'Calibri', 'size' => 14, 'bold' => true, 'color' => '047857'],
             ['alignment' => Jc::CENTER, 'spaceBefore' => 120, 'spaceAfter' => 40]
         );
@@ -234,11 +234,13 @@ class ExamDocxExportService
                     $inCodeBlock = true;
                     $codeLines = [];
                 }
+
                 continue;
             }
 
             if ($inCodeBlock) {
                 $codeLines[] = $line; // preserve indentation
+
                 continue;
             }
 
@@ -250,6 +252,7 @@ class ExamDocxExportService
             // Skip horizontal rules
             if (preg_match('/^---+$|^\*\*\*+$|^___+$/', $trimmed)) {
                 $this->addHorizontalRule($section, $isAnswerKey ? 'A7F3D0' : 'E2E8F0');
+
                 continue;
             }
 
@@ -280,12 +283,14 @@ class ExamDocxExportService
                 $level = strlen($matches[1]);
                 $headingText = trim($matches[2]);
                 $this->renderHeading($section, $headingText, $level, $isAnswerKey);
+
                 continue;
             }
 
             // Bold section titles without markdown hashes e.g. **Part I: Identification (10 pts)**
             if (preg_match('/^\*\*(Part\s+[I|V|X\d]+[^\*]+)\*\*$/i', $trimmed, $matches)) {
                 $this->renderHeading($section, $matches[1], 2, $isAnswerKey);
+
                 continue;
             }
 
@@ -296,6 +301,7 @@ class ExamDocxExportService
                     ['name' => 'Calibri', 'size' => 11, 'bold' => true, 'color' => '1E293B'],
                     ['spaceBefore' => 140, 'spaceAfter' => 60]
                 );
+
                 continue;
             }
 
@@ -308,8 +314,9 @@ class ExamDocxExportService
                     'spaceBefore' => 20,
                     'spaceAfter' => 40,
                 ]);
-                $textRun->addText($choiceLetter . ' ', ['name' => 'Calibri', 'size' => 10.5, 'bold' => true, 'color' => '1E3A8A']);
+                $textRun->addText($choiceLetter.' ', ['name' => 'Calibri', 'size' => 10.5, 'bold' => true, 'color' => '1E3A8A']);
                 $this->appendFormattedInlineText($textRun, $choiceContent, ['name' => 'Calibri', 'size' => 10.5, 'color' => '1F2937']);
+
                 continue;
             }
 
@@ -323,6 +330,7 @@ class ExamDocxExportService
                 ]);
                 $textRun->addText('[   ] ', ['name' => 'Consolas', 'size' => 10.5, 'bold' => true, 'color' => '475569']);
                 $this->appendFormattedInlineText($textRun, $tfContent, ['name' => 'Calibri', 'size' => 10.5, 'color' => '1F2937']);
+
                 continue;
             }
 
@@ -336,8 +344,9 @@ class ExamDocxExportService
                     'spaceBefore' => 80,
                     'spaceAfter' => 50,
                 ]);
-                $textRun->addText($itemNumber . ' ', ['name' => 'Calibri', 'size' => 10.5, 'bold' => true, 'color' => '0F172A']);
+                $textRun->addText($itemNumber.' ', ['name' => 'Calibri', 'size' => 10.5, 'bold' => true, 'color' => '0F172A']);
                 $this->appendFormattedInlineText($textRun, $itemBody, ['name' => 'Calibri', 'size' => 10.5, 'color' => '1F2937']);
+
                 continue;
             }
 

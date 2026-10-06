@@ -173,7 +173,7 @@ class ClassCheckHelpCatalog
 
         $results = [];
         foreach ($all as $key => $item) {
-            $haystack = strtolower($item['title'] . ' ' . $item['summary'] . ' ' . implode(' ', $item['buttons']) . ' ' . implode(' ', $item['steps']));
+            $haystack = strtolower($item['title'].' '.$item['summary'].' '.implode(' ', $item['buttons']).' '.implode(' ', $item['steps']));
             if (str_contains($haystack, $q) || str_contains($key, $q)) {
                 $results[$key] = $item;
             }

@@ -763,4 +763,3 @@ class ProjectWorkflowTest extends TestCase
         $this->assertEquals([$students[0]->id, $students[2]->id], $newGroup->members()->pluck('student_id')->toArray());
     }
 }
-

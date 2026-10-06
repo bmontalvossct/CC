@@ -27,7 +27,7 @@ class FilenameMatcherServiceTest extends TestCase
         $student2->id = 2;
 
         $students = collect([$student1, $student2]);
-        $service = new FilenameMatcherService();
+        $service = new FilenameMatcherService;
 
         // Exact with hyphen
         $match = $service->matchSingle($students, '2024-00123_Activity1.py');
@@ -52,7 +52,7 @@ class FilenameMatcherServiceTest extends TestCase
         $student->id = 5;
 
         $students = collect([$student]);
-        $service = new FilenameMatcherService();
+        $service = new FilenameMatcherService;
 
         $match = $service->matchSingle($students, 'Penduko_Pedro_LabAssignment.pdf');
         $this->assertSame(5, $match['student_id']);
@@ -71,7 +71,7 @@ class FilenameMatcherServiceTest extends TestCase
         $student->id = 10;
 
         $students = collect([$student]);
-        $service = new FilenameMatcherService();
+        $service = new FilenameMatcherService;
 
         $match = $service->matchSingle($students, 'random_unrelated_code.js');
         $this->assertNull($match['student_id']);

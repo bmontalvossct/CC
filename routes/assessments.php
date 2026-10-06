@@ -1,10 +1,13 @@
 <?php
 
+use App\Http\Controllers\Assessments\ActivityFileController;
 use App\Http\Controllers\Assessments\AssessmentAttachmentController;
 use App\Http\Controllers\Assessments\AssessmentController;
 use App\Http\Controllers\Assessments\AssessmentExportController;
 use App\Http\Controllers\Assessments\AssessmentReportController;
 use App\Http\Controllers\Assessments\AssessmentScoreController;
+use App\Http\Controllers\Assessments\AutocheckerController;
+use App\Http\Controllers\Assessments\ExamGeneratorController;
 use App\Http\Controllers\Assessments\ProjectController;
 use Illuminate\Support\Facades\Route;
 
@@ -31,18 +34,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('sections/{section}/assessments/{assessment}/rubrics/study', [AssessmentController::class, 'studyRubric'])->name('sections.assessments.rubrics.study');
     Route::get('sections/{section}/assessments/{assessment}/export', [AssessmentExportController::class, 'assessment'])->name('sections.exports.assessment');
 
-    Route::match(['get', 'post'], 'sections/{section}/assessments/{assessment}/activity-file', [\App\Http\Controllers\Assessments\ActivityFileController::class, 'assessment'])->name('sections.assessments.activity-file');
-    Route::match(['get', 'post'], 'sections/{section}/projects/{project}/activity-file', [\App\Http\Controllers\Assessments\ActivityFileController::class, 'project'])->name('sections.projects.activity-file');
+    Route::match(['get', 'post'], 'sections/{section}/assessments/{assessment}/activity-file', [ActivityFileController::class, 'assessment'])->name('sections.assessments.activity-file');
+    Route::match(['get', 'post'], 'sections/{section}/projects/{project}/activity-file', [ActivityFileController::class, 'project'])->name('sections.projects.activity-file');
     Route::post('sections/{section}/projects/{project}/rubrics', [ProjectController::class, 'saveRubric'])->name('sections.projects.rubrics.save');
     Route::post('sections/{section}/projects/{project}/rubrics/study', [ProjectController::class, 'studyRubric'])->name('sections.projects.rubrics.study');
 
     // Assessment Autochecker (Bulk upload + Ollama LLM evaluator)
-    Route::get('sections/{section}/assessments/{assessment}/autochecker/status', [\App\Http\Controllers\Assessments\AutocheckerController::class, 'status'])->name('sections.assessments.autochecker.status');
-    Route::post('sections/{section}/assessments/{assessment}/autochecker/inspect', [\App\Http\Controllers\Assessments\AutocheckerController::class, 'inspectFiles'])->name('sections.assessments.autochecker.inspect');
-    Route::post('sections/{section}/assessments/{assessment}/autochecker/evaluate', [\App\Http\Controllers\Assessments\AutocheckerController::class, 'evaluateSingle'])->name('sections.assessments.autochecker.evaluate');
-    Route::post('sections/{section}/assessments/{assessment}/evaluate', [\App\Http\Controllers\Assessments\AutocheckerController::class, 'evaluateSingle']);
-    Route::post('sections/{section}/assessments/{assessment}/autochecker/run-sandbox', [\App\Http\Controllers\Assessments\AutocheckerController::class, 'runPythonSandbox'])->name('sections.assessments.autochecker.run-sandbox');
-    Route::post('sections/{section}/assessments/{assessment}/autochecker/apply-scores', [\App\Http\Controllers\Assessments\AutocheckerController::class, 'applyScores'])->name('sections.assessments.autochecker.apply-scores');
+    Route::get('sections/{section}/assessments/{assessment}/autochecker/status', [AutocheckerController::class, 'status'])->name('sections.assessments.autochecker.status');
+    Route::post('sections/{section}/assessments/{assessment}/autochecker/inspect', [AutocheckerController::class, 'inspectFiles'])->name('sections.assessments.autochecker.inspect');
+    Route::post('sections/{section}/assessments/{assessment}/autochecker/evaluate', [AutocheckerController::class, 'evaluateSingle'])->name('sections.assessments.autochecker.evaluate');
+    Route::post('sections/{section}/assessments/{assessment}/evaluate', [AutocheckerController::class, 'evaluateSingle']);
+    Route::post('sections/{section}/assessments/{assessment}/autochecker/run-sandbox', [AutocheckerController::class, 'runPythonSandbox'])->name('sections.assessments.autochecker.run-sandbox');
+    Route::post('sections/{section}/assessments/{assessment}/autochecker/apply-scores', [AutocheckerController::class, 'applyScores'])->name('sections.assessments.autochecker.apply-scores');
 
     // Projects & Group Reporting
     Route::get('sections/{section}/projects', [ProjectController::class, 'index'])->name('sections.projects.index');
@@ -83,10 +86,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('sections/{section}/exports/gradebook', [AssessmentExportController::class, 'gradebook'])->name('sections.exports.gradebook');
 
     // Hermes-Powered Exam Generator
-    Route::get('sections/{section}/exam-generator/modules', [\App\Http\Controllers\Assessments\ExamGeneratorController::class, 'modules'])->name('sections.exam-generator.modules');
-    Route::get('sections/{section}/exam-generator/status', [\App\Http\Controllers\Assessments\ExamGeneratorController::class, 'status'])->name('sections.exam-generator.status');
-    Route::post('sections/{section}/exam-generator/generate', [\App\Http\Controllers\Assessments\ExamGeneratorController::class, 'generate'])->name('sections.exam-generator.generate');
-    Route::post('sections/{section}/exam-generator/save-assessment', [\App\Http\Controllers\Assessments\ExamGeneratorController::class, 'saveAssessment'])->name('sections.exam-generator.save-assessment');
-    Route::post('sections/{section}/exam-generator/export-docx', [\App\Http\Controllers\Assessments\ExamGeneratorController::class, 'exportDocx'])->name('sections.exam-generator.export-docx');
+    Route::get('sections/{section}/exam-generator/modules', [ExamGeneratorController::class, 'modules'])->name('sections.exam-generator.modules');
+    Route::get('sections/{section}/exam-generator/status', [ExamGeneratorController::class, 'status'])->name('sections.exam-generator.status');
+    Route::post('sections/{section}/exam-generator/generate', [ExamGeneratorController::class, 'generate'])->name('sections.exam-generator.generate');
+    Route::post('sections/{section}/exam-generator/save-assessment', [ExamGeneratorController::class, 'saveAssessment'])->name('sections.exam-generator.save-assessment');
+    Route::post('sections/{section}/exam-generator/export-docx', [ExamGeneratorController::class, 'exportDocx'])->name('sections.exam-generator.export-docx');
 });
-

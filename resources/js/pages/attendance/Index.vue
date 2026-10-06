@@ -167,9 +167,7 @@ const selectedScheduleId = ref<string | number>('custom');
 const syncScheduleWithDate = () => {
     if (schedulesForSelectedDay.value.length > 0) {
         // Check if current form times match any schedule for today
-        const match = schedulesForSelectedDay.value.find(
-            (s) => s.starts_at === form.starts_at && s.ends_at === form.ends_at,
-        );
+        const match = schedulesForSelectedDay.value.find((s) => s.starts_at === form.starts_at && s.ends_at === form.ends_at);
         if (match) {
             selectedScheduleId.value = match.id;
         } else {
@@ -180,9 +178,7 @@ const syncScheduleWithDate = () => {
             form.ends_at = defaultSched.ends_at;
         }
     } else if (otherSchedules.value.length > 0) {
-        const match = otherSchedules.value.find(
-            (s) => s.starts_at === form.starts_at && s.ends_at === form.ends_at,
-        );
+        const match = otherSchedules.value.find((s) => s.starts_at === form.starts_at && s.ends_at === form.ends_at);
         selectedScheduleId.value = match ? match.id : 'custom';
     } else {
         selectedScheduleId.value = 'custom';
@@ -205,9 +201,7 @@ const onScheduleSelectChange = () => {
 // When user manually modifies starts_at or ends_at input, update selectedScheduleId if it matches or set to 'custom'
 const onManualTimeInput = () => {
     const allSchedules = props.section.schedules || [];
-    const match = allSchedules.find(
-        (s) => s.starts_at === form.starts_at && s.ends_at === form.ends_at,
-    );
+    const match = allSchedules.find((s) => s.starts_at === form.starts_at && s.ends_at === form.ends_at);
     selectedScheduleId.value = match ? match.id : 'custom';
 };
 
@@ -470,11 +464,7 @@ const filteredStudentSummaries = computed(() => {
                                         v-if="schedulesForSelectedDay.length > 0"
                                         :label="`Scheduled for ${getDayName(dayOfWeekForSessionDate)}`"
                                     >
-                                        <option
-                                            v-for="sched in schedulesForSelectedDay"
-                                            :key="`today-${sched.id}`"
-                                            :value="sched.id"
-                                        >
+                                        <option v-for="sched in schedulesForSelectedDay" :key="`today-${sched.id}`" :value="sched.id">
                                             {{ formatTime12h(sched.starts_at) }} – {{ formatTime12h(sched.ends_at) }}
                                             {{ sched.schedule_type ? ` · ${sched.schedule_type.toUpperCase()}` : '' }}
                                             {{ sched.room ? ` (${sched.room})` : '' }}
@@ -482,12 +472,9 @@ const filteredStudentSummaries = computed(() => {
                                     </optgroup>
 
                                     <optgroup v-if="otherSchedules.length > 0" label="Other Day Schedules">
-                                        <option
-                                            v-for="sched in otherSchedules"
-                                            :key="`other-${sched.id}`"
-                                            :value="sched.id"
-                                        >
-                                            {{ getDayName(sched.day_of_week) }} · {{ formatTime12h(sched.starts_at) }} – {{ formatTime12h(sched.ends_at) }}
+                                        <option v-for="sched in otherSchedules" :key="`other-${sched.id}`" :value="sched.id">
+                                            {{ getDayName(sched.day_of_week) }} · {{ formatTime12h(sched.starts_at) }} –
+                                            {{ formatTime12h(sched.ends_at) }}
                                             {{ sched.schedule_type ? ` · ${sched.schedule_type.toUpperCase()}` : '' }}
                                             {{ sched.room ? ` (${sched.room})` : '' }}
                                         </option>
@@ -569,7 +556,8 @@ const filteredStudentSummaries = computed(() => {
                                         {{ readableDate(session.session_date) }}
                                     </p>
                                     <p class="mt-0.5 text-sm text-muted-foreground">
-                                        {{ formatTime12h(session.starts_at) }} – {{ formatTime12h(session.ends_at) }} · {{ session.duration_minutes }} mins
+                                        {{ formatTime12h(session.starts_at) }} – {{ formatTime12h(session.ends_at) }} ·
+                                        {{ session.duration_minutes }} mins
                                     </p>
                                 </div>
                                 <div class="flex items-center gap-3 text-right">

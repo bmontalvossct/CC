@@ -3,6 +3,8 @@ import ClassroomSeatGrid from '@/components/ClassroomSeatGrid.vue';
 import FloorPlanner from '@/components/FloorPlanner.vue';
 import InputError from '@/components/InputError.vue';
 import RandomStudentPicker from '@/components/RandomStudentPicker.vue';
+import BulkPhotoImportModal from '@/components/students/BulkPhotoImportModal.vue';
+import RandomGroupGeneratorModal from '@/components/tools/RandomGroupGeneratorModal.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -43,10 +45,8 @@ import {
     Users,
     X,
 } from 'lucide-vue-next';
-import BulkPhotoImportModal from '@/components/students/BulkPhotoImportModal.vue';
-import RandomGroupGeneratorModal from '@/components/tools/RandomGroupGeneratorModal.vue';
 import QRCode from 'qrcode';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 const props = defineProps<{
     section: any;
@@ -92,7 +92,7 @@ const openSectionFolder = async (category?: string) => {
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '',
-                'Accept': 'application/json',
+                Accept: 'application/json',
             },
             body: JSON.stringify({
                 section_id: props.section.id,
@@ -175,9 +175,7 @@ const filteredRoster = computed(() => {
     const sorted = sortStudentsByLastName(props.section.students || []);
     if (!q) return sorted;
     return sorted.filter(
-        (student: any) =>
-            formatStudentDisplayName(student).toLowerCase().includes(q) ||
-            (student.student_number || '').toLowerCase().includes(q),
+        (student: any) => formatStudentDisplayName(student).toLowerCase().includes(q) || (student.student_number || '').toLowerCase().includes(q),
     );
 });
 
@@ -493,7 +491,10 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                                 title="Dashboard"
                             >
                                 <LayoutDashboard class="size-4 text-primary transition-colors group-hover:text-white" />
-                                <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 font-medium">Dashboard</span>
+                                <span
+                                    class="max-w-0 overflow-hidden whitespace-nowrap font-medium opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100"
+                                    >Dashboard</span
+                                >
                             </Link>
                             <RandomStudentPicker :section-id="section.id" :students="section.students" :called-today-ids="called_today_ids" />
                             <Link
@@ -502,7 +503,10 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                                 title="Attendance"
                             >
                                 <CalendarCheck2 class="size-4 text-primary transition-colors group-hover:text-white" />
-                                <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 font-medium">Attendance</span>
+                                <span
+                                    class="max-w-0 overflow-hidden whitespace-nowrap font-medium opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100"
+                                    >Attendance</span
+                                >
                             </Link>
                             <Link
                                 :href="`/sections/${section.id}/assessments`"
@@ -510,7 +514,10 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                                 title="Scores & Assessments"
                             >
                                 <ClipboardList class="size-4 text-primary transition-colors group-hover:text-white" />
-                                <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 font-medium">Scores</span>
+                                <span
+                                    class="max-w-0 overflow-hidden whitespace-nowrap font-medium opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100"
+                                    >Scores</span
+                                >
                             </Link>
                             <Link
                                 :href="`/sections/${section.id}/projects`"
@@ -518,7 +525,10 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                                 title="Projects & Groups"
                             >
                                 <FolderKanban class="size-4 text-primary transition-colors group-hover:text-white" />
-                                <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 font-medium">Projects & Groups</span>
+                                <span
+                                    class="max-w-0 overflow-hidden whitespace-nowrap font-medium opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100"
+                                    >Projects & Groups</span
+                                >
                             </Link>
                             <Link
                                 :href="`/sections/${section.id}/modules`"
@@ -526,7 +536,10 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                                 title="Course Modules"
                             >
                                 <Layers class="size-4 text-primary transition-colors group-hover:text-white" />
-                                <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 font-medium">Modules</span>
+                                <span
+                                    class="max-w-0 overflow-hidden whitespace-nowrap font-medium opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100"
+                                    >Modules</span
+                                >
                             </Link>
                             <Link
                                 :href="`/sections/${section.id}/recitation`"
@@ -534,7 +547,10 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                                 title="Oral Participation"
                             >
                                 <MessageSquare class="size-4 text-primary transition-colors group-hover:text-white" />
-                                <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 font-medium">Oral Participation</span>
+                                <span
+                                    class="max-w-0 overflow-hidden whitespace-nowrap font-medium opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100"
+                                    >Oral Participation</span
+                                >
                             </Link>
                             <button
                                 type="button"
@@ -543,7 +559,10 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                                 @click="showGroupGenerator = true"
                             >
                                 <Dices class="size-4 text-primary transition-colors group-hover:text-white" />
-                                <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 font-medium">Random Groups</span>
+                                <span
+                                    class="max-w-0 overflow-hidden whitespace-nowrap font-medium opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100"
+                                    >Random Groups</span
+                                >
                             </button>
                             <button
                                 type="button"
@@ -554,7 +573,9 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                             >
                                 <Check v-if="folderOpened" class="size-4 text-emerald-600 dark:text-emerald-400" />
                                 <FolderOpen v-else class="size-4 text-primary transition-colors group-hover:text-white" />
-                                <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 font-medium">
+                                <span
+                                    class="max-w-0 overflow-hidden whitespace-nowrap font-medium opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100"
+                                >
                                     {{ folderOpened ? 'Opened!' : 'Section Folder' }}
                                 </span>
                             </button>
@@ -564,7 +585,10 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                                 title="Edit Section Details"
                             >
                                 <Edit3 class="size-4 text-primary transition-colors group-hover:text-white" />
-                                <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 font-medium">Edit Section</span>
+                                <span
+                                    class="max-w-0 overflow-hidden whitespace-nowrap font-medium opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100"
+                                    >Edit Section</span
+                                >
                             </Link>
                             <button
                                 v-if="!isOffline && join_url"
@@ -574,7 +598,10 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                                 @click="showQr = true"
                             >
                                 <QrCode class="size-4 text-white" />
-                                <span class="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-300 ease-in-out group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 font-medium text-white">Enrollment QR</span>
+                                <span
+                                    class="max-w-0 overflow-hidden whitespace-nowrap font-medium text-white opacity-0 transition-all duration-300 ease-in-out group-hover:ml-1.5 group-hover:max-w-xs group-hover:opacity-100"
+                                    >Enrollment QR</span
+                                >
                             </button>
                         </div>
                     </div>
@@ -583,44 +610,58 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                 <!-- Section Key Performance Indicators (Statistics Strip) -->
                 <section class="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:gap-4" aria-label="Section Statistics">
                     <!-- Enrolled & Seated Students -->
-                    <article class="paper-card group relative overflow-hidden p-4 transition-all hover:border-primary/40 hover:shadow-xs">
+                    <article class="paper-card hover:shadow-xs group relative overflow-hidden p-4 transition-all hover:border-primary/40">
                         <div class="flex items-center justify-between">
                             <span class="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Students</span>
-                            <span class="grid size-8 place-items-center rounded-lg bg-sky-500/10 text-sky-600 transition-transform group-hover:scale-110 dark:text-sky-400">
+                            <span
+                                class="grid size-8 place-items-center rounded-lg bg-sky-500/10 text-sky-600 transition-transform group-hover:scale-110 dark:text-sky-400"
+                            >
                                 <Users class="size-4" />
                             </span>
                         </div>
                         <div class="mt-3 flex items-baseline justify-between">
                             <p class="text-2xl font-extrabold tracking-tight">{{ stats?.enrolled_count ?? section.students?.length ?? 0 }}</p>
                             <span class="text-[11px] font-medium text-muted-foreground">
-                                {{ stats?.seated_count ?? seatedStudents.length }}/{{ stats?.available_seats_count ?? availableSeats.length + seatedStudents.length }} seated
+                                {{ stats?.seated_count ?? seatedStudents.length }}/{{
+                                    stats?.available_seats_count ?? availableSeats.length + seatedStudents.length
+                                }}
+                                seated
                             </span>
                         </div>
                     </article>
 
                     <!-- Attendance Rate & Sessions -->
-                    <article class="paper-card group relative overflow-hidden p-4 transition-all hover:border-primary/40 hover:shadow-xs">
+                    <article class="paper-card hover:shadow-xs group relative overflow-hidden p-4 transition-all hover:border-primary/40">
                         <div class="flex items-center justify-between">
                             <span class="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Attendance</span>
-                            <span class="grid size-8 place-items-center rounded-lg bg-emerald-500/10 text-emerald-600 transition-transform group-hover:scale-110 dark:text-emerald-400">
+                            <span
+                                class="grid size-8 place-items-center rounded-lg bg-emerald-500/10 text-emerald-600 transition-transform group-hover:scale-110 dark:text-emerald-400"
+                            >
                                 <CalendarCheck2 class="size-4" />
                             </span>
                         </div>
                         <div class="mt-3 flex items-baseline justify-between">
-                            <p class="text-2xl font-extrabold tracking-tight" :class="stats?.attendance_rate !== null && (stats?.attendance_rate ?? 0) >= 80 ? 'text-emerald-600 dark:text-emerald-400' : ''">
+                            <p
+                                class="text-2xl font-extrabold tracking-tight"
+                                :class="
+                                    stats?.attendance_rate !== null && (stats?.attendance_rate ?? 0) >= 80
+                                        ? 'text-emerald-600 dark:text-emerald-400'
+                                        : ''
+                                "
+                            >
                                 {{ stats?.attendance_rate !== null && stats?.attendance_rate !== undefined ? `${stats.attendance_rate}%` : '—' }}
                             </p>
-                            <span class="text-[11px] font-medium text-muted-foreground">
-                                {{ stats?.meetings_count ?? 0 }} sessions
-                            </span>
+                            <span class="text-[11px] font-medium text-muted-foreground"> {{ stats?.meetings_count ?? 0 }} sessions </span>
                         </div>
                     </article>
 
                     <!-- Assessments & Lab Activities -->
-                    <article class="paper-card group relative overflow-hidden p-4 transition-all hover:border-primary/40 hover:shadow-xs">
+                    <article class="paper-card hover:shadow-xs group relative overflow-hidden p-4 transition-all hover:border-primary/40">
                         <div class="flex items-center justify-between">
                             <span class="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Scores & Labs</span>
-                            <span class="grid size-8 place-items-center rounded-lg bg-amber-500/10 text-amber-600 transition-transform group-hover:scale-110 dark:text-amber-400">
+                            <span
+                                class="grid size-8 place-items-center rounded-lg bg-amber-500/10 text-amber-600 transition-transform group-hover:scale-110 dark:text-amber-400"
+                            >
                                 <ClipboardList class="size-4" />
                             </span>
                         </div>
@@ -635,18 +676,18 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                     </article>
 
                     <!-- Oral Participation / Recitation -->
-                    <article class="paper-card group relative overflow-hidden p-4 transition-all hover:border-primary/40 hover:shadow-xs">
+                    <article class="paper-card hover:shadow-xs group relative overflow-hidden p-4 transition-all hover:border-primary/40">
                         <div class="flex items-center justify-between">
                             <span class="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Recitations</span>
-                            <span class="grid size-8 place-items-center rounded-lg bg-purple-500/10 text-purple-600 transition-transform group-hover:scale-110 dark:text-purple-400">
+                            <span
+                                class="grid size-8 place-items-center rounded-lg bg-purple-500/10 text-purple-600 transition-transform group-hover:scale-110 dark:text-purple-400"
+                            >
                                 <MessageSquare class="size-4" />
                             </span>
                         </div>
                         <div class="mt-3 flex items-baseline justify-between">
                             <p class="text-2xl font-extrabold tracking-tight">{{ stats?.recitations_count ?? 0 }}</p>
-                            <span class="text-[11px] font-medium text-muted-foreground">
-                                {{ stats?.called_today_count ?? 0 }} called today
-                            </span>
+                            <span class="text-[11px] font-medium text-muted-foreground"> {{ stats?.called_today_count ?? 0 }} called today </span>
                         </div>
                     </article>
                 </section>
@@ -821,11 +862,7 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
             />
 
             <!-- Bulk Photo ZIP Import Modal -->
-            <BulkPhotoImportModal
-                :open="showBulkPhotosModal"
-                :section-id="section.id"
-                @close="showBulkPhotosModal = false"
-            />
+            <BulkPhotoImportModal :open="showBulkPhotosModal" :section-id="section.id" @close="showBulkPhotosModal = false" />
 
             <!-- Enrollment QR Modal -->
             <div
@@ -1510,7 +1547,7 @@ const handleDragMoveStudent = ({ studentId, targetSeatId }: { studentId: number;
                                     v-if="editPhotoPreview"
                                     :src="editPhotoPreview"
                                     alt="Student photo preview"
-                                    class="size-16 rounded-xl border border-border object-cover shadow-xs"
+                                    class="shadow-xs size-16 rounded-xl border border-border object-cover"
                                 />
                                 <div
                                     v-else

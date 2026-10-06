@@ -93,8 +93,8 @@ class ModuleRagServiceTest extends TestCase
         $section = $this->createSection($teacher);
 
         $slideContent = "[Slide 1]\nIntroduction to Relational Databases and SQL tables.\n\n"
-            . "[Slide 2]\nPrimary keys uniquely identify rows in a table while foreign keys link related records.\n\n"
-            . "[Slide 3]\nDatabase normalization decomposes large tables to reduce redundancy and anomalies.";
+            ."[Slide 2]\nPrimary keys uniquely identify rows in a table while foreign keys link related records.\n\n"
+            ."[Slide 3]\nDatabase normalization decomposes large tables to reduce redundancy and anomalies.";
 
         $mockExtractor = Mockery::mock(FileContentExtractorService::class);
         $mockExtractor->shouldReceive('extract')->andReturn([
@@ -132,7 +132,7 @@ class ModuleRagServiceTest extends TestCase
         $teacher = User::factory()->create();
         $section = $this->createSection($teacher);
 
-        $longParagraph = str_repeat("Data structures organize and store data efficiently in memory. ", 20);
+        $longParagraph = str_repeat('Data structures organize and store data efficiently in memory. ', 20);
 
         $module = CourseModule::create([
             'section_id' => $section->id,
@@ -338,29 +338,29 @@ class ModuleRagServiceTest extends TestCase
         }
 
         // Create a temporary valid pptx file with 2 slides
-        $tempPptx = tempnam(sys_get_temp_dir(), 'test_pptx_') . '.pptx';
-        $zip = new ZipArchive();
+        $tempPptx = tempnam(sys_get_temp_dir(), 'test_pptx_').'.pptx';
+        $zip = new ZipArchive;
         $zip->open($tempPptx, ZipArchive::CREATE | ZipArchive::OVERWRITE);
 
         $slide1Xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-            . '<p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">'
-            . '<p:cSld><p:spTree>'
-            . '<p:sp><p:txBody><a:p><a:r><a:t>Slide One: Object Oriented Programming</a:t></a:r></a:p>'
-            . '<a:p><a:r><a:t>Encapsulation and Abstraction</a:t></a:r></a:p></p:txBody></p:sp>'
-            . '</p:spTree></p:cSld></p:sld>';
+            .'<p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">'
+            .'<p:cSld><p:spTree>'
+            .'<p:sp><p:txBody><a:p><a:r><a:t>Slide One: Object Oriented Programming</a:t></a:r></a:p>'
+            .'<a:p><a:r><a:t>Encapsulation and Abstraction</a:t></a:r></a:p></p:txBody></p:sp>'
+            .'</p:spTree></p:cSld></p:sld>';
 
         $slide2Xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-            . '<p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">'
-            . '<p:cSld><p:spTree>'
-            . '<p:sp><p:txBody><a:p><a:r><a:t>Slide Two: Polymorphism and Inheritance</a:t></a:r></a:p></p:txBody></p:sp>'
-            . '</p:spTree></p:cSld></p:sld>';
+            .'<p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">'
+            .'<p:cSld><p:spTree>'
+            .'<p:sp><p:txBody><a:p><a:r><a:t>Slide Two: Polymorphism and Inheritance</a:t></a:r></a:p></p:txBody></p:sp>'
+            .'</p:spTree></p:cSld></p:sld>';
 
         $zip->addFromString('ppt/slides/slide1.xml', $slide1Xml);
         $zip->addFromString('ppt/slides/slide2.xml', $slide2Xml);
         $zip->close();
 
         try {
-            $extractor = new FileContentExtractorService();
+            $extractor = new FileContentExtractorService;
             $result = $extractor->extract($tempPptx, 'lecture.pptx');
 
             $this->assertTrue($result['success']);

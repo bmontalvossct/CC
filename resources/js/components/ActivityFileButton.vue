@@ -41,7 +41,12 @@ const upload = async (event: Event) => {
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.errors?.attachment?.[0] || data.message || 'Upload failed. Please retry.');
-        router.reload({ only: [props.reloadProp], onSuccess: () => { preview.value = true; } });
+        router.reload({
+            only: [props.reloadProp],
+            onSuccess: () => {
+                preview.value = true;
+            },
+        });
     } catch (cause) {
         error.value = cause instanceof Error ? cause.message : 'Upload failed. Please retry.';
     } finally {
@@ -59,7 +64,7 @@ const upload = async (event: Event) => {
             class="inline-flex h-10 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-primary/40 bg-primary/10 px-4 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground disabled:opacity-50"
             :disabled="uploading"
             :title="attached ? 'View activity instructions: ' + fileName : 'Upload activity instructions (PDF, DOCX, TXT, Markdown, CSV; up to 50MB)'"
-            @click="attached ? preview = true : input?.click()"
+            @click="attached ? (preview = true) : input?.click()"
         >
             <LoaderCircle v-if="uploading" class="size-4 animate-spin" />
             <FileText v-else class="size-4" />

@@ -3,7 +3,6 @@
 namespace App\Services\Autochecker;
 
 use App\Models\Assessment;
-use App\Models\AssessmentScore;
 use App\Models\Project;
 use App\Models\ProjectGroup;
 use App\Models\ProjectGroupMember;
@@ -36,7 +35,7 @@ class AiDocumentGraderService
             $instructions .= "\n\nAttached activity instructions ({$activity->activity_file_name}):\n".$content;
         }
         if (mb_strlen($instructions) > 50000) {
-            $instructions = mb_substr($instructions, 0, 50000) . "\n\n[Activity instructions truncated for context budget]";
+            $instructions = mb_substr($instructions, 0, 50000)."\n\n[Activity instructions truncated for context budget]";
         }
 
         return $instructions !== '' ? $instructions : null;
@@ -75,12 +74,12 @@ class AiDocumentGraderService
             return Storage::disk('local')->path($path);
         }
 
-        if (file_exists(storage_path('app/' . $path))) {
-            return storage_path('app/' . $path);
+        if (file_exists(storage_path('app/'.$path))) {
+            return storage_path('app/'.$path);
         }
 
-        if (file_exists(storage_path('app/private/' . $path))) {
-            return storage_path('app/private/' . $path);
+        if (file_exists(storage_path('app/private/'.$path))) {
+            return storage_path('app/private/'.$path);
         }
 
         if (file_exists($path)) {
@@ -94,6 +93,7 @@ class AiDocumentGraderService
      * Grade an individual student's attached output for an assessment.
      *
      * @return array{score: float, remarks: string, student_id: int}
+     *
      * @throws Exception
      */
     public function gradeAssessmentSubmission(Section $section, Assessment $assessment, Student $student): array
@@ -110,7 +110,7 @@ class AiDocumentGraderService
         $studentContent = $extractedStudent['content'] ?? '';
         $studentImage = $extractedStudent['image_base64'] ?? null;
         if (empty(trim($studentContent)) && empty($studentImage)) {
-            throw new Exception("The student output could not be read. Review it manually.", 422);
+            throw new Exception('The student output could not be read. Review it manually.', 422);
         }
 
         // Extract teacher's attached activity/rubric file if present
@@ -127,7 +127,7 @@ class AiDocumentGraderService
             }
         }
 
-        $studentName = $student->last_name . ', ' . $student->first_name . ($student->middle_name ? ' ' . $student->middle_name : '');
+        $studentName = $student->last_name.', '.$student->first_name.($student->middle_name ? ' '.$student->middle_name : '');
         $maxPoints = (float) $assessment->max_points;
 
         $evaluation = $this->evaluateDocument(
@@ -143,7 +143,7 @@ class AiDocumentGraderService
                 'Student' => $studentName,
                 'Student ID' => $student->student_number,
                 'Section' => $section->name,
-                'Subject' => $section->subject_code . ' - ' . $section->subject_title,
+                'Subject' => $section->subject_code.' - '.$section->subject_title,
             ],
             rubricType: $assessment->rubric_type,
             rubricData: $assessment->rubric_data,
@@ -163,6 +163,7 @@ class AiDocumentGraderService
      * Grade a project group's attached output.
      *
      * @return array{score: float, remarks: string, group_id: int}
+     *
      * @throws Exception
      */
     public function gradeProjectGroupSubmission(Section $section, Project $project, ProjectGroup $group): array
@@ -178,7 +179,7 @@ class AiDocumentGraderService
         $groupContent = $extractedGroup['content'] ?? '';
         $groupImage = $extractedGroup['image_base64'] ?? null;
         if (empty(trim($groupContent)) && empty($groupImage)) {
-            throw new Exception("The output could not be read. Review it manually.", 422);
+            throw new Exception('The output could not be read. Review it manually.', 422);
         }
 
         // Extract teacher's attached project/rubric file if present
@@ -230,6 +231,7 @@ class AiDocumentGraderService
      * Grade an individual project member's attached output.
      *
      * @return array{score: float, remarks: string, student_id: int}
+     *
      * @throws Exception
      */
     public function gradeProjectMemberSubmission(Section $section, Project $project, ProjectGroup $group, Student $student): array
@@ -249,7 +251,7 @@ class AiDocumentGraderService
         $memberContent = $extractedMember['content'] ?? '';
         $memberImage = $extractedMember['image_base64'] ?? null;
         if (empty(trim($memberContent)) && empty($memberImage)) {
-            throw new Exception("The output could not be read. Review it manually.", 422);
+            throw new Exception('The output could not be read. Review it manually.', 422);
         }
 
         $rubricContent = null;
@@ -265,7 +267,7 @@ class AiDocumentGraderService
             }
         }
 
-        $studentName = $student->last_name . ', ' . $student->first_name . ($student->middle_name ? ' ' . $student->middle_name : '');
+        $studentName = $student->last_name.', '.$student->first_name.($student->middle_name ? ' '.$student->middle_name : '');
         $maxPoints = (float) ($project->max_points ?: 100);
 
         $evaluation = $this->evaluateDocument(
@@ -302,6 +304,7 @@ class AiDocumentGraderService
      * Study an uploaded rubric file or raw rubric text with Octo AI to extract structured criteria or answer keys.
      *
      * @return array{mode: string, title?: string, summary: string, criteria?: array, items?: array}
+     *
      * @throws Exception
      */
     public function studyRubricDocument(?string $filePath, ?string $fileName, float $maxPoints, ?string $rawText = null): array
@@ -437,7 +440,7 @@ PROMPT;
                 return $this->normalizeStudiedRubric($parsed, $maxPoints);
             }
         } catch (Exception $e) {
-            Log::warning("Octo study rubric failed: " . $e->getMessage());
+            Log::warning('Octo study rubric failed: '.$e->getMessage());
         }
 
         throw new Exception('Octo was unable to parse a structured rubric from this file. You can enter criteria or answer keys manually.', 422);
@@ -465,7 +468,7 @@ PROMPT;
                 $totalPts += $pts;
 
                 $items[] = [
-                    'id' => 'item_' . ($idx + 1) . '_' . substr(md5($q . $ans), 0, 6),
+                    'id' => 'item_'.($idx + 1).'_'.substr(md5($q.$ans), 0, 6),
                     'item_number' => $num,
                     'question' => $q,
                     'correct_answer' => $ans,
@@ -516,12 +519,12 @@ PROMPT;
         $totalPct = 0.0;
 
         foreach ($rawCriteria as $idx => $c) {
-            $name = trim((string) ($c['name'] ?? "Criterion " . ($idx + 1)));
+            $name = trim((string) ($c['name'] ?? 'Criterion '.($idx + 1)));
             $pct = max(1.0, (float) ($c['percentage'] ?? 25.0));
             $totalPct += $pct;
 
             $criteria[] = [
-                'id' => 'crit_' . ($idx + 1) . '_' . substr(md5($name), 0, 6),
+                'id' => 'crit_'.($idx + 1).'_'.substr(md5($name), 0, 6),
                 'name' => $name,
                 'percentage' => $pct,
                 'max_points' => round(($pct / 100) * $maxPoints, 2),
@@ -594,13 +597,13 @@ PROMPT;
         // Support large documents up to 50,000 characters (~12,500 tokens), gracefully truncating if larger so grading never fails
         $maxBudget = 50000;
         if (mb_strlen($submissionContent) > $maxBudget) {
-            $truncatedSubmission = mb_substr($submissionContent, 0, 45000) . "\n\n[... Submission content truncated for AI context budget ...]\n\n" . mb_substr($submissionContent, -5000);
+            $truncatedSubmission = mb_substr($submissionContent, 0, 45000)."\n\n[... Submission content truncated for AI context budget ...]\n\n".mb_substr($submissionContent, -5000);
         } else {
             $truncatedSubmission = $submissionContent;
         }
 
         if ($rubricContent && mb_strlen($rubricContent) > $maxBudget) {
-            $truncatedRubric = mb_substr($rubricContent, 0, $maxBudget) . "\n\n[... Rubric content truncated for AI context budget ...]";
+            $truncatedRubric = mb_substr($rubricContent, 0, $maxBudget)."\n\n[... Rubric content truncated for AI context budget ...]";
         } else {
             $truncatedRubric = $rubricContent;
         }
@@ -702,7 +705,7 @@ PROMPT;
 
         $mode = (! empty($rubricData['mode']) ? $rubricData['mode'] : ($rubricType ?? 'percentage'));
         if ($mode === 'answer_key' && ! empty($rubricData['items'])) {
-            $instructionsText = <<<INSTR
+            $instructionsText = <<<'INSTR'
 ANSWER KEY EXTRACTION INSTRUCTIONS:
 1. Examine the student submission against the official Answer Key above.
 2. Check if the submission is genuinely attempting this quiz/assignment. If off-topic, unrelated, placeholder, or blank, set "is_on_topic": false and "score": 0.
@@ -721,13 +724,13 @@ INSTR;
         $moduleGroundingBlock = '';
         if ($section) {
             try {
-                $ragQuery = trim("{$title} " . ($description ?? ''));
+                $ragQuery = trim("{$title} ".($description ?? ''));
                 $moduleChunks = $this->ragService->search($section, $ragQuery, limit: 3);
                 if (! empty($moduleChunks)) {
-                    $moduleGroundingBlock = $this->ragService->formatGroundingContext($moduleChunks, 3500) . "\n\n";
+                    $moduleGroundingBlock = $this->ragService->formatGroundingContext($moduleChunks, 3500)."\n\n";
                 }
             } catch (Exception $e) {
-                Log::info("Module RAG grounding skipped in grading: " . $e->getMessage());
+                Log::info('Module RAG grounding skipped in grading: '.$e->getMessage());
             }
         }
 
@@ -754,7 +757,7 @@ PROMPT;
             $imageNote .= "\n[Attached Rubric / Answer Key Image attached for visual inspection]";
         }
         if (! empty($imageNote)) {
-            $userPrompt .= "\n\n--- ATTACHED VISUAL ASSETS ---" . $imageNote . "\nPlease inspect the attached image(s) carefully to evaluate visual outputs, screenshots, diagrams, terminal outputs, or written answers.";
+            $userPrompt .= "\n\n--- ATTACHED VISUAL ASSETS ---".$imageNote."\nPlease inspect the attached image(s) carefully to evaluate visual outputs, screenshots, diagrams, terminal outputs, or written answers.";
         }
 
         $jsonSchema = [
@@ -800,7 +803,7 @@ PROMPT;
 
         // Deterministic topic relevance verification
         $topicValidation = $this->validateTopicRelevance(
-            activityText: $rubricBlock . "\n" . ($description ?? ''),
+            activityText: $rubricBlock."\n".($description ?? ''),
             submissionText: $submissionContent,
             activityTitle: $title
         );
@@ -828,7 +831,8 @@ PROMPT;
                 );
             }
 
-            $ptsLabel = (floor($maxPoints) == $maxPoints ? (int)$maxPoints : number_format($maxPoints, 2)) . ' pts';
+            $ptsLabel = (floor($maxPoints) == $maxPoints ? (int) $maxPoints : number_format($maxPoints, 2)).' pts';
+
             return [
                 'score' => 0.0,
                 'remarks' => "Off-Topic Submission (0.00 / {$ptsLabel})\n\n{$topicSummary}",
@@ -871,7 +875,7 @@ PROMPT;
                 $topicSummary = trim((string) ($parsed['topic_relevance_summary'] ?? ''));
 
                 // Safety check: detect textual indicators of off-topic or irrelevant submission
-                $lowerText = strtolower($rawRemarks . ' ' . $topicSummary);
+                $lowerText = strtolower($rawRemarks.' '.$topicSummary);
                 $textSaysOffTopic = str_contains($lowerText, 'off-topic')
                     || str_contains($lowerText, 'off topic')
                     || str_contains($lowerText, 'unrelated to the activity')
@@ -944,7 +948,7 @@ PROMPT;
                 ];
             }
         } catch (Exception $e) {
-            Log::warning("AI document checking failed with Ollama: " . $e->getMessage());
+            Log::warning('AI document checking failed with Ollama: '.$e->getMessage());
         }
 
         throw new Exception('AI checking is unavailable or returned incomplete feedback. No score was changed. Please retry.', 422);
@@ -966,7 +970,7 @@ PROMPT;
         if (empty($items)) {
             return [
                 'score' => 0.0,
-                'remarks' => "No answer key items configured.",
+                'remarks' => 'No answer key items configured.',
             ];
         }
 
@@ -1049,7 +1053,7 @@ PROMPT;
         $finalScoreStr = number_format($finalScore, 2);
         $maxPointsStr = number_format($maxPoints, 2);
 
-        $remarks = implode("\n", $itemLines) . "\n\n";
+        $remarks = implode("\n", $itemLines)."\n\n";
         $remarks .= "Summary: Total items correct: {$correctCount} / {$totalItems}. Total score: {$finalScoreStr} / {$maxPointsStr} pts.";
 
         if (! $isOnTopic) {
@@ -1079,7 +1083,7 @@ PROMPT;
         if (empty($criteria)) {
             return [
                 'score' => 0.0,
-                'remarks' => "No percentage criteria configured.",
+                'remarks' => 'No percentage criteria configured.',
             ];
         }
 
@@ -1087,15 +1091,15 @@ PROMPT;
             $reason = $topicSummary ?: 'The submitted document does not address the required activity specifications or rubrics.';
             $criterionLines = [];
             foreach ($criteria as $idx => $c) {
-                $cName = trim((string) ($c['name'] ?? "Criterion " . ($idx + 1)));
+                $cName = trim((string) ($c['name'] ?? 'Criterion '.($idx + 1)));
                 $cPct = (float) ($c['percentage'] ?? 0);
                 $cMax = max(0.0, (float) ($c['max_points'] ?? round(($cPct / 100) * $maxPoints, 2)));
                 $cMaxStr = number_format($cMax, 2);
                 $criterionLines[] = "* [{$cName}] (0.00 / {$cMaxStr} pts): 0.00 points awarded because submission is off-topic.";
             }
 
-            $remarks = implode("\n", $criterionLines) . "\n\n";
-            $remarks .= "Summary: Off-Topic Submission (Total Score: 0.00 / " . number_format($maxPoints, 2) . " pts). {$reason}";
+            $remarks = implode("\n", $criterionLines)."\n\n";
+            $remarks .= 'Summary: Off-Topic Submission (Total Score: 0.00 / '.number_format($maxPoints, 2)." pts). {$reason}";
 
             return [
                 'score' => 0.0,
@@ -1112,7 +1116,7 @@ PROMPT;
         $totalAwarded = 0.0;
 
         foreach ($criteria as $idx => $c) {
-            $cName = trim((string) ($c['name'] ?? "Criterion " . ($idx + 1)));
+            $cName = trim((string) ($c['name'] ?? 'Criterion '.($idx + 1)));
             $cPct = (float) ($c['percentage'] ?? 0);
             $cMax = max(0.0, (float) ($c['max_points'] ?? round(($cPct / 100) * $maxPoints, 2)));
 
@@ -1159,7 +1163,7 @@ PROMPT;
         $finalScoreStr = number_format($finalScore, 2);
         $maxPointsStr = number_format($maxPoints, 2);
 
-        $remarks = implode("\n", $criterionLines) . "\n\n";
+        $remarks = implode("\n", $criterionLines)."\n\n";
         $summaryNote = $topicSummary ?: (! empty($parsed['remarks']) && ! str_contains($parsed['remarks'], 'Itemized grading remarks') ? trim($parsed['remarks']) : 'Evaluated against structured percentage criteria.');
         $remarks .= "Summary: {$summaryNote} (Total Score: {$finalScoreStr} / {$maxPointsStr} pts)";
 
@@ -1223,7 +1227,7 @@ PROMPT;
      */
     public function validateTopicRelevance(string $activityText, string $submissionText, ?string $activityTitle = null): array
     {
-        $fullActivity = trim(($activityTitle ? $activityTitle . "\n\n" : '') . $activityText);
+        $fullActivity = trim(($activityTitle ? $activityTitle."\n\n" : '').$activityText);
         $actAnchors = $this->extractTechnicalAnchors($fullActivity);
 
         // If activity instructions are brief or have few domain anchors, defer to LLM evaluation
@@ -1276,4 +1280,3 @@ PROMPT;
         ];
     }
 }
-

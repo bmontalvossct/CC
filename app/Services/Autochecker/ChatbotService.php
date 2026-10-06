@@ -4,6 +4,7 @@ namespace App\Services\Autochecker;
 
 use App\Models\Section;
 use App\Models\User;
+use App\Services\GradebookCalculationService;
 use Exception;
 use Generator;
 use Illuminate\Support\Facades\Log;
@@ -11,22 +12,20 @@ use Illuminate\Support\Facades\Log;
 class ChatbotService
 {
     public const SCOPE_CURRENT_SECTION = 'current_section';
+
     public const SCOPE_ALL_CLASSES = 'all_classes';
+
     public const SCOPE_APP_HELP = 'app_help';
 
     public function __construct(
         protected OllamaClient $ollamaClient,
         protected ChatToolRegistry $toolRegistry
-    ) {
-    }
+    ) {}
 
     /**
      * Stream an intelligent grounded chat conversation via NDJSON generator.
      *
-     * @param User $user
-     * @param array<int, array{role: string, content: string}> $messages
-     * @param string $scope
-     * @param int|null $sectionId
+     * @param  array<int, array{role: string, content: string}>  $messages
      * @return Generator<int, array<string, mixed>>
      */
     public function streamChat(User $user, array $messages, string $scope = self::SCOPE_CURRENT_SECTION, ?int $sectionId = null): Generator
@@ -50,6 +49,7 @@ class ChatbotService
                 'code' => 422,
                 'message' => 'No valid user messages provided.',
             ];
+
             return;
         }
 
@@ -62,6 +62,7 @@ class ChatbotService
                 'code' => $e->getCode() >= 400 && $e->getCode() < 600 ? $e->getCode() : 403,
                 'message' => $e->getMessage(),
             ];
+
             return;
         }
 
@@ -87,179 +88,179 @@ class ChatbotService
         try {
             // 2. Multi-turn Tool Calling Loop
             while ($toolIterations < $maxToolIterations) {
-            $toolIterations++;
+                $toolIterations++;
 
-            // If scope is app_help, we only pass help catalog tool
-            $activeTools = $scope === self::SCOPE_APP_HELP
-                ? array_values(array_filter($tools, fn ($t) => ($t['function']['name'] ?? '') === 'get_help_catalog'))
-                : $tools;
+                // If scope is app_help, we only pass help catalog tool
+                $activeTools = $scope === self::SCOPE_APP_HELP
+                    ? array_values(array_filter($tools, fn ($t) => ($t['function']['name'] ?? '') === 'get_help_catalog'))
+                    : $tools;
 
-            $chatResponse = $this->ollamaClient->chat(
+                $chatResponse = $this->ollamaClient->chat(
+                    profile: 'chat',
+                    messages: $conversation,
+                    tools: $activeTools,
+                    schema: null,
+                    extraOptions: ['temperature' => 0.2]
+                );
+
+                $message = $chatResponse['message'] ?? [];
+                $toolCalls = $message['tool_calls'] ?? [];
+
+                // No more tool calls: proceed to final answer streaming
+                if (empty($toolCalls)) {
+                    break;
+                }
+
+                // Append assistant tool-call request to conversation
+                $conversation[] = $message;
+
+                // Execute each requested tool sequentially with strict error boundary
+                foreach ($toolCalls as $call) {
+                    $toolName = $call['function']['name'] ?? '';
+                    $arguments = $call['function']['arguments'] ?? [];
+
+                    // Automatically inject active section_id if tool expects it and was omitted
+                    if (isset($sectionId) && ! isset($arguments['section_id'])) {
+                        $arguments['section_id'] = $sectionId;
+                    }
+
+                    yield [
+                        'type' => 'status',
+                        'step' => 'tool_calling',
+                        'tool' => $toolName,
+                        'message' => "Octo is verifying data ({$toolName})...",
+                    ];
+
+                    $toolStart = microtime(true);
+
+                    try {
+                        $toolResult = $this->toolRegistry->executeTool($toolName, $arguments, $user);
+                        $toolExecutionTimeMs += round((microtime(true) - $toolStart) * 1000, 1);
+
+                        if (! empty($toolResult['source'])) {
+                            $sourcesUsed[] = $toolResult['source'];
+                            if (! empty($toolResult['source']['proposal'])) {
+                                $proposals[] = $toolResult['source']['proposal'];
+                            }
+                            if (! empty($toolResult['source']['choice_card'])) {
+                                $choiceCard = $toolResult['source']['choice_card'];
+                            }
+                        }
+
+                        // Sanitize and wrap evidence safely without arbitrary slicing
+                        $evidenceJson = json_encode($toolResult['result'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+                        $conversation[] = [
+                            'role' => 'tool',
+                            'content' => "=== RETRIEVED UNTRUSTED EVIDENCE ({$toolName}) ===\n".$evidenceJson,
+                        ];
+                    } catch (Exception $e) {
+                        $conversation[] = [
+                            'role' => 'tool',
+                            'content' => json_encode(['error' => $e->getMessage()]),
+                        ];
+                    }
+                }
+            }
+
+            // Yield sources collected
+            if (! empty($sourcesUsed)) {
+                // Deduplicate sources by type + id
+                $uniqueSources = collect($sourcesUsed)->unique(fn ($s) => "{$s['type']}_{$s['id']}")->values()->all();
+                yield [
+                    'type' => 'sources',
+                    'sources' => $uniqueSources,
+                ];
+            }
+
+            // Yield interactive action proposals
+            if (! empty($proposals)) {
+                yield [
+                    'type' => 'proposals',
+                    'proposals' => $proposals,
+                ];
+            }
+
+            // Yield interactive clarification choice options
+            if (! empty($choiceCard)) {
+                yield [
+                    'type' => 'choices',
+                    'question' => $choiceCard['question'] ?? 'Please select an option:',
+                    'options' => $choiceCard['options'] ?? [],
+                    'is_multi_select' => $choiceCard['is_multi_select'] ?? false,
+                ];
+            }
+
+            yield [
+                'type' => 'status',
+                'step' => 'streaming',
+                'message' => 'Octo is generating response...',
+            ];
+
+            // 3. Final streaming response to client
+            $streamGenerator = $this->ollamaClient->chatStream(
                 profile: 'chat',
                 messages: $conversation,
-                tools: $activeTools,
+                tools: [], // No tools during final response generation
                 schema: null,
                 extraOptions: ['temperature' => 0.2]
             );
 
-            $message = $chatResponse['message'] ?? [];
-            $toolCalls = $message['tool_calls'] ?? [];
+            $promptTokens = 0;
+            $promptEvalDurationNs = 0;
+            $evalTokens = 0;
+            $evalDurationNs = 0;
+            $finishReason = 'stop';
 
-            // No more tool calls: proceed to final answer streaming
-            if (empty($toolCalls)) {
-                break;
-            }
-
-            // Append assistant tool-call request to conversation
-            $conversation[] = $message;
-
-            // Execute each requested tool sequentially with strict error boundary
-            foreach ($toolCalls as $call) {
-                $toolName = $call['function']['name'] ?? '';
-                $arguments = $call['function']['arguments'] ?? [];
-
-                // Automatically inject active section_id if tool expects it and was omitted
-                if (isset($sectionId) && ! isset($arguments['section_id'])) {
-                    $arguments['section_id'] = $sectionId;
-                }
-
-                yield [
-                    'type' => 'status',
-                    'step' => 'tool_calling',
-                    'tool' => $toolName,
-                    'message' => "Octo is verifying data ({$toolName})...",
-                ];
-
-                $toolStart = microtime(true);
-
-                try {
-                    $toolResult = $this->toolRegistry->executeTool($toolName, $arguments, $user);
-                    $toolExecutionTimeMs += round((microtime(true) - $toolStart) * 1000, 1);
-
-                    if (! empty($toolResult['source'])) {
-                        $sourcesUsed[] = $toolResult['source'];
-                        if (! empty($toolResult['source']['proposal'])) {
-                            $proposals[] = $toolResult['source']['proposal'];
-                        }
-                        if (! empty($toolResult['source']['choice_card'])) {
-                            $choiceCard = $toolResult['source']['choice_card'];
-                        }
+            foreach ($streamGenerator as $chunk) {
+                if (isset($chunk['message']['content'])) {
+                    $delta = $chunk['message']['content'];
+                    if ($delta !== '') {
+                        yield [
+                            'type' => 'delta',
+                            'text' => $delta,
+                        ];
                     }
-
-                    // Sanitize and wrap evidence safely without arbitrary slicing
-                    $evidenceJson = json_encode($toolResult['result'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-                    $conversation[] = [
-                        'role' => 'tool',
-                        'content' => "=== RETRIEVED UNTRUSTED EVIDENCE ({$toolName}) ===\n" . $evidenceJson,
-                    ];
-                } catch (Exception $e) {
-                    $conversation[] = [
-                        'role' => 'tool',
-                        'content' => json_encode(['error' => $e->getMessage()]),
-                    ];
                 }
-            }
-        }
 
-        // Yield sources collected
-        if (! empty($sourcesUsed)) {
-            // Deduplicate sources by type + id
-            $uniqueSources = collect($sourcesUsed)->unique(fn ($s) => "{$s['type']}_{$s['id']}")->values()->all();
-            yield [
-                'type' => 'sources',
-                'sources' => $uniqueSources,
-            ];
-        }
-
-        // Yield interactive action proposals
-        if (! empty($proposals)) {
-            yield [
-                'type' => 'proposals',
-                'proposals' => $proposals,
-            ];
-        }
-
-        // Yield interactive clarification choice options
-        if (! empty($choiceCard)) {
-            yield [
-                'type' => 'choices',
-                'question' => $choiceCard['question'] ?? 'Please select an option:',
-                'options' => $choiceCard['options'] ?? [],
-                'is_multi_select' => $choiceCard['is_multi_select'] ?? false,
-            ];
-        }
-
-        yield [
-            'type' => 'status',
-            'step' => 'streaming',
-            'message' => 'Octo is generating response...',
-        ];
-
-        // 3. Final streaming response to client
-        $streamGenerator = $this->ollamaClient->chatStream(
-            profile: 'chat',
-            messages: $conversation,
-            tools: [], // No tools during final response generation
-            schema: null,
-            extraOptions: ['temperature' => 0.2]
-        );
-
-        $promptTokens = 0;
-        $promptEvalDurationNs = 0;
-        $evalTokens = 0;
-        $evalDurationNs = 0;
-        $finishReason = 'stop';
-
-        foreach ($streamGenerator as $chunk) {
-            if (isset($chunk['message']['content'])) {
-                $delta = $chunk['message']['content'];
-                if ($delta !== '') {
-                    yield [
-                        'type' => 'delta',
-                        'text' => $delta,
-                    ];
+                if (! empty($chunk['done'])) {
+                    $promptTokens = $chunk['prompt_eval_count'] ?? 0;
+                    $promptEvalDurationNs = $chunk['prompt_eval_duration'] ?? 0;
+                    $evalTokens = $chunk['eval_count'] ?? 0;
+                    $evalDurationNs = $chunk['eval_duration'] ?? 0;
+                    $finishReason = $chunk['done_reason'] ?? 'stop';
                 }
             }
 
-            if (! empty($chunk['done'])) {
-                $promptTokens = $chunk['prompt_eval_count'] ?? 0;
-                $promptEvalDurationNs = $chunk['prompt_eval_duration'] ?? 0;
-                $evalTokens = $chunk['eval_count'] ?? 0;
-                $evalDurationNs = $chunk['eval_duration'] ?? 0;
-                $finishReason = $chunk['done_reason'] ?? 'stop';
-            }
+            $totalDurationMs = round((microtime(true) - $startTime) * 1000, 1);
+            $evalDurationMs = $evalDurationNs > 0 ? round($evalDurationNs / 1_000_000, 1) : 0;
+            $promptEvalDurationMs = $promptEvalDurationNs > 0 ? round($promptEvalDurationNs / 1_000_000, 1) : 0;
+            $evalTokensPerSec = $evalDurationNs > 0 ? round($evalTokens / ($evalDurationNs / 1_000_000_000), 1) : 0;
+
+            yield [
+                'type' => 'done',
+                'model' => $resolvedModel,
+                'scope' => $scope,
+                'retrieval_time_ms' => $toolExecutionTimeMs,
+                'duration_ms' => $totalDurationMs,
+                'prompt_tokens' => $promptTokens,
+                'prompt_eval_duration_ms' => $promptEvalDurationMs,
+                'eval_tokens' => $evalTokens,
+                'eval_duration_ms' => $evalDurationMs,
+                'eval_tokens_per_sec' => $evalTokensPerSec,
+                'finish_reason' => $finishReason,
+                'is_truncated' => $finishReason === 'length',
+            ];
+        } catch (Exception $e) {
+            Log::error('ChatbotService stream error: '.$e->getMessage());
+            $code = $e->getCode() >= 400 && $e->getCode() < 600 ? $e->getCode() : 503;
+
+            yield [
+                'type' => 'error',
+                'code' => $code,
+                'message' => $code === 503 ? 'Ollama service is unreachable. Please ensure Ollama is running locally.' : $e->getMessage(),
+            ];
         }
-
-        $totalDurationMs = round((microtime(true) - $startTime) * 1000, 1);
-        $evalDurationMs = $evalDurationNs > 0 ? round($evalDurationNs / 1_000_000, 1) : 0;
-        $promptEvalDurationMs = $promptEvalDurationNs > 0 ? round($promptEvalDurationNs / 1_000_000, 1) : 0;
-        $evalTokensPerSec = $evalDurationNs > 0 ? round($evalTokens / ($evalDurationNs / 1_000_000_000), 1) : 0;
-
-        yield [
-            'type' => 'done',
-            'model' => $resolvedModel,
-            'scope' => $scope,
-            'retrieval_time_ms' => $toolExecutionTimeMs,
-            'duration_ms' => $totalDurationMs,
-            'prompt_tokens' => $promptTokens,
-            'prompt_eval_duration_ms' => $promptEvalDurationMs,
-            'eval_tokens' => $evalTokens,
-            'eval_duration_ms' => $evalDurationMs,
-            'eval_tokens_per_sec' => $evalTokensPerSec,
-            'finish_reason' => $finishReason,
-            'is_truncated' => $finishReason === 'length',
-        ];
-    } catch (Exception $e) {
-        Log::error("ChatbotService stream error: " . $e->getMessage());
-        $code = $e->getCode() >= 400 && $e->getCode() < 600 ? $e->getCode() : 503;
-
-        yield [
-            'type' => 'error',
-            'code' => $code,
-            'message' => $code === 503 ? 'Ollama service is unreachable. Please ensure Ollama is running locally.' : $e->getMessage(),
-        ];
     }
-}
 
     /**
      * Build the system prompt guiding Octo's persona, boundaries, and formatting rules.
@@ -282,8 +283,9 @@ class ChatbotService
                 $day = $daysMap[$sch->day_of_week] ?? $sch->day_of_week;
                 $start = $sch->starts_at ? date('g:i A', strtotime($sch->starts_at)) : '';
                 $end = $sch->ends_at ? date('g:i A', strtotime($sch->ends_at)) : '';
-                $time = ($start && $end) ? "{$start} - {$end}" : ($sch->starts_at . ' - ' . $sch->ends_at);
-                return "{$day} {$time}" . ($sch->room ? " (Room {$sch->room})" : "");
+                $time = ($start && $end) ? "{$start} - {$end}" : ($sch->starts_at.' - '.$sch->ends_at);
+
+                return "{$day} {$time}".($sch->room ? " (Room {$sch->room})" : '');
             })->join(', ');
         };
 
@@ -293,24 +295,24 @@ class ChatbotService
         } else {
             foreach ($portfolio as $sec) {
                 $scheds = $formatSchedule($sec->schedules);
-                $schedsText = $scheds ?: "No recurring schedule set";
-                $termText = $sec->academicTerm ? " [{$sec->academicTerm->name} {$sec->academicTerm->school_year}]" : "";
+                $schedsText = $scheds ?: 'No recurring schedule set';
+                $termText = $sec->academicTerm ? " [{$sec->academicTerm->name} {$sec->academicTerm->school_year}]" : '';
                 $portfolioSummaryText .= "- Section ID #{$sec->id}: \"{$sec->name}\" | Subject Code: {$sec->subject_code} - \"{$sec->subject_title}\"{$termText} | Room: {$sec->room} | Enrolled: {$sec->students_count} active students | Sessions: {$sec->attendance_sessions_count} | Assessments: {$sec->assessments_count} | Schedule: {$schedsText}\n";
             }
         }
 
         // 2. Build active section details if present
-        $activeSectionText = "";
+        $activeSectionText = '';
         if ($sectionId) {
             $activeSection = $portfolio->firstWhere('id', $sectionId);
             if ($activeSection) {
                 $rawWeights = $activeSection->grading_weights ?? [];
                 $passingRates = is_array($rawWeights['passing_rates'] ?? null)
                     ? $rawWeights['passing_rates']
-                    : \App\Services\GradebookCalculationService::DEFAULT_PASSING_RATES;
+                    : GradebookCalculationService::DEFAULT_PASSING_RATES;
 
                 $scalarWeights = array_merge(
-                    \App\Services\GradebookCalculationService::DEFAULT_WEIGHTS,
+                    GradebookCalculationService::DEFAULT_WEIGHTS,
                     array_filter(
                         $rawWeights,
                         fn ($v, $k) => is_numeric($v) && ! in_array($k, ['passing_rates', 'reporting_frequency', 'midterm_weight', 'final_weight'], true),
@@ -320,12 +322,12 @@ class ChatbotService
 
                 $weightsFormatted = collect($scalarWeights)
                     ->filter(fn ($w) => is_numeric($w) && (float) $w > 0)
-                    ->map(fn ($w, $k) => ucfirst(str_replace('_', ' ', (string) $k)) . ": {$w}%")
+                    ->map(fn ($w, $k) => ucfirst(str_replace('_', ' ', (string) $k)).": {$w}%")
                     ->join(', ');
 
                 $passingRatesFormatted = collect($passingRates)
                     ->filter(fn ($r) => is_numeric($r))
-                    ->map(fn ($r, $k) => ucfirst((string) $k) . ": {$r}%")
+                    ->map(fn ($r, $k) => ucfirst((string) $k).": {$r}%")
                     ->join(', ');
 
                 $scheds = $formatSchedule($activeSection->schedules);
@@ -348,9 +350,9 @@ SECTION;
 
         $scopeInstruction = match ($scope) {
             self::SCOPE_CURRENT_SECTION => "SCOPE: Active Section. Use Section ID {$sectionId} when querying tools like `get_attendance_records`, `get_gradebook_insights`, `get_assessment_analytics`, or `get_at_risk_deficiencies`.",
-            self::SCOPE_ALL_CLASSES => "SCOPE: All My Classes. Reference the Teaching Portfolio directly or call `get_portfolio_summary` for cross-class comparisons.",
-            self::SCOPE_APP_HELP => "SCOPE: ClassCheck System Help. Answer system usage questions referencing exact visible UI buttons and routes.",
-            default => "SCOPE: General Teaching Assistant.",
+            self::SCOPE_ALL_CLASSES => 'SCOPE: All My Classes. Reference the Teaching Portfolio directly or call `get_portfolio_summary` for cross-class comparisons.',
+            self::SCOPE_APP_HELP => 'SCOPE: ClassCheck System Help. Answer system usage questions referencing exact visible UI buttons and routes.',
+            default => 'SCOPE: General Teaching Assistant.',
         };
 
         return <<<PROMPT
@@ -417,7 +419,7 @@ PROMPT;
     /**
      * Sanitize and bound incoming messages.
      *
-     * @param array<int, array{role: string, content: string, attachments?: array<int, array{name: string, content: string}>}> $messages
+     * @param  array<int, array{role: string, content: string, attachments?: array<int, array{name: string, content: string}>}>  $messages
      * @return array<int, array{role: string, content: string}>
      */
     protected function sanitizeMessages(array $messages): array

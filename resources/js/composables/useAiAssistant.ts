@@ -1,4 +1,4 @@
-import { onMounted, onUnmounted, ref, watch } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 
 export type ChatSource = {
     type: string;
@@ -251,7 +251,7 @@ export function useAiAssistant() {
         }
     };
 
-    const setScope = (scope: AiScope, sectionId?: number | null) => {
+    const setScope = (scope: AiScope, _sectionId?: number | null) => {
         currentScope.value = scope;
         const active = conversations.value.find((c) => c.id === currentConversationId.value);
         if (active) {
@@ -282,7 +282,7 @@ export function useAiAssistant() {
         isAiAssistantOpen.value = false;
     };
 
-    const clearMessages = (sectionId?: number | null) => {
+    const clearMessages = (_sectionId?: number | null) => {
         messages.value = [];
         const active = conversations.value.find((c) => c.id === currentConversationId.value);
         if (active) {
@@ -364,12 +364,13 @@ export function useAiAssistant() {
         };
 
         // Check if there is a pending proposal awaiting confirmation from the teacher
-        const lastAssistantMsg = [...messages.value].reverse().find(
-            (m) => m.role === 'assistant' && m.proposals && m.proposals.some((p) => p.status === 'pending'),
-        );
+        const lastAssistantMsg = [...messages.value]
+            .reverse()
+            .find((m) => m.role === 'assistant' && m.proposals && m.proposals.some((p) => p.status === 'pending'));
         const pendingProposal = lastAssistantMsg?.proposals?.find((p) => p.status === 'pending');
 
-        const affirmativeRegex = /^(yes|yeah|yep|y|sure|add it|create it|add as activity|yes, add as activity|yes, create activity & groups|yes please|confirm|proceed|ok|okay|1|yes, add to class)$/i;
+        const affirmativeRegex =
+            /^(yes|yeah|yep|y|sure|add it|create it|add as activity|yes, add as activity|yes, create activity & groups|yes please|confirm|proceed|ok|okay|1|yes, add to class)$/i;
         const negativeRegex = /^(no|nope|cancel|dismiss|no thanks|keep as draft|no, keep as draft|no, dismiss|keep record|no, keep record)$/i;
 
         let session = conversations.value.find((c) => c.id === currentConversationId.value);
@@ -474,7 +475,7 @@ export function useAiAssistant() {
                 body: JSON.stringify({
                     messages: historyPayload,
                     scope: currentScope.value,
-                    section_id: currentScope.value === 'current_section' ? (sectionId || null) : null,
+                    section_id: currentScope.value === 'current_section' ? sectionId || null : null,
                 }),
                 signal: activeAbortController.signal,
             });
@@ -606,7 +607,7 @@ export function useAiAssistant() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json',
+                    Accept: 'application/json',
                     'X-CSRF-TOKEN': token,
                     'X-Requested-With': 'XMLHttpRequest',
                 },

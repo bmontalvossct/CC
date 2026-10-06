@@ -67,7 +67,12 @@ onUnmounted(() => {
                 draggable="false"
             />
         </Transition>
-        <span v-if="isLoading && displayedSrc" class="absolute inset-x-0 bottom-0 z-10 bg-card/90 px-3 py-2 text-center text-xs text-muted-foreground" role="status">Loading image?</span>
+        <span
+            v-if="isLoading && displayedSrc"
+            class="absolute inset-x-0 bottom-0 z-10 bg-card/90 px-3 py-2 text-center text-xs text-muted-foreground"
+            role="status"
+            >Loading image?</span
+        >
         <span
             v-if="hasError"
             class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-muted text-muted-foreground"

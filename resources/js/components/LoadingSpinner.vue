@@ -20,10 +20,5 @@ withDefaults(
 </script>
 
 <template>
-    <OctoSpinner
-        :size="size"
-        :label="label"
-        :overlay="overlay"
-        :show-label="showLabel"
-    />
+    <OctoSpinner :size="size" :label="label" :overlay="overlay" :show-label="showLabel" />
 </template>

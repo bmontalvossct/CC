@@ -1,25 +1,23 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import OctoSpinner from '@/components/OctoSpinner.vue';
+import axios from 'axios';
 import {
-    Percent,
-    KeyRound,
-    FileText,
-    Sparkles,
-    Plus,
-    Trash2,
-    Save,
-    X,
-    Upload,
-    Paperclip,
     AlertCircle,
     CheckCircle2,
-    HelpCircle,
     Eye,
     FileCheck2,
+    KeyRound,
+    Paperclip,
+    Percent,
+    Plus,
+    Save,
     SlidersHorizontal,
+    Sparkles,
+    Trash2,
+    Upload,
+    X,
 } from 'lucide-vue-next';
-import axios from 'axios';
-import OctoSpinner from '@/components/OctoSpinner.vue';
+import { computed, ref, watch } from 'vue';
 
 interface RubricCriterion {
     id: string;
@@ -62,7 +60,7 @@ const props = withDefaults(
         attachmentPath: null,
         attachmentName: null,
         attachmentMime: null,
-    }
+    },
 );
 
 const emit = defineEmits<{
@@ -177,11 +175,14 @@ const initData = () => {
     }
 };
 
-watch(() => props.show, (shown) => {
-    if (shown) {
-        initData();
-    }
-});
+watch(
+    () => props.show,
+    (shown) => {
+        if (shown) {
+            initData();
+        }
+    },
+);
 
 const roundToTwo = (num: number) => Math.round((num + Number.EPSILON) * 100) / 100;
 
@@ -312,9 +313,10 @@ const studyWithOcto = async () => {
     isStudying.value = true;
 
     try {
-        const url = props.activityType === 'project'
-            ? `/sections/${props.sectionId}/projects/${props.activityId}/rubrics/study`
-            : `/sections/${props.sectionId}/assessments/${props.activityId}/rubrics/study`;
+        const url =
+            props.activityType === 'project'
+                ? `/sections/${props.sectionId}/projects/${props.activityId}/rubrics/study`
+                : `/sections/${props.sectionId}/assessments/${props.activityId}/rubrics/study`;
 
         const payload: any = {};
         if (showPasteStudy.value && studyRawText.value.trim()) {
@@ -371,9 +373,10 @@ const saveRubric = async () => {
     isSaving.value = true;
 
     try {
-        const url = props.activityType === 'project'
-            ? `/sections/${props.sectionId}/projects/${props.activityId}/rubrics`
-            : `/sections/${props.sectionId}/assessments/${props.activityId}/rubrics`;
+        const url =
+            props.activityType === 'project'
+                ? `/sections/${props.sectionId}/projects/${props.activityId}/rubrics`
+                : `/sections/${props.sectionId}/assessments/${props.activityId}/rubrics`;
 
         const rubricPayload: any = {
             mode: activeMode.value,
@@ -382,7 +385,7 @@ const saveRubric = async () => {
         };
 
         if (activeMode.value === 'percentage') {
-            rubricPayload.criteria = criteria.value.map(c => ({
+            rubricPayload.criteria = criteria.value.map((c) => ({
                 id: c.id,
                 name: c.name.trim(),
                 percentage: Number(c.percentage),
@@ -390,7 +393,7 @@ const saveRubric = async () => {
                 description: c.description.trim(),
             }));
         } else {
-            rubricPayload.items = answerKeyItems.value.map(it => ({
+            rubricPayload.items = answerKeyItems.value.map((it) => ({
                 id: it.id,
                 item_number: Number(it.item_number),
                 question: it.question.trim(),
@@ -432,10 +435,7 @@ const saveRubric = async () => {
 </script>
 
 <template>
-    <div
-        v-if="show"
-        class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm transition-all"
-    >
+    <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm transition-all">
         <div
             class="relative flex max-h-[92vh] w-full max-w-4xl flex-col rounded-2xl border border-slate-700/80 bg-slate-900 text-slate-100 shadow-2xl transition-all"
         >
@@ -452,11 +452,7 @@ const saveRubric = async () => {
                         </p>
                     </div>
                 </div>
-                <button
-                    type="button"
-                    @click="emit('close')"
-                    class="rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white"
-                >
+                <button type="button" @click="emit('close')" class="rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white">
                     <X class="h-5 w-5" />
                 </button>
             </div>
@@ -465,9 +461,7 @@ const saveRubric = async () => {
             <div class="flex-1 space-y-6 overflow-y-auto px-6 py-5">
                 <!-- Mode Selection -->
                 <div>
-                    <label class="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-400">
-                        Grading Structure Mode
-                    </label>
+                    <label class="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-400"> Grading Structure Mode </label>
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <!-- Percentage Rate Option -->
                         <button
@@ -476,14 +470,14 @@ const saveRubric = async () => {
                             :class="[
                                 'flex items-start gap-3 rounded-xl border p-4 text-left transition-all',
                                 activeMode === 'percentage'
-                                    ? 'border-indigo-500 bg-indigo-500/10 text-white ring-1 ring-indigo-500/40 shadow-sm'
-                                    : 'border-slate-800 bg-slate-800/50 text-slate-300 hover:border-slate-700 hover:bg-slate-800'
+                                    ? 'border-indigo-500 bg-indigo-500/10 text-white shadow-sm ring-1 ring-indigo-500/40'
+                                    : 'border-slate-800 bg-slate-800/50 text-slate-300 hover:border-slate-700 hover:bg-slate-800',
                             ]"
                         >
                             <div
                                 :class="[
                                     'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
-                                    activeMode === 'percentage' ? 'bg-indigo-500 text-white' : 'bg-slate-700 text-slate-400'
+                                    activeMode === 'percentage' ? 'bg-indigo-500 text-white' : 'bg-slate-700 text-slate-400',
                                 ]"
                             >
                                 <Percent class="h-4 w-4" />
@@ -499,7 +493,8 @@ const saveRubric = async () => {
                                     </span>
                                 </div>
                                 <p class="mt-1 text-xs text-slate-400">
-                                    Analytical weighted criteria (e.g. Correctness 40%, Quality 30%, Notes 30%) totaling 100%. Ideal for labs, essays, and projects.
+                                    Analytical weighted criteria (e.g. Correctness 40%, Quality 30%, Notes 30%) totaling 100%. Ideal for labs, essays,
+                                    and projects.
                                 </p>
                             </div>
                         </button>
@@ -511,14 +506,14 @@ const saveRubric = async () => {
                             :class="[
                                 'flex items-start gap-3 rounded-xl border p-4 text-left transition-all',
                                 activeMode === 'answer_key'
-                                    ? 'border-emerald-500 bg-emerald-500/10 text-white ring-1 ring-emerald-500/40 shadow-sm'
-                                    : 'border-slate-800 bg-slate-800/50 text-slate-300 hover:border-slate-700 hover:bg-slate-800'
+                                    ? 'border-emerald-500 bg-emerald-500/10 text-white shadow-sm ring-1 ring-emerald-500/40'
+                                    : 'border-slate-800 bg-slate-800/50 text-slate-300 hover:border-slate-700 hover:bg-slate-800',
                             ]"
                         >
                             <div
                                 :class="[
                                     'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
-                                    activeMode === 'answer_key' ? 'bg-emerald-500 text-white' : 'bg-slate-700 text-slate-400'
+                                    activeMode === 'answer_key' ? 'bg-emerald-500 text-white' : 'bg-slate-700 text-slate-400',
                                 ]"
                             >
                                 <KeyRound class="h-4 w-4" />
@@ -534,7 +529,8 @@ const saveRubric = async () => {
                                     </span>
                                 </div>
                                 <p class="mt-1 text-xs text-slate-400">
-                                    Question-by-question exact answer key matching with case-sensitive options and individual points. Ideal for quizzes and exams.
+                                    Question-by-question exact answer key matching with case-sensitive options and individual points. Ideal for
+                                    quizzes and exams.
                                 </p>
                             </div>
                         </button>
@@ -545,7 +541,9 @@ const saveRubric = async () => {
                 <div class="rounded-xl border border-indigo-500/20 bg-gradient-to-r from-indigo-950/40 via-slate-900 to-purple-950/30 p-4">
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div class="flex items-center gap-3">
-                            <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-500/20 text-indigo-400 ring-1 ring-indigo-500/30">
+                            <div
+                                class="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-500/20 text-indigo-400 ring-1 ring-indigo-500/30"
+                            >
                                 <Sparkles class="h-4 w-4" />
                             </div>
                             <div>
@@ -588,11 +586,17 @@ const saveRubric = async () => {
                     </div>
 
                     <!-- Study Success / Error alerts -->
-                    <div v-if="studySuccess" class="mt-3 flex items-center gap-2 rounded-lg bg-emerald-500/10 p-2.5 text-xs text-emerald-300 ring-1 ring-emerald-500/20">
+                    <div
+                        v-if="studySuccess"
+                        class="mt-3 flex items-center gap-2 rounded-lg bg-emerald-500/10 p-2.5 text-xs text-emerald-300 ring-1 ring-emerald-500/20"
+                    >
                         <CheckCircle2 class="h-4 w-4 shrink-0 text-emerald-400" />
                         <span>{{ studySuccess }}</span>
                     </div>
-                    <div v-if="studyError" class="mt-3 flex items-center gap-2 rounded-lg bg-rose-500/10 p-2.5 text-xs text-rose-300 ring-1 ring-rose-500/20">
+                    <div
+                        v-if="studyError"
+                        class="mt-3 flex items-center gap-2 rounded-lg bg-rose-500/10 p-2.5 text-xs text-rose-300 ring-1 ring-rose-500/20"
+                    >
                         <AlertCircle class="h-4 w-4 shrink-0 text-rose-400" />
                         <span>{{ studyError }}</span>
                     </div>
@@ -616,9 +620,7 @@ const saveRubric = async () => {
                                         <span>Preview</span>
                                     </button>
                                 </div>
-                                <div v-else class="text-xs text-slate-500">
-                                    No rubric file attached to this activity.
-                                </div>
+                                <div v-else class="text-xs text-slate-500">No rubric file attached to this activity.</div>
                             </div>
                         </div>
 
@@ -652,10 +654,15 @@ const saveRubric = async () => {
                     </div>
 
                     <!-- Selected New File Preview -->
-                    <div v-if="selectedFile" class="mt-2.5 flex items-center justify-between rounded-lg bg-indigo-500/10 p-2 text-xs text-indigo-300 ring-1 ring-indigo-500/20">
+                    <div
+                        v-if="selectedFile"
+                        class="mt-2.5 flex items-center justify-between rounded-lg bg-indigo-500/10 p-2 text-xs text-indigo-300 ring-1 ring-indigo-500/20"
+                    >
                         <div class="flex items-center gap-2">
                             <FileCheck2 class="h-4 w-4 text-indigo-400" />
-                            <span>Ready to upload: <strong>{{ selectedFile.name }}</strong> ({{ (selectedFile.size / 1024).toFixed(1) }} KB)</span>
+                            <span
+                                >Ready to upload: <strong>{{ selectedFile.name }}</strong> ({{ (selectedFile.size / 1024).toFixed(1) }} KB)</span
+                            >
                         </div>
                         <button type="button" @click="clearSelectedFile" class="text-slate-400 hover:text-white">
                             <X class="h-3.5 w-3.5" />
@@ -676,7 +683,7 @@ const saveRubric = async () => {
                                     'flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold',
                                     isPercentageBalanced
                                         ? 'bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/30'
-                                        : 'bg-amber-500/10 text-amber-400 ring-1 ring-amber-500/30'
+                                        : 'bg-amber-500/10 text-amber-400 ring-1 ring-amber-500/30',
                                 ]"
                             >
                                 <span>Total: {{ totalPercentage }}%</span>
@@ -707,11 +714,13 @@ const saveRubric = async () => {
                             :key="crit.id"
                             class="rounded-xl border border-slate-800 bg-slate-950/80 p-3.5 transition hover:border-slate-700"
                         >
-                            <div class="grid grid-cols-12 gap-3 items-start">
+                            <div class="grid grid-cols-12 items-start gap-3">
                                 <!-- Name & Description -->
-                                <div class="col-span-12 sm:col-span-7 space-y-2">
+                                <div class="col-span-12 space-y-2 sm:col-span-7">
                                     <div class="flex items-center gap-2">
-                                        <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-800 text-[10px] font-bold text-slate-300">
+                                        <span
+                                            class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-800 text-[10px] font-bold text-slate-300"
+                                        >
                                             {{ index + 1 }}
                                         </span>
                                         <input
@@ -730,9 +739,9 @@ const saveRubric = async () => {
                                 </div>
 
                                 <!-- Percentage & Max Points -->
-                                <div class="col-span-10 sm:col-span-4 grid grid-cols-2 gap-2">
+                                <div class="col-span-10 grid grid-cols-2 gap-2 sm:col-span-4">
                                     <div>
-                                        <label class="block text-[10px] uppercase font-semibold text-slate-400">Weight (%)</label>
+                                        <label class="block text-[10px] font-semibold uppercase text-slate-400">Weight (%)</label>
                                         <div class="relative mt-1">
                                             <input
                                                 v-model.number="crit.percentage"
@@ -747,18 +756,18 @@ const saveRubric = async () => {
                                         </div>
                                     </div>
                                     <div>
-                                        <label class="block text-[10px] uppercase font-semibold text-slate-400">Max Points</label>
+                                        <label class="block text-[10px] font-semibold uppercase text-slate-400">Max Points</label>
                                         <input
                                             :value="crit.max_points"
                                             readonly
                                             type="text"
-                                            class="mt-1 w-full rounded-lg border border-slate-800 bg-slate-900/40 px-2.5 py-1.5 text-xs font-bold text-slate-400 cursor-not-allowed"
+                                            class="mt-1 w-full cursor-not-allowed rounded-lg border border-slate-800 bg-slate-900/40 px-2.5 py-1.5 text-xs font-bold text-slate-400"
                                         />
                                     </div>
                                 </div>
 
                                 <!-- Delete Criterion -->
-                                <div class="col-span-2 sm:col-span-1 flex justify-end pt-5">
+                                <div class="col-span-2 flex justify-end pt-5 sm:col-span-1">
                                     <button
                                         type="button"
                                         @click="removeCriterion(index)"
@@ -809,11 +818,13 @@ const saveRubric = async () => {
                             :key="item.id"
                             class="rounded-xl border border-slate-800 bg-slate-950/80 p-3.5 transition hover:border-slate-700"
                         >
-                            <div class="grid grid-cols-12 gap-3 items-start">
+                            <div class="grid grid-cols-12 items-start gap-3">
                                 <!-- Item Number & Question -->
-                                <div class="col-span-12 sm:col-span-5 space-y-2">
+                                <div class="col-span-12 space-y-2 sm:col-span-5">
                                     <div class="flex items-center gap-2">
-                                        <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-xs font-bold text-emerald-400 ring-1 ring-emerald-500/30">
+                                        <span
+                                            class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-xs font-bold text-emerald-400 ring-1 ring-emerald-500/30"
+                                        >
                                             #{{ item.item_number }}
                                         </span>
                                         <input
@@ -826,14 +837,14 @@ const saveRubric = async () => {
                                 </div>
 
                                 <!-- Correct Answer & Options -->
-                                <div class="col-span-8 sm:col-span-5 space-y-1.5">
+                                <div class="col-span-8 space-y-1.5 sm:col-span-5">
                                     <input
                                         v-model="item.correct_answer"
                                         type="text"
                                         placeholder="Expected Correct Solution / Key..."
-                                        class="w-full rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-xs font-mono font-semibold text-emerald-300 placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
+                                        class="w-full rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 font-mono text-xs font-semibold text-emerald-300 placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
                                     />
-                                    <label class="flex items-center gap-2 cursor-pointer text-[11px] text-slate-400 select-none">
+                                    <label class="flex cursor-pointer select-none items-center gap-2 text-[11px] text-slate-400">
                                         <input
                                             v-model="item.case_sensitive"
                                             type="checkbox"

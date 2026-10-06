@@ -4,14 +4,13 @@ namespace Tests\Feature;
 
 use App\Models\AcademicTerm;
 use App\Models\Assessment;
-use App\Models\AssessmentScore;
-use App\Models\AttendanceRecord;
-use App\Models\AttendanceSession;
 use App\Models\Project;
 use App\Models\Recitation;
 use App\Models\Section;
 use App\Models\Student;
 use App\Models\User;
+use App\Services\Autochecker\ChatToolRegistry;
+use App\Services\Autochecker\OllamaService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -22,8 +21,11 @@ class AutocheckerUpgradeTest extends TestCase
     use RefreshDatabase;
 
     protected User $user;
+
     protected Section $section;
+
     protected Assessment $assessment;
+
     protected Student $student;
 
     protected function setUp(): void
@@ -323,7 +325,7 @@ class AutocheckerUpgradeTest extends TestCase
 
     public function test_chat_tool_registry_ask_clarification_and_analytics()
     {
-        $toolRegistry = app(\App\Services\Autochecker\ChatToolRegistry::class);
+        $toolRegistry = app(ChatToolRegistry::class);
 
         // Test ask_clarification tool
         $clarification = $toolRegistry->executeTool('ask_clarification', [
@@ -379,7 +381,7 @@ class AutocheckerUpgradeTest extends TestCase
     public function test_propose_create_project_groups_tool_and_execution()
     {
         $this->actingAs($this->user);
-        $toolRegistry = app(\App\Services\Autochecker\ChatToolRegistry::class);
+        $toolRegistry = app(ChatToolRegistry::class);
 
         // Add 3 more active students to section
         Student::create(['section_id' => $this->section->id, 'student_number' => '2024-002', 'first_name' => 'Juan', 'last_name' => 'Dela Cruz', 'is_active' => true]);
@@ -434,7 +436,7 @@ class AutocheckerUpgradeTest extends TestCase
         $g1 = $baseProject->groups()->create(['group_number' => 1, 'name' => 'Alpha Team', 'order_column' => 1]);
         $g1->members()->create(['student_id' => $this->student->id]);
 
-        $toolRegistry = app(\App\Services\Autochecker\ChatToolRegistry::class);
+        $toolRegistry = app(ChatToolRegistry::class);
 
         // Tool execution referencing source project
         $toolOutput = $toolRegistry->executeTool('propose_create_project_groups', [
@@ -468,7 +470,7 @@ class AutocheckerUpgradeTest extends TestCase
 
     public function test_draft_student_intervention_tool()
     {
-        $toolRegistry = app(\App\Services\Autochecker\ChatToolRegistry::class);
+        $toolRegistry = app(ChatToolRegistry::class);
 
         $output = $toolRegistry->executeTool('draft_student_intervention', [
             'section_id' => $this->section->id,
@@ -492,7 +494,7 @@ class AutocheckerUpgradeTest extends TestCase
             'conducted_on' => Carbon::today(),
         ]);
 
-        $toolRegistry = app(\App\Services\Autochecker\ChatToolRegistry::class);
+        $toolRegistry = app(ChatToolRegistry::class);
 
         $output = $toolRegistry->executeTool('get_recitation_analytics', [
             'section_id' => $this->section->id,
@@ -506,7 +508,7 @@ class AutocheckerUpgradeTest extends TestCase
 
     public function test_grading_system_prompt_few_shot_and_citations()
     {
-        $ollamaService = app(\App\Services\Autochecker\OllamaService::class);
+        $ollamaService = app(OllamaService::class);
         $reflection = new \ReflectionClass($ollamaService);
         $method = $reflection->getMethod('buildGradingSystemPrompt');
         $method->setAccessible(true);
@@ -520,7 +522,7 @@ class AutocheckerUpgradeTest extends TestCase
 
     public function test_propose_create_assessment_returns_yes_no_choice_card_and_generation_instruction()
     {
-        $toolRegistry = app(\App\Services\Autochecker\ChatToolRegistry::class);
+        $toolRegistry = app(ChatToolRegistry::class);
 
         $output = $toolRegistry->executeTool('propose_create_assessment', [
             'section_id' => $this->section->id,

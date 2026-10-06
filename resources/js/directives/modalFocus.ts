@@ -9,7 +9,7 @@ export const modalFocus: Directive = {
 
         const focusTarget = () => {
             const firstInput = el.querySelector<HTMLElement>(
-                'input:not([type=hidden]):not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), select:not([disabled]), [autofocus]'
+                'input:not([type=hidden]):not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), select:not([disabled]), [autofocus]',
             );
             if (firstInput) {
                 firstInput.focus();

@@ -10,6 +10,7 @@ use App\Models\Project;
 use App\Models\Recitation;
 use App\Models\Section;
 use App\Models\Student;
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
 class GradebookCalculationService
@@ -98,8 +99,8 @@ class GradebookCalculationService
         if (! $midtermDate && $section->academic_term_id) {
             $term = $section->relationLoaded('academicTerm') ? $section->academicTerm : $section->academicTerm()->first();
             if ($term?->starts_on && $term?->ends_on) {
-                $start = \Carbon\Carbon::parse($term->starts_on);
-                $end = \Carbon\Carbon::parse($term->ends_on);
+                $start = Carbon::parse($term->starts_on);
+                $end = Carbon::parse($term->ends_on);
                 $midtermDate = $start->copy()->addDays((int) round($start->diffInDays($end) / 2))->toDateString();
             }
         }
@@ -266,7 +267,7 @@ class GradebookCalculationService
                 if (! $midtermDate) {
                     return true;
                 }
-                $date = $r->conducted_on ? (\Carbon\Carbon::parse($r->conducted_on)->toDateString()) : ($r->created_at ? $r->created_at->toDateString() : null);
+                $date = $r->conducted_on ? (Carbon::parse($r->conducted_on)->toDateString()) : ($r->created_at ? $r->created_at->toDateString() : null);
 
                 return $date ? ($date <= $midtermDate) : true;
             });
@@ -274,7 +275,7 @@ class GradebookCalculationService
                 if (! $midtermDate) {
                     return false;
                 }
-                $date = $r->conducted_on ? (\Carbon\Carbon::parse($r->conducted_on)->toDateString()) : ($r->created_at ? $r->created_at->toDateString() : null);
+                $date = $r->conducted_on ? (Carbon::parse($r->conducted_on)->toDateString()) : ($r->created_at ? $r->created_at->toDateString() : null);
 
                 return $date ? ($date > $midtermDate) : false;
             });
@@ -506,15 +507,33 @@ class GradebookCalculationService
 
         $pct = round($pct, 2);
 
-        if ($pct >= 97.0) return '1.00';
-        if ($pct >= 94.0) return '1.25';
-        if ($pct >= 91.0) return '1.50';
-        if ($pct >= 88.0) return '1.75';
-        if ($pct >= 85.0) return '2.00';
-        if ($pct >= 82.0) return '2.25';
-        if ($pct >= 79.0) return '2.50';
-        if ($pct >= 76.0) return '2.75';
-        if ($pct >= 75.0) return '3.00';
+        if ($pct >= 97.0) {
+            return '1.00';
+        }
+        if ($pct >= 94.0) {
+            return '1.25';
+        }
+        if ($pct >= 91.0) {
+            return '1.50';
+        }
+        if ($pct >= 88.0) {
+            return '1.75';
+        }
+        if ($pct >= 85.0) {
+            return '2.00';
+        }
+        if ($pct >= 82.0) {
+            return '2.25';
+        }
+        if ($pct >= 79.0) {
+            return '2.50';
+        }
+        if ($pct >= 76.0) {
+            return '2.75';
+        }
+        if ($pct >= 75.0) {
+            return '3.00';
+        }
 
         return '5.00';
     }

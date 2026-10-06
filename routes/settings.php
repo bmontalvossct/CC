@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Settings\AcademicTermSettingsController;
+use App\Http\Controllers\Settings\BackupExportController;
+use App\Http\Controllers\Settings\NotificationSettingsController;
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\ProfileController;
 use Illuminate\Support\Facades\Route;
@@ -25,13 +27,13 @@ Route::middleware('auth')->group(function () {
         return Inertia::render('settings/Appearance');
     })->name('appearance');
 
-    Route::get('settings/notifications', [\App\Http\Controllers\Settings\NotificationSettingsController::class, 'index'])->name('notifications.settings');
+    Route::get('settings/notifications', [NotificationSettingsController::class, 'index'])->name('notifications.settings');
 
     // Backup & Export
-    Route::get('settings/backup', [\App\Http\Controllers\Settings\BackupExportController::class, 'index'])->name('backup.index');
-    Route::get('settings/backup/export-json', [\App\Http\Controllers\Settings\BackupExportController::class, 'exportJson'])->name('backup.export-json');
-    Route::get('settings/backup/download-sqlite', [\App\Http\Controllers\Settings\BackupExportController::class, 'downloadSqlite'])->name('backup.download-sqlite');
-    Route::get('settings/backup/export-csv', [\App\Http\Controllers\Settings\BackupExportController::class, 'exportCsv'])->name('backup.export-csv');
-    Route::post('settings/backup/create-local-snapshot', [\App\Http\Controllers\Settings\BackupExportController::class, 'createLocalSnapshot'])->name('backup.create-local-snapshot');
-    Route::post('settings/backup/restore', [\App\Http\Controllers\Settings\BackupExportController::class, 'restore'])->name('backup.restore');
+    Route::get('settings/backup', [BackupExportController::class, 'index'])->name('backup.index');
+    Route::get('settings/backup/export-json', [BackupExportController::class, 'exportJson'])->name('backup.export-json');
+    Route::get('settings/backup/download-sqlite', [BackupExportController::class, 'downloadSqlite'])->name('backup.download-sqlite');
+    Route::get('settings/backup/export-csv', [BackupExportController::class, 'exportCsv'])->name('backup.export-csv');
+    Route::post('settings/backup/create-local-snapshot', [BackupExportController::class, 'createLocalSnapshot'])->name('backup.create-local-snapshot');
+    Route::post('settings/backup/restore', [BackupExportController::class, 'restore'])->name('backup.restore');
 });

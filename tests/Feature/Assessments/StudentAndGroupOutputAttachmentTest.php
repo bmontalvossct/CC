@@ -21,7 +21,9 @@ class StudentAndGroupOutputAttachmentTest extends TestCase
     use RefreshDatabase;
 
     private User $user;
+
     private Section $section;
+
     private Student $student;
 
     protected function setUp(): void

@@ -2,10 +2,15 @@
 
 namespace App\Services;
 
+use App\Models\Assessment;
+use App\Models\Project;
+use App\Models\ProjectGroup;
 use App\Models\Section;
+use App\Models\Student;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class SectionFolderService
 {
@@ -316,7 +321,7 @@ class SectionFolderService
      * Store an uploaded student output file for an individual assessment (Activity, Quiz, Exam, Lab).
      * Renamed as: "{Lastname}_{Activity/Quiz/Exam/Lab} {number}.{ext}"
      */
-    public function storeStudentAssessmentOutput(Section $section, \App\Models\Assessment $assessment, \App\Models\Student $student, UploadedFile $file): array
+    public function storeStudentAssessmentOutput(Section $section, Assessment $assessment, Student $student, UploadedFile $file): array
     {
         $category = $this->getCategoryForAssessmentType($assessment->type);
         $this->ensureSectionFolders($section);
@@ -333,7 +338,7 @@ class SectionFolderService
             $extension
         );
 
-        $customName = $student->id.'-'.\Illuminate\Support\Str::uuid().'-'.$customName;
+        $customName = $student->id.'-'.Str::uuid().'-'.$customName;
         $mime = $file->getMimeType();
         $path = $file->storeAs($targetDir, $customName, 'local');
         if (! $path) {
@@ -351,7 +356,7 @@ class SectionFolderService
      * Store an uploaded group output file for a group project, activity, or report.
      * Renamed as: "Group {groupNumber}_{Activity/Report/Project} {number}.{ext}"
      */
-    public function storeGroupProjectOutput(Section $section, \App\Models\Project $project, \App\Models\ProjectGroup $group, UploadedFile $file): array
+    public function storeGroupProjectOutput(Section $section, Project $project, ProjectGroup $group, UploadedFile $file): array
     {
         $category = $this->getCategoryForProjectType($project->type);
         $this->ensureSectionFolders($section);
@@ -368,7 +373,7 @@ class SectionFolderService
             $extension
         );
 
-        $customName = $group->id.'-'.\Illuminate\Support\Str::uuid().'-'.$customName;
+        $customName = $group->id.'-'.Str::uuid().'-'.$customName;
         $mime = $file->getMimeType();
         $path = $file->storeAs($targetDir, $customName, 'local');
         if (! $path) {
@@ -386,7 +391,7 @@ class SectionFolderService
      * Store an uploaded individual student output file for a project/report.
      * Renamed as: "{Lastname}_{Project/Report} {number}.{ext}"
      */
-    public function storeStudentProjectOutput(Section $section, \App\Models\Project $project, \App\Models\Student $student, UploadedFile $file): array
+    public function storeStudentProjectOutput(Section $section, Project $project, Student $student, UploadedFile $file): array
     {
         $category = $this->getCategoryForProjectType($project->type);
         $this->ensureSectionFolders($section);
@@ -403,7 +408,7 @@ class SectionFolderService
             $extension
         );
 
-        $customName = $student->id.'-'.\Illuminate\Support\Str::uuid().'-'.$customName;
+        $customName = $student->id.'-'.Str::uuid().'-'.$customName;
         $mime = $file->getMimeType();
         $path = $file->storeAs($targetDir, $customName, 'local');
         if (! $path) {

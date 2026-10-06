@@ -1,15 +1,5 @@
 <script setup lang="ts">
-import {
-    Activity,
-    AlertTriangle,
-    Calendar,
-    CheckCircle2,
-    Clock,
-    TrendingDown,
-    TrendingUp,
-    UserCheck,
-    UserX,
-} from 'lucide-vue-next';
+import { Activity, TrendingDown, TrendingUp } from 'lucide-vue-next';
 import { computed } from 'vue';
 
 export interface DayTrend {
@@ -67,12 +57,8 @@ const getBarColor = (rate: number | null) => {
                     <Activity class="size-5" />
                 </span>
                 <div>
-                    <h3 class="text-base font-bold tracking-tight text-foreground sm:text-lg">
-                        Attendance Trends & Absenteeism Analytics
-                    </h3>
-                    <p class="text-xs text-muted-foreground">
-                        Day-of-week attendance distribution and absenteeism patterns
-                    </p>
+                    <h3 class="text-base font-bold tracking-tight text-foreground sm:text-lg">Attendance Trends & Absenteeism Analytics</h3>
+                    <p class="text-xs text-muted-foreground">Day-of-week attendance distribution and absenteeism patterns</p>
                 </div>
             </div>
 
@@ -106,11 +92,8 @@ const getBarColor = (rate: number | null) => {
             >
                 <div>
                     <div class="flex items-center justify-between">
-                        <span class="font-bold text-xs text-foreground uppercase tracking-wider">{{ trend.name }}</span>
-                        <span
-                            class="rounded-md border px-1.5 py-0.5 font-mono text-[10px] font-bold"
-                            :class="getRateColor(trend.attendance_rate)"
-                        >
+                        <span class="text-xs font-bold uppercase tracking-wider text-foreground">{{ trend.name }}</span>
+                        <span class="rounded-md border px-1.5 py-0.5 font-mono text-[10px] font-bold" :class="getRateColor(trend.attendance_rate)">
                             {{ trend.attendance_rate === null ? '—' : `${trend.attendance_rate}%` }}
                         </span>
                     </div>
@@ -136,9 +119,7 @@ const getBarColor = (rate: number | null) => {
                             <span class="text-rose-600 dark:text-rose-400">Abs: {{ trend.absent }}</span>
                         </div>
                     </div>
-                    <div v-else class="text-center italic text-muted-foreground/70 text-[10px]">
-                        No sessions
-                    </div>
+                    <div v-else class="text-center text-[10px] italic text-muted-foreground/70">No sessions</div>
                 </div>
             </div>
         </div>

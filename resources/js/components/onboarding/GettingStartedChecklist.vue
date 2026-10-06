@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
+import type { SharedData } from '@/types';
+import { Link, usePage } from '@inertiajs/vue3';
 import {
-    Armchair,
     ArrowRight,
     Calendar,
     CalendarCheck2,
@@ -11,12 +11,9 @@ import {
     GraduationCap,
     HelpCircle,
     LayoutGrid,
-    QrCode,
     Sparkles,
     Users,
 } from 'lucide-vue-next';
-import { usePage } from '@inertiajs/vue3';
-import type { SharedData } from '@/types';
 import { computed, onMounted, ref } from 'vue';
 
 export type OnboardingData = {
@@ -130,12 +127,14 @@ const allCompleted = computed(() => completedCount.value === totalSteps.value);
 </script>
 
 <template>
-    <section class="mt-8 rounded-2xl border border-border/80 bg-card p-6 shadow-sm sm:p-7 transition-all duration-200">
+    <section class="mt-8 rounded-2xl border border-border/80 bg-card p-6 shadow-sm transition-all duration-200 sm:p-7">
         <!-- Header -->
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div class="space-y-1">
                 <div class="flex items-center gap-2">
-                    <span class="inline-flex items-center gap-1 rounded-full border border-border bg-secondary/50 px-2.5 py-0.5 text-xs font-medium text-foreground">
+                    <span
+                        class="inline-flex items-center gap-1 rounded-full border border-border bg-secondary/50 px-2.5 py-0.5 text-xs font-medium text-foreground"
+                    >
                         <Sparkles class="size-3 text-muted-foreground" />
                         <span>Setup Guide</span>
                     </span>
@@ -173,10 +172,7 @@ const allCompleted = computed(() => completedCount.value === totalSteps.value);
 
         <!-- Progress Bar -->
         <div class="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-            <div
-                class="h-full bg-foreground transition-all duration-500 ease-out"
-                :style="{ width: `${progressPct}%` }"
-            />
+            <div class="h-full bg-foreground transition-all duration-500 ease-out" :style="{ width: `${progressPct}%` }" />
         </div>
 
         <!-- Collapsible Steps Grid -->
@@ -184,21 +180,13 @@ const allCompleted = computed(() => completedCount.value === totalSteps.value);
             <div
                 v-for="(step, index) in steps"
                 :key="step.id"
-                class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border p-4 transition-colors"
-                :class="
-                    step.completed
-                        ? 'border-border/60 bg-secondary/20'
-                        : 'border-border/80 bg-background hover:bg-secondary/20'
-                "
+                class="flex flex-col justify-between gap-3 rounded-xl border p-4 transition-colors sm:flex-row sm:items-center"
+                :class="step.completed ? 'border-border/60 bg-secondary/20' : 'border-border/80 bg-background hover:bg-secondary/20'"
             >
                 <div class="flex items-start gap-3">
                     <span
                         class="grid size-8 shrink-0 place-items-center rounded-lg border text-xs font-semibold"
-                        :class="
-                            step.completed
-                                ? 'border-border/80 bg-secondary text-foreground'
-                                : 'border-border bg-card text-muted-foreground'
-                        "
+                        :class="step.completed ? 'border-border/80 bg-secondary text-foreground' : 'border-border bg-card text-muted-foreground'"
                     >
                         <Check v-if="step.completed" class="size-4 text-foreground" />
                         <span v-else>{{ index + 1 }}</span>
@@ -206,13 +194,13 @@ const allCompleted = computed(() => completedCount.value === totalSteps.value);
 
                     <div class="space-y-0.5">
                         <div class="flex items-center gap-2">
-                            <h3
-                                class="text-sm font-semibold"
-                                :class="step.completed ? 'text-foreground line-through opacity-80' : 'text-foreground'"
-                            >
+                            <h3 class="text-sm font-semibold" :class="step.completed ? 'text-foreground line-through opacity-80' : 'text-foreground'">
                                 {{ step.title }}
                             </h3>
-                            <span v-if="step.completed" class="rounded bg-secondary px-1.5 py-0.2 font-mono text-[10px] text-muted-foreground font-medium">
+                            <span
+                                v-if="step.completed"
+                                class="py-0.2 rounded bg-secondary px-1.5 font-mono text-[10px] font-medium text-muted-foreground"
+                            >
                                 Done
                             </span>
                         </div>
@@ -222,11 +210,8 @@ const allCompleted = computed(() => completedCount.value === totalSteps.value);
                     </div>
                 </div>
 
-                <div class="flex items-center sm:self-center self-end shrink-0 pl-11 sm:pl-0">
-                    <span
-                        v-if="step.completed"
-                        class="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground"
-                    >
+                <div class="flex shrink-0 items-center self-end pl-11 sm:self-center sm:pl-0">
+                    <span v-if="step.completed" class="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
                         <span>Completed</span>
                     </span>
 
@@ -239,29 +224,19 @@ const allCompleted = computed(() => completedCount.value === totalSteps.value);
                         <ArrowRight class="size-3 text-muted-foreground" />
                     </Link>
 
-                    <span
-                        v-else
-                        class="text-xs text-muted-foreground/60 italic"
-                    >
+                    <span v-else class="text-xs italic text-muted-foreground/60">
                         {{ step.actionText }}
                     </span>
                 </div>
             </div>
 
             <!-- All completed callout -->
-            <div
-                v-if="allCompleted"
-                class="flex items-center justify-between rounded-xl border border-border/80 bg-secondary/30 p-4 text-xs"
-            >
-                <div class="flex items-center gap-2 text-foreground font-medium">
+            <div v-if="allCompleted" class="flex items-center justify-between rounded-xl border border-border/80 bg-secondary/30 p-4 text-xs">
+                <div class="flex items-center gap-2 font-medium text-foreground">
                     <Sparkles class="size-4 text-muted-foreground" />
                     <span>All setup milestones completed! You have everything set up to manage classes seamlessly.</span>
                 </div>
-                <button
-                    type="button"
-                    class="text-xs text-muted-foreground hover:text-foreground hover:underline"
-                    @click="toggleCollapse"
-                >
+                <button type="button" class="text-xs text-muted-foreground hover:text-foreground hover:underline" @click="toggleCollapse">
                     Minimize
                 </button>
             </div>

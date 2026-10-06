@@ -6,7 +6,7 @@ use App\Models\Assessment;
 use App\Models\AssessmentScore;
 use App\Models\AttendanceRecord;
 use App\Models\Section;
-use App\Models\Student;
+use App\Services\Autochecker\AiDocumentGraderService;
 use App\Services\Autochecker\DockerSandboxRunner;
 use App\Services\Autochecker\OllamaClient;
 use App\Services\Autochecker\OllamaService;
@@ -24,8 +24,7 @@ class AutocheckerController extends AssessmentModuleController
         protected OllamaService $ollamaService,
         protected TempRunManager $tempRunManager,
         protected DockerSandboxRunner $sandboxRunner,
-    ) {
-    }
+    ) {}
 
     /**
      * Get Autochecker status, available models, and Python sandbox availability.
@@ -70,9 +69,9 @@ class AutocheckerController extends AssessmentModuleController
         $this->authorizeAssessment($section, $assessment);
 
         $request->validate([
-            'files' => ['nullable', 'array', 'max:' . config('autochecker.limits.max_direct_files', 20)],
-            'files.*' => ['file', 'max:' . config('autochecker.limits.max_file_size_kb', 10240)],
-            'zip_file' => ['nullable', 'file', 'mimes:zip', 'max:' . config('autochecker.limits.max_total_expanded_kb', 102400)],
+            'files' => ['nullable', 'array', 'max:'.config('autochecker.limits.max_direct_files', 20)],
+            'files.*' => ['file', 'max:'.config('autochecker.limits.max_file_size_kb', 10240)],
+            'zip_file' => ['nullable', 'file', 'mimes:zip', 'max:'.config('autochecker.limits.max_total_expanded_kb', 102400)],
         ]);
 
         $students = $section->students()->where('is_active', true)->orderBy('last_name')->get();
@@ -89,6 +88,7 @@ class AutocheckerController extends AssessmentModuleController
             return response()->json($runData);
         } catch (Exception $e) {
             $code = $e->getCode() >= 400 && $e->getCode() < 600 ? $e->getCode() : 422;
+
             return response()->json([
                 'error' => $e->getMessage(),
             ], $code);
@@ -101,7 +101,7 @@ class AutocheckerController extends AssessmentModuleController
     public function evaluateSingle(Request $request, Section $section, Assessment $assessment): JsonResponse
     {
         $this->authorizeAssessment($section, $assessment);
-        if (! app(\App\Services\Autochecker\AiDocumentGraderService::class)->resolveFilePath($assessment->attachment_path)) {
+        if (! app(AiDocumentGraderService::class)->resolveFilePath($assessment->attachment_path)) {
             return response()->json(['error' => 'Attach a rubric before checking submissions.'], 422);
         }
 
@@ -137,7 +137,7 @@ class AutocheckerController extends AssessmentModuleController
                 maxPoints: (float) $assessment->max_points,
                 rubricCriteria: $validated['rubric_criteria'],
                 referenceSolution: $validated['reference_solution'] ?? null,
-                assessmentInstructions: app(\App\Services\Autochecker\AiDocumentGraderService::class)->activityInstructions($assessment, $validated['assessment_instructions'] ?? null)
+                assessmentInstructions: app(AiDocumentGraderService::class)->activityInstructions($assessment, $validated['assessment_instructions'] ?? null)
             );
 
             // Cache proposal in temporary run manifest
@@ -149,6 +149,7 @@ class AutocheckerController extends AssessmentModuleController
             ]);
         } catch (Exception $e) {
             $code = $e->getCode() >= 400 && $e->getCode() < 600 ? $e->getCode() : 500;
+
             return response()->json([
                 'error' => $e->getMessage(),
             ], $code);
@@ -196,7 +197,7 @@ class AutocheckerController extends AssessmentModuleController
             'scores' => ['required', 'array', 'min:1'],
             'scores.*.student_id' => ['required', 'integer'],
             'scores.*.approved' => ['required', 'boolean'],
-            'scores.*.score' => ['nullable', 'numeric', 'min:0', 'max:' . $assessment->max_points],
+            'scores.*.score' => ['nullable', 'numeric', 'min:0', 'max:'.$assessment->max_points],
             'scores.*.remarks' => ['nullable', 'string', 'max:10000'],
             'scores.*.overwrite_confirmed' => ['nullable', 'boolean'],
             'scores.*.absence_override_confirmed' => ['nullable', 'boolean'],
@@ -273,7 +274,7 @@ class AutocheckerController extends AssessmentModuleController
             ]);
         } catch (Exception $e) {
             DB::rollBack();
-            Log::error("Autochecker applyScores error: " . $e->getMessage());
+            Log::error('Autochecker applyScores error: '.$e->getMessage());
 
             return response()->json([
                 'success' => false,

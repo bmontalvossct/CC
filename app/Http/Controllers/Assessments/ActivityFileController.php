@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Assessments;
 use App\Models\Assessment;
 use App\Models\Project;
 use App\Models\Section;
+use App\Services\Autochecker\ExamDocxExportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -47,7 +48,7 @@ class ActivityFileController extends AssessmentModuleController
                 }
 
                 $content = Storage::disk('local')->get($activity->activity_file_path);
-                $docxService = app(\App\Services\Autochecker\ExamDocxExportService::class);
+                $docxService = app(ExamDocxExportService::class);
                 $docPath = $docxService->generateDocx([
                     'title' => $activity->title,
                     'subject_code' => $section->subject_code,
@@ -56,7 +57,8 @@ class ActivityFileController extends AssessmentModuleController
                     'max_points' => $activity->max_points ?? null,
                     'exam_content' => $content,
                 ]);
-                $downloadName = (Str::slug($activity->title) ?: 'assessment') . '.docx';
+                $downloadName = (Str::slug($activity->title) ?: 'assessment').'.docx';
+
                 return response()->download($docPath, $downloadName, [
                     'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
                 ])->deleteFileAfterSend(true);
@@ -65,7 +67,6 @@ class ActivityFileController extends AssessmentModuleController
             if ($request->has('download')) {
                 return response()->download($path, $name);
             }
-
 
             return response()->file($path, [
                 'Content-Type' => $activity->activity_file_mime ?: 'application/octet-stream',

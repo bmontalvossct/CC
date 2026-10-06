@@ -16,8 +16,7 @@ class AiAssistantController extends Controller
     public function __construct(
         protected ChatbotService $chatbotService,
         protected OllamaClient $ollamaClient,
-    ) {
-    }
+    ) {}
 
     /**
      * Check Ollama status, latency, local verification, and active model profiles.
@@ -98,7 +97,7 @@ class AiAssistantController extends Controller
             @ob_implicit_flush(true);
 
             foreach ($this->ollamaClient->streamPull($model) as $event) {
-                echo json_encode($event) . "\n";
+                echo json_encode($event)."\n";
                 @ob_flush();
                 @flush();
             }
@@ -166,7 +165,7 @@ class AiAssistantController extends Controller
             );
 
             foreach ($generator as $event) {
-                echo json_encode($event, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n";
+                echo json_encode($event, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)."\n";
                 if (ob_get_level() > 0) {
                     @ob_flush();
                 }
@@ -215,7 +214,7 @@ class AiAssistantController extends Controller
 
             $count = Assessment::where('section_id', $section->id)->where('type', $type)->count();
             $prefix = $type === 'laboratory' ? 'Lab' : ucfirst($type);
-            $assessmentNumber = "{$prefix} " . ($count + 1);
+            $assessmentNumber = "{$prefix} ".($count + 1);
 
             $assessment = Assessment::create([
                 'section_id' => $section->id,
@@ -417,7 +416,7 @@ class AiAssistantController extends Controller
                 if ($modules->isNotEmpty()) {
                     $firstMod = $modules->first();
                     $suggestions[] = "Draft a 10-item quiz grounded in {$firstMod->module_number}: {$firstMod->title}";
-                    $suggestions[] = "Summarize the key lecture concepts and definitions from our attached course modules";
+                    $suggestions[] = 'Summarize the key lecture concepts and definitions from our attached course modules';
                 }
 
                 $suggestions = array_merge($suggestions, [

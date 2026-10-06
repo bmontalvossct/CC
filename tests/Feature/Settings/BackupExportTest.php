@@ -3,7 +3,6 @@
 namespace Tests\Feature\Settings;
 
 use App\Models\AcademicTerm;
-use App\Models\Assessment;
 use App\Models\Section;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -344,7 +343,7 @@ class BackupExportTest extends TestCase
         $pdo = new \PDO('sqlite:'.$tempDb);
         $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
 
-        $pdo->exec("
+        $pdo->exec('
             CREATE TABLE academic_terms (
                 id INTEGER PRIMARY KEY,
                 name TEXT,
@@ -374,7 +373,7 @@ class BackupExportTest extends TestCase
                 is_active INTEGER,
                 photo_path TEXT
             );
-        ");
+        ');
 
         $pdo->exec("
             INSERT INTO academic_terms VALUES (1, 'SQLite Term', '2026-2027', '2026-08-01', '2026-12-20', 1);

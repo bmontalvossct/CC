@@ -51,9 +51,7 @@ export function useActiveSection() {
 
     const resolveActiveSection = () => {
         // 1. If current page has direct section prop
-        const pageSection = page.props.section as
-            | { id: number; name: string; subject_code?: string; subject_title?: string }
-            | undefined;
+        const pageSection = page.props.section as { id: number; name: string; subject_code?: string; subject_title?: string } | undefined;
         if (pageSection && pageSection.id) {
             const item: UserSectionItem = {
                 id: pageSection.id,

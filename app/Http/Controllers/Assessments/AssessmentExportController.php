@@ -10,6 +10,7 @@ use App\Models\Project;
 use App\Models\Recitation;
 use App\Models\Section;
 use App\Models\Student;
+use App\Services\GradebookCalculationService;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AssessmentExportController extends AssessmentModuleController
@@ -117,7 +118,7 @@ class AssessmentExportController extends AssessmentModuleController
             'Semestral Final Scale (1.00-5.00)'
         );
 
-        $gradebookData = app(\App\Services\GradebookCalculationService::class)->calculateGradebook($section);
+        $gradebookData = app(GradebookCalculationService::class)->calculateGradebook($section);
         $gradebookRows = collect($gradebookData['rows'])->keyBy('id');
 
         $totalProjectPossible = round($regularProjects->sum(fn ($p) => (float) ($p->max_points ?: 100)), 2);
