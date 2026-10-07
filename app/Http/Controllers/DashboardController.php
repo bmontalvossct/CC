@@ -153,10 +153,10 @@ class DashboardController extends Controller
 
         if (! empty($data['passing_rates'])) {
             cache()->put("user_{$user->id}_default_passing_rates", [
-                'quiz' => isset($data['passing_rates']['quiz']) ? (int) $data['passing_rates']['quiz'] : 75,
-                'activity' => isset($data['passing_rates']['activity']) ? (int) $data['passing_rates']['activity'] : 75,
-                'project' => isset($data['passing_rates']['project']) ? (int) $data['passing_rates']['project'] : 75,
-                'exam' => isset($data['passing_rates']['exam']) ? (int) $data['passing_rates']['exam'] : 75,
+                'quiz' => isset($data['passing_rates']['quiz']) ? (int) $data['passing_rates']['quiz'] : 50,
+                'activity' => isset($data['passing_rates']['activity']) ? (int) $data['passing_rates']['activity'] : 50,
+                'project' => isset($data['passing_rates']['project']) ? (int) $data['passing_rates']['project'] : 50,
+                'exam' => isset($data['passing_rates']['exam']) ? (int) $data['passing_rates']['exam'] : 50,
             ], now()->addDays(30));
         }
 

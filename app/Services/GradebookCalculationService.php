@@ -16,10 +16,10 @@ use Illuminate\Support\Collection;
 class GradebookCalculationService
 {
     public const DEFAULT_PASSING_RATES = [
-        'quiz' => 75,
-        'activity' => 75,
-        'project' => 75,
-        'exam' => 75,
+        'quiz' => 50,
+        'activity' => 50,
+        'project' => 50,
+        'exam' => 50,
     ];
 
     public const DEFAULT_WEIGHTS = [
@@ -35,6 +35,13 @@ class GradebookCalculationService
         'final_weight' => 50,   // 50% Final Period Grade
         'passing_rates' => self::DEFAULT_PASSING_RATES,
     ];
+
+    protected GradeComputationService $gradeComputationService;
+
+    public function __construct(?GradeComputationService $gradeComputationService = null)
+    {
+        $this->gradeComputationService = $gradeComputationService ?? app(GradeComputationService::class);
+    }
 
     /**
      * Compute full gradebook matrix and metrics for a section.
@@ -227,14 +234,26 @@ class GradebookCalculationService
             $remarksGrid = [];
 
             $earnedByType = ['overall' => array_fill_keys(Assessment::TYPES, 0.0), 'midterm' => array_fill_keys(Assessment::TYPES, 0.0), 'final' => array_fill_keys(Assessment::TYPES, 0.0)];
+            $possibleByType = ['overall' => array_fill_keys(Assessment::TYPES, 0.0), 'midterm' => array_fill_keys(Assessment::TYPES, 0.0), 'final' => array_fill_keys(Assessment::TYPES, 0.0)];
             $missingByType = ['overall' => array_fill_keys(Assessment::TYPES, 0), 'midterm' => array_fill_keys(Assessment::TYPES, 0), 'final' => array_fill_keys(Assessment::TYPES, 0)];
 
             foreach ($assessmentsWithPeriod as $assessment) {
                 $scoreRecord = $studentScores->get($assessment->id);
                 $score = $scoreRecord?->score;
+                $scoreRemarks = $scoreRecord?->remarks;
                 $scoreGrid[$assessment->id] = $score;
-                $remarksGrid[$assessment->id] = $scoreRecord?->remarks;
+                $remarksGrid[$assessment->id] = $scoreRemarks;
                 $period = $assessment->computed_period; // 'midterm' or 'final'
+                $maxPts = (float) $assessment->max_points;
+
+                // Excused or Not Applicable assessments are excluded from both earned and possible scores
+                $isExcused = is_string($scoreRemarks) && preg_match('/\b(excused|not_applicable|not applicable|n\/a)\b/i', $scoreRemarks);
+                if ($isExcused) {
+                    continue;
+                }
+
+                $possibleByType['overall'][$assessment->type] += $maxPts;
+                $possibleByType[$period][$assessment->type] += $maxPts;
 
                 $earnedByType['overall'][$assessment->type] += (float) ($score ?? 0);
                 $earnedByType[$period][$assessment->type] += (float) ($score ?? 0);
@@ -249,8 +268,18 @@ class GradebookCalculationService
             $groupActivityScoreGrid = [];
             foreach ($groupActivities as $gAct) {
                 $score = $studentProjectScores[$student->id][$gAct->id] ?? null;
+                $note = $studentProjectNotes[$student->id][$gAct->id] ?? null;
                 $groupActivityScoreGrid[$gAct->id] = $score !== null ? round($score, 2) : null;
                 $period = $gAct->computed_period;
+                $maxPtsAct = (float) ($gAct->max_points ?: 100);
+
+                $isExcusedAct = is_string($note) && preg_match('/\b(excused|not_applicable|not applicable|n\/a)\b/i', $note);
+                if ($isExcusedAct) {
+                    continue;
+                }
+
+                $possibleByType['overall']['activity'] += $maxPtsAct;
+                $possibleByType[$period]['activity'] += $maxPtsAct;
 
                 if ($score !== null) {
                     $earnedByType['overall']['activity'] += (float) $score;
@@ -285,9 +314,9 @@ class GradebookCalculationService
             $finalRecitation = $this->calculateRecitationMetrics($finalStudentRecs, $recitationBonusCap);
 
             // Categories summary by period
-            $categoriesOverall = $this->buildCategoriesBreakdown($categorySummary, $earnedByType['overall'], $missingByType['overall'], $overallRecitation['bonus_points']);
-            $categoriesMidterm = $this->buildCategoriesBreakdown($midtermCategorySummary, $earnedByType['midterm'], $missingByType['midterm'], $midtermRecitation['bonus_points']);
-            $categoriesFinal = $this->buildCategoriesBreakdown($finalCategorySummary, $earnedByType['final'], $missingByType['final'], $finalRecitation['bonus_points']);
+            $categoriesOverall = $this->buildCategoriesBreakdown($categorySummary, $earnedByType['overall'], $missingByType['overall'], $overallRecitation['bonus_points'], $possibleByType['overall']);
+            $categoriesMidterm = $this->buildCategoriesBreakdown($midtermCategorySummary, $earnedByType['midterm'], $missingByType['midterm'], $midtermRecitation['bonus_points'], $possibleByType['midterm']);
+            $categoriesFinal = $this->buildCategoriesBreakdown($finalCategorySummary, $earnedByType['final'], $missingByType['final'], $finalRecitation['bonus_points'], $possibleByType['final']);
 
             // Projects and Reporting allocation
             $projScoresMap = $studentProjectScores[$student->id] ?? [];
@@ -394,6 +423,65 @@ class GradebookCalculationService
                 $semestralWeighted = $overallCumulativeWeighted;
             }
 
+            // Calculate period numerical grades using the Excel formula:
+            // ComponentGrade = 5 - (4 * (TotalEarned / TotalMaximum))
+            // MD / FD = ROUND(SUM(ComponentGrade * ComponentWeight), 1)
+            $midtermMD = $this->calculatePeriodNumericalGrade(
+                $categoriesMidterm,
+                $projMetricsMidterm,
+                $attendanceMidterm,
+                $gradingWeights,
+                $midtermRecitation['bonus_points'] ?? 0.0,
+                $midtermRecitation['percentage'] ?? null
+            );
+            $finalFD = $this->calculatePeriodNumericalGrade(
+                $categoriesFinal,
+                $projMetricsFinal,
+                $attendanceFinal,
+                $gradingWeights,
+                $finalRecitation['bonus_points'] ?? 0.0,
+                $finalRecitation['percentage'] ?? null
+            );
+
+            $customTable = $gradingWeights['transmutation_table'] ?? $gradingWeights['equivalency_table'] ?? null;
+            if (! empty($customTable) && is_array($customTable)) {
+                $semestralEquiv = $this->lookupGradeEquivalent($semestralWeighted, $customTable);
+                $midtermEquiv = $this->lookupGradeEquivalent($midtermWeighted, $customTable);
+                $finalPeriodEquiv = $this->lookupGradeEquivalent($finalPeriodWeighted, $customTable);
+
+                $semestralScale = $semestralEquiv['grade_equivalent'];
+                $semestralRemarks = $semestralEquiv['remarks'];
+                $isPassing = $semestralWeighted !== null ? in_array(strtoupper($semestralRemarks), ['PASSED', 'PASS'], true) : null;
+
+                $midtermScale = $midtermEquiv['grade_equivalent'];
+                $midtermRemarks = $midtermEquiv['remarks'];
+
+                $finalPeriodScale = $finalPeriodEquiv['grade_equivalent'];
+                $finalPeriodRemarks = $finalPeriodEquiv['remarks'];
+            } else {
+                // Exact Excel grading system
+                $midtermScale = $midtermMD !== null ? number_format($midtermMD, 1) : '—';
+                $midtermRemarks = $midtermMD !== null ? ($midtermMD <= 3.0 ? 'Passed' : 'Failed') : '—';
+
+                $finalPeriodScale = $finalFD !== null ? number_format($finalFD, 1) : '—';
+                $finalPeriodRemarks = $finalFD !== null ? ($finalFD <= 3.0 ? 'Passed' : 'Failed') : '—';
+
+                if ($midtermMD !== null && $finalFD !== null) {
+                    $fgResult = $this->gradeComputationService->computeOverallFinalGrade($midtermMD, $finalFD);
+                    $semestralScale = $fgResult['formatted_final_grade'];
+                    $semestralRemarks = $fgResult['remarks'];
+                    $isPassing = $fgResult['is_passing'];
+                } elseif ($midtermMD !== null) {
+                    $semestralScale = number_format($midtermMD, 1);
+                    $semestralRemarks = $midtermMD <= 3.0 ? 'Passed' : 'Failed';
+                    $isPassing = $midtermMD <= 3.0;
+                } else {
+                    $semestralScale = '—';
+                    $semestralRemarks = '—';
+                    $isPassing = null;
+                }
+            }
+
             return [
                 'id' => $student->id,
                 'student_number' => $student->student_number,
@@ -414,13 +502,18 @@ class GradebookCalculationService
                 'attendance' => $attendanceOverall,
                 'recitation' => $overallRecitation,
                 'weighted_grade' => $semestralWeighted,
-                'scale_grade' => $this->percentToScale($semestralWeighted),
-                'is_passing' => $semestralWeighted !== null ? $semestralWeighted >= 75.0 : null,
+                'scale_grade' => $semestralScale,
+                'final_grade' => $semestralScale,
+                'grade_remarks' => $semestralRemarks,
+                'final_remarks' => $semestralRemarks,
+                'is_passing' => $isPassing,
 
                 // Midterm Grade Breakdown
                 'midterm' => [
                     'weighted_grade' => $midtermWeighted,
-                    'scale_grade' => $this->percentToScale($midtermWeighted),
+                    'scale_grade' => $midtermScale,
+                    'md' => $midtermMD,
+                    'grade_remarks' => $midtermRemarks,
                     'categories' => $categoriesMidterm,
                     'attendance' => $attendanceMidterm,
                     'recitation' => $midtermRecitation,
@@ -436,7 +529,9 @@ class GradebookCalculationService
                 // Final Period Grade Breakdown
                 'final_period' => [
                     'weighted_grade' => $finalPeriodWeighted,
-                    'scale_grade' => $this->percentToScale($finalPeriodWeighted),
+                    'scale_grade' => $finalPeriodScale,
+                    'fd' => $finalFD,
+                    'grade_remarks' => $finalPeriodRemarks,
                     'categories' => $categoriesFinal,
                     'attendance' => $attendanceFinal,
                     'recitation' => $finalRecitation,
@@ -497,45 +592,35 @@ class GradebookCalculationService
     }
 
     /**
-     * Convert percentage to Philippine college grading scale (1.00 - 5.00).
+    /**
+     * Convert percentage to university numerical grade scale (1.00 - 5.00) using configurable transmutation table.
      */
-    public function percentToScale(?float $pct): string
+    public function percentToScale(?float $pct, ?array $transmutationTable = null): string
     {
         if ($pct === null) {
             return '—';
         }
 
-        $pct = round($pct, 2);
+        return $this->lookupGradeEquivalent($pct, $transmutationTable)['grade_equivalent'];
+    }
 
-        if ($pct >= 97.0) {
-            return '1.00';
-        }
-        if ($pct >= 94.0) {
-            return '1.25';
-        }
-        if ($pct >= 91.0) {
-            return '1.50';
-        }
-        if ($pct >= 88.0) {
-            return '1.75';
-        }
-        if ($pct >= 85.0) {
-            return '2.00';
-        }
-        if ($pct >= 82.0) {
-            return '2.25';
-        }
-        if ($pct >= 79.0) {
-            return '2.50';
-        }
-        if ($pct >= 76.0) {
-            return '2.75';
-        }
-        if ($pct >= 75.0) {
-            return '3.00';
+    /**
+     * Lookup numerical grade equivalent and remarks from transmutation table.
+     *
+     * @return array{grade_equivalent: string, remarks: string, minimum_percentage: float, maximum_percentage: float}
+     */
+    public function lookupGradeEquivalent(?float $pct, ?array $transmutationTable = null): array
+    {
+        if ($pct === null) {
+            return [
+                'grade_equivalent' => '—',
+                'remarks' => '—',
+                'minimum_percentage' => 0.0,
+                'maximum_percentage' => 0.0,
+            ];
         }
 
-        return '5.00';
+        return $this->gradeComputationService->lookupGradeEquivalent($pct, $transmutationTable);
     }
 
     /**
@@ -634,20 +719,29 @@ class GradebookCalculationService
         return $summary;
     }
 
-    protected function buildCategoriesBreakdown(Collection $summary, array $earnedByType, array $missingByType, float $bonusEarned): Collection
-    {
-        return collect(Assessment::TYPES)->mapWithKeys(function ($type) use ($summary, $earnedByType, $missingByType, $bonusEarned) {
-            $rawEarned = round($earnedByType[$type], 2);
+    protected function buildCategoriesBreakdown(
+        Collection $summary,
+        array $earnedByType,
+        array $missingByType,
+        float $bonusEarned,
+        ?array $possibleByType = null
+    ): Collection {
+        return collect(Assessment::TYPES)->mapWithKeys(function ($type) use ($summary, $earnedByType, $missingByType, $bonusEarned, $possibleByType) {
+            $rawEarned = (float) $earnedByType[$type];
             $bonus = $type === 'activity' ? $bonusEarned : 0.0;
-            $earned = round($rawEarned + $bonus, 2);
-            $possible = $summary[$type]['possible'] ?? 0.0;
+            $earned = $rawEarned + $bonus;
+            $possible = $possibleByType !== null ? (float) ($possibleByType[$type] ?? 0.0) : (float) ($summary[$type]['possible'] ?? 0.0);
+
+            // Maintain full decimal precision during intermediate calculations
+            $rawPercentage = $possible > 0 ? min(100.0, ($earned / $possible * 100)) : null;
 
             return [$type => [
-                'raw_earned' => $rawEarned,
-                'bonus_earned' => $bonus,
-                'earned' => $earned,
-                'possible' => $possible,
-                'percentage' => $possible > 0 ? min(100.0, round($earned / $possible * 100, 2)) : null,
+                'raw_earned' => round($rawEarned, 2),
+                'bonus_earned' => round($bonus, 2),
+                'earned' => round($earned, 2),
+                'possible' => round($possible, 2),
+                'percentage' => $rawPercentage !== null ? round($rawPercentage, 2) : null,
+                'raw_percentage' => $rawPercentage,
                 'missing' => $missingByType[$type] ?? 0,
             ]];
         });
@@ -736,11 +830,11 @@ class GradebookCalculationService
             ? round($gradesWithScores->avg('weighted_grade'), 2)
             : null;
 
-        $passing = $rows->filter(fn ($r) => ($r['weighted_grade'] ?? 0) >= 75.0)->count();
-        $failing = $rows->filter(fn ($r) => $r['weighted_grade'] !== null && $r['weighted_grade'] < 75.0)->count();
+        $passing = $rows->filter(fn ($r) => $r['is_passing'] === true || (($r['weighted_grade'] ?? 0) >= 50.0))->count();
+        $failing = $rows->filter(fn ($r) => $r['is_passing'] === false || ($r['weighted_grade'] !== null && $r['weighted_grade'] < 50.0))->count();
 
         $atRisk = $rows->filter(function ($r) {
-            $isLowGrade = $r['weighted_grade'] !== null && $r['weighted_grade'] < 75.0;
+            $isLowGrade = ($r['is_passing'] === false) || ($r['weighted_grade'] !== null && $r['weighted_grade'] < 50.0);
             $hasAbsences = ($r['attendance']['absent_count'] ?? 0) >= 3;
             $missingCount = collect($r['categories'])->sum('missing') + ($r['projectSummary']['missing'] ?? 0);
 
@@ -814,7 +908,7 @@ class GradebookCalculationService
 
         foreach (['activity', 'laboratory', 'quiz', 'exam'] as $cat) {
             $weight = $academicWeights[$cat];
-            $pct = $categories[$cat]['percentage'] ?? null;
+            $pct = $categories[$cat]['raw_percentage'] ?? $categories[$cat]['percentage'] ?? null;
             if ($weight > 0 && $pct !== null) {
                 $weightedSum += ($pct * ($weight / 100));
                 $totalWeight += $weight;
@@ -854,6 +948,74 @@ class GradebookCalculationService
     }
 
     /**
+     * Compute period numerical grade (MD or FD) using the Excel formula:
+     * ComponentGrade_i = 5 - (4 * (TotalEarned_i / TotalMaximum_i))
+     * PeriodGrade = ROUND(SUM(ComponentGrade_i * ComponentWeight_i), 1)
+     */
+    public function calculatePeriodNumericalGrade(
+        Collection $categories,
+        array $projectMetrics,
+        array $attendanceMetrics,
+        array $gradingWeights,
+        float $recitationBonus = 0.0,
+        ?float $recitationPct = null
+    ): ?float {
+        $academicWeights = [
+            'activity' => (float) ($gradingWeights['activity'] ?? 0),
+            'laboratory' => (float) ($gradingWeights['laboratory'] ?? 0),
+            'quiz' => (float) ($gradingWeights['quiz'] ?? 0),
+            'exam' => (float) ($gradingWeights['exam'] ?? 0),
+            'project' => (float) ($gradingWeights['project'] ?? 0),
+        ];
+        $attendanceWeight = (float) ($gradingWeights['attendance'] ?? 0);
+        $recitationWeight = (float) ($gradingWeights['recitation'] ?? 0);
+
+        $coreWeightTotal = array_sum($academicWeights) + $attendanceWeight;
+        $isRecitationCore = (abs(($coreWeightTotal + $recitationWeight) - 100.0) < 0.01 && abs($coreWeightTotal - 100.0) > 0.01);
+
+        $sumWeighted = 0.0;
+        $availableWeight = 0.0;
+
+        foreach (['activity', 'laboratory', 'quiz', 'exam'] as $cat) {
+            $weight = $academicWeights[$cat];
+            $earned = (float) ($categories[$cat]['earned'] ?? 0.0);
+            $possible = (float) ($categories[$cat]['possible'] ?? 0.0);
+
+            if ($weight > 0 && $possible > 0) {
+                $compGrade = 5.0 - (4.0 * ($earned / $possible));
+                $sumWeighted += ($compGrade * ($weight / 100.0));
+                $availableWeight += ($weight / 100.0);
+            }
+        }
+
+        if ($academicWeights['project'] > 0 && ($projectMetrics['possible'] ?? 0) > 0) {
+            $compGrade = 5.0 - (4.0 * ((float) $projectMetrics['earned'] / (float) $projectMetrics['possible']));
+            $sumWeighted += ($compGrade * ($academicWeights['project'] / 100.0));
+            $availableWeight += ($academicWeights['project'] / 100.0);
+        }
+
+        if ($attendanceWeight > 0 && ($attendanceMetrics['possible_points'] ?? 0) > 0) {
+            $compGrade = 5.0 - (4.0 * ((float) $attendanceMetrics['earned_points'] / (float) $attendanceMetrics['possible_points']));
+            $sumWeighted += ($compGrade * ($attendanceWeight / 100.0));
+            $availableWeight += ($attendanceWeight / 100.0);
+        }
+
+        if ($isRecitationCore && $recitationWeight > 0 && $recitationPct !== null) {
+            $compGrade = 5.0 - (4.0 * ($recitationPct / 100.0));
+            $sumWeighted += ($compGrade * ($recitationWeight / 100.0));
+            $availableWeight += ($recitationWeight / 100.0);
+        }
+
+        if ($availableWeight <= 0) {
+            return null;
+        }
+
+        $normalizedSum = $sumWeighted / $availableWeight;
+
+        return round($normalizedSum, 1, PHP_ROUND_HALF_UP);
+    }
+
+    /**
      * @return array{Collection, Collection, Collection, Collection, Collection, Collection}
      */
     protected function loadData(Section $section): array
@@ -866,7 +1028,7 @@ class GradebookCalculationService
             ->orderBy('first_name')
             ->get(['id', 'student_number', 'first_name', 'middle_name', 'last_name']);
         $scores = AssessmentScore::whereIn('assessment_id', $assessments->pluck('id'))
-            ->get(['assessment_id', 'student_id', 'score'])
+            ->get(['assessment_id', 'student_id', 'score', 'remarks'])
             ->groupBy('student_id')
             ->map->keyBy('assessment_id');
 

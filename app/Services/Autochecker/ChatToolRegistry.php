@@ -197,7 +197,7 @@ class ChatToolRegistry
                 'type' => 'function',
                 'function' => [
                     'name' => 'get_at_risk_deficiencies',
-                    'description' => 'Retrieve list of all struggling and at-risk students in a section: identifies students with critical absences (>2), failing grades (<75%), and missing tasks with actionable recommendations.',
+                    'description' => 'Retrieve list of all struggling and at-risk students in a section: identifies students with critical absences (>2), failing grades (<50% or >3.0), and missing tasks with actionable recommendations.',
                     'parameters' => [
                         'type' => 'object',
                         'properties' => [
@@ -964,7 +964,7 @@ class ChatToolRegistry
         $passingRates = $section->grading_weights['passing_rates'] ?? GradebookCalculationService::DEFAULT_PASSING_RATES;
 
         $analytics = $assessments->map(function ($a) use ($totalStudents, $passingRates) {
-            $categoryThreshold = (float) ($passingRates[$a->type] ?? 75) / 100;
+            $categoryThreshold = (float) ($passingRates[$a->type] ?? 50) / 100;
             $scores = $a->scores->pluck('score')->filter(fn ($s) => $s !== null)->values();
             $count = $scores->count();
             $avg = $count > 0 ? round($scores->average(), 2) : 0;
@@ -1024,8 +1024,11 @@ class ChatToolRegistry
             $absences = $att['absences'] ?? 0;
 
             $triggers = [];
-            if (($stu['weighted_grade'] ?? 100) < 75) {
-                $triggers[] = "Failing weighted grade ({$stu['weighted_grade']}%)";
+            $isFailingGrade = (isset($stu['scale_grade']) && $stu['scale_grade'] !== '—' && (float) $stu['scale_grade'] > 3.0)
+                || (($stu['weighted_grade'] ?? 100) < 50);
+            if ($isFailingGrade) {
+                $gradeDisplay = $stu['scale_grade'] ?? "{$stu['weighted_grade']}%";
+                $triggers[] = "Failing grade ({$gradeDisplay})";
             }
             if ($absences >= 3) {
                 $triggers[] = "Critical absences ({$absences} absent)";

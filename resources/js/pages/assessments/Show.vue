@@ -78,7 +78,7 @@ const props = defineProps<{
 const passingRatePct = computed(() => {
     const weights = props.section?.grading_weights;
     const rates = weights?.passing_rates;
-    return Number(rates?.[props.assessment.type] ?? 75);
+    return Number(rates?.[props.assessment.type] ?? 50);
 });
 
 const passingThreshold = computed(() => passingRatePct.value / 100);

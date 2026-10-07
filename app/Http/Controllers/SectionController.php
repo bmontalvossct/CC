@@ -119,10 +119,10 @@ class SectionController extends Controller
             if (! empty($data['passing_rates'])) {
                 $gradingWeights = [
                     'passing_rates' => [
-                        'quiz' => isset($data['passing_rates']['quiz']) ? (int) $data['passing_rates']['quiz'] : 75,
-                        'activity' => isset($data['passing_rates']['activity']) ? (int) $data['passing_rates']['activity'] : 75,
-                        'project' => isset($data['passing_rates']['project']) ? (int) $data['passing_rates']['project'] : 75,
-                        'exam' => isset($data['passing_rates']['exam']) ? (int) $data['passing_rates']['exam'] : 75,
+                        'quiz' => isset($data['passing_rates']['quiz']) ? (int) $data['passing_rates']['quiz'] : 50,
+                        'activity' => isset($data['passing_rates']['activity']) ? (int) $data['passing_rates']['activity'] : 50,
+                        'project' => isset($data['passing_rates']['project']) ? (int) $data['passing_rates']['project'] : 50,
+                        'exam' => isset($data['passing_rates']['exam']) ? (int) $data['passing_rates']['exam'] : 50,
                     ],
                 ];
             }
@@ -327,10 +327,10 @@ class SectionController extends Controller
             if (array_key_exists('passing_rates', $data) && is_array($data['passing_rates'])) {
                 $currentWeights = $section->grading_weights ?? [];
                 $currentWeights['passing_rates'] = [
-                    'quiz' => isset($data['passing_rates']['quiz']) ? (int) $data['passing_rates']['quiz'] : 75,
-                    'activity' => isset($data['passing_rates']['activity']) ? (int) $data['passing_rates']['activity'] : 75,
-                    'project' => isset($data['passing_rates']['project']) ? (int) $data['passing_rates']['project'] : 75,
-                    'exam' => isset($data['passing_rates']['exam']) ? (int) $data['passing_rates']['exam'] : 75,
+                    'quiz' => isset($data['passing_rates']['quiz']) ? (int) $data['passing_rates']['quiz'] : 50,
+                    'activity' => isset($data['passing_rates']['activity']) ? (int) $data['passing_rates']['activity'] : 50,
+                    'project' => isset($data['passing_rates']['project']) ? (int) $data['passing_rates']['project'] : 50,
+                    'exam' => isset($data['passing_rates']['exam']) ? (int) $data['passing_rates']['exam'] : 50,
                 ];
                 $updateData['grading_weights'] = $currentWeights;
             }

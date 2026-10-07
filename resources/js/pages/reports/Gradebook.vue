@@ -66,6 +66,7 @@ type Recitation = { count: number; total_score?: number; avg_score: number | nul
 type PeriodMetrics = {
     weighted_grade: number | null;
     scale_grade: string;
+    grade_remarks?: string;
     categories: Record<string, Category>;
     attendance: AttendanceSummary;
     recitation: Recitation;
@@ -87,6 +88,8 @@ type Row = {
     recitation: Recitation;
     weighted_grade: number | null;
     scale_grade: string;
+    grade_remarks?: string;
+    final_remarks?: string;
     is_passing?: boolean | null;
     midterm?: PeriodMetrics;
     final_period?: PeriodMetrics;
@@ -302,10 +305,10 @@ const openOralOverrideModal = (student: Row | null = null) => {
 };
 
 const passingRates = computed(() => ({
-    quiz: Number(props.gradingWeights?.passing_rates?.quiz ?? 75),
-    activity: Number(props.gradingWeights?.passing_rates?.activity ?? 75),
-    project: Number(props.gradingWeights?.passing_rates?.project ?? 75),
-    exam: Number(props.gradingWeights?.passing_rates?.exam ?? 75),
+    quiz: Number(props.gradingWeights?.passing_rates?.quiz ?? 50),
+    activity: Number(props.gradingWeights?.passing_rates?.activity ?? 50),
+    project: Number(props.gradingWeights?.passing_rates?.project ?? 50),
+    exam: Number(props.gradingWeights?.passing_rates?.exam ?? 50),
 }));
 
 const countDeficiencies = (row: Row): number => {
@@ -318,7 +321,7 @@ const countDeficiencies = (row: Row): number => {
         } else {
             const score = parseFloat(String(val));
             const max = parseFloat(String(a.max_points));
-            const threshold = ((rates as Record<string, number>)[a.type] ?? 75) / 100;
+            const threshold = ((rates as Record<string, number>)[a.type] ?? 50) / 100;
             if (max > 0 && score / max < threshold) {
                 count++;
             }
@@ -331,7 +334,7 @@ const countDeficiencies = (row: Row): number => {
         } else {
             const score = Number(val);
             const max = typeof g.max_points === 'number' ? g.max_points : parseFloat(String(g.max_points || 100));
-            const threshold = (rates.activity ?? 75) / 100;
+            const threshold = (rates.activity ?? 50) / 100;
             if (max > 0 && score / max < threshold) {
                 count++;
             }
@@ -344,7 +347,7 @@ const countDeficiencies = (row: Row): number => {
         } else {
             const score = Number(val);
             const max = typeof p.max_points === 'number' ? p.max_points : parseFloat(String(p.max_points || 100));
-            const threshold = (rates.project ?? 75) / 100;
+            const threshold = (rates.project ?? 50) / 100;
             if (max > 0 && score / max < threshold) {
                 count++;
             }
@@ -1909,6 +1912,13 @@ onMounted(() => {
                                             >
                                                 {{ gradeDisplay(row.scale_grade) }}
                                             </span>
+                                            <span
+                                                v-if="row.final_remarks || row.grade_remarks"
+                                                class="mt-1 block text-[9px] font-bold tracking-wider uppercase"
+                                                :class="(row.final_remarks || row.grade_remarks)?.toUpperCase() === 'PASSED' ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive font-extrabold'"
+                                            >
+                                                {{ row.final_remarks || row.grade_remarks }}
+                                            </span>
                                         </td>
                                     </template>
 
@@ -2117,6 +2127,13 @@ onMounted(() => {
                                             >
                                                 {{ gradeDisplay(row.scale_grade) }}
                                             </span>
+                                            <span
+                                                v-if="row.final_remarks || row.grade_remarks"
+                                                class="mt-1 block text-[9px] font-bold tracking-wider uppercase"
+                                                :class="(row.final_remarks || row.grade_remarks)?.toUpperCase() === 'PASSED' ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive font-extrabold'"
+                                            >
+                                                {{ row.final_remarks || row.grade_remarks }}
+                                            </span>
                                         </td>
                                     </template>
                                 </tr>
@@ -2144,34 +2161,31 @@ onMounted(() => {
                 <!-- Grading Scale Legend & Calculation Guide -->
                 <div class="paper-card mt-6 space-y-4 p-5 print:rounded-none print:border print:border-black print:bg-white">
                     <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <h3 class="text-xs font-bold uppercase tracking-wider text-muted-foreground">College Grading Scale & Period Computation</h3>
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Numerical Grading Scale & Period Computation</h3>
                         <span class="font-mono text-[11px] text-muted-foreground">
-                            Semestral Grade = (50% Midterm Grade) + (50% Final Period Grade)
+                            Component Grade = 5 - (4 × Score Ratio) · Passing: 50% (3.0) · FG = (MD + FD) / 2
                         </span>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-2 text-center text-[10px] sm:grid-cols-5 lg:grid-cols-10">
+                    <div class="grid grid-cols-2 gap-2 text-center text-[10px] sm:grid-cols-4 lg:grid-cols-7">
                         <div
                             v-for="entry in [
-                                { grade: '1.00', range: '97–100%' },
-                                { grade: '1.25', range: '94–96%' },
-                                { grade: '1.50', range: '91–93%' },
-                                { grade: '1.75', range: '88–90%' },
-                                { grade: '2.00', range: '85–87%' },
-                                { grade: '2.25', range: '82–84%' },
-                                { grade: '2.50', range: '79–81%' },
-                                { grade: '2.75', range: '76–78%' },
-                                { grade: '3.00', range: '75%' },
-                                { grade: 'INC', range: 'Below 75%' },
+                                { grade: '1.0', range: '100% (5 - 4×1.0)' },
+                                { grade: '1.4', range: '90% (5 - 4×0.9)' },
+                                { grade: '1.8', range: '80% (5 - 4×0.8)' },
+                                { grade: '2.2', range: '70% (5 - 4×0.7)' },
+                                { grade: '2.6', range: '60% (5 - 4×0.6)' },
+                                { grade: '3.0', range: '50% (Passing Threshold)' },
+                                { grade: '5.0', range: 'Below 50% (Failed)' },
                             ]"
                             :key="entry.grade"
                             class="shadow-2xs rounded-lg border px-2 py-2 transition-colors"
                             :class="
-                                entry.grade === 'INC' ? 'border-rose-800 bg-rose-700 text-white' : 'border-border/60 bg-secondary/30 text-foreground'
+                                entry.grade === '5.0' ? 'border-rose-800 bg-rose-700 text-white' : 'border-border/60 bg-secondary/30 text-foreground'
                             "
                         >
-                            <span class="block font-medium" :class="entry.grade === 'INC' ? 'text-white' : 'text-foreground'">{{ entry.grade }}</span>
-                            <span :class="entry.grade === 'INC' ? 'text-rose-100' : 'text-muted-foreground'">{{ entry.range }}</span>
+                            <span class="block font-medium" :class="entry.grade === '5.0' ? 'text-white' : 'text-foreground'">{{ entry.grade }}</span>
+                            <span :class="entry.grade === '5.0' ? 'text-rose-100' : 'text-muted-foreground'">{{ entry.range }}</span>
                         </div>
                     </div>
                 </div>

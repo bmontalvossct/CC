@@ -113,10 +113,10 @@ const form = ref({
     ends_on: props.currentTerm?.ends_on || new Date(new Date().setMonth(new Date().getMonth() + 5)).toISOString().split('T')[0],
     reporting_frequency: 'once_per_sem' as 'once_per_sem' | 'twice_per_sem',
     passing_rates: {
-        quiz: 75,
-        activity: 75,
-        project: 75,
-        exam: 75,
+        quiz: 50,
+        activity: 50,
+        project: 50,
+        exam: 50,
     },
 });
 
@@ -556,7 +556,7 @@ const saveAndContinueToAi = async () => {
                             <div class="flex items-center gap-1">
                                 <span class="mr-1 text-[10px] font-medium text-muted-foreground">Presets:</span>
                                 <button
-                                    v-for="rate in [60, 70, 75, 80]"
+                                    v-for="rate in [50, 60, 70, 75]"
                                     :key="rate"
                                     type="button"
                                     class="rounded-md border border-border/70 bg-card px-2 py-0.5 font-mono text-[10px] font-bold text-muted-foreground transition hover:border-primary hover:text-primary"

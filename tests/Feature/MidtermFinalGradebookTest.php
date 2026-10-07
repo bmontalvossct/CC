@@ -176,19 +176,19 @@ class MidtermFinalGradebookTest extends TestCase
 
         $row = $gradebook['rows']->first();
 
-        // Midterm grade should be 100% since act1 (100%), quiz1 (100%), midtermExam (100%), att1 (100%)
+        // Midterm grade in Excel: 100% performance = 1.0
         $this->assertEquals(100.0, $row['midterm']['weighted_grade']);
-        $this->assertEquals('1.00', $row['midterm']['scale_grade']);
+        $this->assertEquals('1.0', $row['midterm']['scale_grade']);
 
-        // Final period grade has act2 (80%), finalExam (90%), att2 (100%)
-        // Normalized over available categories (Activity 20, Exam 30, Attendance 15, total = 65)
-        // (80 * 0.20 + 90 * 0.30 + 100 * 0.15) / 0.65 = 58 / 0.65 = 89.23%
+        // Final period grade in Excel:
+        // Act: 5 - 4*0.8 = 1.8 (weight 20%), Exam: 5 - 4*0.9 = 1.4 (weight 30%), Att: 1.0 (weight 15%)
+        // Normalized = (1.8*0.2 + 1.4*0.3 + 1.0*0.15) / 0.65 = 1.43 -> ROUND to 1 decimal = 1.4
         $this->assertEquals(89.23, $row['final_period']['weighted_grade']);
-        $this->assertEquals('1.75', $row['final_period']['scale_grade']);
+        $this->assertEquals('1.4', $row['final_period']['scale_grade']);
 
-        // Semestral grade = 50% Midterm (100) + 50% Final (89.23) = 94.62% -> 1.25
+        // Overall Final Grade: Average (1.0 + 1.4)/2 = 1.2 <= 3.0 -> ROUNDDOWN = 1.2
         $this->assertEquals(94.62, $row['weighted_grade']);
-        $this->assertEquals('1.25', $row['scale_grade']);
+        $this->assertEquals('1.2', $row['scale_grade']);
     }
 
     public function test_reporting_once_per_sem_is_credited_to_finals_and_excluded_from_midterms(): void
@@ -499,7 +499,7 @@ class MidtermFinalGradebookTest extends TestCase
         // Midterm Grade = (90 * 0.20) + (85 * 0.20) + (80 * 0.25) + (92 * 0.20) + (95 * 0.15)
         // Midterm Grade = 18 + 17 + 20 + 18.4 + 14.25 = 87.65
         $this->assertEquals(87.65, $row['midterm']['weighted_grade']);
-        $this->assertEquals('2.00', $row['midterm']['scale_grade']); // 87.65% in 85–87% -> 2.00
+        $this->assertEquals('1.5', $row['midterm']['scale_grade']); // Component grades weighted -> ROUND(1.494, 1) = 1.5
         $this->assertEquals(90.0, $row['midterm']['categories']['activity']['percentage']);
         $this->assertEquals(85.0, $row['midterm']['categories']['quiz']['percentage']);
         $this->assertEquals(80.0, $row['midterm']['categories']['exam']['percentage']);
@@ -566,9 +566,10 @@ class MidtermFinalGradebookTest extends TestCase
         $row = $gradebook['rows']->first();
 
         // Evaluated categories: Quiz (20%) and Attendance (15%) = 35% total available
-        // (75 * 0.20 + 100 * 0.15) / 0.35 = 30 / 0.35 = 85.71% -> 2.00
+        // Quiz Grade: 5 - 4*0.75 = 2.0. Attendance Grade: 5 - 4*1.0 = 1.0.
+        // Normalized = (2.0*0.2 + 1.0*0.15) / 0.35 = 0.55 / 0.35 = 1.5714... -> ROUND(1.5714, 1) = 1.6
         $this->assertEquals(85.71, $row['midterm']['weighted_grade']);
-        $this->assertEquals('2.00', $row['midterm']['scale_grade']);
+        $this->assertEquals('1.6', $row['midterm']['scale_grade']);
     }
 
     public function test_oral_recitation_bonus_is_credited_even_when_no_activities_exist(): void
@@ -632,6 +633,6 @@ class MidtermFinalGradebookTest extends TestCase
         // Base grade = (0 * 0.20 + 100 * 0.15) / 0.35 = 42.86%. Recitation bonus = +5.00%. Total = 47.86%.
         $this->assertEquals(47.86, $row['midterm']['weighted_grade']);
         $this->assertEquals(5.0, $row['midterm']['recitation']['bonus_points']);
-        $this->assertEquals('5.00', $row['midterm']['scale_grade']);
+        $this->assertEquals('3.3', $row['midterm']['scale_grade']);
     }
 }

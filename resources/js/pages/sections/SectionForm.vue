@@ -154,10 +154,10 @@ const form = useForm<{
               },
           ],
     passing_rates: {
-        quiz: Number(props.section?.grading_weights?.passing_rates?.quiz ?? props.defaultPassingRates?.quiz ?? 75),
-        activity: Number(props.section?.grading_weights?.passing_rates?.activity ?? props.defaultPassingRates?.activity ?? 75),
-        project: Number(props.section?.grading_weights?.passing_rates?.project ?? props.defaultPassingRates?.project ?? 75),
-        exam: Number(props.section?.grading_weights?.passing_rates?.exam ?? props.defaultPassingRates?.exam ?? 75),
+        quiz: Number(props.section?.grading_weights?.passing_rates?.quiz ?? props.defaultPassingRates?.quiz ?? 50),
+        activity: Number(props.section?.grading_weights?.passing_rates?.activity ?? props.defaultPassingRates?.activity ?? 50),
+        project: Number(props.section?.grading_weights?.passing_rates?.project ?? props.defaultPassingRates?.project ?? 50),
+        exam: Number(props.section?.grading_weights?.passing_rates?.exam ?? props.defaultPassingRates?.exam ?? 50),
     },
 });
 
@@ -436,7 +436,7 @@ const submit = () => {
                         class="hidden items-center gap-1.5 rounded-xl border border-border/50 bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground sm:flex"
                     >
                         <Target class="size-3.5 text-primary" />
-                        <span>Standard benchmark: 75%</span>
+                        <span>Standard benchmark: 50%</span>
                     </div>
                 </div>
                 <p class="text-xs text-muted-foreground sm:text-sm">
@@ -479,7 +479,7 @@ const submit = () => {
                         <!-- Preset Buttons -->
                         <div class="mt-2.5 flex items-center gap-1">
                             <button
-                                v-for="preset in [60, 70, 75, 80]"
+                                v-for="preset in [50, 60, 70, 75]"
                                 :key="preset"
                                 type="button"
                                 class="rounded-lg px-2 py-0.5 text-[10px] font-medium transition-colors"
@@ -529,7 +529,7 @@ const submit = () => {
                         <!-- Preset Buttons -->
                         <div class="mt-2.5 flex items-center gap-1">
                             <button
-                                v-for="preset in [60, 70, 75, 80]"
+                                v-for="preset in [50, 60, 70, 75]"
                                 :key="preset"
                                 type="button"
                                 class="rounded-lg px-2 py-0.5 text-[10px] font-medium transition-colors"
@@ -579,7 +579,7 @@ const submit = () => {
                         <!-- Preset Buttons -->
                         <div class="mt-2.5 flex items-center gap-1">
                             <button
-                                v-for="preset in [60, 70, 75, 80]"
+                                v-for="preset in [50, 60, 70, 75]"
                                 :key="preset"
                                 type="button"
                                 class="rounded-lg px-2 py-0.5 text-[10px] font-medium transition-colors"
@@ -629,7 +629,7 @@ const submit = () => {
                         <!-- Preset Buttons -->
                         <div class="mt-2.5 flex items-center gap-1">
                             <button
-                                v-for="preset in [60, 70, 75, 80]"
+                                v-for="preset in [50, 60, 70, 75]"
                                 :key="preset"
                                 type="button"
                                 class="rounded-lg px-2 py-0.5 text-[10px] font-medium transition-colors"

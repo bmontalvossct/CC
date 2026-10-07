@@ -108,17 +108,10 @@ const readableDate = (date: string | null) => {
 
 const percentToGrade = (pct: number | null): string => {
     if (pct === null) return '—';
-    const val = Math.round(pct * 100) / 100;
-    if (val >= 97.0) return '1.00';
-    if (val >= 94.0) return '1.25';
-    if (val >= 91.0) return '1.50';
-    if (val >= 88.0) return '1.75';
-    if (val >= 85.0) return '2.00';
-    if (val >= 82.0) return '2.25';
-    if (val >= 79.0) return '2.50';
-    if (val >= 76.0) return '2.75';
-    if (val >= 75.0) return '3.00';
-    return '5.00';
+    const ratio = Math.max(0, Math.min(100, pct)) / 100;
+    const rawGrade = 5.0 - (4.0 * ratio);
+    if (rawGrade > 3.0) return '5.0';
+    return (Math.floor(rawGrade * 10) / 10).toFixed(1);
 };
 
 const isFailingGrade = (grade: string) => {
@@ -179,21 +172,21 @@ const uncompliedAssessments = computed(() => {
 });
 
 const passingRates = computed(() => ({
-    quiz: Number(props.gradingWeights?.passing_rates?.quiz ?? 75),
-    activity: Number(props.gradingWeights?.passing_rates?.activity ?? 75),
-    project: Number(props.gradingWeights?.passing_rates?.project ?? 75),
-    exam: Number(props.gradingWeights?.passing_rates?.exam ?? 75),
+    quiz: Number(props.gradingWeights?.passing_rates?.quiz ?? 50),
+    activity: Number(props.gradingWeights?.passing_rates?.activity ?? 50),
+    project: Number(props.gradingWeights?.passing_rates?.project ?? 50),
+    exam: Number(props.gradingWeights?.passing_rates?.exam ?? 50),
 }));
 
 const getPassingRateForAssessment = (type: string): number => {
-    return (passingRates.value as Record<string, number>)[type] ?? 75;
+    return (passingRates.value as Record<string, number>)[type] ?? 50;
 };
 
 const getPassingRateForProject = (type: string): number => {
     if (type === 'group_activity') {
-        return passingRates.value.activity ?? 75;
+        return passingRates.value.activity ?? 50;
     }
-    return passingRates.value.project ?? 75;
+    return passingRates.value.project ?? 50;
 };
 
 // Failing Assessments (score recorded but below category threshold)
@@ -959,9 +952,9 @@ const printSlip = () => {
                                             <CheckCircle2 class="size-3 shrink-0" />
                                             {{ item.score }}/{{ item.max_points }} ({{ item.pct }}%)
                                         </span>
-                                        <span class="mt-0.5 block text-[10px] font-semibold text-emerald-700 dark:text-emerald-400"
-                                            >Passed · 75%+</span
-                                        >
+                                        <span class="mt-0.5 block text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">
+                                            Passed · {{ item.isProject ? getPassingRateForProject(item.type) : getPassingRateForAssessment(item.type) }}%+
+                                        </span>
                                     </template>
                                     <template v-else-if="item.status === 'failed'">
                                         <span
@@ -970,9 +963,9 @@ const printSlip = () => {
                                             <AlertCircle class="size-3 shrink-0" />
                                             {{ item.score }}/{{ item.max_points }} ({{ item.pct }}%)
                                         </span>
-                                        <span class="mt-0.5 block text-[10px] font-semibold text-rose-700 dark:text-rose-400"
-                                            >Failed · Below 75%</span
-                                        >
+                                        <span class="mt-0.5 block text-[10px] font-semibold text-rose-700 dark:text-rose-400">
+                                            Failed · Below {{ item.isProject ? getPassingRateForProject(item.type) : getPassingRateForAssessment(item.type) }}%
+                                        </span>
                                     </template>
                                     <template v-else>
                                         <span

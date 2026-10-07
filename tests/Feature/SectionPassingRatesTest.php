@@ -213,4 +213,39 @@ class SectionPassingRatesTest extends TestCase
         // Since score is 65% and passing rate is 60%, pass rate should be 100% (1 of 1 passed)
         $this->assertEquals(100.0, $assessmentData['passing_rate_pct']);
     }
+
+    public function test_default_passing_rate_is_fifty_percent(): void
+    {
+        $this->assertEquals(50, GradebookCalculationService::DEFAULT_PASSING_RATES['quiz']);
+        $this->assertEquals(50, GradebookCalculationService::DEFAULT_PASSING_RATES['activity']);
+        $this->assertEquals(50, GradebookCalculationService::DEFAULT_PASSING_RATES['project']);
+        $this->assertEquals(50, GradebookCalculationService::DEFAULT_PASSING_RATES['exam']);
+
+        $user = User::factory()->create();
+        $term = AcademicTerm::create([
+            'user_id' => $user->id,
+            'name' => '1st Semester',
+            'school_year' => '2026-2027',
+            'starts_on' => '2026-08-01',
+            'ends_on' => '2026-12-15',
+            'is_current' => true,
+        ]);
+
+        $section = Section::create([
+            'user_id' => $user->id,
+            'academic_term_id' => $term->id,
+            'subject_code' => 'CS 101',
+            'subject_title' => 'Intro',
+            'name' => 'CS 1-Default',
+            'room' => 'Lab 1',
+        ]);
+
+        $gradebookService = app(GradebookCalculationService::class);
+        $gradebook = $gradebookService->calculateGradebook($section);
+
+        $this->assertEquals(50, $gradebook['gradingWeights']['passing_rates']['quiz']);
+        $this->assertEquals(50, $gradebook['gradingWeights']['passing_rates']['activity']);
+        $this->assertEquals(50, $gradebook['gradingWeights']['passing_rates']['project']);
+        $this->assertEquals(50, $gradebook['gradingWeights']['passing_rates']['exam']);
+    }
 }
