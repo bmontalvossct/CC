@@ -336,6 +336,75 @@ class BackupExportTest extends TestCase
         ]);
     }
 
+    public function test_user_can_restore_json_with_utf16_le_and_bom(): void
+    {
+        $user = User::factory()->create();
+        $payload = [
+            'meta' => [
+                'app' => 'ClassCheck',
+                'version' => '1.0.0',
+            ],
+            'academic_terms' => [
+                [
+                    'id' => 1,
+                    'name' => 'UTF16 Semester',
+                    'school_year' => '2026-2027',
+                    'starts_on' => '2026-08-01',
+                    'ends_on' => '2026-12-20',
+                    'is_current' => true,
+                ],
+            ],
+            'sections' => [
+                [
+                    'id' => 1,
+                    'academic_term_id' => 1,
+                    'subject_code' => 'UTF16_SEC',
+                    'subject_title' => 'UTF-16 Encoded Test',
+                    'name' => 'Section UTF16',
+                    'students' => [],
+                    'layout_blocks' => [],
+                    'attendance_sessions' => [],
+                    'assessments' => [],
+                ],
+            ],
+        ];
+
+        $utf8Json = json_encode($payload);
+        $utf16Content = "\xFF\xFE".mb_convert_encoding($utf8Json, 'UTF-16LE', 'UTF-8');
+        $file = UploadedFile::fake()->createWithContent('backup_utf16.json', $utf16Content);
+
+        $response = $this->actingAs($user)->post(route('backup.restore'), [
+            'backup_file' => $file,
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        $this->assertDatabaseHas('sections', [
+            'user_id' => $user->id,
+            'subject_code' => 'UTF16_SEC',
+        ]);
+    }
+
+    public function test_user_can_restore_json_with_malformed_utf8_characters(): void
+    {
+        $user = User::factory()->create();
+        $rawJson = '{"meta":{"app":"ClassCheck"},"academic_terms":[],"sections":[{"subject_code":"MALFORMED101","name":"Pe'.chr(241).'a Section"}]}';
+        $file = UploadedFile::fake()->createWithContent('backup_malformed.json', $rawJson);
+
+        $response = $this->actingAs($user)->post(route('backup.restore'), [
+            'backup_file' => $file,
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        $this->assertDatabaseHas('sections', [
+            'user_id' => $user->id,
+            'subject_code' => 'MALFORMED101',
+        ]);
+    }
+
     public function test_user_can_restore_sqlite_database_file(): void
     {
         $user = User::factory()->create();
@@ -401,6 +470,46 @@ class BackupExportTest extends TestCase
         $this->assertDatabaseHas('students', [
             'first_name' => 'Grace',
             'last_name' => 'Hopper',
+        ]);
+    }
+
+    public function test_user_can_restore_json_with_windows_1252_encoding(): void
+    {
+        $user = User::factory()->create();
+        // "\xF1" is 'ñ' in Windows-1252 / ISO-8859-1
+        $rawJson = "{\"meta\":{\"app\":\"ClassCheck\"},\"academic_terms\":[],\"sections\":[{\"subject_code\":\"WIN1252\",\"name\":\"Pe\xF1a Section\"}]}";
+        $file = UploadedFile::fake()->createWithContent('backup_win1252.json', $rawJson);
+
+        $response = $this->actingAs($user)->post(route('backup.restore'), [
+            'backup_file' => $file,
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        $this->assertDatabaseHas('sections', [
+            'user_id' => $user->id,
+            'subject_code' => 'WIN1252',
+            'name' => 'Peña Section',
+        ]);
+    }
+
+    public function test_user_can_restore_json_with_trailing_commas(): void
+    {
+        $user = User::factory()->create();
+        $rawJson = '{"meta":{"app":"ClassCheck",},"academic_terms":[],"sections":[{"subject_code":"TRAILING101","name":"Trailing Comma Section",},],}';
+        $file = UploadedFile::fake()->createWithContent('backup_trailing.json', $rawJson);
+
+        $response = $this->actingAs($user)->post(route('backup.restore'), [
+            'backup_file' => $file,
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        $this->assertDatabaseHas('sections', [
+            'user_id' => $user->id,
+            'subject_code' => 'TRAILING101',
         ]);
     }
 }

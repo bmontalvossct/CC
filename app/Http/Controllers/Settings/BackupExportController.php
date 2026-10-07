@@ -66,7 +66,7 @@ class BackupExportController extends Controller
         $data = $this->backupService->exportUserData($user);
 
         $filename = 'classcheck_backup_'.now()->format('Y-m-d_His').'.json';
-        $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
 
         return response()->streamDownload(function () use ($json) {
             echo $json;
@@ -143,16 +143,18 @@ class BackupExportController extends Controller
                 $data = $this->backupService->extractSqliteData($file->getRealPath());
             } else {
                 $content = file_get_contents($file->getRealPath());
-                // Remove UTF-8 BOM if present
-                $content = preg_replace('/^\xEF\xBB\xBF/', '', $content);
-                $data = json_decode($content, true);
 
-                if (! $data || ! is_array($data)) {
-                    // Check if the uploaded file is a raw SQLite binary despite wrong extension
-                    if (str_starts_with($content, 'SQLite format 3')) {
-                        $data = $this->backupService->extractSqliteData($file->getRealPath());
-                    } else {
-                        $jsonErr = json_last_error_msg() ?: 'Invalid syntax';
+                // Check if the uploaded file is a raw SQLite binary despite wrong extension
+                if (str_starts_with($content, 'SQLite format 3')) {
+                    $data = $this->backupService->extractSqliteData($file->getRealPath());
+                } else {
+                    $data = $this->backupService->parseBackupJson($content);
+
+                    if (! $data || ! is_array($data)) {
+                        $jsonErr = json_last_error_msg();
+                        if (empty($jsonErr) || $jsonErr === 'No error') {
+                            $jsonErr = 'Invalid JSON structure or unsupported file encoding';
+                        }
 
                         return back()->withErrors(['backup_file' => "The uploaded file is not a valid JSON or SQLite backup. ({$jsonErr})"]);
                     }

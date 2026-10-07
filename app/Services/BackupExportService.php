@@ -236,11 +236,87 @@ class BackupExportService
     }
 
     /**
+     * Safely parse and normalize backup JSON content, handling UTF-8, UTF-16, UTF-32,
+     * BOM headers, Windows-1252/ISO-8859-1 encodings, gzip compression, and malformed characters.
+     */
+    public function parseBackupJson(string $rawContent): ?array
+    {
+        // 1. Decompress if gzip
+        if (str_starts_with($rawContent, "\x1F\x8B")) {
+            $decompressed = @gzdecode($rawContent);
+            if ($decompressed !== false) {
+                $rawContent = $decompressed;
+            }
+        }
+
+        // 2. Detect & convert BOM / multi-byte encodings
+        if (str_starts_with($rawContent, "\xFF\xFE\x00\x00")) {
+            $rawContent = mb_convert_encoding(substr($rawContent, 4), 'UTF-8', 'UTF-32LE');
+        } elseif (str_starts_with($rawContent, "\x00\x00\xFE\xFF")) {
+            $rawContent = mb_convert_encoding(substr($rawContent, 4), 'UTF-8', 'UTF-32BE');
+        } elseif (str_starts_with($rawContent, "\xFF\xFE")) {
+            $rawContent = mb_convert_encoding(substr($rawContent, 2), 'UTF-8', 'UTF-16LE');
+        } elseif (str_starts_with($rawContent, "\xFE\xFF")) {
+            $rawContent = mb_convert_encoding(substr($rawContent, 2), 'UTF-8', 'UTF-16BE');
+        } elseif (str_starts_with($rawContent, "\xEF\xBB\xBF")) {
+            $rawContent = substr($rawContent, 3);
+        } elseif (str_starts_with($rawContent, "{\x00") || str_starts_with($rawContent, "[\x00")) {
+            $rawContent = mb_convert_encoding($rawContent, 'UTF-8', 'UTF-16LE');
+        } elseif (str_starts_with($rawContent, "\x00{") || str_starts_with($rawContent, "\x00[")) {
+            $rawContent = mb_convert_encoding($rawContent, 'UTF-8', 'UTF-16BE');
+        }
+
+        // 3. Trim whitespace and control/NUL characters
+        $rawContent = trim($rawContent, " \t\n\r\0\x0B");
+
+        // 4. If content is not valid UTF-8, detect or convert
+        if (! mb_check_encoding($rawContent, 'UTF-8')) {
+            $detected = mb_detect_encoding($rawContent, ['UTF-8', 'Windows-1252', 'ISO-8859-1', 'CP1252'], true);
+            if ($detected && $detected !== 'UTF-8') {
+                $rawContent = mb_convert_encoding($rawContent, 'UTF-8', $detected);
+            } else {
+                $rawContent = mb_convert_encoding($rawContent, 'UTF-8', 'UTF-8');
+            }
+        }
+
+        // 5. Attempt decoding with JSON_INVALID_UTF8_SUBSTITUTE
+        $data = json_decode($rawContent, true, 512, JSON_INVALID_UTF8_SUBSTITUTE | JSON_BIGINT_AS_STRING);
+
+        if (is_array($data)) {
+            return $data;
+        }
+
+        // 6. If decoding failed, try removing trailing commas before } or ]
+        $noTrailingCommas = preg_replace('/,\s*([}\]])/', '$1', $rawContent);
+        if ($noTrailingCommas !== null && $noTrailingCommas !== $rawContent) {
+            $data = json_decode($noTrailingCommas, true, 512, JSON_INVALID_UTF8_SUBSTITUTE | JSON_BIGINT_AS_STRING);
+            if (is_array($data)) {
+                return $data;
+            }
+        }
+
+        // 7. Fallback: sanitize via iconv ignore if still failing
+        $cleaned = @iconv('UTF-8', 'UTF-8//IGNORE', $rawContent);
+        if ($cleaned !== false && $cleaned !== $rawContent) {
+            $data = json_decode($cleaned, true, 512, JSON_INVALID_UTF8_SUBSTITUTE | JSON_BIGINT_AS_STRING);
+            if (is_array($data)) {
+                return $data;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Restore data from a backup array for a user.
      */
     public function restoreUserData(User $user, array $backupData, bool $cleanReplace = false): array
     {
-        if (! isset($backupData['meta']['app']) || $backupData['meta']['app'] !== 'ClassCheck') {
+        $appName = strtolower((string) ($backupData['meta']['app'] ?? ''));
+        $hasSections = isset($backupData['sections']) && is_array($backupData['sections']);
+        $hasTerms = isset($backupData['academic_terms']) && is_array($backupData['academic_terms']);
+
+        if (! in_array($appName, ['classcheck', 'class checker']) && ! ($hasSections || $hasTerms)) {
             throw new \InvalidArgumentException('Invalid backup archive. File must be a valid ClassCheck export.');
         }
 
@@ -287,6 +363,19 @@ class BackupExportService
                     $newTermId = $termMap[$secData['academic_term_id']];
                 } else {
                     $newTermId = AcademicTerm::where('user_id', $user->id)->value('id');
+                }
+
+                if (! $newTermId) {
+                    $defaultTerm = AcademicTerm::firstOrCreate([
+                        'user_id' => $user->id,
+                        'name' => 'Default Term',
+                        'school_year' => date('Y').'-'.(date('Y') + 1),
+                    ], [
+                        'starts_on' => now()->startOfYear()->toDateString(),
+                        'ends_on' => now()->endOfYear()->toDateString(),
+                        'is_current' => true,
+                    ]);
+                    $newTermId = $defaultTerm->id;
                 }
 
                 $section = Section::create([
