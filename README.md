@@ -88,6 +88,21 @@ npm.cmd audit --omit=dev
 
 ## Production deployment
 
+### Windows installer download
+
+The public landing page offers a browser workspace and a Windows download.
+The default download uses the published `windows-2026.10.07` GitHub release.
+Set `CLASSCHECK_INSTALLER_URL` to override it with another public HTTPS release
+URL. To serve a local installer instead, set `desktop.installer_url` to `null`
+in the configuration and put the installer in
+`storage/app/installers/ClassCheck_Setup.exe` on a persistent server.
+Local development also detects `dist/ClassCheck_Setup.exe` automatically.
+The download button is disabled when no installer is available. Keep large
+installer binaries in release hosting rather than the Git source tree.
+
+Desktop records are local and do not automatically sync with the web workspace.
+Octo AI needs a configured Ollama connection and an installed model.
+
 ### Vercel
 
 Vercel builds this application from `Dockerfile.vercel`. The container installs

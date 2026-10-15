@@ -2,12 +2,18 @@
 
 use App\Http\Controllers\AiAssistantController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DesktopDownloadController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\ScheduleReminderController;
+use App\Services\DesktopInstaller;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('/', fn () => Inertia::render('Welcome'))->name('home');
+Route::get('/', fn (DesktopInstaller $installer) => Inertia::render('Welcome', [
+    'installerUrl' => $installer->available() ? route('desktop.download') : null,
+]))->name('home');
+
+Route::get('download/windows', DesktopDownloadController::class)->name('desktop.download');
 
 Route::get('dashboard', DashboardController::class)
     ->middleware(['auth', 'verified'])
