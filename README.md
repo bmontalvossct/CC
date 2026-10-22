@@ -29,8 +29,22 @@ ClassCheck is a teacher-first classroom attendance and assessment application. I
 
 ## Local setup
 
-Requirements: PHP 8.3+, Composer, Node 22+, npm, PostgreSQL 16+, and PHP's
+Requirements: PHP 8.5.12+, Composer, Node 22.12+ (or newer LTS), npm, PostgreSQL 16+, and PHP's
 `pdo_pgsql` extension.
+
+On Windows, install the checksum-verified PHP runtime for this checkout:
+
+```powershell
+node packaging/install-php.mjs
+.\php.cmd -v
+$env:Path = "$PWD\scratch\runtime\php-8.5.12;$env:Path"
+```
+
+The project runtime is isolated from Wamp and other installed ClassCheck copies.
+Use `.\php.cmd artisan ...` to explicitly select it. `build-dist.ps1` bundles
+this patched runtime and rejects older PHP. CI and the Vercel container also
+require the patched PHP 8.5 release. Existing deployments and Windows installations
+need to be rebuilt and updated separately before they use the fix.
 
 Create a local PostgreSQL database before running the application:
 

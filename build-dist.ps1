@@ -1,7 +1,19 @@
 # ==============================================================================
 # ClassCheck Windows Executable & Installer Build Script
 # ==============================================================================
+param(
+    [string]$PhpSourceDir = (Join-Path $PSScriptRoot 'scratch\runtime\php-8.5.12')
+)
+
 $ErrorActionPreference = "Stop"
+$PhpExe = Join-Path $PhpSourceDir 'php.exe'
+if (!(Test-Path -LiteralPath $PhpExe)) {
+    throw 'PHP runtime missing. Run node packaging/install-php.mjs first, or pass -PhpSourceDir.'
+}
+$PhpVersionId = & $PhpExe -r 'echo PHP_VERSION_ID;'
+if ($LASTEXITCODE -ne 0 -or [int]$PhpVersionId -lt 80512 -or [int]$PhpVersionId -ge 80600) {
+    throw 'Packaging requires PHP 8.5.12 or a newer PHP 8.5 security release.'
+}
 $WorkspaceRoot = $PSScriptRoot
 $DistDir = Join-Path $WorkspaceRoot "dist"
 $PayloadDir = Join-Path $DistDir "ClassCheck"
@@ -16,7 +28,7 @@ Write-Host "==========================================================" -Foregro
 # 1. Compile Frontend Assets
 Write-Host "`n[1/7] Compiling production frontend assets with Vite..." -ForegroundColor Yellow
 Set-Location $WorkspaceRoot
-npm run build
+npm.cmd run build
 if ($LASTEXITCODE -ne 0) {
     throw "Frontend compilation failed"
 }
@@ -61,8 +73,7 @@ New-Item -ItemType Directory -Path (Join-Path $PayloadDir "storage\logs") -Force
 New-Item -ItemType Directory -Path (Join-Path $PayloadDir "bootstrap\cache") -Force | Out-Null
 
 # 3. Copy Portable PHP Runtime
-Write-Host "`n[3/7] Copying portable PHP 8.3 runtime and extensions..." -ForegroundColor Yellow
-$PhpSourceDir = "C:\wamp64\bin\php\php8.3.14"
+Write-Host "`n[3/7] Copying patched portable PHP 8.5 runtime and extensions..." -ForegroundColor Yellow
 $PhpDestDir = Join-Path $PayloadDir "bin\php"
 
 # Essential PHP Executables & Core DLLs
@@ -102,7 +113,7 @@ $ExtDest = Join-Path $PhpDestDir "ext"
 $ExtList = @(
     "php_pdo_sqlite.dll", "php_sqlite3.dll", "php_openssl.dll",
     "php_mbstring.dll", "php_curl.dll", "php_fileinfo.dll",
-    "php_gd.dll", "php_zip.dll", "php_intl.dll", "php_opcache.dll"
+    "php_gd.dll", "php_zip.dll", "php_intl.dll"
 )
 foreach ($ext in $ExtList) {
     $src = Join-Path $ExtDir $ext
@@ -127,7 +138,7 @@ expose_php = Off
 max_execution_time = 300
 max_input_time = 60
 memory_limit = 512M
-error_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT
+error_reporting = E_ALL & ~E_DEPRECATED
 display_errors = Off
 display_startup_errors = Off
 log_errors = On

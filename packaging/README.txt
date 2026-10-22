@@ -27,7 +27,7 @@ OPTION B: Portable Zero-Install (USB Flash Drive)
 --------------------------------------------------------------------------------
   - Operating System: Windows 10, Windows 11, Windows 8.1, Windows 7 (64-bit).
   - Internet Connection: NOT REQUIRED (100% offline).
-  - Dependencies: None! (Portable PHP 8.3 and all MSVC runtime DLLs are bundled).
+  - Dependencies: None! (Portable PHP 8.5.12 and all MSVC runtime DLLs are bundled).
   - Web Browser: Microsoft Edge, Google Chrome, Mozilla Firefox, or Brave.
 
 --------------------------------------------------------------------------------
