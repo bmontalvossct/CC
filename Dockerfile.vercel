@@ -28,11 +28,12 @@ ENV VITE_APP_NAME=${VITE_APP_NAME}
 
 RUN npm run build
 
-FROM dunglas/frankenphp:1-php8.3-alpine AS runtime
+FROM dunglas/frankenphp:1.13.2-php8.5-alpine@sha256:f4947926b4c5070176be7c72b03939e045f7ae9d249a3219cf9708bd5e6d0ff2 AS runtime
 
 WORKDIR /app
 
-RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
+RUN php -r 'printf("Verified PHP runtime: %s\n", PHP_VERSION); exit(PHP_VERSION_ID >= 80512 ? 0 : 1);' \
+    && cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
     && install-php-extensions \
         bcmath \
         dom \
