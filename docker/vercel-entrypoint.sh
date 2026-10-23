@@ -2,6 +2,8 @@
 
 set -eu
 
+php -r 'printf("ClassCheck PHP runtime: %s\n", PHP_VERSION);'
+
 database_url="${DATABASE_URL:-${DB_DATABASE_URL:-${POSTGRES_URL:-${DB_URL:-}}}}"
 unpooled_database_url="${DB_DATABASE_URL_UNPOOLED:-${DB_POSTGRES_URL_NON_POOLING:-}}"
 

@@ -88,7 +88,7 @@ $ExtDest = Join-Path $PhpDestDir "ext"
 $ExtList = @(
     "php_pdo_sqlite.dll", "php_sqlite3.dll", "php_openssl.dll",
     "php_mbstring.dll", "php_curl.dll", "php_fileinfo.dll",
-    "php_gd.dll", "php_zip.dll", "php_intl.dll", "php_opcache.dll"
+    "php_gd.dll", "php_zip.dll", "php_intl.dll"
 )
 foreach ($ext in $ExtList) {
     $src = Join-Path $ExtDir $ext
