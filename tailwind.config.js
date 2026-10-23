@@ -11,6 +11,10 @@ export default {
     ],
     theme: {
         extend: {
+            // Keep the existing small shadow/blur appearance when building with v4.
+            boxShadow: { sm: '0 1px 2px 0 rgb(0 0 0 / 0.05)' },
+            blur: { sm: '4px' },
+            backdropBlur: { sm: '4px' },
             fontFamily: {
                 sans: ['Atkinson Hyperlegible', ...defaultTheme.fontFamily.sans],
                 display: ['Georgia', 'Cambria', 'Times New Roman', 'serif'],
