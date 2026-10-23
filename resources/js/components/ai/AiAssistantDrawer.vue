@@ -40,7 +40,7 @@ import {
     Zap,
 } from 'lucide-vue-next';
 import { marked } from 'marked';
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 
 const {
     isAiAssistantOpen,
@@ -151,29 +151,35 @@ const handleExecuteProposal = async (proposal: any) => {
 };
 
 // Fetch quick suggestions based on active scope & section
+let suggestionsController: AbortController | null = null;
 const fetchSuggestions = async () => {
+    suggestionsController?.abort();
+    if (!isAiAssistantOpen.value || !isAiEnabled.value) return;
+    const controller = new AbortController();
+    suggestionsController = controller;
     try {
         const queryParams = new URLSearchParams();
         if (activeSectionId.value) queryParams.set('section_id', String(activeSectionId.value));
         queryParams.set('scope', currentScope.value);
 
-        const res = await fetch(`/ai-assistant/suggestions?${queryParams.toString()}`);
+        const res = await fetch(`/ai-assistant/suggestions?${queryParams.toString()}`, { signal: controller.signal });
         if (res.ok) {
             const data = await res.json();
-            suggestions.value = data.suggestions || [];
+            if (!controller.signal.aborted) suggestions.value = data.suggestions || [];
         }
     } catch {
-        suggestions.value = [];
+        if (!controller.signal.aborted) suggestions.value = [];
     }
 };
 
 watch(
-    [activeSectionId, currentScope],
+    [isAiAssistantOpen, isAiEnabled, activeSectionId, currentScope],
     () => {
         fetchSuggestions();
     },
     { immediate: true },
 );
+onUnmounted(() => suggestionsController?.abort());
 
 watch(
     () => isAiAssistantOpen.value,
@@ -326,7 +332,6 @@ const formatModelName = (model?: string) => {
 
 const switchScope = (scope: AiScope) => {
     setScope(scope, activeSectionId.value);
-    fetchSuggestions();
 };
 </script>
 

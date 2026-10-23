@@ -1297,7 +1297,7 @@ const filteredUnassigned = computed(() => {
             <div class="flex items-center justify-between">
                 <Link
                     :href="`/sections/${section.id}/assessments?type=project`"
-                    prefetch="hover"
+                    :prefetch="$page.props.is_offline ? false : 'hover'"
                     class="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
                 >
                     <ArrowLeft class="size-3.5" /> Back to activities & projects

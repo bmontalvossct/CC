@@ -5,6 +5,7 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
@@ -20,7 +21,7 @@ using System.Windows.Forms;
 [assembly: ComVisible(false)]
 [assembly: Guid("e5f7a18b-76b3-4c91-a83d-9d4a8e32c1f9")]
 [assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyFileVersion("2026.10.21.1")]
 
 namespace ClassCheck
 {
@@ -69,10 +70,13 @@ namespace ClassCheck
 
             // 2. Single Instance & Alive Check
             bool createdNew;
-            appMutex = new Mutex(true, "ClassCheck_SingleInstance_Mutex_Global", out createdNew);
+            string instanceKey;
+            using (var hash = SHA256.Create())
+                instanceKey = BitConverter.ToString(hash.ComputeHash(System.Text.Encoding.UTF8.GetBytes(Path.GetFullPath(appRoot).ToUpperInvariant()))).Replace("-", "");
+            appMutex = new Mutex(true, "ClassCheck_" + instanceKey, out createdNew);
             if (!createdNew)
             {
-                string runningUrl = "http://127.0.0.1:8000";
+                string runningUrl = null;
                 if (File.Exists(activeUrlFile))
                 {
                     try
@@ -83,14 +87,17 @@ namespace ClassCheck
                     catch { }
                 }
 
-                if (IsServerAlive(runningUrl))
+                if (!string.IsNullOrEmpty(runningUrl) && IsServerAlive(runningUrl))
                 {
                     try { Process.Start(new ProcessStartInfo(runningUrl) { UseShellExecute = true }); } catch { }
                     return;
                 }
 
-                try { File.Delete(activeUrlFile); } catch { }
+                // Another launcher for this folder is still starting. Never open an
+                // unrelated application on port 8000 or start a second server.
+                return;
             }
+            try { File.Delete(activeUrlFile); } catch { }
 
             // Cleanup any stale/orphaned PHP processes from previous sessions
             KillOrphanedPhpProcesses();
@@ -105,7 +112,12 @@ namespace ClassCheck
             assignedPort = GetFreePort(8000);
 
             // 4. Initialize Environment, Folders & SQLite Database
-            InitializeApp();
+            try { InitializeApp(); }
+            catch (Exception error)
+            {
+                MessageBox.Show("ClassCheck could not complete the safe database update.\n\n" + error.Message + "\n\nYour backup is in update-backups. The server was not started.", "ClassCheck Update", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
 
             // 5. Start PHP Built-in Web Server Directly
             bool started = StartPhpServer();
@@ -272,27 +284,27 @@ namespace ClassCheck
                 // Run database migrations silently
                 if (File.Exists(artisanScript))
                 {
-                    RunPhpCommand("migrate --force");
+                    RunPhpCommand();
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine("Init error: " + ex.Message);
+                throw new IOException("Database initialization failed: " + ex.Message, ex);
             }
         }
 
-        private static void RunPhpCommand(string args)
+        private static void RunPhpCommand()
         {
-            try
-            {
+                string maintenance = Path.Combine(appRoot, "desktop-maintenance.php");
+                if (!File.Exists(maintenance)) throw new IOException("The database update helper is missing. Re-run the installer.");
                 string phpArgs;
                 if (File.Exists(phpIni) && Directory.Exists(extDir))
                 {
-                    phpArgs = string.Format("-c \"{0}\" -d extension_dir=\"{1}\" \"{2}\" {3}", phpIni, extDir, artisanScript, args);
+                    phpArgs = string.Format("-c \"{0}\" -d extension_dir=\"{1}\" \"{2}\"", phpIni, extDir, maintenance);
                 }
                 else
                 {
-                    phpArgs = string.Format("\"{0}\" {1}", artisanScript, args);
+                    phpArgs = string.Format("\"{0}\"", maintenance);
                 }
 
                 ProcessStartInfo psi = new ProcessStartInfo
@@ -302,7 +314,9 @@ namespace ClassCheck
                     WorkingDirectory = appRoot,
                     CreateNoWindow = true,
                     UseShellExecute = false,
-                    WindowStyle = ProcessWindowStyle.Hidden
+                    WindowStyle = ProcessWindowStyle.Hidden,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
                 };
 
                 string currentPath = Environment.GetEnvironmentVariable("PATH") ?? "";
@@ -312,10 +326,16 @@ namespace ClassCheck
 
                 using (Process p = Process.Start(psi))
                 {
-                    p.WaitForExit(30000);
+                    var output = p.StandardOutput.ReadToEndAsync();
+                    var errors = p.StandardError.ReadToEndAsync();
+                    if (!p.WaitForExit(300000))
+                    {
+                        p.Kill();
+                        throw new IOException("Database update timed out. Re-open ClassCheck to retry.");
+                    }
+                    System.Threading.Tasks.Task.WaitAll(output, errors);
+                    if (p.ExitCode != 0) throw new IOException(errors.Result + output.Result);
                 }
-            }
-            catch { }
         }
 
         private static bool StartPhpServer()

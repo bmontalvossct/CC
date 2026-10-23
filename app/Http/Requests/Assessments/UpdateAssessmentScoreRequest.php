@@ -17,6 +17,7 @@ class UpdateAssessmentScoreRequest extends FormRequest
             'score' => ['present', 'nullable', 'numeric', 'min:0'],
             'remarks' => ['nullable', 'string', 'max:10000'],
             'include_absent' => ['sometimes', 'boolean'],
+            'mark_absent' => ['sometimes', 'boolean'],
         ];
     }
 }

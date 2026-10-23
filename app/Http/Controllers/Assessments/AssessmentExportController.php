@@ -47,7 +47,7 @@ class AssessmentExportController extends AssessmentModuleController
         $scores = $assessment->scores()->get()->keyBy('student_id');
         $rows = Student::where('section_id', $section->id)->orderBy('last_name')->orderBy('first_name')->get()
             ->map(fn ($student) => [$student->student_number, $student->full_name, $scores->get($student->id)?->score,
-                $assessment->max_points, $scores->get($student->id)?->score === null ? 'Missing' : 'Recorded', $scores->get($student->id)?->remarks ?? '']);
+                $assessment->max_points, $scores->get($student->id)?->marked_absent ? 'Absent' : ($scores->get($student->id)?->score === null ? 'Missing' : 'Recorded'), $scores->get($student->id)?->remarks ?? '']);
 
         return $this->csv($section, "{$assessment->type}-{$assessment->id}",
             ['Student number', 'Student', 'Score', 'Max points', 'Status', 'Remarks'], $rows);
@@ -58,21 +58,15 @@ class AssessmentExportController extends AssessmentModuleController
         $this->authorizeSection($section);
         $assessments = Assessment::where('section_id', $section->id)->orderBy('conducted_on')->orderBy('id')->get();
         $scores = AssessmentScore::whereIn('assessment_id', $assessments->pluck('id'))->get()->groupBy('student_id');
+        $gradebookData = app(GradebookCalculationService::class)->calculateGradebook($section);
+        $gradebookRows = collect($gradebookData['rows'])->keyBy('id');
+        $scaleRange = number_format((float) $gradebookData['gradingFormula']['best_grade'], 2).'-'.number_format((float) $gradebookData['gradingFormula']['worst_grade'], 2);
 
         $projects = Project::where('section_id', $section->id)->orderBy('conducted_on')->orderBy('id')->with(['groups.members'])->get();
         $attendanceSessions = AttendanceSession::where('section_id', $section->id)->with('records')->get();
         $recitations = Recitation::where('section_id', $section->id)->get()->groupBy('student_id');
 
-        $defaultWeights = [
-            'activity' => 20,
-            'laboratory' => 0,
-            'quiz' => 20,
-            'exam' => 25,
-            'project' => 20,
-            'attendance' => 15,
-            'recitation' => 5,
-        ];
-        $weights = array_merge($defaultWeights, $section->grading_weights ?? []);
+        $weights = $gradebookData['gradingWeights'];
 
         $groupActivities = $projects->where('type', 'group_activity');
         $regularProjects = $projects->whereIn('type', ['project', 'reporting']);
@@ -111,15 +105,12 @@ class AssessmentExportController extends AssessmentModuleController
             'Recitation average (/10)',
             'Oral bonus (+pts)',
             'Midterm Grade (%)',
-            'Midterm Scale (1.00-5.00)',
+            "Midterm Scale ({$scaleRange})",
             'Final Period Grade (%)',
-            'Final Period Scale (1.00-5.00)',
+            "Final Period Scale ({$scaleRange})",
             'Semestral Final Grade (%)',
-            'Semestral Final Scale (1.00-5.00)'
+            "Semestral Final Scale ({$scaleRange})"
         );
-
-        $gradebookData = app(GradebookCalculationService::class)->calculateGradebook($section);
-        $gradebookRows = collect($gradebookData['rows'])->keyBy('id');
 
         $totalProjectPossible = round($regularProjects->sum(fn ($p) => (float) ($p->max_points ?: 100)), 2);
         $totalSessions = $attendanceSessions->count();
@@ -168,11 +159,12 @@ class AssessmentExportController extends AssessmentModuleController
                 $gradebookRows
             ) {
                 $studentScores = $scores->get($student->id, collect())->keyBy('assessment_id');
+                $calcRow = $gradebookRows->get($student->id);
                 $row = [$student->student_number, $student->full_name];
 
                 // Assessment scores
                 foreach ($assessments as $assessment) {
-                    $row[] = $studentScores->get($assessment->id)?->score;
+                    $row[] = $studentScores->get($assessment->id)?->marked_absent ? 'Absent' : $studentScores->get($assessment->id)?->score;
                 }
 
                 // Group activity scores
@@ -201,11 +193,17 @@ class AssessmentExportController extends AssessmentModuleController
                 $recitationCount = $studentRecs->count();
                 $recitationAvg = $recitationCount > 0 ? round((float) $studentRecs->avg('score'), 2) : null;
                 $bonusCap = (float) ($weights['recitation'] ?? 5);
-                $earnedBonus = $recitationAvg !== null && $bonusCap > 0 ? round(($recitationAvg / 10) * $bonusCap, 2) : 0.0;
+                $earnedBonus = $calcRow['recitation']['bonus_points'] ?? ($recitationAvg !== null && $bonusCap > 0 ? round(($recitationAvg / 10) * $bonusCap, 2) : 0.0);
 
                 // Categories breakdown (Activity, Laboratory, Quiz, Exam)
                 $categoriesPct = [];
                 foreach (Assessment::TYPES as $type) {
+                    if ($calcRow !== null) {
+                        $category = $calcRow['categories'][$type];
+                        array_push($row, $category['earned'], $category['possible'], $category['percentage']);
+
+                        continue;
+                    }
                     $items = $assessments->where('type', $type);
                     $rawEarned = $items->sum(fn ($item) => (float) ($studentScores->get($item->id)?->score ?? 0));
                     $possible = $items->sum(fn ($item) => (float) $item->max_points);

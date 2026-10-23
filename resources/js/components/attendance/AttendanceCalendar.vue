@@ -428,7 +428,7 @@ const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
                             </button>
                             <Link
                                 :href="`/attendance/${currentSessionForDate.id}`"
-                                prefetch="hover"
+                                :prefetch="$page.props.is_offline ? false : 'hover'"
                                 class="inline-flex items-center gap-1 text-sm font-medium text-emerald-700 hover:underline dark:text-emerald-400"
                             >
                                 <span>Open live check</span>

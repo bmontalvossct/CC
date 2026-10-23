@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // This historical hosted-data repair must never rewrite offline teacher data.
+        if (config('app.offline')) {
+            return;
+        }
         if (Schema::hasTable('students')) {
             $students = DB::table('students')->get();
             foreach ($students as $student) {
@@ -32,9 +36,6 @@ return new class extends Migration
             }
         }
 
-        if (Schema::hasTable('sessions')) {
-            DB::table('sessions')->truncate();
-        }
     }
 
     public function down(): void {}

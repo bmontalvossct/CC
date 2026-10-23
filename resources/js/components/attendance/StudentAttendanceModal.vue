@@ -245,7 +245,7 @@ const formatStudentDisplayName = (student: StudentSummary | { name?: string; fir
 
                             <Link
                                 :href="`/attendance/${day.session_id}`"
-                                prefetch="hover"
+                                :prefetch="$page.props.is_offline ? false : 'hover'"
                                 class="shadow-xs inline-flex items-center gap-1 rounded-lg border border-primary bg-white px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             >
                                 <span>Session</span>
@@ -293,7 +293,7 @@ const formatStudentDisplayName = (student: StudentSummary | { name?: string; fir
 
                             <Link
                                 :href="`/attendance/${day.session_id}`"
-                                prefetch="hover"
+                                :prefetch="$page.props.is_offline ? false : 'hover'"
                                 class="shadow-xs inline-flex items-center gap-1 rounded-lg border border-primary bg-white px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             >
                                 <span>Session</span>
@@ -339,7 +339,7 @@ const formatStudentDisplayName = (student: StudentSummary | { name?: string; fir
 
                             <Link
                                 :href="`/attendance/${day.session_id}`"
-                                prefetch="hover"
+                                :prefetch="$page.props.is_offline ? false : 'hover'"
                                 class="shadow-xs inline-flex items-center gap-1 rounded-lg border border-primary bg-white px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             >
                                 <span>Session</span>

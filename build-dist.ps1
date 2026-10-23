@@ -1,9 +1,22 @@
 # ==============================================================================
 # ClassCheck Windows Executable & Installer Build Script
 # ==============================================================================
+param(
+    [string]$PhpSourceDir = (Join-Path $PSScriptRoot 'scratch\runtime\php-8.5.12')
+)
+
 $ErrorActionPreference = "Stop"
 $WorkspaceRoot = $PSScriptRoot
-$DistDir = Join-Path $WorkspaceRoot "dist"
+$PhpExe = Join-Path $PhpSourceDir 'php.exe'
+if (!(Test-Path -LiteralPath $PhpExe)) {
+    throw 'PHP runtime missing. Run node packaging/install-php.mjs first, or pass -PhpSourceDir.'
+}
+$PhpVersionId = & $PhpExe -r 'echo PHP_VERSION_ID;'
+if ($LASTEXITCODE -ne 0 -or [int]$PhpVersionId -lt 80512 -or [int]$PhpVersionId -ge 80600) {
+    throw 'Packaging requires PHP 8.5.12 or a newer PHP 8.5 security release.'
+}
+$DistDir = Join-Path $WorkspaceRoot ("dist\releases\" + (Get-Date -Format "yyyy.MM.dd-HHmmss"))
+if (Test-Path -LiteralPath $DistDir) { throw "Release output already exists: $DistDir" }
 $PayloadDir = Join-Path $DistDir "ClassCheck"
 $CscPath = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
 $ManifestPath = Join-Path $WorkspaceRoot "packaging\app.manifest"
@@ -16,39 +29,13 @@ Write-Host "==========================================================" -Foregro
 # 1. Compile Frontend Assets
 Write-Host "`n[1/7] Compiling production frontend assets with Vite..." -ForegroundColor Yellow
 Set-Location $WorkspaceRoot
-npm run build
+npm.cmd run build
 if ($LASTEXITCODE -ne 0) {
     throw "Frontend compilation failed"
 }
 
-# 2. Clean and Prepare Output Directory
-Write-Host "`n[2/7] Preparing clean distribution directories..." -ForegroundColor Yellow
-Get-Process -Name "ClassCheck", "php", "php-win", "php-cgi" -ErrorAction SilentlyContinue | Where-Object {
-    try { $_.Path -like "*$DistDir*" } catch { $false }
-} | ForEach-Object {
-    try { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue } catch { }
-}
-Start-Sleep -Milliseconds 1000
-
-# Safety backup: If dist\ClassCheck had active database data, preserve a copy to database/backups
-$ExistingDistDb = Join-Path $DistDir "ClassCheck\database\database.sqlite"
-if ((Test-Path $ExistingDistDb) -and ((Get-Item $ExistingDistDb).Length -gt 0)) {
-    $BackupFolder = Join-Path $WorkspaceRoot "database\backups"
-    if (-not (Test-Path $BackupFolder)) { New-Item -ItemType Directory -Path $BackupFolder -Force | Out-Null }
-    $Timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-    $BackupFile = Join-Path $BackupFolder "dist_backup_$Timestamp.sqlite"
-    Copy-Item -Path $ExistingDistDb -Destination $BackupFile -Force
-    Write-Host "    [Safety] Saved backup of previous dist database to: database\backups\dist_backup_$Timestamp.sqlite" -ForegroundColor Magenta
-}
-
-if (Test-Path $DistDir) {
-    try {
-        Remove-Item -Recurse -Force $DistDir -ErrorAction Stop
-    } catch {
-        Start-Sleep -Seconds 1
-        Remove-Item -Recurse -Force $DistDir -ErrorAction SilentlyContinue
-    }
-}
+# Always build in a new directory; never remove an old portable installation.
+Write-Host "`n[2/7] Preparing a new release directory..." -ForegroundColor Yellow
 New-Item -ItemType Directory -Path $PayloadDir -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $PayloadDir "bin\php\ext") -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $PayloadDir "storage\app\sections") -Force | Out-Null
@@ -61,8 +48,7 @@ New-Item -ItemType Directory -Path (Join-Path $PayloadDir "storage\logs") -Force
 New-Item -ItemType Directory -Path (Join-Path $PayloadDir "bootstrap\cache") -Force | Out-Null
 
 # 3. Copy Portable PHP Runtime
-Write-Host "`n[3/7] Copying portable PHP 8.3 runtime and extensions..." -ForegroundColor Yellow
-$PhpSourceDir = "C:\wamp64\bin\php\php8.3.14"
+Write-Host "`n[3/7] Copying patched portable PHP 8.5 runtime and extensions..." -ForegroundColor Yellow
 $PhpDestDir = Join-Path $PayloadDir "bin\php"
 
 # Essential PHP Executables & Core DLLs
@@ -127,7 +113,7 @@ expose_php = Off
 max_execution_time = 300
 max_input_time = 60
 memory_limit = 512M
-error_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT
+error_reporting = E_ALL & ~E_DEPRECATED
 display_errors = Off
 display_startup_errors = Off
 log_errors = On
@@ -169,6 +155,7 @@ extension=zip
 date.timezone = "Asia/Manila"
 
 [opcache]
+# OPcache is built into PHP 8.5; do not load the removed extension DLL.
 opcache.enable=1
 opcache.enable_cli=1
 opcache.memory_consumption=128
@@ -179,7 +166,7 @@ Set-Content -Path (Join-Path $PhpDestDir "php.ini") -Value $PhpIniContent -Encod
 
 # 4. Copy Application Payload
 Write-Host "`n[4/7] Copying Laravel application codebase and assets..." -ForegroundColor Yellow
-$RootDirsToCopy = @("app", "bootstrap", "config", "database", "public", "routes", "vendor")
+$RootDirsToCopy = @("app", "bootstrap", "config", "routes", "vendor")
 foreach ($dir in $RootDirsToCopy) {
     $src = Join-Path $WorkspaceRoot $dir
     if (Test-Path $src) {
@@ -187,38 +174,19 @@ foreach ($dir in $RootDirsToCopy) {
     }
 }
 
-# Clean any cached PHP files from bootstrap/cache to ensure clean dynamic runtime paths
-$BootstrapCache = Join-Path $PayloadDir "bootstrap\cache"
-if (Test-Path $BootstrapCache) {
-    Get-ChildItem -Path $BootstrapCache -Filter "*.php" | Remove-Item -Force -ErrorAction SilentlyContinue
+# Never copy workspace databases, backups, uploads, storage junctions, or dev hot files.
+New-Item -ItemType Directory -Path (Join-Path $PayloadDir "database") -Force | Out-Null
+foreach ($dir in @("migrations", "factories", "seeders")) {
+    Copy-Item -LiteralPath (Join-Path $WorkspaceRoot "database\$dir") -Destination (Join-Path $PayloadDir "database") -Recurse
 }
-
-# Clean any runtime logs, sessions, or temporary files
-$StorageDir = Join-Path $PayloadDir "storage"
-$TempPatterns = @(
-    "framework\sessions\*",
-    "framework\views\*",
-    "framework\cache\data\*",
-    "logs\*.log",
-    "app\public\photos\*",
-    "app\public\modules\*"
-)
-foreach ($pat in $TempPatterns) {
-    $targetPath = Join-Path $StorageDir $pat
-    Remove-Item -Path $targetPath -Recurse -Force -ErrorAction SilentlyContinue
-}
-
-# Ensure Vite dev server hot-reload file is never packaged in production distribution
-$HotFile = Join-Path $PayloadDir "public\hot"
-if (Test-Path $HotFile) {
-    Remove-Item -Force $HotFile -ErrorAction SilentlyContinue
-}
-
-# Clean database backups folder if copied
-$BackupsDir = Join-Path $PayloadDir "database\backups"
-if (Test-Path $BackupsDir) {
-    Remove-Item -Path (Join-Path $BackupsDir "*") -Recurse -Force -ErrorAction SilentlyContinue
-}
+$PublicDest = Join-Path $PayloadDir "public"
+New-Item -ItemType Directory -Path $PublicDest -Force | Out-Null
+Get-ChildItem -LiteralPath (Join-Path $WorkspaceRoot "public") -Force | Where-Object {
+    $_.Name -notin @("storage", "uploads", "hot") -and -not ($_.Attributes -band [IO.FileAttributes]::ReparsePoint)
+} | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $PublicDest -Recurse }
+# Only disposable bootstrap cache files in the NEW payload are cleared.
+Get-ChildItem -LiteralPath (Join-Path $PayloadDir "bootstrap\cache") -Filter "*.php" | Remove-Item -Force
+Copy-Item -LiteralPath (Join-Path $WorkspaceRoot "packaging\desktop-maintenance.php") -Destination $PayloadDir
 
 # Resources (views and raw assets)
 $ResourcesDest = Join-Path $PayloadDir "resources"
@@ -242,9 +210,7 @@ if (Test-Path (Join-Path $WorkspaceRoot "packaging\README.txt")) {
 
 # Ensure bundled SQLite database starts completely blank (zero accounts / zero data)
 $SqliteDest = Join-Path $PayloadDir "database\database.sqlite"
-if (Test-Path $SqliteDest) {
-    Remove-Item -Force $SqliteDest
-}
+if (Test-Path $SqliteDest) { throw "New payload unexpectedly contains a database." }
 [System.IO.File]::WriteAllBytes($SqliteDest, [byte[]]@())
 
 # Production standalone .env
@@ -286,14 +252,36 @@ Set-Content -Path (Join-Path $PayloadDir ".env") -Value $EnvContent -Encoding UT
 
 # Pre-migrate SQLite database so the bundled database has all tables fully initialized with zero accounts
 Write-Host "    Pre-migrating bundled SQLite database tables (zero accounts)..." -ForegroundColor DarkGray
-& (Join-Path $PhpDestDir "php.exe") (Join-Path $PayloadDir "artisan") migrate --force
-
-# Verification: Confirm 0 accounts / users in bundled database
-$UserCount = (& (Join-Path $PhpDestDir "php.exe") (Join-Path $PayloadDir "artisan") tinker --execute="echo \App\Models\User::count();").Trim()
-if ($UserCount -ne "0") {
-    throw "Bundled database contains accounts ($UserCount users found)! The offline installer must have zero accounts."
+# Isolate the build child from development/test database environment variables.
+$BuildPhp = New-Object System.Diagnostics.ProcessStartInfo
+$BuildPhp.FileName = Join-Path $PhpDestDir "php.exe"
+$BuildPhp.WorkingDirectory = $PayloadDir
+$BuildPhp.UseShellExecute = $false
+$BuildPhp.CreateNoWindow = $true
+$BuildPhp.RedirectStandardOutput = $true
+$BuildPhp.RedirectStandardError = $true
+foreach ($key in @($BuildPhp.EnvironmentVariables.Keys)) {
+    if ($key -match '^(APP_|DB_|DATABASE_URL|POSTGRES_URL|CACHE_|SESSION_)') { $BuildPhp.EnvironmentVariables.Remove($key) }
 }
+$BuildPhp.EnvironmentVariables['DB_DATABASE'] = $SqliteDest
+$BuildPhp.EnvironmentVariables['APP_OFFLINE'] = 'true'
+$BuildPhp.EnvironmentVariables['APP_ENV'] = 'production'
+$BuildPhp.Arguments = '-c "' + (Join-Path $PhpDestDir "php.ini") + '" -d extension_dir="' + $ExtDest + '" "' + (Join-Path $PayloadDir "desktop-maintenance.php") + '"'
+$BuildProcess = [Diagnostics.Process]::Start($BuildPhp)
+$BuildOutput = $BuildProcess.StandardOutput.ReadToEndAsync()
+$BuildErrors = $BuildProcess.StandardError.ReadToEndAsync()
+$BuildProcess.WaitForExit()
+if ($BuildProcess.ExitCode -ne 0) { throw ("Bundled database initialization failed: " + $BuildErrors.Result + $BuildOutput.Result) }
+$VerifyDbScript = Join-Path $DistDir 'verify-empty.php'
+'<?php $pdo = new PDO("sqlite:".$argv[1]); echo $pdo->query("SELECT count(*) FROM users")->fetchColumn();' | Set-Content -LiteralPath $VerifyDbScript -Encoding ASCII
+$BuildPhp.Arguments = '-c "' + (Join-Path $PhpDestDir "php.ini") + '" -d extension_dir="' + $ExtDest + '" "' + $VerifyDbScript + '" "' + $SqliteDest + '"'
+$BuildProcess = [Diagnostics.Process]::Start($BuildPhp)
+$UserCount = $BuildProcess.StandardOutput.ReadToEnd().Trim()
+$BuildErrors = $BuildProcess.StandardError.ReadToEnd()
+$BuildProcess.WaitForExit()
+if ($BuildProcess.ExitCode -ne 0 -or $UserCount -ne '0') { throw "Could not verify the empty bundled database: $UserCount $BuildErrors" }
 Write-Host "    Bundled database verified clean: User count = $UserCount (Zero accounts)" -ForegroundColor Green
+@{ version='2026.10.21.1'; built_at=(Get-Date).ToUniversalTime().ToString('o'); frontend_sha256=(Get-FileHash -LiteralPath (Join-Path $PayloadDir 'public\build\manifest.json')).Hash.ToLowerInvariant() } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $PayloadDir 'classcheck-release.json') -Encoding UTF8
 
 # 5. Compile ClassCheck.exe (Main Launcher)
 Write-Host "`n[5/7] Compiling native Windows launcher (ClassCheck.exe)..." -ForegroundColor Yellow
@@ -342,7 +330,9 @@ $CscInstallerArgs = @(
     "/reference:System.Drawing.dll",
     "/reference:System.IO.Compression.dll",
     "/reference:System.IO.Compression.FileSystem.dll",
-    $InstallerSource
+    $InstallerSource,
+    (Join-Path $WorkspaceRoot "packaging\installer\SafeUpdate.cs"),
+    (Join-Path $WorkspaceRoot "packaging\installer\InstallDiscovery.cs")
 )
 & $CscPath $CscInstallerArgs
 if ($LASTEXITCODE -ne 0) {
@@ -352,20 +342,28 @@ if ($LASTEXITCODE -ne 0) {
 # Remove temporary payload.zip
 Remove-Item -Path $PayloadZip -Force -ErrorAction SilentlyContinue
 
-# 8. Digital Authenticode Signature
-Write-Host "`n[+] Applying Authenticode digital signature (SHA-256)..." -ForegroundColor Yellow
-try {
-    $Cert = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert | Where-Object { $_.Subject -like "*ClassCheck*" } | Select-Object -First 1
-    if (-not $Cert) {
-        $Cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=ClassCheck Software Publishing, O=ClassCheck, C=US" -CertStoreLocation Cert:\CurrentUser\My -NotAfter (Get-Date).AddYears(10)
+# Do not create certificates or alter the Windows certificate store during a build.
+$Checksum = Get-FileHash -LiteralPath $InstallerOut -Algorithm SHA256
+($Checksum.Hash.ToLowerInvariant() + "  ClassCheck_Setup.exe") | Set-Content -LiteralPath (Join-Path $DistDir "SHA256SUMS.txt") -Encoding ASCII
+
+# Publish the new setup at the familiar paths as well as the dated release.
+# Never touch portable app folders or their databases while publishing installers.
+$PublishDirs = @((Join-Path $WorkspaceRoot 'dist'))
+if ((Split-Path $WorkspaceRoot -Parent | Split-Path -Leaf) -eq '.worktrees') {
+    $RepositoryRoot = Split-Path (Split-Path $WorkspaceRoot -Parent) -Parent
+    $PublishDirs += Join-Path $RepositoryRoot 'dist'
+}
+foreach ($PublishDir in $PublishDirs) {
+    New-Item -ItemType Directory -Path $PublishDir -Force | Out-Null
+    try {
+        $PublishedSetup = Join-Path $PublishDir 'ClassCheck_Setup.exe'
+        Copy-Item -LiteralPath $InstallerOut -Destination $PublishedSetup -Force -ErrorAction Stop
+        if ((Get-FileHash -LiteralPath $PublishedSetup).Hash -ne $Checksum.Hash) { throw 'Published installer checksum mismatch.' }
+        Copy-Item -LiteralPath (Join-Path $DistDir 'SHA256SUMS.txt') -Destination (Join-Path $PublishDir 'ClassCheck_Setup.sha256') -Force
+        Copy-Item -LiteralPath (Join-Path $WorkspaceRoot 'packaging\README.txt') -Destination (Join-Path $PublishDir 'ClassCheck_Update_Readme.txt') -Force
+    } catch {
+        Write-Warning "Could not replace $PublishDir\ClassCheck_Setup.exe. Close the older Setup window. Use the new installer at $InstallerOut. Details: $_"
     }
-    if ($Cert) {
-        Set-AuthenticodeSignature -FilePath $LauncherOut -Certificate $Cert -HashAlgorithm SHA256 | Out-Null
-        Set-AuthenticodeSignature -FilePath $InstallerOut -Certificate $Cert -HashAlgorithm SHA256 | Out-Null
-        Write-Host "    Successfully signed ClassCheck.exe and ClassCheck_Setup.exe" -ForegroundColor Green
-    }
-} catch {
-    Write-Host "    Code signing skipped: $_" -ForegroundColor DarkGray
 }
 
 Write-Host "`n==========================================================" -ForegroundColor Green

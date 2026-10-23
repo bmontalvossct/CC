@@ -37,7 +37,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: 8.4
+          php-version: '8.5.12'
           extensions: pdo_pgsql
           tools: composer:v2
           coverage: xdebug
@@ -53,6 +53,11 @@ jobs:
 
       - name: Install Dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Audit Dependencies
+        run: |
+          npm audit --audit-level=low
+          composer audit
 
       - name: Copy Environment File
         run: cp .env.example .env

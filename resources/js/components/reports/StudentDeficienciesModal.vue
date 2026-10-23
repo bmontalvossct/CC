@@ -1,7 +1,21 @@
 <script setup lang="ts">
-import { Button } from '@/components/ui/button';
-import { AlertCircle, AlertTriangle, CheckCircle2, Copy, FileWarning, FolderKanban, ListOrdered, Printer, Sparkles, UserX, X } from 'lucide-vue-next';
-import { computed, ref, watch } from 'vue';
+import type { GradingFormulaSettings } from '@/types/grading';
+import {
+    AlertCircle,
+    AlertTriangle,
+    BookOpen,
+    Check,
+    CheckCircle2,
+    ChevronDown,
+    Copy,
+    Flag,
+    Printer,
+    Search,
+    TrendingUp,
+    UserX,
+    X,
+} from 'lucide-vue-next';
+import { computed, nextTick, ref, watch } from 'vue';
 
 type Assessment = {
     id: number;
@@ -29,20 +43,26 @@ type AttendanceSummary = {
     percentage: number | null;
 };
 type Recitation = { count: number; avg_score: number | null; percentage: number | null; bonus_points?: number };
+type PeriodGrade = { weighted_grade: number | null; scale_grade?: string };
 
 export type StudentRow = {
     id: number;
     student_number: string;
     full_name: string;
     scores: Record<number, string | null>;
+    score_absences?: Record<number, boolean>;
     remarks?: Record<number, string | null>;
-    categories: Record<'activity' | 'quiz' | 'exam', Category>;
+    categories: Record<'activity' | 'quiz' | 'exam', Category> & Partial<Record<'laboratory', Category>>;
     group_activity_scores?: Record<number, number | null>;
     project_scores: Record<number, number | null>;
     project_notes?: Record<number, string | null>;
     projectSummary: ProjectSummary;
     attendance: AttendanceSummary;
     recitation: Recitation;
+    weighted_grade?: number | null;
+    scale_grade?: string;
+    midterm?: PeriodGrade;
+    final_period?: PeriodGrade;
 };
 
 export type ActivityLogEntry = {
@@ -55,7 +75,7 @@ export type ActivityLogEntry = {
     score: number | null;
     max_points: number;
     pct: number | null;
-    status: 'passed' | 'failed' | 'missing';
+    status: 'passed' | 'failed' | 'missing' | 'absent';
     remarks?: string | null;
     isProject?: boolean;
 };
@@ -66,7 +86,15 @@ const props = withDefaults(
         assessments: Assessment[];
         groupActivities?: ProjectItem[];
         projects: ProjectItem[];
-        gradingWeights: Record<string, number>;
+        gradingWeights: {
+            activity?: number;
+            quiz?: number;
+            exam?: number;
+            project?: number;
+            attendance?: number;
+            passing_rates?: Record<string, number>;
+        };
+        gradingFormula?: GradingFormulaSettings;
         sectionName?: string;
         subjectCode?: string;
         open: boolean;
@@ -86,6 +114,48 @@ type ActiveTab = 'activity_log' | 'deficiencies' | 'missing' | 'failing';
 const currentTab = ref<ActiveTab>(props.initialTab || 'activity_log');
 const logCategoryFilter = ref<'all' | 'activity' | 'quiz' | 'laboratory' | 'exam' | 'project' | 'deficiencies'>('all');
 const copied = ref(false);
+const searchQuery = ref('');
+const searchOpen = ref(false);
+const searchInput = ref<HTMLInputElement | null>(null);
+const attendanceExpanded = ref(false);
+type CategoryKey = 'quiz' | 'activity' | 'exam' | 'laboratory' | 'project';
+const expandedCategories = ref<CategoryKey[]>([]);
+const toggleCategory = (key: CategoryKey) => {
+    expandedCategories.value = expandedCategories.value.includes(key)
+        ? expandedCategories.value.filter((value) => value !== key)
+        : [...expandedCategories.value, key];
+};
+const formatPoints = (value: number) => new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value);
+const tabs = computed(() => [
+    { value: 'activity_log' as const, label: 'Activity log', count: allActivityLogs.value.length },
+    { value: 'deficiencies' as const, label: 'All deficiencies', count: totalDeficiencies.value },
+    { value: 'missing' as const, label: 'Uncomplied', count: totalMissingCount.value },
+    { value: 'failing' as const, label: 'Failing scores', count: totalFailingCount.value },
+]);
+const logFilters = computed(() => [
+    { value: 'all' as const, label: 'All types' },
+    { value: 'activity' as const, label: 'Activities' },
+    { value: 'quiz' as const, label: 'Quizzes' },
+    ...(allActivityLogs.value.some((item) => item.type === 'laboratory') ? [{ value: 'laboratory' as const, label: 'Laboratories' }] : []),
+    { value: 'exam' as const, label: 'Exams' },
+    ...(allActivityLogs.value.some((item) => item.type === 'project' || item.type === 'reporting')
+        ? [{ value: 'project' as const, label: 'Projects & reports' }]
+        : []),
+]);
+const toggleSearch = async () => {
+    searchOpen.value = !searchOpen.value;
+    if (searchOpen.value) {
+        await nextTick();
+        searchInput.value?.focus();
+    } else {
+        searchQuery.value = '';
+    }
+};
+const periodGrade = (period?: PeriodGrade) => {
+    if (period?.weighted_grade === null || period?.weighted_grade === undefined) return '-';
+    if (period.scale_grade !== undefined) return ['—', '-'].includes(period.scale_grade) ? '-' : period.scale_grade;
+    return percentToGrade(period.weighted_grade);
+};
 
 watch(
     () => props.open,
@@ -93,6 +163,14 @@ watch(
         if (isOpen) {
             currentTab.value = props.initialTab || 'activity_log';
             logCategoryFilter.value = 'all';
+            searchQuery.value = '';
+            searchOpen.value = false;
+            attendanceExpanded.value = false;
+            expandedCategories.value =
+                props.initialTab !== 'activity_log'
+                    ? categoryGroups.value.filter((group) => group.visibleItems.length).map((group) => group.key)
+                    : [];
+            copied.value = false;
         }
     },
 );
@@ -100,24 +178,28 @@ watch(
 const readableDate = (date: string | null) => {
     if (!date) return 'No date set';
     try {
-        return new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(`${date}T00:00:00`));
+        const parsed = new Date(/^\d{4}-\d{2}-\d{2}$/.test(date) ? `${date}T00:00:00+08:00` : date);
+        if (Number.isNaN(parsed.getTime())) return '-';
+        return new Intl.DateTimeFormat('en-US', { month: 'short', day: '2-digit', year: 'numeric', timeZone: 'Asia/Manila' }).format(parsed);
     } catch {
-        return date;
+        return '-';
     }
 };
 
 const percentToGrade = (pct: number | null): string => {
     if (pct === null) return '—';
     const ratio = Math.max(0, Math.min(100, pct)) / 100;
-    const rawGrade = 5.0 - (4.0 * ratio);
-    if (rawGrade > 3.0) return '5.0';
-    return (Math.floor(rawGrade * 10) / 10).toFixed(1);
-};
-
-const isFailingGrade = (grade: string) => {
-    if (grade === '—') return false;
-    const n = parseFloat(grade);
-    return n > 3.0;
+    const formula = props.gradingFormula;
+    const worst = Number(formula?.worst_grade ?? 5);
+    const best = Number(formula?.best_grade ?? 1);
+    const rawGrade = worst - (worst - best) * ratio;
+    const decimals = Number(formula?.decimal_places ?? 1);
+    if ((formula?.replace_failing_grade ?? true) && rawGrade > Number(formula?.passing_grade ?? 3))
+        return Number(formula?.failed_grade ?? 5).toFixed(decimals);
+    const factor = 10 ** decimals;
+    const scaled = Math.round(rawGrade * factor * 1e8) / 1e8;
+    const mode = formula?.final_rounding ?? 'down';
+    return ((mode === 'up' ? Math.ceil(scaled) : mode === 'nearest' ? Math.round(scaled) : Math.floor(scaled)) / factor).toFixed(decimals);
 };
 
 // Compute base coursework weighted percentage
@@ -126,7 +208,13 @@ const overallPercentage = computed<number | null>(() => {
     if (props.student.weighted_grade !== null && props.student.weighted_grade !== undefined) {
         return props.student.weighted_grade;
     }
-    const w = props.gradingWeights;
+    const w = {
+        activity: Number(props.gradingWeights.activity ?? 0),
+        quiz: Number(props.gradingWeights.quiz ?? 0),
+        exam: Number(props.gradingWeights.exam ?? 0),
+        project: Number(props.gradingWeights.project ?? 0),
+        attendance: Number(props.gradingWeights.attendance ?? 0),
+    };
     let totalWeight = 0;
     let weighted = 0;
 
@@ -156,7 +244,7 @@ const overallPercentage = computed<number | null>(() => {
 });
 
 const overallGrade = computed(() => {
-    if (props.student?.scale_grade && props.student.scale_grade !== '—') {
+    if (props.student?.scale_grade) {
         return props.student.scale_grade;
     }
     return percentToGrade(overallPercentage.value);
@@ -166,6 +254,7 @@ const overallGrade = computed(() => {
 const uncompliedAssessments = computed(() => {
     if (!props.student) return [];
     return props.assessments.filter((a) => {
+        if (props.student?.score_absences?.[a.id]) return false;
         const val = props.student?.scores[a.id];
         return val === null || val === undefined || val === '';
     });
@@ -273,9 +362,9 @@ const allActivityLogs = computed<ActivityLogEntry[]>(() => {
         const max = parseFloat(String(a.max_points)) || 0;
         let score: number | null = null;
         let pct: number | null = null;
-        let status: 'passed' | 'failed' | 'missing' = 'missing';
+        let status: ActivityLogEntry['status'] = props.student.score_absences?.[a.id] ? 'absent' : 'missing';
 
-        if (val !== null && val !== undefined && val !== '') {
+        if (status !== 'absent' && val !== null && val !== undefined && val !== '') {
             score = parseFloat(String(val));
             pct = max > 0 ? Math.round((score / max) * 1000) / 10 : 0;
             status = pct >= getPassingRateForAssessment(a.type) ? 'passed' : 'failed';
@@ -330,27 +419,59 @@ const allActivityLogs = computed<ActivityLogEntry[]>(() => {
 });
 
 const filteredActivityLogs = computed(() => {
-    if (logCategoryFilter.value === 'all') return allActivityLogs.value;
-    if (logCategoryFilter.value === 'deficiencies') {
-        return allActivityLogs.value.filter((item) => item.status !== 'passed');
-    }
-    if (logCategoryFilter.value === 'project') {
-        return allActivityLogs.value.filter((item) => item.type === 'project' || item.type === 'reporting' || item.type === 'group_activity');
-    }
-    return allActivityLogs.value.filter((item) => item.type === logCategoryFilter.value);
+    const query = searchQuery.value.trim().toLocaleLowerCase();
+    return allActivityLogs.value.filter((item) => {
+        if (currentTab.value === 'deficiencies' && item.status === 'passed') return false;
+        if (currentTab.value === 'missing' && item.status !== 'missing') return false;
+        if (currentTab.value === 'failing' && item.status !== 'failed') return false;
+        if (logCategoryFilter.value === 'project' && !['project', 'reporting'].includes(item.type)) return false;
+        if (logCategoryFilter.value === 'activity' && !['activity', 'group_activity'].includes(item.type)) return false;
+        if (!['all', 'project', 'activity', 'deficiencies'].includes(logCategoryFilter.value) && item.type !== logCategoryFilter.value) return false;
+        return (
+            !query ||
+            [item.title, item.typeLabel, item.remarks, readableDate(item.conducted_on), item.status === 'missing' ? 'uncomplied' : item.status].some(
+                (value) => value?.toLocaleLowerCase().includes(query),
+            )
+        );
+    });
 });
 
-const typeBadgeClass = (type: string) => {
-    if (type === 'group_activity') return 'bg-emerald-700 text-white';
-    if (type === 'project') return 'bg-teal-700 text-white';
-    return 'bg-indigo-700 text-white';
-};
+const isFiltering = computed(() => currentTab.value !== 'activity_log' || logCategoryFilter.value !== 'all' || searchQuery.value.trim() !== '');
+const categoryGroups = computed(() => {
+    const definitions: { key: CategoryKey; label: string }[] = [
+        { key: 'quiz', label: 'Quizzes' },
+        { key: 'activity', label: 'Activities' },
+        { key: 'exam', label: 'Exams' },
+        { key: 'laboratory', label: 'Laboratories' },
+        { key: 'project', label: 'Projects & reports' },
+    ];
+    const belongsTo = (item: ActivityLogEntry, key: CategoryKey) =>
+        key === 'activity'
+            ? item.type === 'activity' || item.type === 'group_activity'
+            : key === 'project'
+              ? item.type === 'project' || item.type === 'reporting'
+              : item.type === key;
+    return definitions
+        .map((group) => {
+            const items = allActivityLogs.value.filter((item) => belongsTo(item, group.key));
+            const summary = group.key === 'project' ? props.student?.projectSummary : props.student?.categories[group.key];
+            return {
+                ...group,
+                items,
+                visibleItems: filteredActivityLogs.value.filter((item) => belongsTo(item, group.key)),
+                earned: summary?.earned ?? items.reduce((total, item) => total + (item.score ?? 0), 0),
+                possible: summary?.possible ?? items.reduce((total, item) => total + item.max_points, 0),
+                bonus: group.key === 'project' ? 0 : (props.student?.categories[group.key]?.bonus_earned ?? 0),
+            };
+        })
+        .filter((group) =>
+            isFiltering.value ? group.visibleItems.length > 0 : group.items.length > 0 || ['quiz', 'activity', 'exam'].includes(group.key),
+        );
+});
 
-const typeLabel = (type: string) => {
-    if (type === 'group_activity') return 'Group Activity';
-    if (type === 'project') return 'Project';
-    return 'Reporting';
-};
+watch([currentTab, logCategoryFilter, searchQuery], () => {
+    expandedCategories.value = isFiltering.value ? categoryGroups.value.map((group) => group.key) : [];
+});
 
 // Copy text summary for student intervention
 const copySummary = () => {
@@ -360,6 +481,8 @@ const copySummary = () => {
     lines.push(`Student: ${props.student.full_name} (${props.student.student_number})`);
     if (props.subjectCode) lines.push(`Course: ${props.subjectCode} - ${props.sectionName || ''}`);
     lines.push(`Current Running Grade: ${overallPercentage.value !== null ? `${overallPercentage.value}%` : 'N/A'} (Grade: ${overallGrade.value})`);
+    lines.push(`Midterm Grade: ${periodGrade(props.student.midterm)}`);
+    lines.push(`Final Grade (Final Period): ${periodGrade(props.student.final_period)}`);
     lines.push(`----------------------------------------`);
 
     if (totalDeficiencies.value === 0) {
@@ -376,12 +499,12 @@ const copySummary = () => {
         }
 
         if (failingAssessments.value.length > 0 || failingProjects.value.length > 0) {
-            lines.push(`\n[FAILING SCORES (< 75%)]`);
+            lines.push(`\n[FAILING SCORES]`);
             for (const a of failingAssessments.value) {
-                lines.push(`- [${a.type.toUpperCase()}] ${a.title}: ${a.score}/${a.max} (${a.pct}%) · Below 75%`);
+                lines.push(`- [${a.type.toUpperCase()}] ${a.title}: ${a.score}/${a.max} (${a.pct}%) · Below ${getPassingRateForAssessment(a.type)}%`);
             }
             for (const p of failingProjects.value) {
-                lines.push(`- [PROJECT] ${p.title}: ${p.score}/${p.max} (${p.pct}%) · Below 75%`);
+                lines.push(`- [PROJECT] ${p.title}: ${p.score}/${p.max} (${p.pct}%) · Below ${getPassingRateForProject(p.type)}%`);
             }
         }
 
@@ -408,586 +531,999 @@ const printSlip = () => {
 </script>
 
 <template>
-    <div
-        v-if="open && student"
-        v-modal-focus
-        class="fixed inset-0 z-50 grid place-items-center bg-zinc-950/75 p-4 backdrop-blur-sm duration-200 animate-in fade-in print:static print:bg-transparent print:p-0"
-    >
-        <div
-            class="paper-card relative flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden border border-border/90 bg-card p-6 shadow-2xl duration-200 animate-in zoom-in-95 print:max-h-none print:border-none print:shadow-none"
-            role="dialog"
-            aria-modal="true"
-            :aria-label="`Academic deficiency file for ${student.full_name}`"
-        >
-            <!-- Modal Header -->
-            <div class="flex flex-wrap items-start justify-between gap-4 border-b border-border/80 pb-4 print:border-b-2 print:border-black">
-                <div>
-                    <div class="flex items-center gap-2">
-                        <span
-                            class="shadow-xs mx-1 inline-flex shrink-0 items-center whitespace-nowrap rounded bg-primary px-2.5 py-0.5 font-mono text-xs font-semibold text-white"
-                        >
-                            {{ student.student_number }}
-                        </span>
-                        <span class="text-xs font-medium uppercase tracking-wider text-muted-foreground"> Academic Deficiency File </span>
+    <div v-if="open && student" v-modal-focus class="meta-theme grade-overlay" @keydown.esc="emit('close')">
+        <section class="grade-dialog" role="dialog" aria-modal="true" :aria-label="`Grade summary for ${student.full_name}`">
+            <header class="grade-header">
+                <div class="student-identity">
+                    <div class="min-w-0">
+                        <p class="eyebrow">Grade summary</p>
+                        <h2>{{ student.full_name }}</h2>
+                        <p v-if="subjectCode || sectionName" class="course-label">
+                            {{ subjectCode }}<span v-if="subjectCode && sectionName"> · </span>{{ sectionName }}
+                        </p>
                     </div>
-                    <h2 class="mt-1 text-2xl font-bold text-foreground print:text-xl">{{ student.full_name }}</h2>
-                    <p v-if="subjectCode || sectionName" class="text-xs text-muted-foreground">
-                        {{ subjectCode }} <span v-if="sectionName">· {{ sectionName }}</span>
-                    </p>
                 </div>
-
-                <div class="flex items-center gap-2 print:hidden">
+                <div class="header-actions print:hidden">
                     <button
                         type="button"
-                        class="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
-                        :title="copied ? 'Copied!' : 'Copy deficiency summary for student'"
+                        class="icon-action"
+                        :aria-label="copied ? 'Report copied' : 'Copy report'"
+                        :title="copied ? 'Report copied' : 'Copy report'"
                         @click="copySummary"
                     >
-                        <CheckCircle2 v-if="copied" class="size-3.5 text-emerald-600 dark:text-emerald-400" />
-                        <Copy v-else class="size-3.5 text-muted-foreground" />
-                        <span>{{ copied ? 'Copied!' : 'Copy report' }}</span>
+                        <Check v-if="copied" class="size-4" /><Copy v-else class="size-4" />
                     </button>
+                    <button type="button" class="icon-action" aria-label="Print report" title="Print report" @click="printSlip">
+                        <Printer class="size-4" />
+                    </button>
+                    <button type="button" class="icon-action" aria-label="Close grade summary" title="Close" @click="emit('close')">
+                        <X class="size-4" />
+                    </button>
+                    <span class="sr-only" role="status">{{ copied ? 'Report copied to clipboard' : '' }}</span>
+                </div>
+            </header>
 
+            <nav class="grade-tabs print:hidden" aria-label="Grade summary sections">
+                <button
+                    v-for="tab in tabs"
+                    :key="tab.value"
+                    type="button"
+                    :class="{ active: currentTab === tab.value }"
+                    :aria-pressed="currentTab === tab.value"
+                    @click="currentTab = tab.value"
+                >
+                    {{ tab.label }}<span>{{ tab.count }}</span>
+                </button>
+            </nav>
+
+            <div class="log-toolbar print:hidden">
+                <label class="filter-label"
+                    ><span class="sr-only">Filter by activity type</span
+                    ><select v-model="logCategoryFilter">
+                        <option v-for="filter in logFilters" :key="filter.value" :value="filter.value">{{ filter.label }}</option>
+                    </select></label
+                >
+                <span class="result-count">{{ filteredActivityLogs.length }} {{ filteredActivityLogs.length === 1 ? 'item' : 'items' }}</span>
+                <button type="button" class="search-action" :aria-expanded="searchOpen" aria-controls="coursework-search" @click="toggleSearch">
+                    <Search class="size-4" /><span>Search</span>
+                </button>
+            </div>
+            <div v-if="searchOpen" id="coursework-search" class="log-search print:hidden">
+                <Search class="size-4 shrink-0 text-muted-foreground" />
+                <input
+                    ref="searchInput"
+                    v-model="searchQuery"
+                    type="search"
+                    aria-label="Search coursework"
+                    placeholder="Search title, type, date or feedback…"
+                />
+            </div>
+
+            <div class="grade-content">
+                <div v-if="filteredActivityLogs.length || !isFiltering" class="category-list">
+                    <section
+                        v-for="(group, groupIndex) in categoryGroups"
+                        :key="group.key"
+                        class="category-group"
+                        :data-category="group.key"
+                        :data-expanded="expandedCategories.includes(group.key)"
+                    >
+                        <h3>
+                            <button
+                                type="button"
+                                class="category-toggle"
+                                :aria-expanded="expandedCategories.includes(group.key)"
+                                :aria-controls="'grade-category-' + group.key"
+                                @click="toggleCategory(group.key)"
+                            >
+                                <span class="category-index" aria-hidden="true">{{ String(groupIndex + 1).padStart(2, '0') }}</span>
+                                <span class="category-heading"
+                                    ><span>{{ group.label }}</span
+                                    ><small
+                                        >{{ group.items.length }} {{ group.items.length === 1 ? 'item' : 'items'
+                                        }}<template v-if="group.bonus > 0"> &middot; +{{ formatPoints(group.bonus) }} bonus points</template></small
+                                    ></span
+                                >
+                                <span class="category-total"
+                                    >{{ formatPoints(group.earned) }}<small> / {{ formatPoints(group.possible) }}</small
+                                    ><span class="sr-only">points</span></span
+                                >
+                                <ChevronDown class="category-chevron size-4" :class="{ expanded: expandedCategories.includes(group.key) }" />
+                            </button>
+                        </h3>
+                        <div v-show="expandedCategories.includes(group.key)" :id="'grade-category-' + group.key" class="category-details">
+                            <div v-if="group.visibleItems.length" class="activity-list">
+                                <article v-for="item in group.visibleItems" :key="item.key" class="activity-row">
+                                    <div class="activity-main">
+                                        <span class="activity-type" :data-type="item.type">{{ item.typeLabel }}</span>
+                                        <h3>{{ item.title }}</h3>
+                                        <p class="activity-date">Conducted {{ readableDate(item.conducted_on) }}</p>
+                                    </div>
+                                    <div class="activity-result" :class="item.status">
+                                        <template v-if="item.status === 'absent'"
+                                            ><span class="result-label"><AlertCircle class="size-3.5" />Absent</span></template
+                                        >
+                                        <template v-else-if="item.status === 'missing'"
+                                            ><span class="result-label"><AlertTriangle class="size-3.5" />Uncomplied</span></template
+                                        >
+                                        <template v-else>
+                                            <span class="score-value"
+                                                >{{ item.score }}<span class="score-max"> / {{ item.max_points }}</span></span
+                                            >
+                                            <span class="result-label"
+                                                ><CheckCircle2 v-if="item.status === 'passed'" class="size-3.5" /><AlertCircle
+                                                    v-else
+                                                    class="size-3.5"
+                                                />{{ item.pct }}% · {{ item.status === 'passed' ? 'Passed' : 'Failed' }}</span
+                                            >
+                                        </template>
+                                    </div>
+                                    <div class="activity-feedback">
+                                        <span>Feedback</span>
+                                        <p :class="{ 'feedback-empty': !item.remarks?.trim() }">
+                                            {{ item.remarks?.trim() || 'No feedback recorded.' }}
+                                        </p>
+                                    </div>
+                                </article>
+                            </div>
+                            <p v-else class="category-empty">No items recorded in this category.</p>
+                        </div>
+                    </section>
+                </div>
+                <div v-else class="log-empty">
+                    <Search v-if="searchQuery" class="size-5" /><CheckCircle2 v-else class="size-5" />
+                    <h3>
+                        {{
+                            searchQuery
+                                ? 'No matching coursework'
+                                : currentTab === 'activity_log'
+                                  ? 'No coursework to display'
+                                  : 'No items in this section'
+                        }}
+                    </h3>
+                    <p>
+                        {{
+                            searchQuery
+                                ? 'Try another title, type or date, or change the activity filter.'
+                                : 'Assigned coursework and recorded scores appear here.'
+                        }}
+                    </p>
+                    <button
+                        v-if="searchQuery || logCategoryFilter !== 'all'"
+                        type="button"
+                        class="search-action print:hidden"
+                        @click="
+                            searchQuery = '';
+                            logCategoryFilter = 'all';
+                        "
+                    >
+                        Clear filters
+                    </button>
+                </div>
+
+                <dl class="grade-overview">
+                    <div>
+                        <dt><TrendingUp class="size-4" />Running grade</dt>
+                        <dd>{{ overallPercentage !== null ? overallPercentage + '%' : '-' }}</dd>
+                        <span class="grade-detail"
+                            >{{ overallGrade === '—' ? '-' : overallGrade }} <span class="text-muted-foreground">/ 5.0</span></span
+                        >
+                    </div>
+                    <div>
+                        <dt><BookOpen class="size-4" />Midterm grade</dt>
+                        <dd>{{ periodGrade(student.midterm) }}</dd>
+                        <span v-if="student.midterm?.weighted_grade != null" class="grade-detail">{{ student.midterm.weighted_grade }}%</span>
+                    </div>
+                    <div>
+                        <dt><Flag class="size-4" />Final grade</dt>
+                        <dd>{{ periodGrade(student.final_period) }}</dd>
+                        <span v-if="student.final_period?.weighted_grade != null" class="grade-detail"
+                            >{{ student.final_period.weighted_grade }}% · Final period</span
+                        >
+                    </div>
+                </dl>
+
+                <section v-if="student.attendance" class="attendance-section">
                     <button
                         type="button"
-                        class="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
-                        title="Print intervention slip"
-                        @click="printSlip"
+                        class="attendance-toggle"
+                        :aria-expanded="attendanceExpanded"
+                        aria-controls="grade-attendance-details"
+                        @click="attendanceExpanded = !attendanceExpanded"
                     >
-                        <Printer class="size-3.5 text-muted-foreground" />
-                        <span>Print</span>
+                        <UserX class="size-4" /><span>Attendance standing</span
+                        ><span class="attendance-preview"
+                            >{{ student.attendance.absent_count }} absent · {{ student.attendance.late_count }} late</span
+                        ><ChevronDown class="attendance-chevron size-4" :class="{ expanded: attendanceExpanded }" />
                     </button>
-
-                    <Button type="button" variant="ghost" size="icon" class="size-8 rounded-lg" title="Close" @click="emit('close')">
-                        <X class="size-4" />
-                    </Button>
-                </div>
+                    <dl v-show="attendanceExpanded" id="grade-attendance-details" class="attendance-details">
+                        <div>
+                            <dt>Sessions</dt>
+                            <dd>{{ student.attendance.total_sessions }}</dd>
+                        </div>
+                        <div>
+                            <dt>Present</dt>
+                            <dd>{{ student.attendance.present_count }}</dd>
+                        </div>
+                        <div>
+                            <dt>Late</dt>
+                            <dd>{{ student.attendance.late_count }}</dd>
+                        </div>
+                        <div>
+                            <dt>Absent</dt>
+                            <dd>{{ student.attendance.absent_count }}</dd>
+                        </div>
+                    </dl>
+                </section>
             </div>
-
-            <!-- Grade & Deficiency KPI Summary Banner -->
-            <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <!-- Running Grade % -->
-                <div class="rounded-xl border border-border/80 bg-secondary/30 p-3 text-center">
-                    <span class="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Running Grade</span>
-                    <span class="mt-0.5 block font-mono text-xl font-bold text-foreground">
-                        {{ overallPercentage !== null ? `${overallPercentage}%` : '—' }}
-                    </span>
-                </div>
-
-                <!-- Numerical Grade -->
-                <div
-                    class="shadow-xs rounded-xl border p-3 text-center"
-                    :class="isFailingGrade(overallGrade) ? 'border-rose-800 bg-rose-700 text-white' : 'border-emerald-800 bg-emerald-700 text-white'"
-                >
-                    <span class="block text-[10px] font-bold uppercase tracking-wider text-white/90">Grade (1.0–5.0)</span>
-                    <span class="mt-0.5 block font-mono text-xl font-bold text-white">
-                        {{ overallGrade }}
-                    </span>
-                </div>
-
-                <!-- Missing / Uncomplied Count -->
-                <div
-                    class="rounded-xl border p-3 text-center"
-                    :class="
-                        totalMissingCount > 0
-                            ? 'shadow-xs border-amber-800 bg-amber-700 text-white'
-                            : 'border-border/80 bg-secondary/30 text-muted-foreground'
-                    "
-                >
-                    <span
-                        class="block text-[10px] font-bold uppercase tracking-wider"
-                        :class="totalMissingCount > 0 ? 'text-white/90' : 'text-muted-foreground'"
-                        >Uncomplied Items</span
-                    >
-                    <span class="mt-0.5 block font-mono text-xl font-bold" :class="totalMissingCount > 0 ? 'text-white' : ''">
-                        {{ totalMissingCount }}
-                    </span>
-                </div>
-
-                <!-- Failing Scores Count -->
-                <div
-                    class="rounded-xl border p-3 text-center"
-                    :class="
-                        totalFailingCount > 0
-                            ? 'shadow-xs border-rose-800 bg-rose-700 text-white'
-                            : 'border-border/80 bg-secondary/30 text-muted-foreground'
-                    "
-                >
-                    <span
-                        class="block text-[10px] font-bold uppercase tracking-wider"
-                        :class="totalFailingCount > 0 ? 'text-white/90' : 'text-muted-foreground'"
-                        >Failing Tasks</span
-                    >
-                    <span class="mt-0.5 block font-mono text-xl font-bold" :class="totalFailingCount > 0 ? 'text-white' : ''">
-                        {{ totalFailingCount }}
-                    </span>
-                </div>
-            </div>
-
-            <!-- Navigation Tabs (Hidden on Print) -->
-            <div class="mt-4 flex flex-wrap items-center gap-1 border-b border-border/80 pb-2 text-xs print:hidden">
-                <button
-                    type="button"
-                    class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition-colors"
-                    :class="
-                        currentTab === 'activity_log'
-                            ? 'shadow-xs bg-primary text-white'
-                            : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
-                    "
-                    @click="currentTab = 'activity_log'"
-                >
-                    <ListOrdered class="size-3.5" />
-                    <span>Activity & Score Log ({{ allActivityLogs.length }})</span>
-                </button>
-
-                <button
-                    type="button"
-                    class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition-colors"
-                    :class="
-                        currentTab === 'deficiencies'
-                            ? 'shadow-xs bg-rose-700 text-white'
-                            : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
-                    "
-                    @click="currentTab = 'deficiencies'"
-                >
-                    <AlertTriangle class="size-3.5" />
-                    <span>All Deficiencies ({{ totalDeficiencies }})</span>
-                </button>
-
-                <button
-                    type="button"
-                    class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition-colors"
-                    :class="
-                        currentTab === 'missing'
-                            ? 'shadow-xs bg-amber-700 text-white'
-                            : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
-                    "
-                    @click="currentTab = 'missing'"
-                >
-                    <span>Uncomplied ({{ totalMissingCount }})</span>
-                </button>
-
-                <button
-                    type="button"
-                    class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition-colors"
-                    :class="
-                        currentTab === 'failing'
-                            ? 'shadow-xs bg-rose-700 text-white'
-                            : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
-                    "
-                    @click="currentTab = 'failing'"
-                >
-                    <span>Failing Scores ({{ totalFailingCount }})</span>
-                </button>
-            </div>
-
-            <!-- Scrollable Content -->
-            <div class="mt-4 flex-1 space-y-6 overflow-y-auto pr-1">
-                <!-- ALL COMPLIED & PASSING EMPTY STATE -->
-                <div
-                    v-if="totalDeficiencies === 0 && (currentTab === 'deficiencies' || currentTab === 'missing' || currentTab === 'failing')"
-                    class="rounded-2xl border border-emerald-800 bg-emerald-700 p-8 text-center text-white shadow-sm"
-                >
-                    <div class="mx-auto grid size-12 place-items-center rounded-2xl bg-emerald-800 text-white">
-                        <Sparkles class="size-6" />
-                    </div>
-                    <h3 class="mt-3 text-lg font-bold text-white">No Deficiencies Found!</h3>
-                    <p class="mt-1 text-xs text-emerald-100">
-                        This student has submitted all assigned coursework, activities, quizzes, exams, and projects with passing marks (75% or
-                        above).
-                    </p>
-                </div>
-
-                <!-- TAB: DEFICIENCIES OR MISSING -->
-                <template v-if="currentTab === 'deficiencies' || currentTab === 'missing'">
-                    <!-- Uncomplied Assessments Section -->
-                    <div v-if="uncompliedAssessments.length > 0" class="space-y-3">
-                        <div class="flex items-center gap-2">
-                            <AlertTriangle class="size-4 text-amber-600 dark:text-amber-400" />
-                            <h3 class="text-sm font-bold text-foreground">Uncomplied / Missing Coursework ({{ uncompliedAssessments.length }})</h3>
-                        </div>
-
-                        <div class="divide-y divide-border/60 rounded-xl border border-border/80 bg-secondary/20">
-                            <div
-                                v-for="item in uncompliedAssessments"
-                                :key="item.id"
-                                class="flex items-center justify-between gap-4 px-4 py-3 text-xs"
-                            >
-                                <div>
-                                    <div class="flex items-center gap-2">
-                                        <span
-                                            class="shadow-2xs mx-1 inline-flex shrink-0 items-center whitespace-nowrap rounded px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white"
-                                            :class="
-                                                item.type === 'exam'
-                                                    ? 'bg-purple-700'
-                                                    : item.type === 'quiz'
-                                                      ? 'bg-blue-700'
-                                                      : item.type === 'laboratory'
-                                                        ? 'bg-cyan-700'
-                                                        : 'bg-emerald-700'
-                                            "
-                                        >
-                                            {{ item.type === 'laboratory' ? 'Lab' : item.type }}
-                                        </span>
-                                        <span class="font-semibold text-foreground">{{ item.title }}</span>
-                                    </div>
-                                    <span class="mt-0.5 block text-[11px] text-muted-foreground">
-                                        Conducted: {{ readableDate(item.conducted_on) }}
-                                    </span>
-                                </div>
-
-                                <div class="text-right">
-                                    <span
-                                        class="shadow-xs mx-1 inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-amber-800 bg-amber-700 px-2.5 py-1 font-mono text-xs font-bold text-white"
-                                    >
-                                        <FileWarning class="size-3 shrink-0" />
-                                        <span>Missing (0/{{ item.max_points }})</span>
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Uncomplied Projects Section -->
-                    <div v-if="uncompliedProjects.length > 0" class="space-y-3">
-                        <div class="flex items-center gap-2">
-                            <FolderKanban class="size-4 text-teal-600 dark:text-teal-400" />
-                            <h3 class="text-sm font-bold text-foreground">Uncomplied Projects & Reporting ({{ uncompliedProjects.length }})</h3>
-                        </div>
-
-                        <div class="divide-y divide-border/60 rounded-xl border border-border/80 bg-secondary/20">
-                            <div v-for="item in uncompliedProjects" :key="item.id" class="flex items-center justify-between gap-4 px-4 py-3 text-xs">
-                                <div>
-                                    <div class="flex items-center gap-2">
-                                        <span
-                                            class="shadow-2xs mx-1 inline-flex shrink-0 items-center whitespace-nowrap rounded px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white"
-                                            :class="typeBadgeClass(item.type)"
-                                        >
-                                            {{ typeLabel(item.type) }}
-                                        </span>
-                                        <span class="font-semibold text-foreground">{{ item.title }}</span>
-                                    </div>
-                                    <span class="mt-0.5 block text-[11px] text-muted-foreground">
-                                        Conducted: {{ readableDate(item.conducted_on) }}
-                                    </span>
-                                </div>
-
-                                <div class="text-right">
-                                    <span
-                                        class="shadow-xs mx-1 inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-amber-800 bg-amber-700 px-2.5 py-1 font-mono text-xs font-bold text-white"
-                                    >
-                                        <FileWarning class="size-3 shrink-0" />
-                                        <span>Uncomplied (0/{{ item.max_points }})</span>
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </template>
-
-                <!-- TAB: DEFICIENCIES OR FAILING -->
-                <template v-if="currentTab === 'deficiencies' || currentTab === 'failing'">
-                    <!-- Failing Assessments Section -->
-                    <div v-if="failingAssessments.length > 0" class="space-y-3">
-                        <div class="flex items-center gap-2">
-                            <AlertCircle class="size-4 text-rose-600 dark:text-rose-400" />
-                            <h3 class="text-sm font-bold text-foreground">Failing Assessment Scores ({{ failingAssessments.length }})</h3>
-                        </div>
-
-                        <div class="divide-y divide-border/60 rounded-xl border border-border/80 bg-secondary/20">
-                            <div v-for="item in failingAssessments" :key="item.id" class="flex items-center justify-between gap-4 px-4 py-3 text-xs">
-                                <div>
-                                    <div class="flex items-center gap-2">
-                                        <span
-                                            class="shadow-2xs mx-1 inline-flex shrink-0 items-center whitespace-nowrap rounded px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white"
-                                            :class="
-                                                item.type === 'exam'
-                                                    ? 'bg-purple-700'
-                                                    : item.type === 'quiz'
-                                                      ? 'bg-blue-700'
-                                                      : item.type === 'laboratory'
-                                                        ? 'bg-cyan-700'
-                                                        : 'bg-emerald-700'
-                                            "
-                                        >
-                                            {{ item.type === 'laboratory' ? 'Lab' : item.type }}
-                                        </span>
-                                        <span class="font-semibold text-foreground">{{ item.title }}</span>
-                                    </div>
-                                    <span class="mt-0.5 block text-[11px] text-muted-foreground">
-                                        Conducted: {{ readableDate(item.conducted_on) }}
-                                    </span>
-                                    <p v-if="student?.remarks?.[item.id]" class="mt-1 text-[11px] font-medium text-amber-700 dark:text-amber-300">
-                                        Justification: "{{ student.remarks[item.id] }}"
-                                    </p>
-                                </div>
-
-                                <div class="text-right font-mono">
-                                    <span
-                                        class="shadow-xs mx-1 inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-rose-800 bg-rose-700 px-2.5 py-1 text-xs font-bold text-white"
-                                    >
-                                        {{ item.score }}/{{ item.max }} ({{ item.pct }}%)
-                                    </span>
-                                    <span class="mt-0.5 block text-[10px] text-muted-foreground"
-                                        >Passing: {{ getPassingRateForAssessment(item.type) }}%</span
-                                    >
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Failing Projects Section -->
-                    <div v-if="failingProjects.length > 0" class="space-y-3">
-                        <div class="flex items-center gap-2">
-                            <AlertCircle class="size-4 text-rose-600 dark:text-rose-400" />
-                            <h3 class="text-sm font-bold text-foreground">Failing Project Scores ({{ failingProjects.length }})</h3>
-                        </div>
-
-                        <div class="divide-y divide-border/60 rounded-xl border border-border/80 bg-secondary/20">
-                            <div v-for="item in failingProjects" :key="item.id" class="flex items-center justify-between gap-4 px-4 py-3 text-xs">
-                                <div>
-                                    <div class="flex items-center gap-2">
-                                        <span
-                                            class="shadow-2xs mx-1 inline-flex shrink-0 items-center whitespace-nowrap rounded px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white"
-                                            :class="typeBadgeClass(item.type)"
-                                        >
-                                            {{ typeLabel(item.type) }}
-                                        </span>
-                                        <span class="font-semibold text-foreground">{{ item.title }}</span>
-                                    </div>
-                                    <span class="mt-0.5 block text-[11px] text-muted-foreground">
-                                        Conducted: {{ readableDate(item.conducted_on) }}
-                                    </span>
-                                    <p
-                                        v-if="student?.project_notes?.[item.id]"
-                                        class="mt-1 text-[11px] font-medium text-amber-700 dark:text-amber-300"
-                                    >
-                                        Justification: "{{ student.project_notes[item.id] }}"
-                                    </p>
-                                </div>
-
-                                <div class="text-right font-mono">
-                                    <span
-                                        class="shadow-xs mx-1 inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-rose-800 bg-rose-700 px-2.5 py-1 text-xs font-bold text-white"
-                                    >
-                                        {{ item.score }}/{{ item.max }} ({{ item.pct }}%)
-                                    </span>
-                                    <span class="mt-0.5 block text-[10px] text-muted-foreground"
-                                        >Passing: {{ getPassingRateForProject(item.type) }}%</span
-                                    >
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </template>
-
-                <!-- Attendance Deficiencies Summary -->
-                <div v-if="student.attendance && (student.attendance.absent_count > 0 || student.attendance.late_count > 0)" class="space-y-3">
-                    <div class="flex items-center gap-2">
-                        <UserX class="size-4 text-cyan-600 dark:text-cyan-400" />
-                        <h3 class="text-sm font-bold text-foreground">Attendance Standing</h3>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                        <div class="rounded-xl border border-border/80 bg-secondary/20 p-3 text-center">
-                            <span class="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total Sessions</span>
-                            <span class="mt-0.5 block font-mono text-base font-bold text-foreground">{{ student.attendance.total_sessions }}</span>
-                        </div>
-                        <div class="shadow-xs rounded-xl border border-emerald-800 bg-emerald-700 p-3 text-center">
-                            <span class="block text-[10px] font-bold uppercase tracking-wider text-white/90">Present</span>
-                            <span class="mt-0.5 block font-mono text-base font-bold text-white">{{ student.attendance.present_count }}</span>
-                        </div>
-                        <div class="shadow-xs rounded-xl border border-amber-800 bg-amber-700 p-3 text-center">
-                            <span class="block text-[10px] font-bold uppercase tracking-wider text-white/90">Late</span>
-                            <span class="mt-0.5 block font-mono text-base font-bold text-white">{{ student.attendance.late_count }}</span>
-                        </div>
-                        <div class="shadow-xs rounded-xl border border-rose-800 bg-rose-700 p-3 text-center">
-                            <span class="block text-[10px] font-bold uppercase tracking-wider text-white/90">Absent</span>
-                            <span class="mt-0.5 block font-mono text-base font-bold text-white">{{ student.attendance.absent_count }}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- TAB: ACTIVITY & SCORE LOG -->
-                <template v-if="currentTab === 'activity_log'">
-                    <div class="space-y-4">
-                        <!-- Category Sub-filter Pills -->
-                        <div class="flex flex-wrap items-center gap-1.5 border-b border-border/60 pb-3">
-                            <button
-                                type="button"
-                                class="inline-flex shrink-0 items-center whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors"
-                                :class="
-                                    logCategoryFilter === 'all'
-                                        ? 'shadow-2xs bg-zinc-800 text-white'
-                                        : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
-                                "
-                                @click="logCategoryFilter = 'all'"
-                            >
-                                All Items ({{ allActivityLogs.length }})
-                            </button>
-                            <button
-                                type="button"
-                                class="inline-flex shrink-0 items-center whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors"
-                                :class="
-                                    logCategoryFilter === 'activity'
-                                        ? 'shadow-xs bg-emerald-700 text-white'
-                                        : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
-                                "
-                                @click="logCategoryFilter = 'activity'"
-                            >
-                                Activities ({{ allActivityLogs.filter((i) => i.type === 'activity').length }})
-                            </button>
-                            <button
-                                type="button"
-                                class="inline-flex shrink-0 items-center whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors"
-                                :class="
-                                    logCategoryFilter === 'quiz'
-                                        ? 'shadow-xs bg-blue-700 text-white'
-                                        : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
-                                "
-                                @click="logCategoryFilter = 'quiz'"
-                            >
-                                Quizzes ({{ allActivityLogs.filter((i) => i.type === 'quiz').length }})
-                            </button>
-                            <button
-                                v-if="allActivityLogs.some((i) => i.type === 'laboratory')"
-                                type="button"
-                                class="inline-flex shrink-0 items-center whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors"
-                                :class="
-                                    logCategoryFilter === 'laboratory'
-                                        ? 'shadow-xs bg-cyan-700 text-white'
-                                        : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
-                                "
-                                @click="logCategoryFilter = 'laboratory'"
-                            >
-                                Laboratories ({{ allActivityLogs.filter((i) => i.type === 'laboratory').length }})
-                            </button>
-                            <button
-                                type="button"
-                                class="inline-flex shrink-0 items-center whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors"
-                                :class="
-                                    logCategoryFilter === 'exam'
-                                        ? 'shadow-xs bg-purple-700 text-white'
-                                        : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
-                                "
-                                @click="logCategoryFilter = 'exam'"
-                            >
-                                Exams ({{ allActivityLogs.filter((i) => i.type === 'exam').length }})
-                            </button>
-                            <button
-                                v-if="allActivityLogs.some((i) => i.isProject)"
-                                type="button"
-                                class="inline-flex shrink-0 items-center whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors"
-                                :class="
-                                    logCategoryFilter === 'project'
-                                        ? 'shadow-xs bg-teal-700 text-white'
-                                        : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
-                                "
-                                @click="logCategoryFilter = 'project'"
-                            >
-                                Projects & Reports ({{ allActivityLogs.filter((i) => i.isProject).length }})
-                            </button>
-                            <button
-                                type="button"
-                                class="inline-flex shrink-0 items-center whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors"
-                                :class="
-                                    logCategoryFilter === 'deficiencies'
-                                        ? 'shadow-xs bg-rose-700 text-white'
-                                        : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
-                                "
-                                @click="logCategoryFilter = 'deficiencies'"
-                            >
-                                Deficiencies Only ({{ allActivityLogs.filter((i) => i.status !== 'passed').length }})
-                            </button>
-                        </div>
-
-                        <!-- Individual Activity List / Log -->
-                        <div
-                            v-if="filteredActivityLogs.length > 0"
-                            class="divide-y divide-border/60 rounded-xl border border-border/80 bg-secondary/20"
-                        >
-                            <div
-                                v-for="item in filteredActivityLogs"
-                                :key="item.key"
-                                class="flex flex-col gap-2 p-3.5 text-xs transition-colors hover:bg-secondary/40 sm:flex-row sm:items-center sm:justify-between"
-                            >
-                                <div class="min-w-0 flex-1">
-                                    <div class="flex flex-wrap items-center gap-2">
-                                        <span
-                                            class="shadow-2xs mx-1 inline-flex shrink-0 items-center whitespace-nowrap rounded px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white"
-                                            :class="
-                                                item.type === 'exam'
-                                                    ? 'bg-purple-700'
-                                                    : item.type === 'quiz'
-                                                      ? 'bg-blue-700'
-                                                      : item.type === 'laboratory'
-                                                        ? 'bg-cyan-700'
-                                                        : item.type === 'group_activity'
-                                                          ? 'bg-emerald-700'
-                                                          : item.type === 'reporting'
-                                                            ? 'bg-indigo-700'
-                                                            : item.type === 'project'
-                                                              ? 'bg-teal-700'
-                                                              : 'bg-emerald-700'
-                                            "
-                                        >
-                                            {{ item.typeLabel }}
-                                        </span>
-                                        <h4 class="font-semibold text-foreground">{{ item.title }}</h4>
-                                    </div>
-
-                                    <div class="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-                                        <span>Conducted: {{ readableDate(item.conducted_on) }}</span>
-                                        <span v-if="item.remarks" class="font-medium text-amber-700 dark:text-amber-300">
-                                            Feedback: "{{ item.remarks }}"
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div class="shrink-0 text-left font-mono sm:text-right">
-                                    <template v-if="item.status === 'passed'">
-                                        <span
-                                            class="shadow-xs mx-1 inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-emerald-800 bg-emerald-700 px-2.5 py-1 text-xs font-bold text-white"
-                                        >
-                                            <CheckCircle2 class="size-3 shrink-0" />
-                                            {{ item.score }}/{{ item.max_points }} ({{ item.pct }}%)
-                                        </span>
-                                        <span class="mt-0.5 block text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">
-                                            Passed · {{ item.isProject ? getPassingRateForProject(item.type) : getPassingRateForAssessment(item.type) }}%+
-                                        </span>
-                                    </template>
-                                    <template v-else-if="item.status === 'failed'">
-                                        <span
-                                            class="shadow-xs mx-1 inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-rose-800 bg-rose-700 px-2.5 py-1 text-xs font-bold text-white"
-                                        >
-                                            <AlertCircle class="size-3 shrink-0" />
-                                            {{ item.score }}/{{ item.max_points }} ({{ item.pct }}%)
-                                        </span>
-                                        <span class="mt-0.5 block text-[10px] font-semibold text-rose-700 dark:text-rose-400">
-                                            Failed · Below {{ item.isProject ? getPassingRateForProject(item.type) : getPassingRateForAssessment(item.type) }}%
-                                        </span>
-                                    </template>
-                                    <template v-else>
-                                        <span
-                                            class="shadow-xs mx-1 inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-amber-800 bg-amber-700 px-2.5 py-1 text-xs font-bold text-white"
-                                        >
-                                            <AlertTriangle class="size-3 shrink-0" />
-                                            Uncomplied / 0 / {{ item.max_points }}
-                                        </span>
-                                        <span class="mt-0.5 block text-[10px] font-semibold text-amber-700 dark:text-amber-400"
-                                            >Missing submission</span
-                                        >
-                                    </template>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div v-else class="rounded-xl border border-dashed border-border/80 p-8 text-center text-xs text-muted-foreground">
-                            No coursework items found matching this filter.
-                        </div>
-                    </div>
-                </template>
-            </div>
-        </div>
+        </section>
     </div>
 </template>
+
+<style scoped>
+.grade-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgb(16 18 21 / 0.56);
+    backdrop-filter: blur(5px);
+}
+.grade-dialog {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 800px;
+    max-height: 92dvh;
+    overflow: hidden;
+    border: 1px solid rgb(255 255 255 / 0.18);
+    border-radius: 16px;
+    background: hsl(var(--card));
+    color: hsl(var(--foreground));
+    box-shadow: 0 24px 80px rgb(0 0 0 / 0.24);
+}
+.grade-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 28px;
+    border-top: 6px solid hsl(var(--primary));
+    background: #242527;
+    color: #fff;
+}
+.student-identity {
+    min-width: 0;
+}
+.grade-header .eyebrow {
+    margin-bottom: 10px;
+    color: hsl(var(--primary));
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.4;
+    text-transform: uppercase;
+    letter-spacing: 0.13em;
+}
+.grade-header h2 {
+    color: #fff;
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1.16;
+    letter-spacing: -0.04em;
+    overflow-wrap: anywhere;
+}
+.course-label {
+    margin-top: 10px;
+    color: rgb(255 255 255 / 0.68);
+    font-size: 12px;
+    letter-spacing: 0.015em;
+}
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+.icon-action {
+    display: inline-grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid rgb(255 255 255 / 0.12);
+    border-radius: 7px;
+    background: rgb(255 255 255 / 0.04);
+    color: rgb(255 255 255 / 0.8);
+    transition:
+        background-color 0.16s ease,
+        color 0.16s ease;
+}
+.icon-action:hover {
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+}
+.grade-dialog button:focus-visible,
+.grade-dialog select:focus-visible,
+.log-search:focus-within {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 3px;
+}
+.grade-header button:focus-visible {
+    outline-color: hsl(var(--primary));
+}
+.grade-tabs {
+    display: flex;
+    flex-shrink: 0;
+    gap: 20px;
+    margin: 0 28px;
+    overflow-x: auto;
+    border-bottom: 1px solid hsl(var(--border));
+}
+.grade-tabs button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 16px 0 13px;
+    border-bottom: 3px solid transparent;
+    color: hsl(var(--muted-foreground));
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition:
+        border-color 0.16s ease,
+        color 0.16s ease;
+}
+.grade-tabs button:hover {
+    color: hsl(var(--foreground));
+}
+.grade-tabs button.active {
+    border-bottom-color: hsl(var(--primary));
+    color: hsl(var(--foreground));
+    font-weight: 600;
+}
+.grade-tabs button > span {
+    color: hsl(var(--muted-foreground));
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+}
+.grade-tabs button.active > span {
+    color: hsl(var(--primary-text));
+}
+.log-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 28px;
+}
+.filter-label select {
+    max-width: 190px;
+    padding: 8px 30px 8px 0;
+    border: 0;
+    border-bottom: 1px solid hsl(var(--border));
+    border-radius: 0;
+    background-color: transparent;
+    color: hsl(var(--foreground));
+    font-size: 12px;
+    box-shadow: none;
+}
+.result-count {
+    color: hsl(var(--muted-foreground));
+    font-size: 11px;
+}
+.search-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    margin-left: auto;
+    padding: 9px 13px;
+    border: 1px solid hsl(var(--primary) / 0.5);
+    border-radius: 7px;
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    font-size: 12px;
+    font-weight: 600;
+}
+.search-action:hover {
+    filter: brightness(0.96);
+}
+.log-search {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    margin: 0 28px 16px;
+    padding: 0 12px;
+    border: 1px solid hsl(var(--border));
+    border-radius: 7px;
+    background: hsl(var(--background));
+}
+.log-search input {
+    width: 100%;
+    min-width: 0;
+    padding: 11px 0;
+    border: none;
+    background: transparent;
+    color: hsl(var(--foreground));
+    font-size: 13px;
+    box-shadow: none;
+    outline: none;
+}
+.grade-content {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0 28px 24px;
+    background: hsl(var(--card));
+}
+.category-list {
+    border-top: 2px solid hsl(var(--foreground) / 0.85);
+    border-bottom: 1px solid hsl(var(--border));
+}
+.category-group {
+    --category-hue: 215;
+    background: hsl(var(--card));
+}
+.category-group + .category-group {
+    border-top: 1px solid hsl(var(--border));
+}
+.category-group[data-category='activity'] {
+    --category-hue: 152;
+}
+.category-group[data-category='exam'] {
+    --category-hue: 273;
+}
+.category-group[data-category='laboratory'] {
+    --category-hue: 185;
+}
+.category-group[data-category='project'] {
+    --category-hue: 174;
+}
+.category-group[data-expanded='true'] > h3 {
+    background: hsl(var(--accent));
+}
+.category-toggle {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) auto 18px;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    padding: 21px 12px;
+    text-align: left;
+    transition: background-color 0.16s ease;
+}
+.category-toggle:hover {
+    background: hsl(var(--accent) / 0.6);
+}
+.category-toggle:focus-visible {
+    outline-offset: -4px !important;
+}
+.category-index {
+    align-self: start;
+    margin-top: 4px;
+    color: hsl(var(--primary-text));
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+}
+.category-heading {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    line-height: 1.25;
+}
+.category-heading small {
+    color: hsl(var(--muted-foreground));
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 1.4;
+    letter-spacing: 0;
+}
+.category-total {
+    color: hsl(var(--foreground));
+    font-size: 31px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.045em;
+    line-height: 1.15;
+    white-space: nowrap;
+}
+.category-total small {
+    color: hsl(var(--muted-foreground));
+    font-size: 15px;
+    font-weight: 400;
+    letter-spacing: 0;
+}
+.category-chevron {
+    color: hsl(var(--muted-foreground));
+    transition: transform 0.18s ease;
+}
+.category-chevron.expanded {
+    transform: rotate(180deg);
+}
+.category-details {
+    padding: 0 18px 0 54px;
+    border-top: 1px solid hsl(var(--border));
+    background: hsl(var(--background) / 0.65);
+}
+.category-empty {
+    padding: 20px 0;
+    color: hsl(var(--muted-foreground));
+    font-size: 13px;
+}
+.activity-list {
+    display: block;
+}
+.activity-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 24px;
+    padding: 20px 0;
+    border-bottom: 1px solid hsl(var(--border));
+    break-inside: avoid;
+}
+.activity-row:last-child {
+    border-bottom: 0;
+}
+.activity-type {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+    color: hsl(var(--type-hue, 215) 42% 36%);
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: 0.025em;
+}
+.activity-type::before {
+    content: '';
+    width: 5px;
+    height: 5px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: currentColor;
+}
+.activity-type[data-type='activity'] {
+    --type-hue: 152;
+}
+.activity-type[data-type='quiz'] {
+    --type-hue: 215;
+}
+.activity-type[data-type='laboratory'] {
+    --type-hue: 185;
+}
+.activity-type[data-type='exam'] {
+    --type-hue: 273;
+}
+.activity-type[data-type='project'] {
+    --type-hue: 174;
+}
+.activity-type[data-type='reporting'] {
+    --type-hue: 236;
+}
+.activity-type[data-type='group_activity'] {
+    --type-hue: 32;
+}
+:global(.dark .grade-dialog .activity-type) {
+    color: hsl(var(--type-hue, 215) 52% 74%);
+}
+.activity-main h3 {
+    color: hsl(var(--foreground));
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.45;
+    letter-spacing: -0.015em;
+    overflow-wrap: anywhere;
+}
+.activity-date {
+    margin-top: 6px;
+    color: hsl(var(--muted-foreground));
+    font-size: 11px;
+}
+.activity-result {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    align-self: start;
+    gap: 5px;
+    padding-top: 18px;
+    font-variant-numeric: tabular-nums;
+}
+.score-value {
+    color: hsl(var(--foreground));
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.3;
+    white-space: nowrap;
+}
+.score-max {
+    color: inherit;
+    opacity: 0.75;
+    font-size: 13px;
+    font-weight: 400;
+}
+.result-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+.passed .result-label,
+.passed .score-value {
+    color: #397356;
+}
+.failed .result-label,
+.failed .score-value {
+    color: #a34251;
+}
+.missing .result-label {
+    color: #876222;
+    font-weight: 500;
+}
+:global(.dark .grade-dialog .passed .result-label),
+:global(.dark .grade-dialog .passed .score-value) {
+    color: #a3c6b5;
+}
+:global(.dark .grade-dialog .failed .result-label),
+:global(.dark .grade-dialog .failed .score-value) {
+    color: #dfa6ac;
+}
+:global(.dark .grade-dialog .missing .result-label) {
+    color: #d6be96;
+}
+.activity-feedback {
+    grid-column: 1 / -1;
+    margin-top: 14px;
+    padding-left: 12px;
+    border-left: 2px solid hsl(var(--primary));
+    overflow-wrap: anywhere;
+}
+.activity-feedback > span {
+    display: block;
+    color: hsl(var(--muted-foreground));
+    font-size: 10px;
+    font-weight: 600;
+}
+.activity-feedback > p {
+    max-width: 68ch;
+    margin-top: 5px;
+    color: hsl(var(--foreground) / 0.85);
+    font-size: 13px;
+    line-height: 1.65;
+    white-space: pre-line;
+}
+.activity-feedback > .feedback-empty {
+    color: hsl(var(--muted-foreground));
+    font-size: 12px;
+}
+.grade-overview {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    margin-top: 26px;
+    padding: 0 0 24px;
+}
+.grade-overview > div {
+    padding: 0 20px;
+    border-right: 1px solid hsl(var(--border));
+}
+.grade-overview > div:first-child {
+    padding-left: 0;
+}
+.grade-overview > div:last-child {
+    border-right: 0;
+    padding-right: 0;
+}
+.grade-overview dt {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: hsl(var(--muted-foreground));
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.4;
+}
+.grade-overview dd {
+    margin-top: 10px;
+    color: hsl(var(--foreground));
+    font-size: 26px;
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: -0.04em;
+    font-variant-numeric: tabular-nums;
+}
+.grade-detail {
+    display: block;
+    min-height: 17px;
+    margin-top: 6px;
+    color: hsl(var(--muted-foreground));
+    font-size: 11px;
+}
+.attendance-section {
+    border-top: 1px solid hsl(var(--border));
+}
+.attendance-toggle {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 18px 0 0;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 500;
+}
+.attendance-toggle > svg {
+    color: hsl(var(--muted-foreground));
+    flex-shrink: 0;
+}
+.attendance-preview {
+    margin-left: auto;
+    color: hsl(var(--muted-foreground));
+    font-size: 11px;
+    font-weight: 400;
+}
+.attendance-chevron {
+    transition: transform 0.18s ease;
+}
+.attendance-chevron.expanded {
+    transform: rotate(180deg);
+}
+.attendance-details {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-top: 16px;
+    padding: 16px;
+    background: hsl(var(--background));
+}
+.attendance-details dt {
+    color: hsl(var(--muted-foreground));
+    font-size: 11px;
+}
+.attendance-details dd {
+    margin-top: 5px;
+    font-size: 20px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+.log-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 36px 16px;
+    border-top: 2px solid hsl(var(--foreground) / 0.85);
+    border-bottom: 1px solid hsl(var(--border));
+    color: hsl(var(--muted-foreground));
+    text-align: center;
+}
+.log-empty h3 {
+    color: hsl(var(--foreground));
+    font-size: 15px;
+    font-weight: 600;
+}
+.log-empty p {
+    max-width: 300px;
+    font-size: 13px;
+}
+.log-empty .search-action {
+    margin-left: 0;
+}
+@media (max-width: 540px) {
+    .grade-overlay {
+        padding: 10px;
+    }
+    .grade-dialog {
+        max-height: 95dvh;
+        border-radius: 12px;
+    }
+    .grade-header {
+        padding: 22px 18px;
+        gap: 12px;
+    }
+    .grade-header h2 {
+        font-size: 22px;
+    }
+    .eyebrow {
+        font-size: 9px;
+        margin-bottom: 8px;
+    }
+    .course-label {
+        font-size: 11px;
+        margin-top: 8px;
+    }
+    .header-actions {
+        gap: 4px;
+    }
+    .icon-action {
+        width: 30px;
+        height: 32px;
+        border-radius: 6px;
+    }
+    .grade-tabs {
+        margin: 0 18px;
+        gap: 18px;
+    }
+    .grade-tabs button {
+        font-size: 11px;
+        padding: 13px 0 11px;
+    }
+    .grade-tabs button > span {
+        font-size: 10px;
+    }
+    .log-toolbar {
+        padding: 14px 18px;
+        gap: 8px;
+    }
+    .filter-label select {
+        max-width: 150px;
+        font-size: 11px;
+    }
+    .search-action {
+        padding: 8px 10px;
+        font-size: 11px;
+    }
+    .result-count {
+        font-size: 11px;
+    }
+    .log-search {
+        margin: 0 18px 14px;
+    }
+    .grade-content {
+        padding: 0 18px 20px;
+    }
+    .category-toggle {
+        grid-template-columns: 19px minmax(0, 1fr) auto 14px;
+        gap: 10px;
+        padding: 18px 4px;
+    }
+    .category-heading {
+        font-size: 16px;
+    }
+    .category-heading small {
+        font-size: 10px;
+    }
+    .category-total {
+        font-size: 25px;
+    }
+    .category-total small {
+        font-size: 13px;
+    }
+    .category-index {
+        font-size: 10px;
+    }
+    .category-details {
+        padding: 0 10px;
+    }
+    .activity-row {
+        column-gap: 12px;
+        padding: 18px 0;
+    }
+    .activity-main h3 {
+        font-size: 14px;
+    }
+    .activity-date {
+        font-size: 10px;
+    }
+    .activity-type {
+        font-size: 10px;
+    }
+    .activity-result {
+        padding-top: 17px;
+    }
+    .score-value {
+        font-size: 19px;
+    }
+    .score-max {
+        font-size: 12px;
+    }
+    .result-label {
+        font-size: 10px;
+    }
+    .activity-feedback > p {
+        font-size: 12px;
+    }
+    .grade-overview {
+        margin-top: 22px;
+        padding-bottom: 22px;
+    }
+    .grade-overview > div {
+        padding: 0 12px;
+    }
+    .grade-overview dt {
+        font-size: 10px;
+    }
+    .grade-overview dt > svg {
+        display: none;
+    }
+    .grade-overview dd {
+        font-size: 24px;
+    }
+    .grade-detail {
+        font-size: 10px;
+    }
+    .attendance-toggle {
+        gap: 7px;
+        font-size: 12px;
+    }
+    .attendance-preview {
+        font-size: 10px;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .attendance-chevron,
+    .category-chevron,
+    .category-toggle,
+    .icon-action,
+    .grade-tabs button {
+        transition: none;
+    }
+}
+@media print {
+    :global(.dark .grade-dialog .activity-type) {
+        color: hsl(var(--type-hue, 215) 42% 36%);
+    }
+    .header-actions,
+    .grade-tabs,
+    .log-toolbar,
+    .log-search,
+    .log-empty .search-action,
+    .category-chevron,
+    .attendance-chevron {
+        display: none;
+    }
+    .grade-overlay {
+        position: static;
+        display: block;
+        padding: 0;
+        background: none;
+        backdrop-filter: none;
+    }
+    .grade-dialog {
+        display: block;
+        max-height: none;
+        max-width: none;
+        border: none;
+        border-radius: 0;
+        background: white;
+        color: black;
+        box-shadow: none;
+    }
+    .grade-header {
+        border-top: 3px solid black;
+        background: white;
+        color: black;
+    }
+    .grade-header h2,
+    .grade-header .eyebrow,
+    .course-label {
+        color: black;
+    }
+    .grade-content {
+        overflow: visible;
+        background: white;
+    }
+    .category-details {
+        display: block !important;
+        background: white;
+    }
+    .category-toggle {
+        break-after: avoid;
+    }
+    .category-group[data-expanded='true'] > h3 {
+        background: white;
+    }
+    .attendance-details {
+        display: grid !important;
+    }
+}
+</style>

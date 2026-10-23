@@ -499,7 +499,7 @@ function deleteSession() {
                             <div class="mb-3 flex items-center justify-between gap-4">
                                 <Link
                                     :href="`/sections/${section.id}/attendance`"
-                                    prefetch="hover"
+                                    :prefetch="$page.props.is_offline ? false : 'hover'"
                                     class="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground transition-colors hover:text-primary"
                                 >
                                     <ArrowLeft class="size-4" /> Back to attendance register

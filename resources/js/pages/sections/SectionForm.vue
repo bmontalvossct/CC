@@ -650,7 +650,7 @@ const submit = () => {
 
         <div class="flex items-center justify-end gap-3 border-t border-border/80 pt-6">
             <Button as-child variant="ghost" class="rounded-xl text-sm font-medium">
-                <Link href="/sections" prefetch="hover">Cancel</Link>
+                <Link href="/sections" :prefetch="$page.props.is_offline ? false : 'hover'">Cancel</Link>
             </Button>
             <Button class="ink-button !rounded-xl font-medium" :disabled="form.processing">
                 {{ form.processing ? 'Saving...' : section ? 'Save changes' : 'Create section' }}

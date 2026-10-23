@@ -82,7 +82,7 @@ const reloadPage = () => {
             <div class="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
                 <Link
                     href="/dashboard"
-                    prefetch="hover"
+                    :prefetch="$page.props.is_offline ? false : 'hover'"
                     class="shadow-xs group inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-primary bg-white px-5 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card sm:w-auto"
                 >
                     <Home class="size-4 text-primary transition-colors group-hover:text-white" />

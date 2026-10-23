@@ -18,6 +18,10 @@ const sidebarNavItems = computed<NavItem[]>(() => {
             title: 'Academic Term',
             href: '/settings/academic-term',
         },
+        {
+            title: 'Grading formula',
+            href: '/settings/grading-formula',
+        },
     ];
 
     if (!page.props.is_offline) {

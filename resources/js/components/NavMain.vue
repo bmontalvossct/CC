@@ -108,7 +108,7 @@ const handleSelectSection = (sec: any) => {
                         :is-active="page.url === item.href || (item.href === '/sections' && page.url === '/sections')"
                         class="data-[active=true]:shadow-xs h-10 rounded-xl px-3.5 font-medium text-sidebar-foreground/80 transition-all duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground data-[active=true]:bg-primary data-[active=true]:text-white [&[data-active=true]_svg]:text-white"
                     >
-                        <Link :href="item.href" prefetch="hover" cache-for="1m" class="flex items-center gap-3">
+                        <Link :href="item.href" :prefetch="$page.props.is_offline ? false : 'hover'" cache-for="1m" class="flex items-center gap-3">
                             <component :is="item.icon" class="size-4 shrink-0 transition-transform group-hover:scale-110" />
                             <span class="text-sm">{{ item.title }}</span>
                         </Link>
@@ -156,7 +156,7 @@ const handleSelectSection = (sec: any) => {
                         v-for="sec in userSectionsList"
                         :key="sec.id"
                         :href="`/sections/${sec.id}`"
-                        prefetch="hover"
+                        :prefetch="$page.props.is_offline ? false : 'hover'"
                         cache-for="1m"
                         class="flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors"
                         :class="
@@ -180,7 +180,7 @@ const handleSelectSection = (sec: any) => {
                         :is-active="isSubNavActive(nav.href, nav.exact)"
                         class="data-[active=true]:shadow-xs h-9 rounded-xl px-3 text-xs font-medium text-sidebar-foreground/80 transition-all duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground data-[active=true]:bg-primary data-[active=true]:text-white [&[data-active=true]_svg]:text-white"
                     >
-                        <Link :href="nav.href" prefetch="hover" cache-for="1m" class="flex items-center gap-2.5">
+                        <Link :href="nav.href" :prefetch="$page.props.is_offline ? false : 'hover'" cache-for="1m" class="flex items-center gap-2.5">
                             <component :is="nav.icon" class="size-3.5 shrink-0" />
                             <span class="truncate">{{ nav.title }}</span>
                         </Link>
@@ -202,7 +202,7 @@ const handleSelectSection = (sec: any) => {
                     >
                         <Link
                             :href="`/sections/${sec.id}`"
-                            prefetch="hover"
+                            :prefetch="$page.props.is_offline ? false : 'hover'"
                             cache-for="1m"
                             class="flex items-center justify-between"
                             @click="handleSelectSection(sec)"

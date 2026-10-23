@@ -38,3 +38,9 @@ yarn-error.log
 .env*
 /scratch
 /dist
+
+# Generated test copies, backups, and browser/build artifacts
+/output/
+/.playwright-mcp/
+/.playwright-cli/
+/bootstrap/ssr/

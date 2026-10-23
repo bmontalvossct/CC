@@ -13,6 +13,7 @@ class AssessmentScore extends Model
         'score',
         'remarks',
         'absence_override',
+        'marked_absent',
         'attachment_path',
         'attachment_name',
         'attachment_mime',
@@ -23,6 +24,7 @@ class AssessmentScore extends Model
         return [
             'score' => 'decimal:2',
             'absence_override' => 'boolean',
+            'marked_absent' => 'boolean',
         ];
     }
 

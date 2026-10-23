@@ -548,7 +548,7 @@ const filteredStudentSummaries = computed(() => {
                                 v-for="session in sessions"
                                 :key="session.id"
                                 :href="`/attendance/${session.id}`"
-                                prefetch="hover"
+                                :prefetch="$page.props.is_offline ? false : 'hover'"
                                 class="group flex items-center justify-between gap-4 rounded-xl px-3 py-4 transition-colors hover:bg-secondary/60"
                             >
                                 <div>

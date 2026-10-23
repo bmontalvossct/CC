@@ -6,8 +6,10 @@ import RubricManagerModal from '@/components/assessments/RubricManagerModal.vue'
 import DisabledReason from '@/components/DisabledReason.vue';
 import FilePreviewModal from '@/components/FilePreviewModal.vue';
 import OctoSpinner from '@/components/OctoSpinner.vue';
+import VoiceScoreEntry from '@/components/VoiceScoreEntry.vue';
 import { useAiAssistant } from '@/composables/useAiAssistant';
 import AppLayout from '@/layouts/AppLayout.vue';
+import type { ScoreAction } from '@/lib/voiceScores';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
     ArrowLeft,
@@ -16,6 +18,7 @@ import {
     Download,
     Keyboard,
     LoaderCircle,
+    Mic,
     Paperclip,
     RefreshCw,
     RotateCcw,
@@ -44,6 +47,7 @@ type Student = {
     score: string | null;
     remarks?: string | null;
     absence_override: boolean;
+    marked_absent?: boolean;
     attachment_path?: string | null;
     attachment_name?: string | null;
     attachment_mime?: string | null;
@@ -233,6 +237,8 @@ const runAiCheck = async (student: Student, batch = false): Promise<boolean> => 
 
         if (response.ok && data.success) {
             scores[student.id] = data.score;
+            markedAbsent[student.id] = false;
+            lastSavedAbsent[student.id] = false;
             remarks[student.id] = data.remarks ?? '';
             lastSavedScores[student.id] = normalize(data.score);
             lastSavedRemarks[student.id] = toCleanString(data.remarks ?? '');
@@ -410,6 +416,54 @@ const initialRemarksMap = Object.fromEntries(props.students.map((student) => [st
 const remarks = reactive<Record<number, string>>({ ...initialRemarksMap });
 const lastSavedRemarks = reactive<Record<number, string>>({ ...initialRemarksMap });
 
+const markedAbsent = reactive<Record<number, boolean>>(Object.fromEntries(props.students.map((student) => [student.id, !!student.marked_absent])));
+const lastSavedAbsent = reactive<Record<number, boolean>>({ ...markedAbsent });
+const voiceEntry = ref<InstanceType<typeof VoiceScoreEntry>>();
+const voiceActive = ref(false);
+const voiceSaveError = ref('');
+const voiceStudents = computed(() =>
+    props.students.map((student) => ({ ...student, first_name: student.first_name ?? '', last_name: student.last_name ?? '' })),
+);
+const recordVoice = async (id: number, action: Exclude<ScoreAction, { type: 'pass' }>): Promise<boolean> => {
+    const student = props.students.find((item) => item.id === id);
+    if (!student || isSaving.value || hasUnsavedChanges.value) {
+        voiceSaveError.value = 'Save pending edits before continuing voice entry.';
+        return false;
+    }
+    voiceSaveError.value = '';
+    try {
+        const token = decodeURIComponent(
+            document.cookie
+                .split('; ')
+                .find((row) => row.startsWith('XSRF-TOKEN='))
+                ?.split('=')[1] ?? '',
+        );
+        const response = await fetch(`/sections/${props.section.id}/assessments/${props.assessment.id}/scores/${id}`, {
+            method: 'PATCH',
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-XSRF-TOKEN': token },
+            body: JSON.stringify({
+                score: action.type === 'score' ? action.score : null,
+                mark_absent: action.type === 'absent',
+                remarks: remarks[id] || null,
+                include_absent: includeAbsent.value,
+            }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.errors?.score?.[0] || data.message || 'Could not save this entry.');
+        scores[id] = data.score ?? '';
+        lastSavedScores[id] = normalize(data.score);
+        markedAbsent[id] = !!data.marked_absent;
+        lastSavedAbsent[id] = !!data.marked_absent;
+        student.score = data.score;
+        student.marked_absent = !!data.marked_absent;
+        return true;
+    } catch (error) {
+        voiceSaveError.value = error instanceof Error ? error.message : 'Could not save. Check your connection and retry.';
+        return false;
+    }
+};
+
 const inputs = new Map<number, HTMLInputElement>();
 
 const isSaving = ref(false);
@@ -433,6 +487,7 @@ const hasInvalidScore = (studentId: number): boolean => {
 const isUnsaved = (studentId: number): boolean => {
     return (
         normalize(scores[studentId]) !== normalize(lastSavedScores[studentId]) ||
+        markedAbsent[studentId] !== lastSavedAbsent[studentId] ||
         toCleanString(remarks[studentId]) !== toCleanString(lastSavedRemarks[studentId])
     );
 };
@@ -529,8 +584,6 @@ const unsavedCount = computed(() => {
     return props.students.filter((s) => isUnsaved(s.id)).length;
 });
 
-const eligible = computed(() => props.students.filter((student) => !student.is_absent || includeAbsent.value));
-
 // Search and Status Filters
 const searchQuery = ref('');
 const statusFilter = ref<'all' | 'unrecorded' | 'recorded' | 'absent'>('all');
@@ -541,11 +594,11 @@ const filteredStudents = computed(() => {
 
     // 1. Filter by status tab
     if (statusFilter.value === 'unrecorded') {
-        list = list.filter((s) => toCleanString(scores[s.id]) === '' && (!s.is_absent || includeAbsent.value));
+        list = list.filter((s) => toCleanString(scores[s.id]) === '' && !markedAbsent[s.id] && (!s.is_absent || includeAbsent.value));
     } else if (statusFilter.value === 'recorded') {
         list = list.filter((s) => toCleanString(scores[s.id]) !== '');
     } else if (statusFilter.value === 'absent') {
-        list = list.filter((s) => s.is_absent);
+        list = list.filter((s) => s.is_absent || markedAbsent[s.id]);
     }
 
     // 2. Filter by search query
@@ -566,7 +619,7 @@ const counts = computed(() => {
     const total = props.students.length;
     const recorded = props.students.filter((s) => toCleanString(scores[s.id]) !== '').length;
     const unrecorded = props.students.filter((s) => toCleanString(scores[s.id]) === '' && (!s.is_absent || includeAbsent.value)).length;
-    const absent = props.students.filter((s) => s.is_absent).length;
+    const absent = props.students.filter((s) => s.is_absent || markedAbsent[s.id]).length;
     return { total, recorded, unrecorded, absent };
 });
 
@@ -608,8 +661,8 @@ const liveSummary = computed(() => {
     });
 
     const graded = validScores.length;
-    const missing = Math.max(0, eligible.value.length - graded);
-    const absent = props.students.filter((s) => s.is_absent).length;
+    const missing = props.students.filter((s) => !s.is_absent && !markedAbsent[s.id] && toCleanString(scores[s.id]) === '').length;
+    const absent = props.students.filter((s) => s.is_absent || markedAbsent[s.id]).length;
     const average = graded > 0 ? (validScores.reduce((a, b) => a + b, 0) / graded).toFixed(2) : null;
 
     return { graded, missing, absent, average };
@@ -648,7 +701,7 @@ const handleKey = (event: KeyboardEvent, student: Student) => {
 };
 
 const saveAll = () => {
-    if (isSaving.value) return;
+    if (isSaving.value || voiceActive.value) return;
 
     saveErrorMessage.value = '';
     saveSuccessMessage.value = '';
@@ -686,6 +739,7 @@ const saveAll = () => {
         {
             scores: payloadScores,
             remarks: payloadRemarks,
+            marked_absent: { ...markedAbsent },
             include_absent: includeAbsent.value,
         },
         {
@@ -695,6 +749,7 @@ const saveAll = () => {
                 isSaving.value = false;
                 props.students.forEach((student) => {
                     lastSavedScores[student.id] = normalize(scores[student.id]);
+                    lastSavedAbsent[student.id] = markedAbsent[student.id];
                     lastSavedRemarks[student.id] = toCleanString(remarks[student.id]);
                 });
                 saveSuccessMessage.value = 'All scores and remarks have been saved successfully!';
@@ -717,12 +772,14 @@ const saveAll = () => {
 const resetScores = () => {
     props.students.forEach((student) => {
         scores[student.id] = lastSavedScores[student.id] ?? '';
+        markedAbsent[student.id] = lastSavedAbsent[student.id] ?? false;
         remarks[student.id] = lastSavedRemarks[student.id] ?? '';
     });
     saveErrorMessage.value = '';
 };
 
 const handleGlobalKeydown = (e: KeyboardEvent) => {
+    if (voiceActive.value) return;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
         void saveAll();
@@ -758,7 +815,7 @@ onUnmounted(() => {
         <main class="page-enter mx-auto flex w-full max-w-[1360px] flex-1 flex-col gap-6 px-5 pb-24 pt-8 md:px-10 md:pt-10">
             <Link
                 :href="`/sections/${section.id}/assessments`"
-                prefetch="hover"
+                :prefetch="$page.props.is_offline ? false : 'hover'"
                 class="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-primary"
             >
                 <ArrowLeft class="size-3.5" /> Back to assessments
@@ -787,6 +844,15 @@ onUnmounted(() => {
                     </div>
 
                     <div class="flex flex-wrap items-center gap-2">
+                        <button
+                            type="button"
+                            :disabled="isSaving || hasUnsavedChanges"
+                            :title="hasUnsavedChanges ? 'Save pending edits before voice entry' : 'Record scores by voice'"
+                            class="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-semibold text-foreground hover:bg-secondary disabled:opacity-50"
+                            @click="voiceEntry?.start()"
+                        >
+                            <Mic class="size-4" />Voice entry
+                        </button>
                         <button
                             type="button"
                             :disabled="isSaving"
@@ -968,36 +1034,49 @@ onUnmounted(() => {
                 </div>
             </transition>
 
-            <!-- KPI Metric Chips -->
-            <section class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                <article class="paper-card p-5">
-                    <span class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Scores recorded</span>
-                    <p class="mt-3 text-2xl font-bold tracking-tight">
-                        {{ liveSummary.graded }}<span class="text-xs font-normal text-muted-foreground">/{{ students.length }}</span>
-                    </p>
-                </article>
+            <!-- Voice entry and score statistics -->
+            <div class="grid min-w-0 gap-4 lg:grid-cols-2">
+                <VoiceScoreEntry
+                    ref="voiceEntry"
+                    :students="voiceStudents"
+                    :record="recordVoice"
+                    :max-points="Number(assessment.max_points)"
+                    :assessment-title="assessment.title"
+                    :disabled="isSaving || hasUnsavedChanges"
+                    :save-error="voiceSaveError"
+                    @active="voiceActive = $event"
+                />
+                <section aria-label="Score statistics" class="grid min-w-0 grid-cols-2 gap-3">
+                    <article class="paper-card flex min-w-0 flex-col justify-center p-4">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Scores recorded</span>
+                        <p class="mt-2 text-2xl font-bold tracking-tight">
+                            {{ liveSummary.graded }}<span class="text-xs font-normal text-muted-foreground">/{{ students.length }}</span>
+                        </p>
+                    </article>
 
-                <article class="paper-card p-5">
-                    <span class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Class average</span>
-                    <p class="mt-3 text-2xl font-bold tracking-tight text-primary">
-                        {{ liveSummary.average !== null ? `${liveSummary.average} pts` : '—' }}
-                    </p>
-                </article>
+                    <article class="paper-card flex min-w-0 flex-col justify-center p-4">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Class average</span>
+                        <p class="mt-2 text-2xl font-bold tracking-tight text-primary">
+                            {{ liveSummary.average !== null ? `${liveSummary.average} pts` : '—' }}
+                        </p>
+                    </article>
 
-                <article class="paper-card p-5">
-                    <span class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Ungraded (Present)</span>
-                    <p class="mt-3 text-2xl font-bold tracking-tight">
-                        {{ liveSummary.missing }}
-                    </p>
-                </article>
+                    <article class="paper-card flex min-w-0 flex-col justify-center p-4">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Ungraded (Present)</span>
+                        <p class="mt-2 text-2xl font-bold tracking-tight">
+                            {{ liveSummary.missing }}
+                        </p>
+                    </article>
 
-                <article class="paper-card p-5">
-                    <span class="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">Absent from session</span>
-                    <p class="mt-3 text-2xl font-bold tracking-tight text-rose-600 dark:text-rose-400">
-                        {{ liveSummary.absent }}
-                    </p>
-                </article>
-            </section>
+                    <article class="paper-card flex min-w-0 flex-col justify-center p-4">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">Marked absent</span>
+                        <p class="mt-2 text-2xl font-bold tracking-tight text-rose-600 dark:text-rose-400">
+                            {{ liveSummary.absent }}
+                        </p>
+                    </article>
+                </section>
+            </div>
+            <p v-if="hasUnsavedChanges" class="text-xs text-muted-foreground">Save your pending score edits to enable voice entry.</p>
 
             <!-- Score Entry Table -->
             <section class="paper-card overflow-hidden p-6 shadow-sm">
@@ -1209,7 +1288,7 @@ onUnmounted(() => {
                                                     Chair {{ student.seat_label }}
                                                 </span>
                                                 <span
-                                                    v-if="student.is_absent"
+                                                    v-if="student.is_absent || markedAbsent[student.id]"
                                                     class="inline-flex items-center gap-1 rounded-full border border-rose-500/20 bg-rose-500/10 px-2 py-0.5 text-[10px] font-medium text-rose-600 dark:text-rose-400"
                                                 >
                                                     <UserX class="size-3" /> Absent
@@ -1227,11 +1306,11 @@ onUnmounted(() => {
                                                 }
                                             "
                                             v-model="scores[student.id]"
-                                            :disabled="student.is_absent && !includeAbsent"
+                                            :disabled="voiceActive || (student.is_absent && !includeAbsent)"
                                             type="number"
                                             min="0"
                                             :max="assessment.max_points"
-                                            step="0.01"
+                                            step="1"
                                             placeholder="—"
                                             inputmode="decimal"
                                             class="w-full rounded-xl border px-3 py-1.5 font-mono text-base font-bold tabular-nums transition-all focus:outline-none disabled:cursor-not-allowed disabled:bg-muted/40"
@@ -1243,6 +1322,7 @@ onUnmounted(() => {
                                                       : 'border-input bg-background text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20',
                                             ]"
                                             :aria-label="`Score for ${student.full_name}`"
+                                            @input="markedAbsent[student.id] = false"
                                             @focus="($event.target as HTMLInputElement)?.select()"
                                             @keydown="handleKey($event, student)"
                                         />
@@ -1548,7 +1628,7 @@ onUnmounted(() => {
                             required
                             type="number"
                             min="0.01"
-                            step="0.01"
+                            step="1"
                             class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
                         />
                         <small v-if="editForm.errors.max_points" class="mt-1 block text-xs text-rose-600">{{ editForm.errors.max_points }}</small>

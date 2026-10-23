@@ -2,7 +2,8 @@
 import OralPointsOverrideModal from '@/components/reports/OralPointsOverrideModal.vue';
 import StudentDeficienciesModal from '@/components/reports/StudentDeficienciesModal.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import type { GradingFormulaSettings } from '@/types/grading';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import {
     AlertCircle,
     ArrowDown,
@@ -18,12 +19,13 @@ import {
     Printer,
     RotateCcw,
     Save,
+    Search,
     Settings,
     Trophy,
     Wand2,
     X,
 } from 'lucide-vue-next';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 type Assessment = {
     id: number;
@@ -75,9 +77,12 @@ type PeriodMetrics = {
 
 type Row = {
     id: number;
+    first_name?: string;
+    last_name?: string;
     student_number: string;
     full_name: string;
     scores: Record<number, string | null>;
+    score_absences?: Record<number, boolean>;
     remarks?: Record<number, string | null>;
     categories: Record<'activity' | 'laboratory' | 'quiz' | 'exam', Category>;
     group_activity_scores?: Record<number, number | null>;
@@ -108,6 +113,7 @@ const props = withDefaults(
         projectSummary?: { count: number; possible: number };
         attendanceSummary?: { total_sessions: number; midterm_sessions?: number; final_sessions?: number };
         gradingWeights: Record<string, any>;
+        gradingFormula: GradingFormulaSettings;
         reportingFrequency?: 'once_per_sem' | 'twice_per_sem';
         midtermExam?: { id: number; title: string; conducted_on?: string; max_points?: any } | null;
         printMode: boolean;
@@ -121,6 +127,9 @@ const props = withDefaults(
 );
 
 const page = usePage<any>();
+const oralIsWeighted = computed(() => props.gradingFormula.customized && props.gradingFormula.recitation_mode === 'weighted');
+const oralResult = (recitation: Recitation) =>
+    oralIsWeighted.value ? (recitation.percentage === null ? '—' : `${recitation.percentage}%`) : `+${recitation.bonus_points ?? 0} pts`;
 const types = ['activity', 'laboratory', 'quiz', 'exam'] as const;
 const activeTypes = computed(() => {
     return types.filter(
@@ -130,6 +139,18 @@ const activeTypes = computed(() => {
 const showWeightsEditor = ref(false);
 const activePeriodTab = ref<'all' | 'midterm' | 'final'>('all');
 const viewMode = ref<'summary' | 'detailed'>('summary');
+const studentSearch = ref('');
+const showStudentSearch = ref(false);
+const studentSearchInput = ref<HTMLInputElement | null>(null);
+const toggleStudentSearch = async () => {
+    showStudentSearch.value = !showStudentSearch.value;
+    if (showStudentSearch.value) {
+        await nextTick();
+        studentSearchInput.value?.focus();
+    } else {
+        studentSearch.value = '';
+    }
+};
 
 // Column Sorting (DataTable Style)
 const sortColumn = ref<string>('student');
@@ -150,17 +171,8 @@ const toggleSort = (colKey: string) => {
 };
 
 const getScaleNumeric = (g: string): number => {
-    if (g === '1.00') return 1.0;
-    if (g === '1.25') return 1.25;
-    if (g === '1.50') return 1.5;
-    if (g === '1.75') return 1.75;
-    if (g === '2.00') return 2.0;
-    if (g === '2.25') return 2.25;
-    if (g === '2.50') return 2.5;
-    if (g === '2.75') return 2.75;
-    if (g === '3.00') return 3.0;
-    if (g === '5.00' || g === 'INC') return 5.0;
-    return 99; // uncomputed / missing
+    const numeric = Number(g);
+    return g.trim() !== '' && Number.isFinite(numeric) ? numeric : 999;
 };
 
 const getSortValue = (row: Row, key: string): number | string => {
@@ -193,7 +205,7 @@ const getSortValue = (row: Row, key: string): number | string => {
         return row.attendance?.percentage !== null && row.attendance?.percentage !== undefined ? row.attendance.percentage : -999999;
     }
     if (key === 'recitation') {
-        return row.recitation?.bonus_points ?? 0;
+        return oralIsWeighted.value ? (row.recitation?.percentage ?? -999999) : (row.recitation?.bonus_points ?? 0);
     }
     if (key === 'midterm') {
         return row.midterm?.weighted_grade !== null && row.midterm?.weighted_grade !== undefined ? row.midterm.weighted_grade : -999999;
@@ -228,7 +240,8 @@ const getSortValue = (row: Row, key: string): number | string => {
 };
 
 const sortedRows = computed(() => {
-    const list = [...props.rows];
+    const query = studentSearch.value.trim().toLocaleLowerCase();
+    const list = props.rows.filter((row) => !query || [row.full_name, row.student_number].some((value) => value.toLocaleLowerCase().includes(query)));
     const key = sortColumn.value;
     const dir = sortDirection.value === 'asc' ? 1 : -1;
 
@@ -281,6 +294,12 @@ const filteredProjects = computed(() => {
 
 // Student Activity & Deficiencies Modal
 const selectedStudent = ref<Row | null>(null);
+watch(
+    () => props.rows,
+    (rows) => {
+        if (selectedStudent.value) selectedStudent.value = rows.find((row) => row.id === selectedStudent.value?.id) ?? null;
+    },
+);
 const isModalOpen = ref(false);
 const modalInitialTab = ref<'activity_log' | 'deficiencies'>('activity_log');
 
@@ -482,29 +501,42 @@ const saveWeights = () => {
     });
 };
 
-const isFailing = (grade: string) => {
-    if (grade === '—') return false;
-    const n = parseFloat(grade);
-    return n > 3.0;
-};
-
 const gradeDisplay = (grade: string) => {
     if (grade === '—' || !grade) return '—';
     return grade;
 };
 
-// High contrast grade badge background helper (dark solid color with white text)
-const gradeBadgeBg = (grade: string) => {
-    if (grade === '—') return 'border-border bg-secondary text-foreground';
-    if (isFailing(grade) || grade === 'INC') return 'border-rose-800 bg-rose-700 text-white';
-    const n = parseFloat(grade);
-    if (n <= 1.5) return 'border-emerald-800 bg-emerald-700 text-white';
-    if (n <= 2.5) return 'border-blue-800 bg-blue-700 text-white';
-    return 'border-amber-800 bg-amber-700 text-white';
-};
+const gradeBadgeClasses = 'border-border bg-secondary text-foreground';
 
+const formulaLegend = computed(() =>
+    [100, 90, 80, 70, 60, 50, 0].map((percentage) => {
+        const formula = props.gradingFormula;
+        const grade = Number(formula.worst_grade) - ((Number(formula.worst_grade) - Number(formula.best_grade)) * percentage) / 100;
+        return { percentage, grade: grade.toFixed(Number(formula.decimal_places)), failing: grade > Number(formula.passing_grade) };
+    }),
+);
+let formulaRefreshTimer: ReturnType<typeof setTimeout> | undefined;
+const refreshFormula = () => {
+    if (props.printMode || document.hidden) return;
+    clearTimeout(formulaRefreshTimer);
+    formulaRefreshTimer = setTimeout(() => router.reload({ only: ['rows', 'gradingWeights', 'gradingFormula', 'reportingFrequency'] }), 100);
+};
+const formulaStorageChanged = (event: StorageEvent) => {
+    if (event.key === 'classcheck:grading-formula-updated') refreshFormula();
+};
 onMounted(() => {
     if (props.printMode) window.setTimeout(() => window.print(), 250);
+    else {
+        window.addEventListener('focus', refreshFormula);
+        window.addEventListener('storage', formulaStorageChanged);
+        document.addEventListener('visibilitychange', refreshFormula);
+    }
+});
+onBeforeUnmount(() => {
+    clearTimeout(formulaRefreshTimer);
+    window.removeEventListener('focus', refreshFormula);
+    window.removeEventListener('storage', formulaStorageChanged);
+    document.removeEventListener('visibilitychange', refreshFormula);
 });
 </script>
 
@@ -518,7 +550,7 @@ onMounted(() => {
             { title: 'Gradebook', href: '#' },
         ]"
     >
-        <main class="min-h-screen bg-background p-5 text-foreground md:p-8 print:bg-white print:p-0 print:text-black">
+        <main class="meta-theme min-h-screen bg-background p-5 text-foreground md:p-8 print:bg-white print:p-0 print:text-black">
             <div class="mx-auto max-w-[1680px]">
                 <!-- Flash Message -->
                 <div
@@ -532,7 +564,7 @@ onMounted(() => {
                 <div v-if="!printMode" class="mb-6 flex flex-wrap items-center justify-between gap-4 print:hidden">
                     <Link
                         :href="`/sections/${section.id}/assessments`"
-                        prefetch="hover"
+                        :prefetch="$page.props.is_offline ? false : 'hover'"
                         class="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
                     >
                         <ArrowLeft class="size-3.5" /> Back to assessments & projects
@@ -582,7 +614,14 @@ onMounted(() => {
                             <Mic class="size-3.5 text-muted-foreground" />
                             <span>Oral Points</span>
                         </button>
+                        <Link
+                            v-if="gradingFormula.customized"
+                            href="/settings/grading-formula"
+                            class="shadow-xs inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
+                            ><Settings class="size-3.5" />Grading formula</Link
+                        >
                         <button
+                            v-else
                             type="button"
                             class="shadow-xs inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
                             @click="showWeightsEditor = !showWeightsEditor"
@@ -610,7 +649,7 @@ onMounted(() => {
 
                 <!-- Rubrics Weights & Reporting Policy Editor Panel -->
                 <section
-                    v-if="showWeightsEditor && !printMode"
+                    v-if="showWeightsEditor && !printMode && !gradingFormula.customized"
                     class="paper-card mb-6 p-6 shadow-sm duration-200 animate-in slide-in-from-top-2 print:hidden"
                 >
                     <div class="mb-4 flex items-start justify-between gap-4">
@@ -634,11 +673,11 @@ onMounted(() => {
                     </div>
 
                     <!-- Oral Reporting Frequency Option -->
-                    <div class="mb-5 rounded-2xl border border-teal-500/30 bg-teal-500/5 p-4">
+                    <div class="mb-5 rounded-2xl border border-border bg-secondary/40 p-4">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <div class="flex items-center gap-2">
-                                    <Presentation class="size-4 text-teal-600 dark:text-teal-400" />
+                                    <Presentation class="size-4 text-foreground" />
                                     <span class="text-sm font-bold text-foreground">Oral Reporting Frequency & Grade Allocation</span>
                                 </div>
                                 <p class="mt-0.5 text-xs text-muted-foreground">
@@ -651,7 +690,7 @@ onMounted(() => {
                                     class="rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all"
                                     :class="
                                         weightsForm.reporting_frequency === 'once_per_sem'
-                                            ? 'shadow-xs border-teal-500 bg-teal-600 text-white'
+                                            ? 'shadow-xs border-primary bg-primary text-primary-foreground'
                                             : 'border-border bg-card text-foreground hover:bg-secondary'
                                     "
                                     @click="weightsForm.reporting_frequency = 'once_per_sem'"
@@ -663,7 +702,7 @@ onMounted(() => {
                                     class="rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all"
                                     :class="
                                         weightsForm.reporting_frequency === 'twice_per_sem'
-                                            ? 'shadow-xs border-teal-500 bg-teal-600 text-white'
+                                            ? 'shadow-xs border-primary bg-primary text-primary-foreground'
                                             : 'border-border bg-card text-foreground hover:bg-secondary'
                                     "
                                     @click="weightsForm.reporting_frequency = 'twice_per_sem'"
@@ -672,7 +711,7 @@ onMounted(() => {
                                 </button>
                             </div>
                         </div>
-                        <p class="mt-2 text-[11px] text-teal-800 dark:text-teal-300">
+                        <p class="mt-2 text-[11px] text-foreground">
                             {{
                                 weightsForm.reporting_frequency === 'once_per_sem'
                                     ? '✓ 1 Report per semester selected: Students report once. Report scores are credited to the Final Grade period so students presenting later in the term are not marked missing in Midterms.'
@@ -717,7 +756,7 @@ onMounted(() => {
                     <!-- Error Alert -->
                     <div
                         v-if="saveError || (weightsForm.errors as any).weights"
-                        class="mb-5 flex items-start gap-2.5 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-700 dark:text-rose-400"
+                        class="mb-5 flex items-start gap-2.5 rounded-xl border border-border bg-secondary/40 p-3 text-xs text-foreground"
                     >
                         <AlertCircle class="mt-0.5 size-4 shrink-0" />
                         <div>
@@ -732,11 +771,7 @@ onMounted(() => {
                                 <span class="text-xs font-bold uppercase tracking-wider text-foreground"> Core Coursework Components </span>
                                 <span
                                     class="rounded-md px-2 py-0.5 font-mono text-xs font-bold"
-                                    :class="
-                                        weightsValid
-                                            ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-                                            : 'bg-rose-500/10 text-rose-700 dark:text-rose-400'
-                                    "
+                                    :class="weightsValid ? 'bg-secondary text-foreground' : 'bg-secondary text-destructive'"
                                 >
                                     Total: {{ coreWeightsTotal }}% {{ weightsValid ? '✓' : '(Must be 100%)' }}
                                 </span>
@@ -744,9 +779,7 @@ onMounted(() => {
 
                             <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
                                 <label class="rounded-xl border border-border/80 bg-secondary/30 p-3">
-                                    <span class="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                                        Activities
-                                    </span>
+                                    <span class="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-foreground"> Activities </span>
                                     <div class="flex items-center gap-1">
                                         <input
                                             v-model.number="weightsForm.activity"
@@ -759,9 +792,7 @@ onMounted(() => {
                                     </div>
                                 </label>
                                 <label class="rounded-xl border border-border/80 bg-secondary/30 p-3">
-                                    <span class="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-                                        Laboratory
-                                    </span>
+                                    <span class="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-foreground"> Laboratory </span>
                                     <div class="flex items-center gap-1">
                                         <input
                                             v-model.number="weightsForm.laboratory"
@@ -774,9 +805,7 @@ onMounted(() => {
                                     </div>
                                 </label>
                                 <label class="rounded-xl border border-border/80 bg-secondary/30 p-3">
-                                    <span class="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
-                                        Quizzes
-                                    </span>
+                                    <span class="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-foreground"> Quizzes </span>
                                     <div class="flex items-center gap-1">
                                         <input
                                             v-model.number="weightsForm.quiz"
@@ -789,9 +818,7 @@ onMounted(() => {
                                     </div>
                                 </label>
                                 <label class="rounded-xl border border-border/80 bg-secondary/30 p-3">
-                                    <span class="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">
-                                        Major Exams
-                                    </span>
+                                    <span class="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-foreground"> Major Exams </span>
                                     <div class="flex items-center gap-1">
                                         <input
                                             v-model.number="weightsForm.exam"
@@ -804,7 +831,7 @@ onMounted(() => {
                                     </div>
                                 </label>
                                 <label class="rounded-xl border border-border/80 bg-secondary/30 p-3">
-                                    <span class="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">
+                                    <span class="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-foreground">
                                         Project / Report
                                     </span>
                                     <div class="flex items-center gap-1">
@@ -819,9 +846,7 @@ onMounted(() => {
                                     </div>
                                 </label>
                                 <label class="rounded-xl border border-border/80 bg-secondary/30 p-3">
-                                    <span class="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-                                        Attendance
-                                    </span>
+                                    <span class="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-foreground"> Attendance </span>
                                     <div class="flex items-center gap-1">
                                         <input
                                             v-model.number="weightsForm.attendance"
@@ -837,10 +862,10 @@ onMounted(() => {
                         </div>
 
                         <!-- Oral Recitation Additional Points Row -->
-                        <div class="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
+                        <div class="rounded-2xl border border-border bg-secondary/40 p-4">
                             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
-                                    <span class="flex items-center gap-1.5 font-bold text-amber-700 dark:text-amber-400">
+                                    <span class="flex items-center gap-1.5 font-bold text-foreground">
                                         Oral Participation (Bonus Points Added to Activities)
                                     </span>
                                     <p class="mt-0.5 text-xs text-muted-foreground">
@@ -851,14 +876,14 @@ onMounted(() => {
                                 <div class="flex items-center gap-2">
                                     <span class="text-xs font-bold text-foreground">Bonus Points:</span>
                                     <div class="flex items-center gap-1">
-                                        <span class="text-xs font-bold text-amber-600">+</span>
+                                        <span class="text-xs font-bold text-foreground">+</span>
                                         <input
                                             v-model.number="weightsForm.recitation"
                                             type="number"
                                             min="0"
-                                            class="w-20 rounded-lg border border-amber-500/40 bg-background px-3 py-1.5 text-center text-sm font-bold text-amber-600 focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-amber-400"
+                                            class="w-20 rounded-lg border border-border bg-background px-3 py-1.5 text-center text-sm font-bold text-foreground focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-foreground"
                                         />
-                                        <span class="text-xs font-bold text-amber-600 dark:text-amber-400">pts</span>
+                                        <span class="text-xs font-bold text-foreground">pts</span>
                                     </div>
                                 </div>
                             </div>
@@ -871,16 +896,13 @@ onMounted(() => {
                             <button
                                 v-if="!weightsValid"
                                 type="button"
-                                class="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-700 transition-colors hover:bg-amber-500/20 dark:text-amber-400"
+                                class="inline-flex items-center gap-1.5 rounded-xl border border-border bg-secondary/40 px-3 py-1.5 text-xs font-bold text-foreground transition-colors hover:bg-secondary/40 dark:text-foreground"
                                 @click="autoBalanceTo100"
                             >
                                 <Wand2 class="size-3.5" />
                                 <span>Auto-Adjust to 100%</span>
                             </button>
-                            <span
-                                class="text-xs font-medium"
-                                :class="weightsValid ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'"
-                            >
+                            <span class="text-xs font-medium" :class="weightsValid ? 'text-foreground' : 'text-destructive'">
                                 {{
                                     weightsValid
                                         ? 'Core weights balanced (100%)'
@@ -913,14 +935,14 @@ onMounted(() => {
 
                 <!-- Header Block -->
                 <header
-                    class="rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card to-primary/5 p-6 shadow-sm sm:p-8 print:rounded-none print:border-b-2 print:border-black print:bg-white print:p-0 print:text-black"
+                    class="rounded-2xl border border-border/80 bg-card p-6 shadow-sm sm:p-8 print:rounded-none print:border-b-2 print:border-black print:bg-white print:p-0 print:text-black"
                 >
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <div class="flex items-center gap-2">
                             <span class="badge-primary font-mono font-medium">{{ section.subject_code }}</span>
                             <span class="badge-muted">{{ section.name }}</span>
                             <span
-                                class="inline-flex items-center gap-1 rounded-full border border-teal-500/30 bg-teal-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-teal-700 dark:text-teal-300 print:hidden"
+                                class="inline-flex items-center gap-1 rounded-full border border-border bg-secondary/40 px-2.5 py-0.5 text-[11px] font-semibold text-foreground print:hidden"
                             >
                                 <Presentation class="size-3" />
                                 {{ reportingFrequency === 'once_per_sem' ? '1 Report/Sem (In Finals)' : '2 Reports/Sem (Mid & Fin)' }}
@@ -936,31 +958,12 @@ onMounted(() => {
                     </div>
 
                     <h1 class="mt-2 text-2xl font-medium tracking-tight sm:text-3xl print:text-xl">{{ section.subject_title }}</h1>
-                    <p class="mt-1 text-xs text-muted-foreground print:text-black">
-                        Weighted gradebook with Midterm Grade, Final Period Grade, and Semestral Grade (1.0–5.0). Core: Activities
-                        {{ gradingWeights.activity }}%, Quizzes {{ gradingWeights.quiz }}%, Major Exams {{ gradingWeights.exam }}%, Project /
-                        Reporting {{ gradingWeights.project }}%, Attendance {{ gradingWeights.attendance }}% · Oral Recitation: +{{
-                            gradingWeights.recitation ?? 5
-                        }}
-                        bonus pts.
-                    </p>
                 </header>
 
                 <!-- Category Summary Cards -->
                 <section class="my-6 grid gap-4 sm:grid-cols-3 lg:grid-cols-7 print:grid-cols-7">
                     <div v-for="type in types" :key="type" class="paper-card p-4 print:rounded-none print:border print:border-black print:bg-white">
-                        <span
-                            class="font-mono text-[10px] font-medium uppercase tracking-wider"
-                            :class="
-                                type === 'exam'
-                                    ? 'text-purple-600 dark:text-purple-400'
-                                    : type === 'quiz'
-                                      ? 'text-blue-600 dark:text-blue-400'
-                                      : type === 'laboratory'
-                                        ? 'text-cyan-600 dark:text-cyan-400'
-                                        : 'text-emerald-600 dark:text-emerald-400'
-                            "
-                        >
+                        <span class="font-mono text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                             {{ type === 'laboratory' ? 'Lab' : type }} · {{ gradingWeights[type] ?? 0 }}%
                         </span>
                         <p class="mt-2 text-xl font-medium tracking-tight">{{ categorySummary[type]?.count ?? 0 }} items</p>
@@ -968,7 +971,7 @@ onMounted(() => {
 
                     <!-- Project / Reporting Summary Card -->
                     <div class="paper-card p-4 print:rounded-none print:border print:border-black print:bg-white">
-                        <span class="font-mono text-[10px] font-medium uppercase tracking-wider text-teal-600 dark:text-teal-400">
+                        <span class="font-mono text-[10px] font-medium uppercase tracking-wider text-foreground">
                             Project / Report · {{ gradingWeights.project }}%
                         </span>
                         <p class="mt-2 text-xl font-medium tracking-tight">{{ projectSummary?.count ?? projectsList.length }} projects</p>
@@ -976,7 +979,7 @@ onMounted(() => {
 
                     <!-- Attendance Summary Card -->
                     <div class="paper-card p-4 print:rounded-none print:border print:border-black print:bg-white">
-                        <span class="font-mono text-[10px] font-medium uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
+                        <span class="font-mono text-[10px] font-medium uppercase tracking-wider text-foreground">
                             Attendance · {{ gradingWeights.attendance }}%
                         </span>
                         <p class="mt-2 text-xl font-medium tracking-tight">{{ attendanceSummary?.total_sessions ?? 0 }} sessions</p>
@@ -984,12 +987,17 @@ onMounted(() => {
                     </div>
 
                     <!-- Oral Participation Summary Card -->
-                    <div class="paper-card border-amber-500/30 bg-amber-500/5 p-4 print:rounded-none print:border print:border-black print:bg-white">
-                        <span class="font-mono text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
-                            Oral Bonus · +{{ gradingWeights.recitation ?? 5 }} pts
+                    <div class="paper-card border-border bg-secondary/40 p-4 print:rounded-none print:border print:border-black print:bg-white">
+                        <span class="font-mono text-[10px] font-bold uppercase tracking-wider text-foreground">
+                            {{ oralIsWeighted ? 'Oral recitation ·' : 'Oral Bonus · +' }}{{ gradingWeights.recitation ?? 5 }}
+                            {{ oralIsWeighted ? '%' : 'pts' }}
                         </span>
-                        <p class="mt-2 text-xl font-bold tracking-tight text-amber-700 dark:text-amber-400">Added to Activities</p>
-                        <p class="mt-0.5 text-[11px] font-normal text-muted-foreground">Max denominator not increased</p>
+                        <p class="mt-2 text-xl font-bold tracking-tight text-foreground">
+                            {{ oralIsWeighted ? 'Weighted component' : 'Added to Activities' }}
+                        </p>
+                        <p class="mt-0.5 text-[11px] font-normal text-muted-foreground">
+                            {{ oralIsWeighted ? 'Included in the 100% total' : 'Max denominator not increased' }}
+                        </p>
                     </div>
                 </section>
 
@@ -1031,6 +1039,15 @@ onMounted(() => {
 
                         <div class="flex items-center gap-3 text-xs text-muted-foreground">
                             <button
+                                type="button"
+                                class="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                                :aria-expanded="showStudentSearch"
+                                aria-controls="gradebook-student-search"
+                                @click="toggleStudentSearch"
+                            >
+                                <Search class="size-3.5" /><span>Search</span>
+                            </button>
+                            <button
                                 v-if="sortColumn !== 'student' || sortDirection !== 'asc'"
                                 type="button"
                                 class="shadow-2xs inline-flex items-center gap-1 rounded-md border border-border bg-card px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-secondary"
@@ -1043,11 +1060,27 @@ onMounted(() => {
                                 <RotateCcw class="size-3 text-muted-foreground" />
                                 <span>Reset Sort</span>
                             </button>
-                            <span v-if="viewMode === 'summary'" class="hidden md:inline">
-                                💡 Overall category totals summarized. Click any column header to sort.
-                            </span>
-                            <span class="font-mono text-xs font-medium">{{ rows.length }} Students</span>
+                            <span class="font-mono text-xs font-medium" role="status"
+                                >{{ studentSearch ? `${sortedRows.length} / ${rows.length}` : rows.length }} Students</span
+                            >
                         </div>
+                    </div>
+
+                    <div
+                        v-if="showStudentSearch"
+                        id="gradebook-student-search"
+                        class="flex items-center gap-2 border-b border-border/70 px-4 py-3 print:hidden"
+                    >
+                        <Search class="size-4 shrink-0 text-muted-foreground" />
+                        <input
+                            ref="studentSearchInput"
+                            v-model="studentSearch"
+                            type="search"
+                            aria-label="Search students by name or student number"
+                            placeholder="Search name or student number…"
+                            class="min-w-0 flex-1 rounded-lg border-border bg-card px-3 py-2 text-sm text-foreground focus:border-ring focus:ring-ring"
+                            @keydown.esc="toggleStudentSearch"
+                        />
                     </div>
 
                     <div class="scrollbar-thin max-h-[calc(100vh-14rem)] min-h-[420px] overflow-auto print:max-h-none print:overflow-visible">
@@ -1084,16 +1117,12 @@ onMounted(() => {
 
                                     <!-- Activities Summary Column -->
                                     <th
-                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l border-emerald-500/30 bg-emerald-500/10 px-3 py-3 text-center backdrop-blur-md transition-colors hover:bg-emerald-500/20"
+                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l border-border bg-secondary/40 px-3 py-3 text-center backdrop-blur-md transition-colors hover:bg-secondary/40"
                                         :title="`Click to sort by Activities (${sortColumn === 'activity' ? sortDirection : 'click to sort'})`"
                                         @click="toggleSort('activity')"
                                     >
                                         <div class="flex items-center justify-center gap-1">
-                                            <span
-                                                class="font-mono text-[9px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400"
-                                            >
-                                                Activities
-                                            </span>
+                                            <span class="font-mono text-[9px] font-bold uppercase tracking-wider text-foreground"> Activities </span>
                                             <ArrowUp
                                                 v-if="sortColumn === 'activity' && sortDirection === 'asc'"
                                                 class="size-3 shrink-0 text-primary"
@@ -1115,14 +1144,12 @@ onMounted(() => {
 
                                     <!-- Quizzes Summary Column -->
                                     <th
-                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l border-blue-500/30 bg-blue-500/10 px-3 py-3 text-center backdrop-blur-md transition-colors hover:bg-blue-500/20"
+                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l border-border bg-secondary/40 px-3 py-3 text-center backdrop-blur-md transition-colors hover:bg-secondary/40"
                                         :title="`Click to sort by Quizzes (${sortColumn === 'quiz' ? sortDirection : 'click to sort'})`"
                                         @click="toggleSort('quiz')"
                                     >
                                         <div class="flex items-center justify-center gap-1">
-                                            <span class="font-mono text-[9px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
-                                                Quizzes
-                                            </span>
+                                            <span class="font-mono text-[9px] font-bold uppercase tracking-wider text-foreground"> Quizzes </span>
                                             <ArrowUp v-if="sortColumn === 'quiz' && sortDirection === 'asc'" class="size-3 shrink-0 text-primary" />
                                             <ArrowDown
                                                 v-else-if="sortColumn === 'quiz' && sortDirection === 'desc'"
@@ -1142,14 +1169,12 @@ onMounted(() => {
                                     <!-- Laboratory Summary Column (if present) -->
                                     <th
                                         v-if="(categorySummary.laboratory?.count ?? 0) > 0 || (gradingWeights.laboratory ?? 0) > 0"
-                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l border-cyan-500/30 bg-cyan-500/10 px-3 py-3 text-center backdrop-blur-md transition-colors hover:bg-cyan-500/20"
+                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l border-border bg-secondary/40 px-3 py-3 text-center backdrop-blur-md transition-colors hover:bg-secondary/40"
                                         :title="`Click to sort by Laboratory (${sortColumn === 'laboratory' ? sortDirection : 'click to sort'})`"
                                         @click="toggleSort('laboratory')"
                                     >
                                         <div class="flex items-center justify-center gap-1">
-                                            <span class="font-mono text-[9px] font-bold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-                                                Laboratory
-                                            </span>
+                                            <span class="font-mono text-[9px] font-bold uppercase tracking-wider text-foreground"> Laboratory </span>
                                             <ArrowUp
                                                 v-if="sortColumn === 'laboratory' && sortDirection === 'asc'"
                                                 class="size-3 shrink-0 text-primary"
@@ -1171,16 +1196,12 @@ onMounted(() => {
 
                                     <!-- Major Exams Summary Column -->
                                     <th
-                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l border-purple-500/30 bg-purple-500/10 px-3 py-3 text-center backdrop-blur-md transition-colors hover:bg-purple-500/20"
+                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l border-border bg-secondary/40 px-3 py-3 text-center backdrop-blur-md transition-colors hover:bg-secondary/40"
                                         :title="`Click to sort by Major Exams (${sortColumn === 'exam' ? sortDirection : 'click to sort'})`"
                                         @click="toggleSort('exam')"
                                     >
                                         <div class="flex items-center justify-center gap-1">
-                                            <span
-                                                class="font-mono text-[9px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400"
-                                            >
-                                                Major Exams
-                                            </span>
+                                            <span class="font-mono text-[9px] font-bold uppercase tracking-wider text-foreground"> Major Exams </span>
                                             <ArrowUp v-if="sortColumn === 'exam' && sortDirection === 'asc'" class="size-3 shrink-0 text-primary" />
                                             <ArrowDown
                                                 v-else-if="sortColumn === 'exam' && sortDirection === 'desc'"
@@ -1199,12 +1220,12 @@ onMounted(() => {
 
                                     <!-- Project / Reporting Column -->
                                     <th
-                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l border-teal-500/30 bg-teal-500/10 px-3 py-3 text-center backdrop-blur-md transition-colors hover:bg-teal-500/20"
+                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l border-border bg-secondary/40 px-3 py-3 text-center backdrop-blur-md transition-colors hover:bg-secondary/40"
                                         :title="`Click to sort by Projects & Reports (${sortColumn === 'project' ? sortDirection : 'click to sort'})`"
                                         @click="toggleSort('project')"
                                     >
                                         <div class="flex items-center justify-center gap-1">
-                                            <span class="font-mono text-[9px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">
+                                            <span class="font-mono text-[9px] font-bold uppercase tracking-wider text-foreground">
                                                 Project / Report
                                             </span>
                                             <ArrowUp
@@ -1226,7 +1247,7 @@ onMounted(() => {
 
                                     <!-- Attendance Column -->
                                     <th
-                                        class="group/th sticky top-0 z-20 min-w-24 cursor-pointer select-none border-b border-l border-border bg-secondary/95 px-2.5 py-3 text-center font-medium text-cyan-600 backdrop-blur-md transition-colors hover:bg-secondary dark:text-cyan-400"
+                                        class="group/th sticky top-0 z-20 min-w-24 cursor-pointer select-none border-b border-l border-border bg-secondary/95 px-2.5 py-3 text-center font-medium text-foreground backdrop-blur-md transition-colors hover:bg-secondary dark:text-foreground"
                                         :title="`Click to sort by Attendance (${sortColumn === 'attendance' ? sortDirection : 'click to sort'})`"
                                         @click="toggleSort('attendance')"
                                     >
@@ -1250,12 +1271,12 @@ onMounted(() => {
 
                                     <!-- Oral Recitation Bonus Column -->
                                     <th
-                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l-2 border-amber-500/40 bg-amber-500/15 px-2.5 py-3 text-center font-bold text-amber-700 backdrop-blur-md transition-colors hover:bg-amber-500/25 dark:text-amber-400"
+                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l-2 border-border bg-secondary/40 px-2.5 py-3 text-center font-bold text-foreground backdrop-blur-md transition-colors hover:bg-secondary/40 dark:text-foreground"
                                         :title="`Click to sort by Oral Bonus (${sortColumn === 'recitation' ? sortDirection : 'click to sort'})`"
                                         @click="toggleSort('recitation')"
                                     >
                                         <div class="flex items-center justify-center gap-1">
-                                            <span>Oral Bonus</span>
+                                            <span>{{ oralIsWeighted ? 'Oral recitation' : 'Oral Bonus' }}</span>
                                             <ArrowUp
                                                 v-if="sortColumn === 'recitation' && sortDirection === 'asc'"
                                                 class="size-3 shrink-0 text-primary"
@@ -1269,14 +1290,18 @@ onMounted(() => {
                                                 class="size-3 shrink-0 text-muted-foreground/40 opacity-0 transition-opacity group-hover/th:opacity-100"
                                             />
                                         </div>
-                                        <span class="block text-[9px] font-normal text-amber-600 dark:text-amber-300">
-                                            +{{ gradingWeights.recitation ?? 5 }} pts → Activities
+                                        <span class="block text-[9px] font-normal text-foreground">
+                                            {{
+                                                oralIsWeighted
+                                                    ? `${gradingWeights.recitation ?? 5}% weight`
+                                                    : `+${gradingWeights.recitation ?? 5} pts → Activities`
+                                            }}
                                         </span>
                                     </th>
 
                                     <!-- Midterm Grade Column -->
                                     <th
-                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l-2 border-purple-500/40 bg-purple-500/15 px-3 py-3 text-center font-bold text-purple-900 backdrop-blur-md transition-colors hover:bg-purple-500/25 dark:text-purple-300"
+                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l-2 border-border bg-secondary/40 px-3 py-3 text-center font-bold text-foreground backdrop-blur-md transition-colors hover:bg-secondary/40 dark:text-foreground"
                                         :title="`Click to sort by Midterm Grade (${sortColumn === 'midterm' ? sortDirection : 'click to sort'})`"
                                         @click="toggleSort('midterm')"
                                     >
@@ -1295,12 +1320,12 @@ onMounted(() => {
                                                 class="size-3 shrink-0 text-muted-foreground/40 opacity-0 transition-opacity group-hover/th:opacity-100"
                                             />
                                         </div>
-                                        <span class="block text-[9px] font-normal text-purple-700 dark:text-purple-400"> Tasks & Exam (50%) </span>
+                                        <span class="block text-[9px] font-normal text-foreground"> Tasks & Exam (50%) </span>
                                     </th>
 
                                     <!-- Final Period Grade Column -->
                                     <th
-                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l-2 border-indigo-500/40 bg-indigo-500/15 px-3 py-3 text-center font-bold text-indigo-900 backdrop-blur-md transition-colors hover:bg-indigo-500/25 dark:text-indigo-300"
+                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l-2 border-border bg-secondary/40 px-3 py-3 text-center font-bold text-foreground backdrop-blur-md transition-colors hover:bg-secondary/40 dark:text-foreground"
                                         :title="`Click to sort by Final Period (${sortColumn === 'final_period' ? sortDirection : 'click to sort'})`"
                                         @click="toggleSort('final_period')"
                                     >
@@ -1319,7 +1344,7 @@ onMounted(() => {
                                                 class="size-3 shrink-0 text-muted-foreground/40 opacity-0 transition-opacity group-hover/th:opacity-100"
                                             />
                                         </div>
-                                        <span class="block text-[9px] font-normal text-indigo-700 dark:text-indigo-400"> Tasks & Reports (50%) </span>
+                                        <span class="block text-[9px] font-normal text-foreground"> Tasks & Reports (50%) </span>
                                     </th>
 
                                     <!-- Semestral Final Grade Column -->
@@ -1405,18 +1430,7 @@ onMounted(() => {
                                         @click="toggleSort(`assessment-${item.id}`)"
                                     >
                                         <div class="flex items-center justify-center gap-0.5">
-                                            <span
-                                                class="block font-mono text-[9px] font-medium uppercase tracking-wider"
-                                                :class="
-                                                    item.type === 'exam'
-                                                        ? 'text-purple-600 dark:text-purple-400'
-                                                        : item.type === 'quiz'
-                                                          ? 'text-blue-600 dark:text-blue-400'
-                                                          : item.type === 'laboratory'
-                                                            ? 'text-cyan-600 dark:text-cyan-400'
-                                                            : 'text-emerald-600 dark:text-emerald-400'
-                                                "
-                                            >
+                                            <span class="block font-mono text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
                                                 {{ item.type === 'laboratory' ? 'Lab' : item.type }}
                                                 <span v-if="item.computed_period" class="ml-1 opacity-70"
                                                     >({{ item.computed_period === 'midterm' ? 'Mid' : 'Fin' }})</span
@@ -1442,14 +1456,12 @@ onMounted(() => {
                                     <th
                                         v-for="item in filteredGroupActivities"
                                         :key="`group-act-${item.id}`"
-                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l border-emerald-500/30 bg-emerald-500/10 px-3 py-3 text-center backdrop-blur-md transition-colors hover:bg-emerald-500/20"
+                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l border-border bg-secondary/40 px-3 py-3 text-center backdrop-blur-md transition-colors hover:bg-secondary/40"
                                         :title="`Click to sort by ${item.title}`"
                                         @click="toggleSort(`gact-${item.id}`)"
                                     >
                                         <div class="flex items-center justify-center gap-0.5">
-                                            <span
-                                                class="block font-mono text-[9px] font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-400"
-                                            >
+                                            <span class="block font-mono text-[9px] font-medium uppercase tracking-wider text-foreground">
                                                 Group Act
                                                 <span v-if="item.computed_period" class="ml-1 opacity-70"
                                                     >({{ item.computed_period === 'midterm' ? 'Mid' : 'Fin' }})</span
@@ -1475,14 +1487,12 @@ onMounted(() => {
                                     <th
                                         v-for="item in filteredProjects"
                                         :key="`project-${item.id}`"
-                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l border-teal-500/30 bg-teal-500/10 px-3 py-3 text-center backdrop-blur-md transition-colors hover:bg-teal-500/20"
+                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l border-border bg-secondary/40 px-3 py-3 text-center backdrop-blur-md transition-colors hover:bg-secondary/40"
                                         :title="`Click to sort by ${item.title}`"
                                         @click="toggleSort(`project-${item.id}`)"
                                     >
                                         <div class="flex items-center justify-center gap-0.5">
-                                            <span
-                                                class="block font-mono text-[9px] font-medium uppercase tracking-wider text-teal-600 dark:text-teal-400"
-                                            >
+                                            <span class="block font-mono text-[9px] font-medium uppercase tracking-wider text-foreground">
                                                 {{ item.type === 'project' ? 'Project' : 'Report' }}
                                                 <span
                                                     v-if="item.type === 'reporting' && reportingFrequency === 'once_per_sem'"
@@ -1518,18 +1528,7 @@ onMounted(() => {
                                         @click="toggleSort(type)"
                                     >
                                         <div class="flex items-center justify-center gap-1">
-                                            <span
-                                                class="block font-mono text-[9px] font-bold uppercase tracking-wider"
-                                                :class="
-                                                    type === 'exam'
-                                                        ? 'text-purple-600 dark:text-purple-400'
-                                                        : type === 'quiz'
-                                                          ? 'text-blue-600 dark:text-blue-400'
-                                                          : type === 'laboratory'
-                                                            ? 'text-cyan-600 dark:text-cyan-400'
-                                                            : 'text-emerald-600 dark:text-emerald-400'
-                                                "
-                                            >
+                                            <span class="block font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
                                                 {{
                                                     type === 'laboratory'
                                                         ? 'Lab Total'
@@ -1556,14 +1555,12 @@ onMounted(() => {
                                     </th>
                                     <!-- Project Total -->
                                     <th
-                                        class="group/th sticky top-0 z-20 min-w-32 cursor-pointer select-none border-b border-l-2 border-teal-500/30 bg-teal-500/10 px-3 py-3 text-center backdrop-blur-md transition-colors hover:bg-teal-500/20"
+                                        class="group/th sticky top-0 z-20 min-w-32 cursor-pointer select-none border-b border-l-2 border-border bg-secondary/40 px-3 py-3 text-center backdrop-blur-md transition-colors hover:bg-secondary/40"
                                         :title="`Click to sort by Project total`"
                                         @click="toggleSort('project')"
                                     >
                                         <div class="flex items-center justify-center gap-1">
-                                            <span
-                                                class="block font-mono text-[9px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400"
-                                            >
+                                            <span class="block font-mono text-[9px] font-bold uppercase tracking-wider text-foreground">
                                                 Proj Total
                                             </span>
                                             <ArrowUp
@@ -1585,7 +1582,7 @@ onMounted(() => {
                                     </th>
                                     <!-- Attendance % -->
                                     <th
-                                        class="group/th sticky top-0 z-20 min-w-20 cursor-pointer select-none border-b border-l-2 border-border bg-secondary/95 px-2.5 py-3 text-center font-medium text-cyan-600 backdrop-blur-md transition-colors hover:bg-secondary dark:text-cyan-400"
+                                        class="group/th sticky top-0 z-20 min-w-20 cursor-pointer select-none border-b border-l-2 border-border bg-secondary/95 px-2.5 py-3 text-center font-medium text-foreground backdrop-blur-md transition-colors hover:bg-secondary dark:text-foreground"
                                         :title="`Click to sort by Attendance`"
                                         @click="toggleSort('attendance')"
                                     >
@@ -1607,12 +1604,12 @@ onMounted(() => {
                                     </th>
                                     <!-- Oral Recitation Bonus Column -->
                                     <th
-                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l-2 border-amber-500/40 bg-amber-500/15 px-2.5 py-3 text-center font-bold text-amber-700 backdrop-blur-md transition-colors hover:bg-amber-500/25 dark:text-amber-400"
-                                        :title="`Click to sort by Oral Bonus`"
+                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l-2 border-border bg-secondary/40 px-2.5 py-3 text-center font-bold text-foreground backdrop-blur-md transition-colors hover:bg-secondary/40 dark:text-foreground"
+                                        title="Click to sort by oral recitation"
                                         @click="toggleSort('recitation')"
                                     >
                                         <div class="flex items-center justify-center gap-1">
-                                            <span>Oral Bonus</span>
+                                            <span>{{ oralIsWeighted ? 'Oral recitation' : 'Oral Bonus' }}</span>
                                             <ArrowUp
                                                 v-if="sortColumn === 'recitation' && sortDirection === 'asc'"
                                                 class="size-3 shrink-0 text-primary"
@@ -1629,7 +1626,7 @@ onMounted(() => {
                                     </th>
                                     <!-- Midterm Grade Column -->
                                     <th
-                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l-2 border-purple-500/40 bg-purple-500/15 px-3 py-3 text-center font-bold text-purple-900 backdrop-blur-md transition-colors hover:bg-purple-500/25 dark:text-purple-300"
+                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l-2 border-border bg-secondary/40 px-3 py-3 text-center font-bold text-foreground backdrop-blur-md transition-colors hover:bg-secondary/40 dark:text-foreground"
                                         :title="`Click to sort by Midterm Grade`"
                                         @click="toggleSort('midterm')"
                                     >
@@ -1651,7 +1648,7 @@ onMounted(() => {
                                     </th>
                                     <!-- Final Period Grade Column -->
                                     <th
-                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l-2 border-indigo-500/40 bg-indigo-500/15 px-3 py-3 text-center font-bold text-indigo-900 backdrop-blur-md transition-colors hover:bg-indigo-500/25 dark:text-indigo-300"
+                                        class="group/th sticky top-0 z-20 min-w-28 cursor-pointer select-none border-b border-l-2 border-border bg-secondary/40 px-3 py-3 text-center font-bold text-foreground backdrop-blur-md transition-colors hover:bg-secondary/40 dark:text-foreground"
                                         :title="`Click to sort by Final Period Grade`"
                                         @click="toggleSort('final_period')"
                                     >
@@ -1736,7 +1733,7 @@ onMounted(() => {
                                                 </div>
                                                 <span
                                                     v-if="hasDeficiencies(row)"
-                                                    class="shadow-2xs shrink-0 rounded-full border border-rose-800 bg-rose-700 px-1.5 py-0.5 text-[9px] font-bold text-white print:hidden"
+                                                    class="shadow-2xs shrink-0 rounded-full border border-border bg-secondary/40 px-1.5 py-0.5 text-[9px] font-bold text-foreground print:hidden"
                                                     title="Has missing or failing items"
                                                 >
                                                     {{ countDeficiencies(row) }} def
@@ -1752,7 +1749,7 @@ onMounted(() => {
                                                 <span class="text-xs font-bold text-foreground">
                                                     {{ row.categories.activity?.earned ?? 0 }} / {{ row.categories.activity?.possible ?? 0 }}
                                                 </span>
-                                                <span class="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                                                <span class="text-xs font-semibold text-foreground">
                                                     ({{
                                                         row.categories.activity?.percentage !== null ? `${row.categories.activity.percentage}%` : '—'
                                                     }})
@@ -1760,7 +1757,7 @@ onMounted(() => {
                                             </div>
                                             <span
                                                 v-if="row.categories.activity?.bonus_earned && row.categories.activity.bonus_earned > 0"
-                                                class="block text-[9px] text-amber-700 dark:text-amber-400"
+                                                class="block text-[9px] text-foreground"
                                             >
                                                 +{{ row.categories.activity.bonus_earned }} oral bonus
                                             </span>
@@ -1774,7 +1771,7 @@ onMounted(() => {
                                                 <span class="text-xs font-bold text-foreground">
                                                     {{ row.categories.quiz?.earned ?? 0 }} / {{ row.categories.quiz?.possible ?? 0 }}
                                                 </span>
-                                                <span class="text-xs font-semibold text-blue-700 dark:text-blue-400">
+                                                <span class="text-xs font-semibold text-foreground">
                                                     ({{ row.categories.quiz?.percentage !== null ? `${row.categories.quiz.percentage}%` : '—' }})
                                                 </span>
                                             </div>
@@ -1789,7 +1786,7 @@ onMounted(() => {
                                                 <span class="text-xs font-bold text-foreground">
                                                     {{ row.categories.laboratory?.earned ?? 0 }} / {{ row.categories.laboratory?.possible ?? 0 }}
                                                 </span>
-                                                <span class="text-xs font-semibold text-cyan-700 dark:text-cyan-400">
+                                                <span class="text-xs font-semibold text-foreground">
                                                     ({{
                                                         row.categories.laboratory?.percentage !== null
                                                             ? `${row.categories.laboratory.percentage}%`
@@ -1807,21 +1804,19 @@ onMounted(() => {
                                                 <span class="text-xs font-bold text-foreground">
                                                     {{ row.categories.exam?.earned ?? 0 }} / {{ row.categories.exam?.possible ?? 0 }}
                                                 </span>
-                                                <span class="text-xs font-semibold text-purple-700 dark:text-purple-400">
+                                                <span class="text-xs font-semibold text-foreground">
                                                     ({{ row.categories.exam?.percentage !== null ? `${row.categories.exam.percentage}%` : '—' }})
                                                 </span>
                                             </div>
                                         </td>
 
                                         <!-- Project / Reporting Cell -->
-                                        <td
-                                            class="whitespace-nowrap border-b border-l border-teal-500/20 bg-teal-500/5 px-3 py-3 text-center font-mono"
-                                        >
+                                        <td class="whitespace-nowrap border-b border-l border-border bg-secondary/40 px-3 py-3 text-center font-mono">
                                             <div class="inline-flex items-baseline justify-center gap-1">
                                                 <span class="text-xs font-bold text-foreground">
                                                     {{ row.projectSummary?.earned ?? 0 }} / {{ row.projectSummary?.possible ?? 0 }}
                                                 </span>
-                                                <span class="text-xs font-semibold text-teal-700 dark:text-teal-400">
+                                                <span class="text-xs font-semibold text-foreground">
                                                     ({{ row.projectSummary?.percentage !== null ? `${row.projectSummary.percentage}%` : '—' }})
                                                 </span>
                                             </div>
@@ -1829,7 +1824,7 @@ onMounted(() => {
 
                                         <!-- Attendance Cell -->
                                         <td class="border-b border-l border-border/60 bg-secondary/10 px-2.5 py-3 text-center font-mono">
-                                            <span class="block text-xs font-bold text-cyan-700 dark:text-cyan-400">
+                                            <span class="block text-xs font-bold text-foreground">
                                                 {{ row.attendance?.percentage !== null ? `${row.attendance.percentage}%` : '—' }}
                                             </span>
                                             <span class="block text-[10px] text-muted-foreground">
@@ -1839,13 +1834,13 @@ onMounted(() => {
 
                                         <!-- Oral Recitation Bonus Cell -->
                                         <td
-                                            class="group/oral relative border-b border-l-2 border-amber-500/30 bg-amber-500/5 px-2.5 py-3 text-center font-mono"
+                                            class="group/oral relative border-b border-l-2 border-border bg-secondary/40 px-2.5 py-3 text-center font-mono"
                                         >
                                             <template v-if="row.recitation && row.recitation.count > 0 && row.recitation.avg_score !== null">
                                                 <span
-                                                    class="shadow-2xs inline-flex items-center gap-1 rounded-full bg-emerald-700 px-2.5 py-0.5 text-xs font-bold text-white"
+                                                    class="shadow-2xs inline-flex items-center gap-1 rounded-full bg-secondary/40 px-2.5 py-0.5 text-xs font-bold text-foreground"
                                                 >
-                                                    +{{ row.recitation.bonus_points ?? 0 }} pts
+                                                    {{ oralResult(row.recitation) }}
                                                 </span>
                                                 <span class="mt-0.5 block text-[9px] text-muted-foreground">
                                                     {{ row.recitation.count }} rec ({{ row.recitation.avg_score }}/10)
@@ -1866,14 +1861,12 @@ onMounted(() => {
                                         </td>
 
                                         <!-- Midterm Grade Cell -->
-                                        <td class="border-b border-l-2 border-purple-500/30 bg-purple-500/5 px-3 py-3 text-center font-mono">
+                                        <td class="border-b border-l-2 border-border bg-secondary/40 px-3 py-3 text-center font-mono">
                                             <div v-if="row.midterm?.weighted_grade !== null && row.midterm?.weighted_grade !== undefined">
-                                                <span class="block text-xs font-bold text-purple-900 dark:text-purple-300">
-                                                    {{ row.midterm.weighted_grade }}%
-                                                </span>
+                                                <span class="block text-xs font-bold text-foreground"> {{ row.midterm.weighted_grade }}% </span>
                                                 <span
                                                     class="shadow-2xs mt-0.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-bold"
-                                                    :class="gradeBadgeBg(row.midterm.scale_grade)"
+                                                    :class="gradeBadgeClasses"
                                                 >
                                                     {{ row.midterm.scale_grade }}
                                                 </span>
@@ -1882,14 +1875,12 @@ onMounted(() => {
                                         </td>
 
                                         <!-- Final Period Grade Cell -->
-                                        <td class="border-b border-l-2 border-indigo-500/30 bg-indigo-500/5 px-3 py-3 text-center font-mono">
+                                        <td class="border-b border-l-2 border-border bg-secondary/40 px-3 py-3 text-center font-mono">
                                             <div v-if="row.final_period?.weighted_grade !== null && row.final_period?.weighted_grade !== undefined">
-                                                <span class="block text-xs font-bold text-indigo-900 dark:text-indigo-300">
-                                                    {{ row.final_period.weighted_grade }}%
-                                                </span>
+                                                <span class="block text-xs font-bold text-foreground"> {{ row.final_period.weighted_grade }}% </span>
                                                 <span
                                                     class="shadow-2xs mt-0.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-bold"
-                                                    :class="gradeBadgeBg(row.final_period.scale_grade)"
+                                                    :class="gradeBadgeClasses"
                                                 >
                                                     {{ row.final_period.scale_grade }}
                                                 </span>
@@ -1908,14 +1899,18 @@ onMounted(() => {
                                         <td class="border-b border-l-2 border-primary/30 bg-primary/10 px-3 py-3 text-center">
                                             <span
                                                 class="shadow-xs inline-flex min-w-[52px] items-center justify-center rounded-full border px-2.5 py-1 text-xs font-bold"
-                                                :class="gradeBadgeBg(row.scale_grade)"
+                                                :class="gradeBadgeClasses"
                                             >
                                                 {{ gradeDisplay(row.scale_grade) }}
                                             </span>
                                             <span
                                                 v-if="row.final_remarks || row.grade_remarks"
-                                                class="mt-1 block text-[9px] font-bold tracking-wider uppercase"
-                                                :class="(row.final_remarks || row.grade_remarks)?.toUpperCase() === 'PASSED' ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive font-extrabold'"
+                                                class="mt-1 block text-[9px] font-bold uppercase tracking-wider"
+                                                :class="
+                                                    (row.final_remarks || row.grade_remarks)?.toUpperCase() === 'PASSED'
+                                                        ? 'text-foreground'
+                                                        : 'font-extrabold text-destructive'
+                                                "
                                             >
                                                 {{ row.final_remarks || row.grade_remarks }}
                                             </span>
@@ -1940,7 +1935,7 @@ onMounted(() => {
                                                 </div>
                                                 <span
                                                     v-if="hasDeficiencies(row)"
-                                                    class="shadow-2xs shrink-0 rounded-full border border-rose-800 bg-rose-700 px-1.5 py-0.5 text-[9px] font-bold text-white print:hidden"
+                                                    class="shadow-2xs shrink-0 rounded-full border border-border bg-secondary/40 px-1.5 py-0.5 text-[9px] font-bold text-foreground print:hidden"
                                                     title="Has missing or failing items"
                                                 >
                                                     {{ countDeficiencies(row) }} def
@@ -1956,7 +1951,7 @@ onMounted(() => {
                                             :title="row.remarks?.[item.id] ? `Remarks / Justification: ${row.remarks[item.id]}` : undefined"
                                         >
                                             <div class="relative inline-flex items-center justify-center gap-0.5">
-                                                <span>{{ row.scores[item.id] ?? '—' }}</span>
+                                                <span>{{ row.score_absences?.[item.id] ? 'Absent' : (row.scores[item.id] ?? '—') }}</span>
                                                 <span
                                                     v-if="row.remarks?.[item.id]"
                                                     class="inline-block size-1.5 shrink-0 rounded-full bg-primary"
@@ -1968,7 +1963,7 @@ onMounted(() => {
                                         <td
                                             v-for="item in filteredGroupActivities"
                                             :key="`score-gact-${item.id}`"
-                                            class="border-b border-l border-emerald-500/20 bg-emerald-500/5 px-3 py-3 text-center font-mono text-xs"
+                                            class="border-b border-l border-border bg-secondary/40 px-3 py-3 text-center font-mono text-xs"
                                             :class="
                                                 row.group_activity_scores?.[item.id] === null || row.group_activity_scores?.[item.id] === undefined
                                                     ? 'text-muted-foreground/60'
@@ -1981,7 +1976,7 @@ onMounted(() => {
                                         <td
                                             v-for="item in filteredProjects"
                                             :key="`score-proj-${item.id}`"
-                                            class="border-b border-l border-teal-500/20 bg-teal-500/5 px-3 py-3 text-center font-mono text-xs"
+                                            class="border-b border-l border-border bg-secondary/40 px-3 py-3 text-center font-mono text-xs"
                                             :class="row.project_scores[item.id] === null ? 'text-muted-foreground/60' : 'font-medium text-foreground'"
                                             :title="
                                                 row.project_notes?.[item.id] ? `Remarks / Justification: ${row.project_notes[item.id]}` : undefined
@@ -2010,18 +2005,7 @@ onMounted(() => {
                                                 <span class="text-xs font-bold text-foreground">
                                                     {{ row.categories[type]?.earned ?? 0 }} / {{ row.categories[type]?.possible ?? 0 }}
                                                 </span>
-                                                <span
-                                                    class="text-xs font-semibold"
-                                                    :class="
-                                                        type === 'exam'
-                                                            ? 'text-purple-700 dark:text-purple-400'
-                                                            : type === 'quiz'
-                                                              ? 'text-blue-700 dark:text-blue-400'
-                                                              : type === 'laboratory'
-                                                                ? 'text-cyan-700 dark:text-cyan-400'
-                                                                : 'text-emerald-700 dark:text-emerald-400'
-                                                    "
-                                                >
+                                                <span class="text-xs font-semibold text-muted-foreground">
                                                     ({{ row.categories[type]?.percentage !== null ? `${row.categories[type]?.percentage}%` : '—' }})
                                                 </span>
                                             </div>
@@ -2031,38 +2015,40 @@ onMounted(() => {
                                                     row.categories.activity?.bonus_earned &&
                                                     row.categories.activity.bonus_earned > 0
                                                 "
-                                                class="mt-0.5 block text-[9px] font-semibold text-emerald-700 dark:text-emerald-400"
+                                                class="mt-0.5 block text-[9px] font-semibold text-foreground"
                                                 title="Includes oral bonus added to activity score"
                                             >
                                                 +{{ row.categories.activity.bonus_earned }} oral
                                             </span>
                                         </td>
                                         <!-- Project total with % in () beside overall score -->
-                                        <td class="whitespace-nowrap border-b border-l-2 border-border bg-teal-500/5 px-3 py-3 text-center font-mono">
+                                        <td
+                                            class="whitespace-nowrap border-b border-l-2 border-border bg-secondary/40 px-3 py-3 text-center font-mono"
+                                        >
                                             <div class="inline-flex items-baseline justify-center gap-1">
                                                 <span class="text-xs font-bold text-foreground">
                                                     {{ row.projectSummary?.earned ?? 0 }} / {{ row.projectSummary?.possible ?? 0 }}
                                                 </span>
-                                                <span class="text-xs font-semibold text-teal-700 dark:text-teal-400">
+                                                <span class="text-xs font-semibold text-foreground">
                                                     ({{ row.projectSummary?.percentage !== null ? `${row.projectSummary.percentage}%` : '—' }})
                                                 </span>
                                             </div>
                                         </td>
                                         <!-- Attendance percentage -->
                                         <td
-                                            class="border-b border-l-2 border-border bg-secondary/20 px-2.5 py-3 text-center font-mono text-xs font-medium text-cyan-700 dark:text-cyan-400"
+                                            class="border-b border-l-2 border-border bg-secondary/20 px-2.5 py-3 text-center font-mono text-xs font-medium text-foreground"
                                         >
                                             {{ row.attendance?.percentage !== null ? `${row.attendance.percentage}%` : '—' }}
                                         </td>
                                         <!-- Recitation Bonus Points Cell -->
                                         <td
-                                            class="group/oral relative border-b border-l-2 border-amber-500/30 bg-amber-500/5 px-2.5 py-3 text-center font-mono"
+                                            class="group/oral relative border-b border-l-2 border-border bg-secondary/40 px-2.5 py-3 text-center font-mono"
                                         >
                                             <template v-if="row.recitation && row.recitation.count > 0 && row.recitation.avg_score !== null">
                                                 <span
-                                                    class="shadow-2xs inline-flex items-center gap-1 rounded-full bg-emerald-700 px-2.5 py-0.5 text-xs font-bold text-white"
+                                                    class="shadow-2xs inline-flex items-center gap-1 rounded-full bg-secondary/40 px-2.5 py-0.5 text-xs font-bold text-foreground"
                                                 >
-                                                    +{{ row.recitation.bonus_points ?? 0 }} pts
+                                                    {{ oralResult(row.recitation) }}
                                                 </span>
                                                 <span class="mt-0.5 block text-[9px] text-muted-foreground">
                                                     {{ row.recitation.count }} rec ({{ row.recitation.avg_score }}/10)
@@ -2083,14 +2069,12 @@ onMounted(() => {
                                         </td>
 
                                         <!-- Midterm Grade Cell -->
-                                        <td class="border-b border-l-2 border-purple-500/30 bg-purple-500/5 px-3 py-3 text-center font-mono">
+                                        <td class="border-b border-l-2 border-border bg-secondary/40 px-3 py-3 text-center font-mono">
                                             <div v-if="row.midterm?.weighted_grade !== null && row.midterm?.weighted_grade !== undefined">
-                                                <span class="block text-xs font-bold text-purple-900 dark:text-purple-300">
-                                                    {{ row.midterm.weighted_grade }}%
-                                                </span>
+                                                <span class="block text-xs font-bold text-foreground"> {{ row.midterm.weighted_grade }}% </span>
                                                 <span
                                                     class="shadow-2xs mt-0.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-bold"
-                                                    :class="gradeBadgeBg(row.midterm.scale_grade)"
+                                                    :class="gradeBadgeClasses"
                                                 >
                                                     {{ row.midterm.scale_grade }}
                                                 </span>
@@ -2099,14 +2083,12 @@ onMounted(() => {
                                         </td>
 
                                         <!-- Final Period Grade Cell -->
-                                        <td class="border-b border-l-2 border-indigo-500/30 bg-indigo-500/5 px-3 py-3 text-center font-mono">
+                                        <td class="border-b border-l-2 border-border bg-secondary/40 px-3 py-3 text-center font-mono">
                                             <div v-if="row.final_period?.weighted_grade !== null && row.final_period?.weighted_grade !== undefined">
-                                                <span class="block text-xs font-bold text-indigo-900 dark:text-indigo-300">
-                                                    {{ row.final_period.weighted_grade }}%
-                                                </span>
+                                                <span class="block text-xs font-bold text-foreground"> {{ row.final_period.weighted_grade }}% </span>
                                                 <span
                                                     class="shadow-2xs mt-0.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-bold"
-                                                    :class="gradeBadgeBg(row.final_period.scale_grade)"
+                                                    :class="gradeBadgeClasses"
                                                 >
                                                     {{ row.final_period.scale_grade }}
                                                 </span>
@@ -2123,21 +2105,25 @@ onMounted(() => {
                                         <td class="border-b border-l-2 border-primary/30 bg-primary/10 px-3 py-3 text-center">
                                             <span
                                                 class="shadow-xs inline-flex min-w-[52px] items-center justify-center rounded-full border px-2.5 py-1 text-xs font-bold"
-                                                :class="gradeBadgeBg(row.scale_grade)"
+                                                :class="gradeBadgeClasses"
                                             >
                                                 {{ gradeDisplay(row.scale_grade) }}
                                             </span>
                                             <span
                                                 v-if="row.final_remarks || row.grade_remarks"
-                                                class="mt-1 block text-[9px] font-bold tracking-wider uppercase"
-                                                :class="(row.final_remarks || row.grade_remarks)?.toUpperCase() === 'PASSED' ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive font-extrabold'"
+                                                class="mt-1 block text-[9px] font-bold uppercase tracking-wider"
+                                                :class="
+                                                    (row.final_remarks || row.grade_remarks)?.toUpperCase() === 'PASSED'
+                                                        ? 'text-foreground'
+                                                        : 'font-extrabold text-destructive'
+                                                "
                                             >
                                                 {{ row.final_remarks || row.grade_remarks }}
                                             </span>
                                         </td>
                                     </template>
                                 </tr>
-                                <tr v-if="!rows.length">
+                                <tr v-if="!sortedRows.length">
                                     <td
                                         :colspan="
                                             viewMode === 'summary'
@@ -2150,7 +2136,7 @@ onMounted(() => {
                                         "
                                         class="py-12 text-center text-xs text-muted-foreground"
                                     >
-                                        No students are enrolled in this section.
+                                        {{ studentSearch ? 'No students match your search.' : 'No students are enrolled in this section.' }}
                                     </td>
                                 </tr>
                             </tbody>
@@ -2163,36 +2149,42 @@ onMounted(() => {
                     <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <h3 class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Numerical Grading Scale & Period Computation</h3>
                         <span class="font-mono text-[11px] text-muted-foreground">
-                            Component Grade = 5 - (4 × Score Ratio) · Passing: 50% (3.0) · FG = (MD + FD) / 2
+                            Component = {{ gradingFormula.worst_grade }} − ({{
+                                Number(gradingFormula.worst_grade) - Number(gradingFormula.best_grade)
+                            }}
+                            × Score Ratio) · Passing ≤ {{ gradingFormula.passing_grade }} · FG = MD × {{ gradingFormula.midterm_weight }}% + FD ×
+                            {{ gradingFormula.final_weight }}%
                         </span>
                     </div>
 
                     <div class="grid grid-cols-2 gap-2 text-center text-[10px] sm:grid-cols-4 lg:grid-cols-7">
                         <div
-                            v-for="entry in [
-                                { grade: '1.0', range: '100% (5 - 4×1.0)' },
-                                { grade: '1.4', range: '90% (5 - 4×0.9)' },
-                                { grade: '1.8', range: '80% (5 - 4×0.8)' },
-                                { grade: '2.2', range: '70% (5 - 4×0.7)' },
-                                { grade: '2.6', range: '60% (5 - 4×0.6)' },
-                                { grade: '3.0', range: '50% (Passing Threshold)' },
-                                { grade: '5.0', range: 'Below 50% (Failed)' },
-                            ]"
-                            :key="entry.grade"
-                            class="shadow-2xs rounded-lg border px-2 py-2 transition-colors"
-                            :class="
-                                entry.grade === '5.0' ? 'border-rose-800 bg-rose-700 text-white' : 'border-border/60 bg-secondary/30 text-foreground'
-                            "
+                            v-for="entry in formulaLegend"
+                            :key="entry.percentage"
+                            class="shadow-2xs rounded-lg border border-border/60 bg-secondary/30 px-2 py-2 text-foreground transition-colors"
                         >
-                            <span class="block font-medium" :class="entry.grade === '5.0' ? 'text-white' : 'text-foreground'">{{ entry.grade }}</span>
-                            <span :class="entry.grade === '5.0' ? 'text-rose-100' : 'text-muted-foreground'">{{ entry.range }}</span>
+                            <span class="block font-medium text-foreground">{{ entry.grade }}</span>
+                            <span class="text-muted-foreground">{{ entry.percentage }}% score</span>
                         </div>
                     </div>
+                    <p class="text-xs text-muted-foreground">
+                        Period rounding: {{ gradingFormula.period_rounding }} · Final rounding: {{ gradingFormula.final_rounding }} ·
+                        {{ gradingFormula.decimal_places }} decimal place(s).
+                        <template v-if="gradingFormula.replace_failing_grade"
+                            >Failing final averages are replaced with {{ gradingFormula.failed_grade }}.</template
+                        >
+                        <Link v-if="!printMode" href="/settings/grading-formula" class="font-medium text-primary underline"
+                            >Edit formula in Settings</Link
+                        >
+                    </p>
                 </div>
 
                 <p class="mt-4 text-[11px] text-muted-foreground print:text-[8px]">
                     Note: Activities, quizzes, and attendance up to the Midterm Exam compute the Midterm Grade. Subsequent tasks and reports compute
-                    the Final Period Grade. Oral recitations award bonus points directly to activities without increasing max possible points.
+                    the Final Period Grade.
+                    <template v-if="gradingFormula.customized && gradingFormula.recitation_mode === 'weighted'"
+                        >Oral recitation is a weighted component.</template
+                    ><template v-else>Oral recitations award bonus points directly to activities without increasing max possible points.</template>
                 </p>
             </div>
         </main>
@@ -2204,6 +2196,7 @@ onMounted(() => {
             :group-activities="groupActivitiesList"
             :projects="projectsList"
             :grading-weights="gradingWeights"
+            :grading-formula="gradingFormula"
             :section-name="section.name"
             :subject-code="section.subject_code"
             :open="isModalOpen"

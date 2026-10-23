@@ -1,5 +1,46 @@
 # ClassCheck Design System Guidelines
 
+## Meta-inspired theme
+
+The gradebook and student grade summary opt into this theme with `.meta-theme`.
+Its reusable tokens live in `resources/css/meta-theme.css`. These rules take
+precedence over the legacy palette and typography below within that scope.
+
+- **Typography:** Segoe UI Variable Text, Segoe UI, then Helvetica/Arial. Use
+  400 for body text, 500 for labels, and 600-650 for headings and key figures.
+  Page/dialog titles are 23-28px, activity titles 15px, reading text 13-15px,
+  and supporting metadata 11-12px. Preserve tabular numerals for scores.
+- **Color:** Retain ClassCheck's golden-yellow palette for navigation, focus,
+  and actions. Pair yellow surfaces with dark-gold text in light mode and
+  lighter yellow text in dark mode to keep labels readable.
+  Keep backgrounds neutral, with white cards in light mode and neutral charcoal
+  cards in dark mode. Use independent semantic colors for passing, failing,
+  missing work, and activity types; always retain their text labels and icons.
+- **Composition:** Use an 8px spacing rhythm and 12-24px section gaps. The student
+  summary uses a charcoal header with a yellow accent, a continuous category
+  ledger, strong numeric hierarchy, and flat period totals. Avoid a separate
+  rounded card for every field. Expanded coursework uses dividers and a yellow
+  feedback rule, with restrained elevation reserved for the dialog itself.
+- **Controls:** Use compact icon actions with accessible names, yellow selected
+  states, visible focus rings, and short color transitions. Reduced-motion mode
+  disables transitions. Maintain working keyboard, search, and collapse controls.
+- **Feedback:** Display a labeled feedback block under every activity. Render
+  stored text safely, preserve line breaks, and use “No feedback recorded.” for
+  blank entries. Keep feedback readable at a maximum of 68 characters per line.
+- **Grade summary:** Show Quizzes, Activities, and Exams as collapsed category
+  rows first, with earned/possible points from the existing gradebook totals.
+  Expanding a row reveals its individual scores, dates, and feedback. Group
+  activities belong under Activities; laboratories and projects remain separate.
+  Search and deficiency filters expand matching categories. Print every category
+  even when it is collapsed on screen. Period grades follow the category summary.
+- **Responsive/print:** Keep dialog content scrollable while its header and
+  filters remain available. Prevent horizontal overflow at mobile widths. Print
+  all attendance details and hide interactive controls.
+- **Data:** The theme changes presentation only. Preserve grading formulas,
+  existing scores, period availability, and database contents.
+
+Reference: [Design at Meta: accessibility and design systems](https://www.meta.com/design-at-meta/blog/accessibility-and-design-systems/).
+
 ## Core Principles
 
 1. Background Colors

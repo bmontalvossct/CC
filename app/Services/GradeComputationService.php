@@ -37,15 +37,13 @@ class GradeComputationService
      *
      * Intermediate calculations are kept with full decimal precision (not rounded).
      */
-    public function computeComponentGrade(float $totalEarned, float $totalMaximum): ?float
+    public function computeComponentGrade(float $totalEarned, float $totalMaximum, array $formula = []): ?float
     {
         if ($totalMaximum <= 0.0) {
             return null;
         }
 
-        $scoreRatio = $totalEarned / $totalMaximum;
-
-        return 5.0 - (4.0 * $scoreRatio);
+        return GradingFormula::component($totalEarned, $totalMaximum, GradingFormula::resolve($formula));
     }
 
     /**
@@ -217,7 +215,7 @@ class GradeComputationService
         }
 
         $scoreRatio = $sumMaxScores > 0.0 ? ($sumScores / $sumMaxScores) : null;
-        $componentGrade = $scoreRatio !== null ? (5.0 - (4.0 * $scoreRatio)) : null;
+        $componentGrade = $this->computeComponentGrade($sumScores, $sumMaxScores, $options['formula'] ?? []);
         $percentage = $scoreRatio !== null ? ($scoreRatio * 100.0) : null;
 
         return [
@@ -252,6 +250,7 @@ class GradeComputationService
     ): array {
         $validateWeights = (bool) ($options['validate_weights'] ?? true);
         $allowIncomplete = (bool) ($options['allow_incomplete'] ?? config('grading.allow_incomplete_computation', false));
+        $formula = GradingFormula::resolve($options['formula'] ?? []);
 
         $componentWeights = $this->filterComponentWeights($components);
 
@@ -345,9 +344,9 @@ class GradeComputationService
             ? ($sumOfWeightedGrades / ($allowIncomplete && $sumEvaluatedDecimalWeights < 1.0 ? $sumEvaluatedDecimalWeights : 1.0))
             : 0.0;
 
-        $periodGrade = round($weightedSum, 1, PHP_ROUND_HALF_UP);
-        $formattedGrade = number_format($periodGrade, 1);
-        $remarks = $periodGrade <= 3.0 ? 'Passed' : 'Failed';
+        $periodGrade = GradingFormula::rounded($weightedSum, $formula['period_rounding'], (int) $formula['decimal_places']);
+        $formattedGrade = number_format($periodGrade, (int) $formula['decimal_places']);
+        $remarks = $periodGrade <= $formula['passing_grade'] ? 'Passed' : 'Failed';
 
         return [
             'components' => $componentsResult,
@@ -358,7 +357,7 @@ class GradeComputationService
             'final_percentage' => $periodGrade,
             'remarks' => $remarks,
             'is_complete' => $isAllComponentsComplete,
-            'is_passing' => ($periodGrade <= 3.0),
+            'is_passing' => ($periodGrade <= $formula['passing_grade']),
         ];
     }
 
@@ -387,9 +386,10 @@ class GradeComputationService
      *     is_complete: bool
      * }
      */
-    public function computeOverallFinalGrade(?float $midtermGrade, ?float $finalPeriodGrade): array
+    public function computeOverallFinalGrade(?float $midtermGrade, ?float $finalPeriodGrade, array $formula = []): array
     {
-        if ($midtermGrade === null || $finalPeriodGrade === null) {
+        $formula = GradingFormula::resolve($formula);
+        if (($midtermGrade === null && $formula['midterm_weight'] > 0) || ($finalPeriodGrade === null && $formula['final_weight'] > 0)) {
             return [
                 'midterm_grade' => $midtermGrade,
                 'final_period_grade' => $finalPeriodGrade,
@@ -402,16 +402,17 @@ class GradeComputationService
             ];
         }
 
-        $averageGrade = round(($midtermGrade + $finalPeriodGrade) / 2.0, 8);
-        $roundedAverage = round($averageGrade, 1, PHP_ROUND_HALF_UP);
+        $decimals = (int) $formula['decimal_places'];
+        $averageGrade = round(((($midtermGrade ?? 0) * $formula['midterm_weight']) + (($finalPeriodGrade ?? 0) * $formula['final_weight'])) / 100.0, 8);
+        $roundedAverage = round($averageGrade, $decimals, PHP_ROUND_HALF_UP);
 
-        if ($roundedAverage > 3.0) {
-            $finalGrade = 5.0;
+        if ($formula['replace_failing_grade'] && $roundedAverage > $formula['passing_grade']) {
+            $finalGrade = (float) $formula['failed_grade'];
         } else {
-            $finalGrade = $this->roundDown($averageGrade, 1);
+            $finalGrade = GradingFormula::rounded($averageGrade, $formula['final_rounding'], $decimals);
         }
 
-        $isPassing = $finalGrade <= 3.0;
+        $isPassing = $finalGrade <= $formula['passing_grade'];
         $remarks = $isPassing ? 'Passed' : 'Failed';
 
         return [
@@ -419,7 +420,7 @@ class GradeComputationService
             'final_period_grade' => $finalPeriodGrade,
             'average_grade' => $averageGrade,
             'final_grade' => $finalGrade,
-            'formatted_final_grade' => number_format($finalGrade, 1),
+            'formatted_final_grade' => number_format($finalGrade, $decimals),
             'remarks' => $remarks,
             'is_passing' => $isPassing,
             'is_complete' => true,
@@ -450,7 +451,7 @@ class GradeComputationService
         $md = $this->computePeriodGrade($components, $midtermGrouped, $options);
         $fd = $this->computePeriodGrade($components, $finalGrouped, $options);
 
-        $fg = $this->computeOverallFinalGrade($md['period_grade'], $fd['period_grade']);
+        $fg = $this->computeOverallFinalGrade($md['period_grade'], $fd['period_grade'], $options['formula'] ?? []);
 
         return [
             'midterm' => $md,

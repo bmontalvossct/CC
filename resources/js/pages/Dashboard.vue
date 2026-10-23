@@ -121,11 +121,11 @@ onMounted(() => {
                             <HelpCircle class="size-3.5 text-muted-foreground" />
                             <span>Guided Tour</span>
                         </button>
-                        <Link href="/sections/create" prefetch="hover" class="ink-button">
+                        <Link href="/sections/create" :prefetch="$page.props.is_offline ? false : 'hover'" class="ink-button">
                             <Plus class="size-4" />
                             <span>New section</span>
                         </Link>
-                        <Link href="/sections" prefetch="hover" class="secondary-button">
+                        <Link href="/sections" :prefetch="$page.props.is_offline ? false : 'hover'" class="secondary-button">
                             <span>View all sections</span>
                         </Link>
                     </div>
@@ -233,7 +233,7 @@ onMounted(() => {
                     </div>
                     <Link
                         href="/sections"
-                        prefetch="hover"
+                        :prefetch="$page.props.is_offline ? false : 'hover'"
                         class="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
                     >
                         <span>View all</span>
@@ -268,7 +268,7 @@ onMounted(() => {
                                 </div>
                                 <Link
                                     :href="`/sections/${section.id}`"
-                                    prefetch="hover"
+                                    :prefetch="$page.props.is_offline ? false : 'hover'"
                                     class="grid size-9 shrink-0 place-items-center rounded-full border border-border bg-secondary/50 text-muted-foreground transition-colors group-hover:border-primary group-hover:bg-primary group-hover:text-white"
                                     aria-label="Open section details"
                                 >
@@ -299,7 +299,7 @@ onMounted(() => {
                         <div class="mt-6 flex items-center gap-2 border-t border-border/80 pt-4">
                             <Link
                                 :href="`/sections/${section.id}/attendance`"
-                                prefetch="hover"
+                                :prefetch="$page.props.is_offline ? false : 'hover'"
                                 class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-secondary hover:text-primary"
                             >
                                 <CalendarCheck2 class="size-3.5" />
@@ -307,7 +307,7 @@ onMounted(() => {
                             </Link>
                             <Link
                                 :href="`/sections/${section.id}/assessments`"
-                                prefetch="hover"
+                                :prefetch="$page.props.is_offline ? false : 'hover'"
                                 class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-secondary hover:text-primary"
                             >
                                 <ClipboardList class="size-3.5" />
@@ -315,7 +315,7 @@ onMounted(() => {
                             </Link>
                             <Link
                                 :href="`/sections/${section.id}`"
-                                prefetch="hover"
+                                :prefetch="$page.props.is_offline ? false : 'hover'"
                                 class="inline-flex items-center justify-center rounded-lg border border-border bg-card p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
                                 title="Classroom floor"
                             >
@@ -337,7 +337,7 @@ onMounted(() => {
                                 : 'Add a section, arrange its seating layout, and let students self-claim chairs with a single QR code.'
                         }}
                     </p>
-                    <Link href="/sections/create" prefetch="hover" class="ink-button mt-6">
+                    <Link href="/sections/create" :prefetch="$page.props.is_offline ? false : 'hover'" class="ink-button mt-6">
                         <Plus class="size-4" />
                         <span>Create a section</span>
                     </Link>

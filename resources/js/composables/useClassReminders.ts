@@ -48,6 +48,7 @@ const testSent = ref(false);
 
 let intervalId: ReturnType<typeof setInterval> | null = null;
 let swRegistration: ServiceWorkerRegistration | null = null;
+let initialized = false;
 
 // Initialize settings from localStorage
 function loadPreferences() {
@@ -195,49 +196,55 @@ async function showNativeNotification(title: string, options: NotificationOption
 }
 
 let lastFetchTimestamp = 0;
+let reminderRequest: Promise<void> | null = null;
 const REMINDER_CACHE_TTL_MS = 120000;
 
 // Fetch today's classes and reminder status from the server
 export async function fetchTodayReminders(force = false) {
     if (typeof window === 'undefined') return;
+    if (reminderRequest) return reminderRequest;
 
     // Return cached schedule if fetched recently and not forced
-    if (!force && lastFetchTimestamp > 0 && Date.now() - lastFetchTimestamp < REMINDER_CACHE_TTL_MS && todayClasses.value.length > 0) {
+    if (!force && lastFetchTimestamp > 0 && Date.now() - lastFetchTimestamp < REMINDER_CACHE_TTL_MS) {
         checkAndAlertReminders();
         return;
     }
 
-    isChecking.value = true;
-    try {
-        const res = await fetch('/schedule/today-reminders', {
-            headers: {
-                Accept: 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-        });
+    reminderRequest = (async () => {
+        isChecking.value = true;
+        try {
+            const res = await fetch('/schedule/today-reminders', {
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            });
 
-        if (res.ok) {
-            const data: TodayRemindersResponse = await res.json();
-            todayClasses.value = data.classes || [];
-            todayMeta.value = {
-                today_date: data.today_date,
-                day_name: data.day_name,
-                current_time: data.current_time,
-                is_holiday: data.is_holiday,
-                holiday_name: data.holiday_name,
-                term_name: data.term_name,
-            };
-            lastChecked.value = new Date().toLocaleTimeString();
-            lastFetchTimestamp = Date.now();
+            if (res.ok) {
+                const data: TodayRemindersResponse = await res.json();
+                todayClasses.value = data.classes || [];
+                todayMeta.value = {
+                    today_date: data.today_date,
+                    day_name: data.day_name,
+                    current_time: data.current_time,
+                    is_holiday: data.is_holiday,
+                    holiday_name: data.holiday_name,
+                    term_name: data.term_name,
+                };
+                lastChecked.value = new Date().toLocaleTimeString();
+                lastFetchTimestamp = Date.now();
 
-            // Run reminder check against fetched classes
-            checkAndAlertReminders();
+                // Run reminder check against fetched classes
+                checkAndAlertReminders();
+            }
+        } catch {
+            // Network/offline error; keep cached classes
+        } finally {
+            isChecking.value = false;
+            reminderRequest = null;
         }
-    } catch {
-        // Network/offline error; keep cached classes
-    } finally {
-        isChecking.value = false;
-    }
+    })();
+    return reminderRequest;
 }
 
 // Check schedule and alert when a class is in <= leadTime minutes
@@ -324,6 +331,11 @@ export async function sendTestNotification() {
 
 export function useClassReminders() {
     onMounted(() => {
+        if (initialized) {
+            void fetchTodayReminders();
+            return;
+        }
+        initialized = true;
         loadPreferences();
         initServiceWorker();
 

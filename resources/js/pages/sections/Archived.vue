@@ -159,7 +159,7 @@ const formatDate = (dateStr: string | null) => {
                 <div class="flex flex-wrap items-center gap-3">
                     <Link
                         href="/sections"
-                        prefetch="hover"
+                        :prefetch="$page.props.is_offline ? false : 'hover'"
                         class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                     >
                         <School class="size-4 text-primary transition-colors group-hover:text-white" />
@@ -178,7 +178,7 @@ const formatDate = (dateStr: string | null) => {
             <div class="mt-6 flex items-center gap-2 border-b border-border/80 pb-3">
                 <Link
                     href="/sections"
-                    prefetch="hover"
+                    :prefetch="$page.props.is_offline ? false : 'hover'"
                     class="inline-flex items-center gap-2 rounded-xl border border-border bg-white px-4 py-2 text-sm font-medium text-foreground transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                 >
                     <School class="size-4" />
@@ -289,7 +289,7 @@ const formatDate = (dateStr: string | null) => {
                         <Link
                             v-if="pagination.prev_page_url"
                             :href="pagination.prev_page_url"
-                            prefetch="hover"
+                            :prefetch="$page.props.is_offline ? false : 'hover'"
                             class="shadow-xs inline-flex h-9 items-center gap-1 rounded-xl border border-border bg-white px-3 text-xs font-medium text-foreground transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                         >
                             <ChevronLeft class="size-3.5" />
@@ -309,7 +309,7 @@ const formatDate = (dateStr: string | null) => {
                             <Link
                                 v-else-if="link.url && !link.active"
                                 :href="link.url"
-                                prefetch="hover"
+                                :prefetch="$page.props.is_offline ? false : 'hover'"
                                 class="shadow-xs inline-flex size-9 items-center justify-center rounded-xl border border-border bg-white text-xs font-medium text-foreground transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             >
                                 {{ link.label }}
@@ -327,7 +327,7 @@ const formatDate = (dateStr: string | null) => {
                         <Link
                             v-if="pagination.next_page_url"
                             :href="pagination.next_page_url"
-                            prefetch="hover"
+                            :prefetch="$page.props.is_offline ? false : 'hover'"
                             class="shadow-xs inline-flex h-9 items-center gap-1 rounded-xl border border-border bg-white px-3 text-xs font-medium text-foreground transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                         >
                             <span>Next</span>
@@ -356,7 +356,7 @@ const formatDate = (dateStr: string | null) => {
                 <div class="mt-6">
                     <Link
                         href="/sections"
-                        prefetch="hover"
+                        :prefetch="$page.props.is_offline ? false : 'hover'"
                         class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-primary bg-white px-4 text-sm font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                     >
                         <ArrowLeft class="size-4 text-primary transition-colors group-hover:text-white" />

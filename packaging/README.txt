@@ -26,8 +26,10 @@ OPTION B: Portable Zero-Install (USB Flash Drive)
  2. SYSTEM REQUIREMENTS
 --------------------------------------------------------------------------------
   - Operating System: Windows 10, Windows 11, Windows 8.1, Windows 7 (64-bit).
-  - Internet Connection: NOT REQUIRED (100% offline).
-  - Dependencies: None! (Portable PHP 8.3 and all MSVC runtime DLLs are bundled).
+  - Classroom records and manual score entry work offline.
+  - Voice entry uses local Whisper. First use needs internet to download/cache
+    the speech model in your browser. Audio stays on your device.
+  - Dependencies: None! (Portable PHP 8.5.12 and all MSVC runtime DLLs are bundled).
   - Web Browser: Microsoft Edge, Google Chrome, Mozilla Firefox, or Brave.
 
 --------------------------------------------------------------------------------
@@ -40,9 +42,16 @@ OPTION B: Portable Zero-Install (USB Flash Drive)
     Right-click the ClassCheck icon in your Windows System Tray (near the clock)
     and click "Back Up Database Now". A timestamped backup file will be created in:
       database/backups/
-  - To transfer your data to a new computer:
-    Simply copy the "database/database.sqlite" file to the new computer's 
-    ClassCheck installation folder.
+  - UPDATING: Close ClassCheck and run the new ClassCheck_Setup.exe. Choose the
+    SAME installation folder. Do not uninstall or extract a portable ZIP over it.
+  - Setup preserves your existing .env (including APP_KEY), database files,
+    SQLite WAL/SHM files, storage, and uploaded work. Before replacing code, it
+    creates and checks a timestamped backup under update-backups/.
+  - On first launch, pending database migrations receive a separate consistent
+    SQLite backup. Existing records are verified before committing the update;
+    an error stops startup and rolls back the database migration.
+  - To transfer data: exit ClassCheck first, then copy .env, database/ and
+    storage/ together. Keep the original copy until you verify the new one.
 
 --------------------------------------------------------------------------------
  4. MANAGING THE RUNNING APPLICATION

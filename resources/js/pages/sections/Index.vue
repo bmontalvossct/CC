@@ -101,7 +101,7 @@ const toggleArchive = (id: number) => {
                 <div class="flex flex-wrap items-center gap-3">
                     <Link
                         href="/sections/archived"
-                        prefetch="hover"
+                        :prefetch="$page.props.is_offline ? false : 'hover'"
                         class="shadow-xs group inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-white px-4 text-sm font-medium text-foreground transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                     >
                         <Archive class="size-4 text-muted-foreground transition-colors group-hover:text-white" />
@@ -115,7 +115,7 @@ const toggleArchive = (id: number) => {
                     </Link>
 
                     <Button as-child class="ink-button !h-10 !rounded-xl">
-                        <Link href="/sections/create" prefetch="hover">
+                        <Link href="/sections/create" :prefetch="$page.props.is_offline ? false : 'hover'">
                             <Plus class="size-4" />
                             <span>New section</span>
                         </Link>
@@ -135,7 +135,7 @@ const toggleArchive = (id: number) => {
 
                 <Link
                     href="/sections/archived"
-                    prefetch="hover"
+                    :prefetch="$page.props.is_offline ? false : 'hover'"
                     class="inline-flex items-center gap-2 rounded-xl border border-border bg-white px-4 py-2 text-sm font-medium text-foreground transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                 >
                     <Archive class="size-4" />
@@ -201,7 +201,7 @@ const toggleArchive = (id: number) => {
 
                                 <Link
                                     :href="`/sections/${section.id}`"
-                                    prefetch="hover"
+                                    :prefetch="$page.props.is_offline ? false : 'hover'"
                                     class="group/open shadow-xs inline-flex h-9 items-center gap-1.5 rounded-xl border border-primary bg-white px-3.5 text-xs font-medium text-primary transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                                 >
                                     <span>Open classroom</span>
@@ -233,7 +233,7 @@ const toggleArchive = (id: number) => {
                         <Link
                             v-if="pagination.prev_page_url"
                             :href="pagination.prev_page_url"
-                            prefetch="hover"
+                            :prefetch="$page.props.is_offline ? false : 'hover'"
                             class="shadow-xs inline-flex h-9 items-center gap-1 rounded-xl border border-border bg-white px-3 text-xs font-medium text-foreground transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                         >
                             <ChevronLeft class="size-3.5" />
@@ -253,7 +253,7 @@ const toggleArchive = (id: number) => {
                             <Link
                                 v-else-if="link.url && !link.active"
                                 :href="link.url"
-                                prefetch="hover"
+                                :prefetch="$page.props.is_offline ? false : 'hover'"
                                 class="shadow-xs inline-flex size-9 items-center justify-center rounded-xl border border-border bg-white text-xs font-medium text-foreground transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                             >
                                 {{ link.label }}
@@ -271,7 +271,7 @@ const toggleArchive = (id: number) => {
                         <Link
                             v-if="pagination.next_page_url"
                             :href="pagination.next_page_url"
-                            prefetch="hover"
+                            :prefetch="$page.props.is_offline ? false : 'hover'"
                             class="shadow-xs inline-flex h-9 items-center gap-1 rounded-xl border border-border bg-white px-3 text-xs font-medium text-foreground transition-all hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                         >
                             <span>Next</span>
@@ -297,7 +297,7 @@ const toggleArchive = (id: number) => {
                     Set up your class, customize the room grid, and invite students to sit with a QR code.
                 </p>
                 <Button as-child class="ink-button mt-6">
-                    <Link href="/sections/create" prefetch="hover">
+                    <Link href="/sections/create" :prefetch="$page.props.is_offline ? false : 'hover'">
                         <Plus class="size-4" />
                         <span>Create section</span>
                     </Link>

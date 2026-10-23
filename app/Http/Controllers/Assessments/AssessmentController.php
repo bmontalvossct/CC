@@ -140,7 +140,7 @@ class AssessmentController extends AssessmentModuleController
     public function show(Section $section, Assessment $assessment): Response
     {
         $this->authorizeAssessment($section, $assessment);
-        $assessment->load(['scores:id,assessment_id,student_id,score,remarks,absence_override,attachment_path,attachment_name,attachment_mime', 'attendanceSession:id,session_date,starts_at,ends_at']);
+        $assessment->load(['scores:id,assessment_id,student_id,score,remarks,absence_override,marked_absent,attachment_path,attachment_name,attachment_mime', 'attendanceSession:id,session_date,starts_at,ends_at']);
 
         $students = Student::query()
             ->where('students.section_id', $section->id)
@@ -174,6 +174,7 @@ class AssessmentController extends AssessmentModuleController
                 'score' => $saved?->score,
                 'remarks' => $saved?->remarks,
                 'absence_override' => (bool) ($saved?->absence_override ?? false),
+                'marked_absent' => (bool) ($saved?->marked_absent ?? false),
                 'attachment_path' => $saved?->attachment_path,
                 'attachment_name' => $saved?->attachment_name,
                 'attachment_mime' => $saved?->attachment_mime,
@@ -188,8 +189,8 @@ class AssessmentController extends AssessmentModuleController
             'students' => $roster,
             'summary' => [
                 'graded' => $graded->count(),
-                'missing' => max(0, $roster->where('is_absent', false)->count() - $graded->count()),
-                'absent' => $roster->where('is_absent', true)->count(),
+                'missing' => $roster->filter(fn ($student) => ! $student['is_absent'] && ! $student['marked_absent'] && $student['score'] === null)->count(),
+                'absent' => $roster->filter(fn ($student) => $student['is_absent'] || $student['marked_absent'])->count(),
                 'average' => $graded->count() ? round((float) $graded->avg('score'), 2) : null,
             ],
             'attendanceSessions' => AttendanceSession::query()

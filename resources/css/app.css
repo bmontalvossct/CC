@@ -1,6 +1,13 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import './meta-theme.css';
+
+@import 'tailwindcss';
+@config '../../tailwind.config.js';
+
+/* Preserve the v3 keyboard outline in Windows forced-colors mode. */
+@utility outline-none {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+}
 
 body,
 html {
@@ -122,7 +129,8 @@ html {
 }
 
 @layer components {
-    .paper-card {
+    .paper-card,
+    .paper-card-interactive {
         @apply relative rounded-2xl border border-border/80 bg-card p-6 text-card-foreground;
         box-shadow:
             0 2px 3px hsl(var(--foreground) / 0.02),
@@ -133,7 +141,7 @@ html {
             transform 250ms var(--ease-out);
     }
     .paper-card-interactive {
-        @apply paper-card hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md;
+        @apply hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md;
     }
     .glass-card {
         @apply rounded-xl border border-white/20 bg-white/80 backdrop-blur-xl dark:border-white/10 dark:bg-card/75;

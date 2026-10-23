@@ -262,7 +262,7 @@ const getFileTypeBadge = (fileName: string | null, mime: string | null) => {
                         <div class="mb-3 flex items-center gap-2">
                             <Link
                                 :href="`/sections/${section.id}`"
-                                prefetch="hover"
+                                :prefetch="$page.props.is_offline ? false : 'hover'"
                                 class="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-primary"
                             >
                                 <ArrowLeft class="size-3.5" /> Back to section classroom

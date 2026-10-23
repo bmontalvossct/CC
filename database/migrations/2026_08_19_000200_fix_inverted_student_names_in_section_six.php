@@ -7,6 +7,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // A one-off hosted dataset repair is not applicable to installed classrooms.
+        if (config('app.offline')) {
+            return;
+        }
         $section = Section::where('name', 'like', '%BSICT 4C%')->first();
         if (! $section) {
             return;

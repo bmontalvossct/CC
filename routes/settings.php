@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Settings\AcademicTermSettingsController;
 use App\Http\Controllers\Settings\BackupExportController;
+use App\Http\Controllers\Settings\GradingFormulaController;
 use App\Http\Controllers\Settings\NotificationSettingsController;
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\ProfileController;
@@ -14,6 +15,9 @@ Route::middleware('auth')->group(function () {
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('settings/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    Route::get('settings/grading-formula', [GradingFormulaController::class, 'edit'])->name('grading-formula.edit');
+    Route::put('settings/grading-formula', [GradingFormulaController::class, 'update'])->name('grading-formula.update');
 
     Route::redirect('settings/academic-terms', 'settings/academic-term');
     Route::get('settings/academic-term', [AcademicTermSettingsController::class, 'edit'])->name('academic-term.edit');

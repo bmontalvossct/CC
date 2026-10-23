@@ -367,7 +367,7 @@ const submitProject = () => {
                     <div class="flex flex-nowrap items-center gap-2 overflow-x-auto pb-1">
                         <Link
                             :href="`/sections/${section.id}/reports/gradebook`"
-                            prefetch="hover"
+                            :prefetch="$page.props.is_offline ? false : 'hover'"
                             title="Gradebook"
                             class="shadow-xs group inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-primary bg-white px-3 text-xs font-medium text-primary transition-all duration-300 hover:border-amber-400 hover:bg-amber-400 hover:text-white dark:bg-card"
                         >
@@ -585,7 +585,7 @@ const submitProject = () => {
                             required
                             type="number"
                             min="0.01"
-                            step="0.01"
+                            step="1"
                             class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary"
                         />
                         <small v-if="form.errors.max_points" class="mt-1 block text-xs text-rose-600">{{ form.errors.max_points }}</small>
@@ -1081,7 +1081,7 @@ const submitProject = () => {
                     v-for="tab in tabs"
                     :key="tab"
                     :href="`/sections/${section.id}/assessments${tab === 'all' ? '' : `?type=${tab}`}`"
-                    prefetch="hover"
+                    :prefetch="$page.props.is_offline ? false : 'hover'"
                     class="relative rounded-xl px-4 py-2 text-xs font-bold capitalize transition-colors"
                     :class="filter === tab ? 'text-primary-foreground' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'"
                 >
@@ -1131,7 +1131,7 @@ const submitProject = () => {
                     >
                         <Link
                             :href="`/sections/${section.id}/projects/${item.id}`"
-                            prefetch="hover"
+                            :prefetch="$page.props.is_offline ? false : 'hover'"
                             class="paper-card group flex h-full flex-col justify-between border-l-4 transition-shadow hover:border-primary/50 hover:shadow-lg"
                             :class="
                                 item.type === 'group_activity'
@@ -1231,7 +1231,7 @@ const submitProject = () => {
                     >
                         <Link
                             :href="`/sections/${section.id}/assessments/${item.id}`"
-                            prefetch="hover"
+                            :prefetch="$page.props.is_offline ? false : 'hover'"
                             class="paper-card group flex h-full flex-col justify-between transition-shadow hover:border-primary/50 hover:shadow-lg"
                         >
                             <div>

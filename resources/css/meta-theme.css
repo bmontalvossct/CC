@@ -1,0 +1,97 @@
+/* ClassCheck's Meta-inspired workspace theme. Opt in with .meta-theme. */
+.meta-theme {
+    --background: 48 28% 96%;
+    --foreground: 220 15% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 15% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 12%;
+    --primary: 45 96% 56%;
+    --primary-text: 40 88% 25%;
+    --primary-foreground: 40 60% 12%;
+    --secondary: 45 18% 94%;
+    --secondary-foreground: 220 15% 20%;
+    --muted: 45 18% 94%;
+    --muted-foreground: 218 10% 43%;
+    --accent: 47 100% 94%;
+    --accent-foreground: 40 88% 25%;
+    --border: 45 15% 87%;
+    --input: 45 15% 80%;
+    --ring: 42 88% 34%;
+    --radius: 0.75rem;
+    --font-ui: 'Segoe UI Variable Text', 'Segoe UI', Helvetica, Arial, sans-serif;
+    --surface-shadow: 0 1px 2px rgb(24 32 45 / 0.04), 0 5px 20px rgb(24 32 45 / 0.03);
+    font-family: var(--font-ui);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+.dark .meta-theme {
+    --background: 240 2% 9%;
+    --foreground: 210 10% 94%;
+    --card: 240 2% 13%;
+    --card-foreground: 210 10% 94%;
+    --popover: 240 2% 16%;
+    --popover-foreground: 210 10% 94%;
+    --primary: 45 96% 62%;
+    --primary-text: 45 96% 72%;
+    --primary-foreground: 220 25% 12%;
+    --secondary: 240 2% 18%;
+    --secondary-foreground: 210 10% 94%;
+    --muted: 240 2% 18%;
+    --muted-foreground: 218 8% 68%;
+    --accent: 45 24% 20%;
+    --accent-foreground: 45 96% 78%;
+    --border: 240 2% 23%;
+    --input: 240 2% 30%;
+    --ring: 45 96% 62%;
+    --surface-shadow: 0 1px 3px rgb(0 0 0 / 0.15), 0 5px 20px rgb(0 0 0 / 0.08);
+}
+
+.meta-theme .paper-card {
+    border-radius: 18px;
+    box-shadow: var(--surface-shadow);
+}
+
+.meta-theme .text-primary {
+    color: hsl(var(--primary-text));
+}
+
+.meta-theme .dark-button {
+    color: hsl(var(--primary-foreground));
+}
+
+.meta-theme h1,
+.meta-theme h2 {
+    font-family: var(--font-ui);
+    letter-spacing: -0.025em;
+}
+
+.meta-theme button,
+.meta-theme input,
+.meta-theme select,
+.meta-theme textarea {
+    font-family: inherit;
+}
+
+.meta-theme button {
+    -webkit-tap-highlight-color: transparent;
+}
+
+@media print {
+    .meta-theme,
+    .dark .meta-theme {
+        --background: 0 0% 100%;
+        --foreground: 0 0% 0%;
+        --card: 0 0% 100%;
+        --card-foreground: 0 0% 0%;
+        --primary: 0 0% 0%;
+        --primary-text: 0 0% 0%;
+        --secondary: 0 0% 96%;
+        --muted: 0 0% 96%;
+        --muted-foreground: 0 0% 25%;
+        --accent: 0 0% 98%;
+        --border: 0 0% 75%;
+    }
+}

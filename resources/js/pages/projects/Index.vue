@@ -137,7 +137,7 @@ const submit = () => {
                     <div class="flex flex-wrap items-center gap-3">
                         <Link
                             :href="`/sections/${section.id}/assessments`"
-                            prefetch="hover"
+                            :prefetch="$page.props.is_offline ? false : 'hover'"
                             class="shadow-xs inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
                         >
                             <ArrowLeft class="size-4 text-muted-foreground" />

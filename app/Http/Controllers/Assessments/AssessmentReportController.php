@@ -33,6 +33,9 @@ class AssessmentReportController extends AssessmentModuleController
     public function updateWeights(Request $request, Section $section): RedirectResponse
     {
         $this->authorizeSection($section);
+        if ($request->user()->grading_formula !== null) {
+            return back()->withErrors(['weights' => 'Your account grading formula is active. Edit it in Settings → Grading formula to update all sections.']);
+        }
 
         $current = array_merge(GradebookCalculationService::DEFAULT_WEIGHTS, $section->grading_weights ?? []);
 

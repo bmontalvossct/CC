@@ -31,6 +31,10 @@ class AssessmentScoreController extends AssessmentModuleController
         abort_unless((int) $student->section_id === (int) $section->id, 404);
 
         $score = $request->validated('score');
+        $markAbsent = $request->boolean('mark_absent');
+        if ($markAbsent && $score !== null) {
+            throw ValidationException::withMessages(['score' => 'An absent entry cannot also have a score.']);
+        }
         if ($score !== null && (float) $score > (float) $assessment->max_points) {
             throw ValidationException::withMessages(['score' => "Score cannot exceed {$assessment->max_points}."]);
         }
@@ -42,7 +46,7 @@ class AssessmentScoreController extends AssessmentModuleController
             ->exists();
         $override = $request->boolean('include_absent');
 
-        if ($absent && ! $override) {
+        if ($absent && ! $override && ! $markAbsent) {
             throw ValidationException::withMessages(['score' => 'This student is absent. Enable the absent override to enter a score.']);
         }
 
@@ -54,14 +58,18 @@ class AssessmentScoreController extends AssessmentModuleController
                 'score' => $score,
                 'remarks' => $remarks !== null && trim($remarks) !== '' ? trim($remarks) : null,
                 'absence_override' => $absent && $override,
+                'marked_absent' => $markAbsent,
             ],
         );
+
+        cache()->forget("section_{$section->id}_gradebook_calc");
 
         return response()->json([
             'student_id' => $student->id,
             'score' => $record->score,
             'remarks' => $record->remarks,
             'absence_override' => $record->absence_override,
+            'marked_absent' => $record->marked_absent,
             'saved_at' => $record->updated_at->toIso8601String(),
         ]);
     }
@@ -94,7 +102,9 @@ class AssessmentScoreController extends AssessmentModuleController
             $score->update([
                 'score' => $result['score'],
                 'remarks' => $result['remarks'],
+                'marked_absent' => false,
             ]);
+            cache()->forget("section_{$section->id}_gradebook_calc");
 
             return response()->json([
                 'success' => true,
@@ -234,9 +244,12 @@ class AssessmentScoreController extends AssessmentModuleController
             'remarks' => ['nullable', 'array'],
             'remarks.*' => ['nullable', 'string', 'max:10000'],
             'include_absent' => ['nullable', 'boolean'],
+            'marked_absent' => ['sometimes', 'array'],
+            'marked_absent.*' => ['boolean'],
         ]);
 
         $includeAbsent = (bool) ($validated['include_absent'] ?? false);
+        $absenceMarkers = $validated['marked_absent'] ?? [];
         $rawScores = $validated['scores'];
         $rawRemarks = $validated['remarks'] ?? [];
 
@@ -261,7 +274,7 @@ class AssessmentScoreController extends AssessmentModuleController
             );
         }
 
-        DB::transaction(function () use ($assessment, $rawScores, $rawRemarks, $validMap, $absentMap, $includeAbsent) {
+        DB::transaction(function () use ($assessment, $rawScores, $rawRemarks, $validMap, $absentMap, $includeAbsent, $absenceMarkers) {
             foreach ($rawScores as $studentId => $rawVal) {
                 $sId = (int) $studentId;
                 if (! isset($validMap[$sId])) {
@@ -269,7 +282,8 @@ class AssessmentScoreController extends AssessmentModuleController
                 }
 
                 $isAbsent = isset($absentMap[$sId]);
-                if ($isAbsent && ! $includeAbsent) {
+                $markedAbsent = (bool) ($absenceMarkers[$sId] ?? false);
+                if ($isAbsent && ! $includeAbsent && ! $markedAbsent) {
                     continue;
                 }
 
@@ -285,6 +299,13 @@ class AssessmentScoreController extends AssessmentModuleController
                 }
 
                 $remarkVal = isset($rawRemarks[$sId]) ? trim((string) $rawRemarks[$sId]) : null;
+                if ($markedAbsent && $numericScore !== null) {
+                    throw ValidationException::withMessages(["scores.{$sId}" => 'An absent entry cannot also have a score.']);
+                }
+                // Older clients may omit markers; preserve an existing absence when saving a blank score.
+                if (! array_key_exists($sId, $absenceMarkers) && $numericScore === null) {
+                    $markedAbsent = (bool) $assessment->scores()->where('student_id', $sId)->value('marked_absent');
+                }
                 if ($remarkVal === '') {
                     $remarkVal = null;
                 }
@@ -295,10 +316,13 @@ class AssessmentScoreController extends AssessmentModuleController
                         'score' => $numericScore,
                         'remarks' => $remarkVal,
                         'absence_override' => $isAbsent && $includeAbsent,
+                        'marked_absent' => $markedAbsent,
                     ]
                 );
             }
         });
+
+        cache()->forget("section_{$section->id}_gradebook_calc");
 
         if ($request->wantsJson()) {
             $saved = $assessment->scores()->pluck('score', 'student_id');

@@ -22,7 +22,7 @@ using Microsoft.Win32;
 [assembly: ComVisible(false)]
 [assembly: Guid("d4e6b29a-65a2-4b80-972c-8c3b7d21b0e8")]
 [assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyFileVersion("2026.10.21.1")]
 
 namespace ClassCheckInstaller
 {
@@ -155,7 +155,7 @@ namespace ClassCheckInstaller
 
         private void InitializeComponent()
         {
-            this.Text = "ClassCheck Setup Wizard";
+            this.Text = "ClassCheck Setup 2026.10.21.1";
             this.Font = new Font("Segoe UI", 9F);
             this.AutoScaleMode = AutoScaleMode.None;
             this.ClientSize = new Size(660, 450);
@@ -263,7 +263,12 @@ namespace ClassCheckInstaller
                     if (fbd.ShowDialog() == DialogResult.OK)
                     {
                         string selected = fbd.SelectedPath.TrimEnd('\\', '/');
-                        if (string.Equals(Path.GetFileName(selected), "ClassCheck", StringComparison.OrdinalIgnoreCase))
+                        string existing = InstallDiscovery.ExistingFolder(selected);
+                        if (existing != null)
+                        {
+                            txtPath.Text = existing;
+                        }
+                        else if (string.Equals(Path.GetFileName(selected), "ClassCheck", StringComparison.OrdinalIgnoreCase))
                         {
                             txtPath.Text = selected;
                         }
@@ -359,12 +364,20 @@ namespace ClassCheckInstaller
             btnInstall.FlatAppearance.BorderSize = 0;
             btnInstall.Click += BtnInstall_Click;
             this.Controls.Add(btnInstall);
+            txtPath.TextChanged += (sender, args) =>
+            {
+                bool update = InstallDiscovery.ExistingFolder(txtPath.Text) != null;
+                btnInstall.Text = update ? "Update" : "Install";
+                lblPathDesc.Text = update ? "Existing installation (data preserved):" : "Destination folder:";
+                lblStatus.Text = update ? "Existing ClassCheck found. This folder will be updated." : "Ready to install. Click Install to begin.";
+            };
         }
 
         private void BtnInstall_Click(object sender, EventArgs e)
         {
             string installPath = txtPath.Text.Trim();
-            bool isUpdate = !string.IsNullOrEmpty(GetExistingInstallPath());
+            installPath = InstallDiscovery.ExistingFolder(installPath) ?? installPath;
+            bool isUpdate = File.Exists(Path.Combine(installPath, ".env")) || Directory.Exists(Path.Combine(installPath, "database"));
             if (string.IsNullOrEmpty(installPath))
             {
                 MessageBox.Show("Please specify a valid installation folder.", "Invalid Folder", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -389,16 +402,8 @@ namespace ClassCheckInstaller
             {
                 try
                 {
-                    // 1. Terminate any running ClassCheck instances before replacing files
-                    try
-                    {
-                        Process[] existing = Process.GetProcessesByName("ClassCheck");
-                        foreach (Process p in existing)
-                        {
-                            try { p.Kill(); p.WaitForExit(1500); } catch { }
-                        }
-                    }
-                    catch { }
+                    // Stop only this installation, including PHP, before backing up SQLite/WAL.
+                    SafeUpdate.StopApplication(installPath);
 
                     if (!Directory.Exists(installPath))
                     {
@@ -408,37 +413,15 @@ namespace ClassCheckInstaller
                     this.Invoke(new Action(() =>
                     {
                         progressBar.Value = 30;
-                        lblStatus.Text = "Extracting ClassCheck components and portable PHP runtime...";
+                        lblStatus.Text = "Backing up your data, then updating application files...";
                     }));
 
                     // 2. Extract payload safely with overwrite support while preserving database
-                    string localZip = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "payload.zip");
-                    if (File.Exists(localZip))
+                    string backupPath;
+                    using (Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("payload.zip"))
                     {
-                        using (ZipArchive archive = ZipFile.OpenRead(localZip))
-                        {
-                            ExtractArchiveSafely(archive, installPath);
-                        }
-                    }
-                    else
-                    {
-                        // Check if payload is embedded in resource
-                        Assembly asm = Assembly.GetExecutingAssembly();
-                        using (Stream stream = asm.GetManifestResourceStream("payload.zip"))
-                        {
-                            if (stream != null)
-                            {
-                                using (ZipArchive archive = new ZipArchive(stream))
-                                {
-                                    ExtractArchiveSafely(archive, installPath);
-                                }
-                            }
-                            else
-                            {
-                                // If not found, copy all files from current directory
-                                CopyDirectory(AppDomain.CurrentDomain.BaseDirectory, installPath);
-                            }
-                        }
+                        if (stream == null) throw new IOException("The installer payload is missing. Download a complete installer.");
+                        using (ZipArchive archive = new ZipArchive(stream)) backupPath = SafeUpdate.Install(archive, installPath);
                     }
 
                     this.Invoke(new Action(() =>
@@ -500,7 +483,7 @@ namespace ClassCheckInstaller
                     this.Invoke(new Action(() =>
                     {
                         progressBar.Value = 100;
-                        lblStatus.Text = isUpdate ? "Update completed successfully!" : "Installation completed successfully!";
+                        lblStatus.Text = isUpdate ? "Updated to 2026.10.21.1. Your records and files are preserved." : "ClassCheck 2026.10.21.1 installed successfully!";
                         lblStatus.ForeColor = Color.FromArgb(22, 101, 52);
 
                         btnInstall.Text = chkLaunch.Checked ? "Launch & Close" : "Finish";
@@ -541,82 +524,9 @@ namespace ClassCheckInstaller
             installThread.Start();
         }
 
-        private static void ExtractArchiveSafely(ZipArchive archive, string destinationDir)
-        {
-            foreach (ZipArchiveEntry entry in archive.Entries)
-            {
-                string completeFileName = Path.GetFullPath(Path.Combine(destinationDir, entry.FullName));
-                if (!completeFileName.StartsWith(Path.GetFullPath(destinationDir), StringComparison.OrdinalIgnoreCase))
-                {
-                    continue; // Prevent zip-slip
-                }
-
-                if (string.IsNullOrEmpty(entry.Name))
-                {
-                    // Directory entry
-                    Directory.CreateDirectory(completeFileName);
-                    continue;
-                }
-
-                string directoryPath = Path.GetDirectoryName(completeFileName);
-                if (!Directory.Exists(directoryPath))
-                {
-                    Directory.CreateDirectory(directoryPath);
-                }
-
-                // 1. Preserve database: If this is database.sqlite and already exists on disk with data, do NOT overwrite it!
-                if (entry.FullName.EndsWith("database.sqlite", StringComparison.OrdinalIgnoreCase) && File.Exists(completeFileName))
-                {
-                    long existingSize = new FileInfo(completeFileName).Length;
-                    if (existingSize > 0)
-                    {
-                        continue; // Preserve user's database records
-                    }
-                }
-
-                // 2. Preserve section management folders & all user-submitted files:
-                // Any existing file in storage/app/sections/ or storage/app/public/ or user files must NOT be deleted or overwritten!
-                string normalizedRelative = entry.FullName.Replace('\\', '/').TrimStart('/');
-                if (File.Exists(completeFileName))
-                {
-                    if (normalizedRelative.StartsWith("storage/app/sections/", StringComparison.OrdinalIgnoreCase) ||
-                        normalizedRelative.StartsWith("storage/app/private/sections/", StringComparison.OrdinalIgnoreCase) ||
-                        normalizedRelative.StartsWith("storage/app/public/", StringComparison.OrdinalIgnoreCase) ||
-                        normalizedRelative.StartsWith("storage/app/photos/", StringComparison.OrdinalIgnoreCase) ||
-                        normalizedRelative.StartsWith("storage/app/modules/", StringComparison.OrdinalIgnoreCase) ||
-                        normalizedRelative.StartsWith("storage/app/backup/", StringComparison.OrdinalIgnoreCase) ||
-                        normalizedRelative.StartsWith("storage/app/reports/", StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue; // Preserve existing user-submitted files and section folders
-                    }
-                }
-
-                entry.ExtractToFile(completeFileName, true);
-            }
-        }
-
         private static string GetExistingInstallPath()
         {
-            try
-            {
-                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\ClassCheck"))
-                {
-                    if (key != null)
-                    {
-                        object loc = key.GetValue("InstallLocation");
-                        if (loc != null)
-                        {
-                            string s = loc.ToString().Trim();
-                            if (!string.IsNullOrEmpty(s) && Directory.Exists(s))
-                            {
-                                return s;
-                            }
-                        }
-                    }
-                }
-            }
-            catch { }
-            return null;
+            return InstallDiscovery.Detect();
         }
 
         private static void RegisterUninstaller(string installPath, string mainExe, string uninstallerExe)
@@ -628,7 +538,7 @@ namespace ClassCheckInstaller
                     if (key != null)
                     {
                         key.SetValue("DisplayName", "ClassCheck Classroom Platform");
-                        key.SetValue("DisplayVersion", "1.0.0");
+                        key.SetValue("DisplayVersion", "2026.10.21.1");
                         key.SetValue("Publisher", "ClassCheck");
                         key.SetValue("InstallLocation", installPath);
                         key.SetValue("DisplayIcon", mainExe + ",0");
@@ -657,23 +567,6 @@ namespace ClassCheckInstaller
                 file.Save(shortcutPath, false);
             }
             catch { }
-        }
-
-        private static void CopyDirectory(string sourceDir, string targetDir)
-        {
-            foreach (string dirPath in Directory.GetDirectories(sourceDir, "*", SearchOption.AllDirectories))
-            {
-                string relativePath = dirPath.Substring(sourceDir.Length).TrimStart('\\', '/');
-                if (relativePath.StartsWith("dist") || relativePath.StartsWith(".git")) continue;
-                Directory.CreateDirectory(Path.Combine(targetDir, relativePath));
-            }
-
-            foreach (string newPath in Directory.GetFiles(sourceDir, "*.*", SearchOption.AllDirectories))
-            {
-                string relativePath = newPath.Substring(sourceDir.Length).TrimStart('\\', '/');
-                if (relativePath.StartsWith("dist") || relativePath.StartsWith(".git")) continue;
-                File.Copy(newPath, Path.Combine(targetDir, relativePath), true);
-            }
         }
 
         private static void RunUninstaller()
@@ -734,12 +627,13 @@ namespace ClassCheckInstaller
                     // Remove everything EXCEPT database/ and storage/app/
                     foreach (string file in Directory.GetFiles(appDir))
                     {
+                        if (Path.GetFileName(file).StartsWith(".env", StringComparison.OrdinalIgnoreCase)) continue;
                         try { File.Delete(file); } catch { }
                     }
                     foreach (string dir in Directory.GetDirectories(appDir))
                     {
                         string dirName = Path.GetFileName(dir).ToLower();
-                        if (dirName != "database" && dirName != "storage")
+                        if (dirName != "database" && dirName != "storage" && dirName != "update-backups")
                         {
                             try { Directory.Delete(dir, true); } catch { }
                         }
