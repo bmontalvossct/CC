@@ -2,6 +2,7 @@
 
 use Illuminate\Support\ConfigurationUrlParser;
 use Illuminate\Support\Str;
+use Pdo\Mysql;
 
 $databaseUrl = env('DATABASE_URL', env('DB_DATABASE_URL', env('POSTGRES_URL', env('DB_URL'))));
 $directDatabaseUrl = env('DB_DATABASE_URL_UNPOOLED', env('DB_POSTGRES_URL_NON_POOLING'));
@@ -66,7 +67,7 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                Pdo\Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
 
@@ -86,7 +87,7 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                Pdo\Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
 

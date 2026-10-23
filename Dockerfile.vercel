@@ -52,6 +52,9 @@ COPY Caddyfile /etc/caddy/Caddyfile
 COPY docker/php-production.ini /usr/local/etc/php/conf.d/zz-classcheck-production.ini
 COPY docker/vercel-entrypoint.sh /usr/local/bin/vercel-entrypoint
 
+RUN find app bootstrap config database routes -type f -name '*.php' -print0 \
+    | xargs -0 -n 1 php -l > /tmp/classcheck-php-lint.log
+
 RUN rm -f bootstrap/cache/*.php \
     && php artisan package:discover --ansi
 
